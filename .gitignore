@@ -1,0 +1,57 @@
+# ------------------------------
+# Global ignores
+# ------------------------------
+.env
+.env.*          # .env.local, .env.development, etc.
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+*.swp
+
+# ------------------------------
+# Node / React (frontend)
+# ------------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ------------------------------
+# Python (fuzzy-service)
+# ------------------------------
+software-project/fuzzy-service/__pycache__/
+software-project/fuzzy-service/*.pyc
+software-project/fuzzy-service/.pytest_cache/
+software-project/fuzzy-service/.mypy_cache/
+software-project/fuzzy-service/env/
+software-project/fuzzy-service/venv/
+
+# ------------------------------
+# .NET Core
+# ------------------------------
+**/bin/
+**/obj/
+**/*.user
+**/*.suo
+**/*.vspscc
+**/*.vssscc
+
+# Rider / VS Code
+.idea/
+.vscode/
+*.code-workspace
+
+# ------------------------------
+# Docker & Volumes
+# ------------------------------
+db/volume/
+deploy/mosquitto/data/
+docker-compose.override.yml
+
+# ------------------------------
+# Secrets and private keys
+# ------------------------------
+**/private.key
+**/public.key
+**/secrets.json

@@ -13,27 +13,27 @@ services:
       - ./deploy/mosquitto/data:/mosquitto/data
 
   sensor-service:
-    build: ./project1/sensor-service
+    build: ./hardware-project/sensor-service
     container_name: sensor-service
-    env_file: ./project1/sensor-service/.env
+    env_file: ./hardware-project/sensor-service/.env
     depends_on:
       - mqtt
     ports:
       - "5001:80"
 
   actuator-service:
-    build: ./project1/actuator-service
+    build: ./hardware-project/actuator-service
     container_name: actuator-service
-    env_file: ./project1/actuator-service/.env
+    env_file: ./hardware-project/actuator-service/.env
     depends_on:
       - mqtt
     ports:
       - "5002:80"
 
   mqtt-agent:
-    build: ./project1/mqtt-agent
+    build: ./hardware-project/mqtt-agent
     container_name: mqtt-agent
-    env_file: ./project1/mqtt-agent/.env
+    env_file: ./hardware-project/mqtt-agent/.env
     depends_on:
       - mqtt
 
@@ -42,48 +42,48 @@ services:
   # -----------------------------
 
   auth-service:
-    build: ./project2/auth-service
+    build: ./software-project/auth-service
     container_name: auth-service
-    env_file: ./project2/auth-service/.env
+    env_file: ./software-project/auth-service/.env
     ports:
       - "6001:80"
 
   api-gateway:
-    build: ./project2/api-gateway
+    build: ./software-project/api-gateway
     container_name: api-gateway
-    env_file: ./project2/api-gateway/.env
+    env_file: ./software-project/api-gateway/.env
     depends_on:
       - auth-service
     ports:
       - "80:80"
 
   bff-service:
-    build: ./project2/bff-service
+    build: ./software-project/bff-service
     container_name: bff-service
-    env_file: ./project2/bff-service/.env
+    env_file: ./software-project/bff-service/.env
     depends_on:
       - auth-service
     ports:
       - "6002:80"
 
   fuzzy-service:
-    build: ./project2/fuzzy-service
+    build: ./software-project/fuzzy-service
     container_name: fuzzy-service
-    env_file: ./project2/fuzzy-service/.env
+    env_file: ./software-project/fuzzy-service/.env
     ports:
       - "6003:8000"
 
   notification-service:
-    build: ./project2/notification-service
+    build: ./software-project/notification-service
     container_name: notification-service
-    env_file: ./project2/notification-service/.env
+    env_file: ./software-project/notification-service/.env
     ports:
       - "6004:80"
 
   catalog-service:
-    build: ./project2/catalog-service
+    build: ./software-project/catalog-service
     container_name: catalog-service
-    env_file: ./project2/catalog-service/.env
+    env_file: ./software-project/catalog-service/.env
     ports:
       - "6005:80"
 
