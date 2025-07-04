@@ -1,0 +1,105 @@
+services:
+  # -----------------------------
+  # Proyecto 1: Hardware
+  # -----------------------------
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001" # WebSocket (opcional)
+    volumes:
+      - ./deploy/mosquitto/config:/mosquitto/config
+      - ./deploy/mosquitto/data:/mosquitto/data
+
+  sensor-service:
+    build: ./project1/sensor-service
+    container_name: sensor-service
+    env_file: ./project1/sensor-service/.env
+    depends_on:
+      - mqtt
+    ports:
+      - "5001:80"
+
+  actuator-service:
+    build: ./project1/actuator-service
+    container_name: actuator-service
+    env_file: ./project1/actuator-service/.env
+    depends_on:
+      - mqtt
+    ports:
+      - "5002:80"
+
+  mqtt-agent:
+    build: ./project1/mqtt-agent
+    container_name: mqtt-agent
+    env_file: ./project1/mqtt-agent/.env
+    depends_on:
+      - mqtt
+
+  # -----------------------------
+  # Proyecto 2: Backend inteligente
+  # -----------------------------
+
+  auth-service:
+    build: ./project2/auth-service
+    container_name: auth-service
+    env_file: ./project2/auth-service/.env
+    ports:
+      - "6001:80"
+
+  api-gateway:
+    build: ./project2/api-gateway
+    container_name: api-gateway
+    env_file: ./project2/api-gateway/.env
+    depends_on:
+      - auth-service
+    ports:
+      - "80:80"
+
+  bff-service:
+    build: ./project2/bff-service
+    container_name: bff-service
+    env_file: ./project2/bff-service/.env
+    depends_on:
+      - auth-service
+    ports:
+      - "6002:80"
+
+  fuzzy-service:
+    build: ./project2/fuzzy-service
+    container_name: fuzzy-service
+    env_file: ./project2/fuzzy-service/.env
+    ports:
+      - "6003:8000"
+
+  notification-service:
+    build: ./project2/notification-service
+    container_name: notification-service
+    env_file: ./project2/notification-service/.env
+    ports:
+      - "6004:80"
+
+  catalog-service:
+    build: ./project2/catalog-service
+    container_name: catalog-service
+    env_file: ./project2/catalog-service/.env
+    ports:
+      - "6005:80"
+
+  # -----------------------------
+  # Frontend
+  # -----------------------------
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    env_file: ./frontend/.env
+    depends_on:
+      - bff-service
+    ports:
+      - "3000:3000"
+
+networks:
+  default:
+    name: espinaca-net
