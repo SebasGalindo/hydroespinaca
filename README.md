@@ -2,7 +2,7 @@
 
 Distributed architecture project for intelligent control of hydroponic cultivation using microservices, fuzzy control, and hardware communication.
 
-This project is a graduation thesis developed by students of **[Universidad de Cundinamarca]** as part of their final academic work. It is divided into two independent but interconnected subprojects:
+This project is a graduation thesis developed by students of **Universidad de Cundinamarca** as part of their final academic work. It is divided into two independent but interconnected subprojects:
 
 - **Project 1 – Hardware Team:** Responsible for data acquisition from sensors and actuator control.
 - **Project 2 – Software Team:** Responsible for data processing using fuzzy logic, visualization, and decision-making.

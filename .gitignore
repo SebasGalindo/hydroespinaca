@@ -2,7 +2,7 @@
 # Global ignores
 # ------------------------------
 .env
-.env.*          # .env.local, .env.development, etc.
+.env.*              # .env.local, .env.production, etc.
 *.log
 *.tmp
 *.bak
@@ -11,24 +11,39 @@ Thumbs.db
 *.swp
 
 # ------------------------------
-# Node / React (frontend)
+# Node / React / Vite
 # ------------------------------
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+**/node_modules/
+**/dist/
+**/.vite/
+**/.turbo/
+**/.eslintcache
+
+# ------------------------------
+# React Native / Expo (mobile-app)
+# ------------------------------
+**/ios/
+**/android/
+**/web-build/
+**/expo-shared/
+**/.expo/
+**/.expo-shared/
+**/build/             # expo export
+**/.expo-cache/
+**/.expo-settings/
 
 # ------------------------------
 # Python (fuzzy-service)
 # ------------------------------
-software-project/fuzzy-service/__pycache__/
-software-project/fuzzy-service/*.pyc
-software-project/fuzzy-service/.pytest_cache/
-software-project/fuzzy-service/.mypy_cache/
-software-project/fuzzy-service/env/
-software-project/fuzzy-service/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/env/
+**/venv/
 
 # ------------------------------
-# .NET Core
+# .NET Core (microservices)
 # ------------------------------
 **/bin/
 **/obj/
@@ -37,17 +52,24 @@ software-project/fuzzy-service/venv/
 **/*.vspscc
 **/*.vssscc
 
-# Rider / VS Code
+# ------------------------------
+# IDEs & editors
+# ------------------------------
 .idea/
 .vscode/
 *.code-workspace
 
 # ------------------------------
-# Docker & Volumes
+# Docker / Volumes / Compose
 # ------------------------------
 db/volume/
 deploy/mosquitto/data/
 docker-compose.override.yml
+
+# ------------------------------
+# Shared / Build outputs
+# ------------------------------
+packages/shared-ui/dist/
 
 # ------------------------------
 # Secrets and private keys
