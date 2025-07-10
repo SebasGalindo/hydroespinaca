@@ -1,8 +1,8 @@
 # ------------------------------
-# Global ignores
+# Global .env ignores (anywhere in the repo)
 # ------------------------------
-.env
-.env.*              # .env.local, .env.production, etc.
+**/.env
+**/.env.*
 *.log
 *.tmp
 *.bak
@@ -11,16 +11,17 @@ Thumbs.db
 *.swp
 
 # ------------------------------
-# Node / React / Vite
+# Node / React / Vite / Preact
 # ------------------------------
 **/node_modules/
 **/dist/
 **/.vite/
 **/.turbo/
 **/.eslintcache
+**/.parcel-cache/
 
 # ------------------------------
-# React Native / Expo (mobile-app)
+# React Native / Expo
 # ------------------------------
 **/ios/
 **/android/
@@ -28,9 +29,9 @@ Thumbs.db
 **/expo-shared/
 **/.expo/
 **/.expo-shared/
-**/build/             # expo export
 **/.expo-cache/
 **/.expo-settings/
+**/build/
 
 # ------------------------------
 # Python (fuzzy-service)
@@ -41,9 +42,11 @@ Thumbs.db
 **/.mypy_cache/
 **/env/
 **/venv/
+**/.venv/
+**/.ipynb_checkpoints/
 
 # ------------------------------
-# .NET Core (microservices)
+# .NET Core / C# (microservices)
 # ------------------------------
 **/bin/
 **/obj/
@@ -51,29 +54,50 @@ Thumbs.db
 **/*.suo
 **/*.vspscc
 **/*.vssscc
+**/*.csproj.user
+**/TestResults/
+**/.vs/
 
 # ------------------------------
 # IDEs & editors
 # ------------------------------
-.idea/
-.vscode/
+**/.idea/
+**/.vscode/
 *.code-workspace
 
 # ------------------------------
-# Docker / Volumes / Compose
+# Docker / Compose / Volumes
 # ------------------------------
-db/volume/
-deploy/mosquitto/data/
-docker-compose.override.yml
+**/db/volume/
+**/docker-data/
+**/deploy/mosquitto/data/
+**/docker-compose.override.yml
 
 # ------------------------------
-# Shared / Build outputs
+# Shared / Libraries / Output
 # ------------------------------
-packages/shared-ui/dist/
+**/packages/shared-ui/dist/
+**/packages/**/lib/
+**/packages/**/build/
 
 # ------------------------------
-# Secrets and private keys
+# Secrets and sensitive files
 # ------------------------------
 **/private.key
 **/public.key
 **/secrets.json
+**/*.pem
+**/*.crt
+**/*.cert
+**/*.enc
+**/auth.json
+**/credentials.json
+
+# ------------------------------
+# Mosquitto (Broker MQTT)
+# ------------------------------
+**/mosquitto/config/pwfile
+**/mosquitto/config/passwd
+**/mosquitto/passwd
+.env
+.env

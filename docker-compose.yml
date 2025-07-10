@@ -3,102 +3,116 @@ services:
   # Proyecto 1: Hardware
   # -----------------------------
   mqtt:
-    image: eclipse-mosquitto
+    image: eclipse-mosquitto:2.0
     container_name: mqtt
+    restart: unless-stopped
     ports:
       - "1883:1883"
-      - "9001:9001" # WebSocket (opcional)
+      - "9001:9001" # WebSocket (opcional, útil para frontends JS)
     volumes:
       - ./deploy/mosquitto/config:/mosquitto/config
-      - ./deploy/mosquitto/data:/mosquitto/data
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
 
   sensor-service:
     build: ./hardware-project/sensor-service
     container_name: sensor-service
-    env_file: ./hardware-project/sensor-service/.env
-    depends_on:
-      - mqtt
     ports:
-      - "5001:80"
+    - "5001:8080"
+    environment:
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - MQTT__Host=${MQTT_HOST}
+      - MQTT__Port=${MQTT_PORT}
+      - MQTT__ClientId=${MQTT_CLIENT}
+      - MQTT__Username=${MQTT_USER}
+      - MQTT__Password=${MQTT_PASS}
+      - APIKEY__Key=${SENSOR_API_KEY}
+   
 
-  actuator-service:
-    build: ./hardware-project/actuator-service
-    container_name: actuator-service
-    env_file: ./hardware-project/actuator-service/.env
-    depends_on:
-      - mqtt
-    ports:
-      - "5002:80"
 
-  mqtt-agent:
-    build: ./hardware-project/mqtt-agent
-    container_name: mqtt-agent
-    env_file: ./hardware-project/mqtt-agent/.env
-    depends_on:
-      - mqtt
+  # actuator-service:
+  #   build: ./hardware-project/actuator-service
+  #   container_name: actuator-service
+  #   env_file: ./hardware-project/actuator-service/.env
+  #   depends_on:
+  #     - mqtt
+  #   ports:
+  #     - "5002:80"
 
-  # -----------------------------
-  # Proyecto 2: Backend inteligente
-  # -----------------------------
+  # mqtt-agent:
+  #   build: ./hardware-project/mqtt-agent
+  #   container_name: mqtt-agent
+  #   env_file: ./hardware-project/mqtt-agent/.env
+  #   depends_on:
+  #     - mqtt
 
-  auth-service:
-    build: ./software-project/auth-service
-    container_name: auth-service
-    env_file: ./software-project/auth-service/.env
-    ports:
-      - "6001:80"
+  # # -----------------------------
+  # # Proyecto 2: Backend inteligente
+  # # -----------------------------
 
-  api-gateway:
-    build: ./software-project/api-gateway
-    container_name: api-gateway
-    env_file: ./software-project/api-gateway/.env
-    depends_on:
-      - auth-service
-    ports:
-      - "80:80"
+  # auth-service:
+  #   build: ./software-project/auth-service
+  #   container_name: auth-service
+  #   env_file: ./software-project/auth-service/.env
+  #   ports:
+  #     - "6001:80"
 
-  bff-service:
-    build: ./software-project/bff-service
-    container_name: bff-service
-    env_file: ./software-project/bff-service/.env
-    depends_on:
-      - auth-service
-    ports:
-      - "6002:80"
+  # api-gateway:
+  #   build: ./software-project/api-gateway
+  #   container_name: api-gateway
+  #   env_file: ./software-project/api-gateway/.env
+  #   depends_on:
+  #     - auth-service
+  #   ports:
+  #     - "80:80"
 
-  fuzzy-service:
-    build: ./software-project/fuzzy-service
-    container_name: fuzzy-service
-    env_file: ./software-project/fuzzy-service/.env
-    ports:
-      - "6003:8000"
+  # bff-service:
+  #   build: ./software-project/bff-service
+  #   container_name: bff-service
+  #   env_file: ./software-project/bff-service/.env
+  #   depends_on:
+  #     - auth-service
+  #   ports:
+  #     - "6002:80"
 
-  notification-service:
-    build: ./software-project/notification-service
-    container_name: notification-service
-    env_file: ./software-project/notification-service/.env
-    ports:
-      - "6004:80"
+  # fuzzy-service:
+  #   build: ./software-project/fuzzy-service
+  #   container_name: fuzzy-service
+  #   env_file: ./software-project/fuzzy-service/.env
+  #   ports:
+  #     - "6003:8000"
 
-  catalog-service:
-    build: ./software-project/catalog-service
-    container_name: catalog-service
-    env_file: ./software-project/catalog-service/.env
-    ports:
-      - "6005:80"
+  # notification-service:
+  #   build: ./software-project/notification-service
+  #   container_name: notification-service
+  #   env_file: ./software-project/notification-service/.env
+  #   ports:
+  #     - "6004:80"
+
+  # catalog-service:
+  #   build: ./software-project/catalog-service
+  #   container_name: catalog-service
+  #   env_file: ./software-project/catalog-service/.env
+  #   ports:
+  #     - "6005:80"
 
   # -----------------------------
   # Frontend
   # -----------------------------
 
-  frontend:
-    build: ./frontend
-    container_name: frontend
-    env_file: ./frontend/.env
-    depends_on:
-      - bff-service
-    ports:
-      - "3000:3000"
+  # frontend:
+  #   build: ./frontend
+  #   container_name: frontend
+  #   env_file: ./frontend/.env
+  #   depends_on:
+  #     - bff-service
+  #   ports:
+  #     - "3000:3000"
+
+volumes:
+  mqtt_data: 
+  mqtt_log:
 
 networks:
   default:
