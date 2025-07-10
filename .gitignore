@@ -99,5 +99,3 @@ Thumbs.db
 **/mosquitto/config/pwfile
 **/mosquitto/config/passwd
 **/mosquitto/passwd
-.env
-.env
