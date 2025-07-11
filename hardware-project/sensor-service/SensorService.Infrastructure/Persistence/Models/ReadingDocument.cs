@@ -1,8 +1,9 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson;
+﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
-public class SensorReadingDocument
+
+public class ReadingDocument
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -11,8 +12,8 @@ public class SensorReadingDocument
     [BsonElement("sensorId")]
     public string SensorId { get; set; } = default!;
 
-    [BsonElement("type")]
-    public string Type { get; set; } = default!;
+    [BsonElement("variableId")]
+    public string VariableId { get; set; } = default!;
 
     [BsonElement("value")]
     public double Value { get; set; }

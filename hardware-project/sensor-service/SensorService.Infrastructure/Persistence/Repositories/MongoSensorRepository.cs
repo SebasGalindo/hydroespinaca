@@ -18,19 +18,19 @@ public class MongoSensorRepository : ISensorRepository
         _collection = db.GetCollection<SensorDocument>("sensors");
     }
 
-    public async Task<IEnumerable<Sensor>> GetAllAsync()
-    {
-        var docs = await _collection.Find(_ => true).ToListAsync();
-        return docs.Select(SensorMapper.ToEntity);
-    }
-
     public async Task<Sensor?> GetByIdAsync(string id)
     {
         var doc = await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
         return doc is null ? null : SensorMapper.ToEntity(doc);
     }
 
-    public async Task AddAsync(Sensor sensor)
+    public async Task<List<Sensor>> GetAllAsync()
+    {
+        var docs = await _collection.Find(_ => true).ToListAsync();
+        return docs.Select(SensorMapper.ToEntity).ToList();
+    }
+
+    public async Task CreateAsync(Sensor sensor)
     {
         await _collection.InsertOneAsync(SensorMapper.ToDocument(sensor));
     }

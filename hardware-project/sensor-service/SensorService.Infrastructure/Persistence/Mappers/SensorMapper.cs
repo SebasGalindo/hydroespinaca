@@ -1,38 +1,34 @@
 ﻿using SensorService.Domain.Entities;
+using SensorService.Domain.Enums;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
+
 public static class SensorMapper
 {
     public static Sensor ToEntity(SensorDocument doc) => new()
     {
         Id = doc.Id,
         Code = doc.Code,
-        Type = doc.Type,
-        Unit = doc.Unit,
         PhysicalId = doc.PhysicalId,
         Location = doc.Location,
+        Esp32Id = doc.Esp32Id,
         SamplingFrequency = doc.SamplingFrequency,
-        Status = doc.Status
+        Variables = doc.Variables,
+        Status = Enum.Parse<SensorStatus>(doc.Status, ignoreCase: true),
+        CreatedAt = doc.CreatedAt
     };
 
-    public static SensorDocument ToDocument(Sensor entity)
+    public static SensorDocument ToDocument(Sensor entity) => new()
     {
-        var doc = new SensorDocument
-        {
-            Code = entity.Code,
-            Type = entity.Type,
-            Unit = entity.Unit,
-            PhysicalId = entity.PhysicalId,
-            Location = entity.Location,
-            SamplingFrequency = entity.SamplingFrequency,
-            Status = entity.Status
-        };
-
-        if (!string.IsNullOrWhiteSpace(entity.Id))
-            doc.Id = entity.Id;
-
-        return doc;
-    }
-
+        Id = entity.Id,
+        Code = entity.Code,
+        PhysicalId = entity.PhysicalId,
+        Location = entity.Location,
+        Esp32Id = entity.Esp32Id,
+        SamplingFrequency = entity.SamplingFrequency,
+        Variables = entity.Variables,
+        Status = entity.Status.ToString(),
+        CreatedAt = entity.CreatedAt
+    };
 }

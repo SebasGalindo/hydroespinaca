@@ -1,0 +1,12 @@
+# Sensor Service
+user sensor-apiuser
+topic readwrite sensor/#
+
+# Actuator Service
+user actuator-apiuser
+topic write actuator/#
+
+# ESP32
+user esp32-001
+topic write sensor/esp32-001/#
+topic read actuator/esp32-001/#

@@ -1,15 +1,14 @@
-﻿using SensorService.Domain.Enums;
-namespace SensorService.Domain.Entities;
+﻿namespace SensorService.Application.DTOs;
 
-public class Sensor
+public class SensorDto
 {
     public string Id { get; set; } = default!;
     public string Code { get; set; } = default!;
     public string PhysicalId { get; set; } = default!;
     public string Location { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
-    public SensorStatus Status { get; set; } = SensorStatus.Active;
-    public int SamplingFrequency { get; set; } // en segundos
+    public int SamplingFrequency { get; set; }
     public List<string> Variables { get; set; } = new();
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string Status { get; set; } = default!;
+    public DateTime CreatedAt { get; set; }
 }

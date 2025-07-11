@@ -1,14 +1,11 @@
-using System;
-using System.Buffers;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using SensorService.Domain.Config;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
+using System.Buffers;
+using System.Text;
 
 namespace SensorService.Infrastructure.Mqtt;
 
@@ -16,16 +13,20 @@ public class MqttClientService : BackgroundService
 {
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
-    private readonly ISensorReadingRepository _repository;
+    private readonly IReadingRepository _readingRepository;
+    private readonly ISensorRepository _sensorRepository;
 
     public MqttClientService(
-       ISensorReadingRepository repository,
-       IOptions<MqttSettings> mqttOptions)
+        IReadingRepository readingRepository,
+        ISensorRepository sensorRepository,
+        IOptions<MqttSettings> mqttOptions)
     {
-        _repository = repository;
+        _readingRepository = readingRepository;
+        _sensorRepository = sensorRepository;
+
         var config = mqttOptions.Value;
 
-        var factory = new MqttClientFactory();
+        var factory = new MqttClientFactory(); // 👈 esto asumes que ya existe como helper
         _client = factory.CreateMqttClient();
 
         _options = new MqttClientOptionsBuilder()
@@ -45,37 +46,50 @@ public class MqttClientService : BackgroundService
                 ? string.Empty
                 : Encoding.UTF8.GetString(e.ApplicationMessage.Payload.ToArray());
 
-            Console.WriteLine($"📥 Mensaje recibido - Topic: {topic}, Payload: {payload}");
+            Console.WriteLine($"📥 MQTT → Topic: {topic} | Payload: {payload}");
 
-            // Aquí deberías mapear el topic a sensorId y tipo real
-            // Este es un ejemplo simplificado:
-            var parts = topic.Split('/'); // e.g. sensor/snh0016/temp
+            var parts = topic.Split('/');
             if (parts.Length < 3)
             {
-                Console.WriteLine($"❌ Topic no válido: {topic}");
+                Console.WriteLine($"❌ MQTT topic inválido: {topic}");
                 return;
             }
 
-            var physicalId = parts[1];    // snh0016
-            var type = parts[2];          // temp
-            var sensorId = $"{physicalId}-{type}"; // match con Sensor.Id
+            var physicalId = parts[1];   // ej: "snh0016"
+            var variableId = parts[2];   // ej: "ph", "temp", etc.
 
             if (!double.TryParse(payload, out var value))
             {
-                Console.WriteLine($"⚠️ Payload inválido (no numérico): {payload}");
+                Console.WriteLine($"⚠️ Valor inválido: {payload}");
                 return;
             }
-
-            var reading = new SensorReading
+            try
             {
-                Id = Guid.NewGuid().ToString(), // O se puede dejar que Mongo lo genere
-                SensorId = sensorId,
-                Type = type,
-                Value = value,
-                Timestamp = DateTime.UtcNow
-            };
+                // Buscar el sensor que tenga ese PhysicalId y contenga esa variable
+                var sensors = await _sensorRepository.GetAllAsync();
+                var matchedSensor = sensors.FirstOrDefault(s =>
+                    s.PhysicalId == physicalId && s.Variables.Contains(variableId));
 
-            await _repository.SaveAsync(reading);
+                if (matchedSensor == null)
+                {
+                    Console.WriteLine($"⚠️ Sensor no encontrado para: {physicalId} - {variableId}");
+                    return;
+                }
+
+                var reading = new Reading
+                {
+                    SensorId = matchedSensor.Id!,
+                    VariableId = variableId,
+                    Value = value,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                await _readingRepository.CreateAsync(reading);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error procesando lectura MQTT: {ex.Message}");
+            }
         };
 
         _client.ConnectedAsync += async e =>
@@ -86,7 +100,21 @@ public class MqttClientService : BackgroundService
                 .Build());
         };
 
+        _client.DisconnectedAsync += async e =>
+        {
+            Console.WriteLine("🔌 Desconectado. Reintentando en 5s...");
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            try
+            {
+                await _client.ConnectAsync(_options, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Reintento fallido: {ex.Message}");
+            }
+        };
+
+
         await _client.ConnectAsync(_options, stoppingToken);
     }
-
 }

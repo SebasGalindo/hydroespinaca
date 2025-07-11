@@ -1,14 +1,17 @@
 # ------------------------------
 # Global .env ignores (anywhere in the repo)
 # ------------------------------
-**/.env
-**/.env.*
+.env*
+*/.env*
+**/.env*
+
 *.log
 *.tmp
 *.bak
 .DS_Store
 Thumbs.db
 *.swp
+
 
 # ------------------------------
 # Node / React / Vite / Preact
