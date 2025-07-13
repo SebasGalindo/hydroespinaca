@@ -1,3 +1,4 @@
+using SensorService.Domain.Exceptions;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using SensorService.Domain.Interfaces;
@@ -18,28 +19,63 @@ public class MongoVariableRepository : IVariableRepository
 
     public async Task<Variable?> GetByIdAsync(string id)
     {
-        var doc = await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
-        return doc is null ? null : VariableMapper.ToEntity(doc);
+        try
+        {
+            var doc = await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
+            return doc is null ? null : VariableMapper.ToEntity(doc);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error retrieving variable by ID", ex);
+        }
     }
 
     public async Task<List<Variable>> GetAllAsync()
     {
-        var docs = await _collection.Find(_ => true).ToListAsync();
-        return docs.Select(VariableMapper.ToEntity).ToList();
+        try
+        {
+            var docs = await _collection.Find(_ => true).ToListAsync();
+            return docs.Select(VariableMapper.ToEntity).ToList();
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error retrieving all variables", ex);
+        }
     }
 
     public async Task CreateAsync(Variable variable)
     {
-        await _collection.InsertOneAsync(VariableMapper.ToDocument(variable));
+        try
+        {
+            await _collection.InsertOneAsync(VariableMapper.ToDocument(variable));
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error creating variable", ex);
+        }
     }
 
     public async Task UpdateAsync(Variable variable)
     {
-        await _collection.ReplaceOneAsync(x => x.Id == variable.Id, VariableMapper.ToDocument(variable));
+        try
+        {
+            await _collection.ReplaceOneAsync(x => x.Id == variable.Id, VariableMapper.ToDocument(variable));
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error updating variable", ex);
+        }
     }
 
     public async Task DeleteAsync(string id)
     {
-        await _collection.DeleteOneAsync(x => x.Id == id);
+        try
+        {
+            await _collection.DeleteOneAsync(x => x.Id == id);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error deleting variable", ex);
+        }
     }
 }

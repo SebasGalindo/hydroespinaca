@@ -1,3 +1,4 @@
+using SensorService.Domain.Exceptions;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
@@ -19,26 +20,49 @@ public class MongoReadingRepository : IReadingRepository
 
     public async Task CreateAsync(Reading reading)
     {
-        var doc = ReadingMapper.ToDocument(reading);
-        await _collection.InsertOneAsync(doc);
+        try
+        {
+            var doc = ReadingMapper.ToDocument(reading);
+            await _collection.InsertOneAsync(doc);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error creating reading", ex);
+        }
     }
 
     public async Task<List<Reading>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
     {
-        var filter = Builders<ReadingDocument>.Filter.And(
-            Builders<ReadingDocument>.Filter.Eq(x => x.SensorId, sensorId),
-            Builders<ReadingDocument>.Filter.Eq(x => x.VariableId, variableId),
-            Builders<ReadingDocument>.Filter.Gte(x => x.Timestamp, from),
-            Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
-        );
+        try
+        {
+            var filter = Builders<ReadingDocument>.Filter.And(
+                Builders<ReadingDocument>.Filter.Eq(x => x.SensorId, sensorId),
+                Builders<ReadingDocument>.Filter.Eq(x => x.VariableId, variableId),
+                Builders<ReadingDocument>.Filter.Gte(x => x.Timestamp, from),
+                Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
+            );
 
-        var docs = await _collection.Find(filter).ToListAsync();
-        return docs.Select(ReadingMapper.ToEntity).ToList();
+            var docs = await _collection.Find(filter).ToListAsync();
+            return docs.Select(ReadingMapper.ToEntity).ToList();
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error retrieving readings", ex);
+        }
     }
 
-    public async Task DeleteOlderThanAsync(DateTime cutoff)
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoff)
     {
-        var filter = Builders<ReadingDocument>.Filter.Lt(x => x.Timestamp, cutoff);
-        await _collection.DeleteManyAsync(filter);
+        try
+        {
+            var filter = Builders<ReadingDocument>.Filter.Lt(x => x.Timestamp, cutoff);
+            var result = await _collection.DeleteManyAsync(filter);
+            return (int)result.DeletedCount;
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error deleting old readings", ex);
+        }
     }
+
 }

@@ -7,6 +7,6 @@ COPY . .
 RUN dotnet restore ./SensorService.Api/SensorService.Api.csproj
 RUN dotnet build ./SensorService.Api/SensorService.Api.csproj -c Debug -o out
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["dotnet", "out/SensorService.Api.dll"]

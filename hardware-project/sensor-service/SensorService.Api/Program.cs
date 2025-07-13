@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.OpenApi.Models;
 using SensorService.Api.Middleware;
+using SensorService.Application.Interfaces;
+using SensorService.Application.Services;
 using SensorService.Application.Validators;
 using SensorService.Domain.Config;
 using SensorService.Domain.Interfaces;
@@ -28,11 +30,20 @@ builder.Services
     .Bind(builder.Configuration.GetSection("Mqtt"));
 
 // ✅ Servicios
-builder.Services.AddSingleton<IAggregateRepository, MongoAggregateRepository>();
+// Repositorios (Infraestructura)
+builder.Services.AddSingleton<ISensorRepository, MongoSensorRepository>();
 builder.Services.AddSingleton<IReadingRepository, MongoReadingRepository>();
 builder.Services.AddSingleton<ISensorAlertRepository, MongoSensorAlertRepository>();
-builder.Services.AddSingleton<ISensorRepository, MongoSensorRepository>();
 builder.Services.AddSingleton<IVariableRepository, MongoVariableRepository>();
+builder.Services.AddSingleton<IAggregateRepository, MongoAggregateRepository>();
+
+// Servicios de aplicación
+builder.Services.AddScoped<ISensorService, SensorApplicationService>();
+builder.Services.AddScoped<IReadingService, ReadingService>();
+builder.Services.AddScoped<ISensorAlertService, SensorAlertService>();
+builder.Services.AddScoped<IAggregateService, AggregateService>();
+builder.Services.AddScoped<IVariableService, VariableService>();
+
 
 builder.Services.AddHostedService<AggregateWorker>();
 builder.Services.AddHostedService<MqttClientService>();
@@ -76,6 +87,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
 
 
 var app = builder.Build();
@@ -100,11 +115,14 @@ app.MapGet("/", context =>
     return Task.CompletedTask;
 });
 
+Console.WriteLine($"Running in: {app.Environment.EnvironmentName}");
+
+app.UseMiddleware<ApiKeyMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 // Si en futuro agregás JWT:
 // app.UseAuthentication();
 app.UseAuthorization();
-
-app.UseMiddleware<ApiKeyMiddleware>();
 
 app.MapControllers();
 app.Run();

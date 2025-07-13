@@ -1,3 +1,4 @@
+using SensorService.Domain.Exceptions;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
@@ -19,20 +20,41 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
 
     public async Task CreateAsync(SensorAlert alert)
     {
-        var doc = SensorAlertMapper.ToDocument(alert);
-        await _collection.InsertOneAsync(doc);
+        try
+        {
+            var doc = SensorAlertMapper.ToDocument(alert);
+            await _collection.InsertOneAsync(doc);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error creating sensor alert", ex);
+        }
     }
 
     public async Task<List<SensorAlert>> GetBySensorIdAsync(string sensorId)
     {
-        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
-        var docs = await _collection.Find(filter).ToListAsync();
-        return docs.Select(SensorAlertMapper.ToEntity).ToList();
+        try
+        {
+            var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
+            var docs = await _collection.Find(filter).ToListAsync();
+            return docs.Select(SensorAlertMapper.ToEntity).ToList();
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error retrieving sensor alerts", ex);
+        }
     }
 
     public async Task AcknowledgeAsync(string alertId)
     {
-        var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, true);
-        await _collection.UpdateOneAsync(x => x.Id == alertId, update);
+        try
+        {
+            var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, true);
+            await _collection.UpdateOneAsync(x => x.Id == alertId, update);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error acknowledging sensor alert", ex);
+        }
     }
 }

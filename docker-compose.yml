@@ -28,7 +28,7 @@ services:
       - MQTT__Username=${SENSOR_MQTT_USER}
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
-
+      - ASPNETCORE_ENVIRONMENT=Development
   # actuator-service:
   #   build: ./hardware-project/actuator-service
   #   container_name: actuator-service

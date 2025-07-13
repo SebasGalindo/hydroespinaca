@@ -6,17 +6,18 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Services;
 
-public class SensorService : ISensorService
+public class SensorApplicationService : ISensorService
 {
     private readonly ISensorRepository _repo;
 
-    public SensorService(ISensorRepository repo)
+    public SensorApplicationService(ISensorRepository repo)
     {
         _repo = repo;
     }
 
     public async Task<List<SensorDto>> GetAllAsync()
     {
+        Console.WriteLine("Fetching all sensors from repository...");
         var sensors = await _repo.GetAllAsync();
         return sensors.Select(MapToDto).ToList();
     }
