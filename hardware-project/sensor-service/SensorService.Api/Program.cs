@@ -46,6 +46,8 @@ builder.Services.AddScoped<IVariableService, VariableService>();
 
 
 builder.Services.AddHostedService<AggregateWorker>();
+builder.Services.AddHostedService<Esp32OfflineWorker>();
+
 builder.Services.AddHostedService<MqttClientService>();
 builder.Services
     .AddOptions<ApiKeySettings>()

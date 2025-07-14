@@ -64,5 +64,16 @@ public class MongoReadingRepository : IReadingRepository
             throw new DatabaseOperationException("Error deleting old readings", ex);
         }
     }
+    public async Task<Reading?> GetLatestBySensorIdsAsync(List<string> sensorIds)
+    {
+        var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
+        return (await _collection
+            .Find(filter)
+            .SortByDescending(r => r.Timestamp)
+            .Limit(1)
+            .FirstOrDefaultAsync()) is { } doc
+            ? ReadingMapper.ToEntity(doc)
+            : null;
+    }
 
 }
