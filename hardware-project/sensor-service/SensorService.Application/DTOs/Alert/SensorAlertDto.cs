@@ -1,4 +1,4 @@
-﻿namespace SensorService.Application.DTOs;
+﻿namespace SensorService.Application.DTOs.Alert;
 public class SensorAlertDto
 {
     public string Id { get; set; } = default!;

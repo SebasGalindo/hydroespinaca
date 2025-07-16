@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs;
+﻿using SensorService.Application.DTOs.Variable;
 using SensorService.Application.Interfaces;
 using SensorService.Domain.Interfaces;
 
@@ -24,7 +24,8 @@ public class VariableService : IVariableService
             Description = x.Description,
             MinValue = x.MinValue,
             MaxValue = x.MaxValue,
-            Type = x.Type
+            Type = x.Type,
+            LastModified = x.LastModified
         }).ToList();
     }
 
@@ -39,11 +40,12 @@ public class VariableService : IVariableService
             Description = v.Description,
             MinValue = v.MinValue,
             MaxValue = v.MaxValue,
-            Type = v.Type
+            Type = v.Type,
+            LastModified = v.LastModified
         };
     }
 
-    public async Task AddAsync(VariableDto dto)
+    public async Task AddAsync(VariableCreateDto dto)
     {
         var entity = new Variable
         {
@@ -53,23 +55,25 @@ public class VariableService : IVariableService
             Description = dto.Description,
             MinValue = dto.MinValue,
             MaxValue = dto.MaxValue,
-            Type = dto.Type
+            Type = dto.Type,
+            LastModified = DateTime.UtcNow
         };
         await _repo.CreateAsync(entity);
     }
 
-    public async Task UpdateAsync(VariableDto dto)
+    public async Task UpdateAsync(string id, VariableUpdateDto dto)
     {
-        var entity = new Variable
-        {
-            Id = dto.Id,
-            Name = dto.Name,
-            Unit = dto.Unit,
-            Description = dto.Description,
-            MinValue = dto.MinValue,
-            MaxValue = dto.MaxValue,
-            Type = dto.Type
-        };
+        var entity = await _repo.GetByIdAsync(id);
+        if (entity == null) throw new Exception($"Variable '{id}' no encontrada.");
+
+        entity.Name = dto.Name;
+        entity.Unit = dto.Unit;
+        entity.Description = dto.Description;
+        entity.MinValue = dto.MinValue;
+        entity.MaxValue = dto.MaxValue;
+        entity.Type = dto.Type;
+        entity.LastModified = DateTime.UtcNow;
+
         await _repo.UpdateAsync(entity);
     }
 

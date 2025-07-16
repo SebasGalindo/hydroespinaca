@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SensorService.Application.DTOs;
+using SensorService.Application.DTOs.Variable;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
@@ -26,19 +26,16 @@ public class VariablesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] VariableDto dto)
+    public async Task<IActionResult> Create([FromBody] VariableCreateDto dto)
     {
         await _service.AddAsync(dto);
         return Ok();
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, [FromBody] VariableDto dto)
+    public async Task<IActionResult> Update(string id, [FromBody] VariableUpdateDto dto)
     {
-        if (id != dto.Id)
-            return BadRequest("ID in URL does not match ID in body.");
-
-        await _service.UpdateAsync(dto);
+        await _service.UpdateAsync(id, dto);
         return NoContent();
     }
 

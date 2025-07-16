@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs;
+﻿using SensorService.Application.DTOs.Sensor;
 
 namespace SensorService.Application.Interfaces;
 public interface ISensorService

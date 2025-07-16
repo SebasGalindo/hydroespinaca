@@ -5,5 +5,6 @@ public interface ISensorAlertRepository
 {
     Task CreateAsync(SensorAlert alert);
     Task<List<SensorAlert>> GetBySensorIdAsync(string sensorId);
-    Task AcknowledgeAsync(string alertId);
+    Task UpdateAcknowledgedAsync(string alertId, bool acknowledged);
+
 }

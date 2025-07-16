@@ -1,4 +1,4 @@
-﻿namespace SensorService.Application.DTOs;
+﻿namespace SensorService.Application.DTOs.Esp32Node;
 public class Esp32NodeDto
 {
     public string Id { get; set; } = default!;

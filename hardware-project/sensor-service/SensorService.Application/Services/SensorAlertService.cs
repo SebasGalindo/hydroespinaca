@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs;
+﻿using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
 using SensorService.Domain.Interfaces;
 
@@ -30,8 +30,8 @@ public class SensorAlertService : ISensorAlertService
         }).ToList();
     }
 
-    public async Task AcknowledgeAsync(string alertId)
+    public async Task AcknowledgeAsync(string alertId, bool acknowledged)
     {
-        await _repo.AcknowledgeAsync(alertId);
+        await _repo.UpdateAcknowledgedAsync(alertId, acknowledged);
     }
 }

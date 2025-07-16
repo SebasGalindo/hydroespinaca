@@ -1,5 +1,4 @@
-﻿using SensorService.Domain.Entities;
-using SensorService.Infrastructure.Persistence.Models;
+﻿using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
@@ -13,7 +12,8 @@ public static class VariableMapper
         Description = doc.Description,
         MinValue = doc.MinValue,
         MaxValue = doc.MaxValue,
-        Type = doc.Type
+        Type = doc.Type,
+        LastModified = doc.LastModified
     };
 
     public static VariableDocument ToDocument(Variable entity) => new()
@@ -24,6 +24,7 @@ public static class VariableMapper
         Description = entity.Description,
         MinValue = entity.MinValue,
         MaxValue = entity.MaxValue,
-        Type = entity.Type
+        Type = entity.Type,
+        LastModified = entity.LastModified
     };
 }

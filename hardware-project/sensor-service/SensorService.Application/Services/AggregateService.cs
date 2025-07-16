@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs;
+﻿using SensorService.Application.DTOs.Aggregate;
 using SensorService.Application.Interfaces;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -27,22 +27,5 @@ public class AggregateService : IAggregateService
             Count = x.Count,
             Timestamp = x.Timestamp
         }).ToList();
-    }
-
-
-    public async Task SaveAsync(AggregateDto dto)
-    {
-        var agg = new Aggregate
-        {
-            SensorId = dto.SensorId,
-            VariableId = dto.VariableId,
-            Avg = dto.Avg,
-            Min = dto.Min,
-            Max = dto.Max,
-            Count = dto.Count,
-            Timestamp = dto.Timestamp
-        };
-
-        await _repo.CreateAsync(agg);
     }
 }

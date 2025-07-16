@@ -45,16 +45,16 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         }
     }
 
-    public async Task AcknowledgeAsync(string alertId)
+    public async Task UpdateAcknowledgedAsync(string alertId, bool acknowledged)
     {
         try
         {
-            var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, true);
+            var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, acknowledged);
             await _collection.UpdateOneAsync(x => x.Id == alertId, update);
         }
         catch (Exception ex)
         {
-            throw new DatabaseOperationException("Error acknowledging sensor alert", ex);
+            throw new DatabaseOperationException("Error updating alert acknowledgement", ex);
         }
     }
 }

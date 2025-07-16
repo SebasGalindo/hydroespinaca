@@ -26,10 +26,7 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
 
     public async Task CreateAsync(Esp32Node node) =>
         await _collection.InsertOneAsync(Esp32NodeMapper.ToDocument(node));
-
-    public async Task UpdateLastSeenAsync(string id, DateTime lastSeen) =>
-        await _collection.UpdateOneAsync(d => d.Id == id, Builders<Esp32NodeDocument>.Update.Set(d => d.LastSeen, lastSeen));
-
+  
     public async Task UpdateStatusAsync(string id, string status) =>
         await _collection.UpdateOneAsync(d => d.Id == id, Builders<Esp32NodeDocument>.Update.Set(d => d.Status, status));
 }

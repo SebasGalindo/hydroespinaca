@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs;
+﻿using SensorService.Application.DTOs.Sensor;
 using SensorService.Application.Interfaces;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Enums;

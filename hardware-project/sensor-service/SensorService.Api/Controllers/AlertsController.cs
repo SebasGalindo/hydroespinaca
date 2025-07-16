@@ -22,9 +22,9 @@ public class AlertsController : ControllerBase
     }
 
     [HttpPost("acknowledge/{alertId}")]
-    public async Task<IActionResult> Acknowledge(string alertId)
+    public async Task<IActionResult> Acknowledge(string alertId, bool acknowledged)
     {
-        await _service.AcknowledgeAsync(alertId);
+        await _service.AcknowledgeAsync(alertId, acknowledged);
         return NoContent();
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SensorService.Application.DTOs;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
@@ -20,12 +19,5 @@ public class AggregatesController : ControllerBase
     {
         var aggregates = await _service.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
         return Ok(aggregates);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] AggregateDto dto)
-    {
-        await _service.SaveAsync(dto);
-        return Ok();
     }
 }

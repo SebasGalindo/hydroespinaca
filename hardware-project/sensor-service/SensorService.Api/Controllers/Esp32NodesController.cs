@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SensorService.Application.DTOs;
+using SensorService.Application.DTOs.Esp32Node;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.API.Controllers;
@@ -30,14 +30,14 @@ public class Esp32NodesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Esp32NodeDto dto)
+    public async Task<IActionResult> Create([FromBody] Esp32NodeCreateDto dto)
     {
         await _service.CreateAsync(dto);
         return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
     }
 
     [HttpPut("{id}/status")]
-    public async Task<IActionResult> UpdateStatus(string id, [FromBody] string status)
+    public async Task<IActionResult> UpdateStatus(string id, [FromBody] Esp32NodeUpdateStatusDto status)
     {
         await _service.UpdateStatusAsync(id, status);
         return NoContent();

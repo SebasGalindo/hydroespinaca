@@ -6,7 +6,7 @@ namespace SensorService.Infrastructure.Persistence.Models;
 public class AggregateDocument
 {
     [BsonId]
-    [BsonRepresentation(BsonType.String)] // Recomendado usar un ID compuesto tipo "sensor-variable-timestamp"
+    [BsonRepresentation(BsonType.String)]
     public string Id { get; set; } = default!;
 
     [BsonElement("sensorId")]

@@ -7,6 +7,5 @@ public interface IEsp32NodeRepository
     Task<List<Esp32Node>> GetAllAsync();
     Task<Esp32Node?> GetByIdAsync(string id);
     Task CreateAsync(Esp32Node node);
-    Task UpdateLastSeenAsync(string id, DateTime lastSeen);
     Task UpdateStatusAsync(string id, string status);
 }

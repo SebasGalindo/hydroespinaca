@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SensorService.Application.DTOs;
+using SensorService.Application.DTOs.Reading;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;

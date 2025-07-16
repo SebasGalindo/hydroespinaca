@@ -3,7 +3,7 @@ using Microsoft.OpenApi.Models;
 using SensorService.Api.Middleware;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Services;
-using SensorService.Application.Validators;
+using SensorService.Application.Validators.Sensor;
 using SensorService.Domain.Config;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Mqtt;

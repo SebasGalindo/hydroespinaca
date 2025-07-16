@@ -1,4 +1,4 @@
-﻿namespace SensorService.Application.DTOs;
+﻿namespace SensorService.Application.DTOs.Aggregate;
 public class AggregateDto
 {
     public string SensorId { get; set; } = default!;

@@ -26,4 +26,7 @@ public class VariableDocument
 
     [BsonElement("type")]
     public string Type { get; set; } = "analog"; // analog, boolean, digital
+
+    [BsonElement("lastModified")]
+    public DateTime LastModified { get; set; } = DateTime.UtcNow;
 }

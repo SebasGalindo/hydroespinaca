@@ -1,12 +1,15 @@
+using FluentValidation;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using MQTTnet;
+using SensorService.Application.DTOs.Mqtt;
+using SensorService.Application.Validators;
 using SensorService.Domain.Config;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using System.Buffers;
 using System.Text;
-using SensorService.Application.DTOs.Mqtt;
+using System.Text.Json;
 
 namespace SensorService.Infrastructure.Mqtt;
 
@@ -19,6 +22,7 @@ public class MqttClientService : BackgroundService
     private readonly ISensorAlertRepository _alertRepository;
     private readonly IAggregateRepository _aggregateRepository;
     private readonly IVariableRepository _variableRepository;
+    private readonly IValidator<ReadingBatchDto> _readingBatchValidator;
 
     public MqttClientService(
         IReadingRepository readingRepository,
@@ -26,7 +30,9 @@ public class MqttClientService : BackgroundService
         IOptions<MqttSettings> mqttOptions,
         IAggregateRepository aggregateRepository,
         ISensorAlertRepository alertRepository,
-        IVariableRepository variableRepository
+        IVariableRepository variableRepository,
+        IValidator<ReadingBatchDto> readingBatchValidator
+
         )
     {
         _readingRepository = readingRepository;
@@ -34,6 +40,7 @@ public class MqttClientService : BackgroundService
         _aggregateRepository = aggregateRepository;
         _alertRepository = alertRepository;
         _variableRepository = variableRepository;
+        _readingBatchValidator = readingBatchValidator;
 
         var config = mqttOptions.Value;
 
@@ -65,31 +72,38 @@ public class MqttClientService : BackgroundService
 
             try
             {
-                var dto = System.Text.Json.JsonSerializer.Deserialize<ReadingBatchDto>(payload, new System.Text.Json.JsonSerializerOptions
+                var dto = JsonSerializer.Deserialize<ReadingBatchDto>(payload, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
 
-                if (dto == null || dto.Readings == null || dto.Readings.Count == 0)
+                if (dto == null)
                 {
-                    Console.WriteLine("⚠️ JSON vacío o mal formado (Readings vacíos).");
+                    Console.WriteLine("❌ Error: Payload deserializado como null.");
+                    return;
+                }
+
+                var validationResult = _readingBatchValidator.Validate(dto);
+                if (!validationResult.IsValid)
+                {
+                    var errors = string.Join(" | ", validationResult.Errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}"));
+                    Console.WriteLine($"❌ Payload inválido:\n{errors}");
                     return;
                 }
 
                 var allSensors = await _sensorRepository.GetAllAsync();
 
-                // Mark as Esp32 Offline alerts if the ESP32 sent data again
+                // Resolve Esp32Offline alerts if there is new data
                 var anySensor = allSensors.FirstOrDefault(s => s.Esp32Id == dto.Esp32Id);
                 if (anySensor != null)
                 {
-                    var activeOfflineAlerts = await _alertRepository.GetBySensorIdAsync(anySensor.Id!);
-                    var unresolvedEsp32OfflineAlerts = activeOfflineAlerts
+                    var offlineAlerts = (await _alertRepository.GetBySensorIdAsync(anySensor.Id!))
                         .Where(a => a.Type == "Esp32Offline" && !a.Acknowledged)
                         .ToList();
 
-                    foreach (var alert in unresolvedEsp32OfflineAlerts)
+                    foreach (var alert in offlineAlerts)
                     {
-                        await _alertRepository.AcknowledgeAsync(alert.Id);
+                        await _alertRepository.UpdateAcknowledgedAsync(alert.Id, true);
                         Console.WriteLine($"✅ Alerta 'Esp32Offline' resuelta automáticamente para ESP32: {dto.Esp32Id}");
                     }
                 }
@@ -106,14 +120,11 @@ public class MqttClientService : BackgroundService
                         continue;
                     }
 
-
-                    // Validation against agronomic thresholds
                     var variable = await _variableRepository.GetByIdAsync(reading.VariableId);
                     if (variable is not null &&
-                    (reading.Value < variable.MinValue || reading.Value > variable.MaxValue))
+                        (reading.Value < variable.MinValue || reading.Value > variable.MaxValue))
                     {
                         var threshold = reading.Value < variable.MinValue ? variable.MinValue : variable.MaxValue;
-
                         await _alertRepository.CreateAsync(new SensorAlert
                         {
                             SensorId = matchedSensor.Id!,
@@ -127,7 +138,6 @@ public class MqttClientService : BackgroundService
                         });
                     }
 
-                    // Comparison with last aggregate
                     var lastAggregate = await _aggregateRepository
                         .GetBySensorAndVariableAsync(matchedSensor.Id!, reading.VariableId, DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow);
 
@@ -153,7 +163,6 @@ public class MqttClientService : BackgroundService
                         }
                     }
 
-
                     var entity = new Reading
                     {
                         SensorId = matchedSensor.Id!,
@@ -164,10 +173,11 @@ public class MqttClientService : BackgroundService
 
                     await _readingRepository.CreateAsync(entity);
                 }
+
                 var expectedSensors = allSensors
-                .Where(s => s.Esp32Id == dto.Esp32Id)
-                .SelectMany(s => s.Variables.Select(v => new { s.Id, s.PhysicalId, VariableId = v }))
-                .ToList();
+                    .Where(s => s.Esp32Id == dto.Esp32Id)
+                    .SelectMany(s => s.Variables.Select(v => new { s.Id, s.PhysicalId, VariableId = v }))
+                    .ToList();
 
                 var receivedKeys = dto.Readings
                     .Select(r => $"{r.PhysicalId}-{r.VariableId}")

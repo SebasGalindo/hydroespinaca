@@ -1,4 +1,4 @@
-﻿namespace SensorService.Application.DTOs;
+﻿namespace SensorService.Application.DTOs.Reading;
 
 public class ReadingDto
 {
