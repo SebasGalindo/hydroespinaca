@@ -1,29 +1,23 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Services;
 
 public class AggregateWorker : BackgroundService
 {
     private readonly ILogger<AggregateWorker> _logger;
-    private readonly ISensorRepository _sensorRepo;
-    private readonly IReadingRepository _readingRepo;
-    private readonly IAggregateRepository _aggregateRepo;
+    private readonly IServiceProvider _serviceProvider;
     private readonly TimeSpan _interval = TimeSpan.FromMinutes(10);
 
     public AggregateWorker(
         ILogger<AggregateWorker> logger,
-        ISensorRepository sensorRepo,
-        IReadingRepository readingRepo,
-        IAggregateRepository aggregateRepo)
+        IServiceProvider serviceProvider)
     {
         _logger = logger;
-        _sensorRepo = sensorRepo;
-        _readingRepo = readingRepo;
-        _aggregateRepo = aggregateRepo;
+        _serviceProvider = serviceProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,18 +26,27 @@ public class AggregateWorker : BackgroundService
         {
             try
             {
-                await ProcessAggregatesAsync();
+                using var scope = _serviceProvider.CreateScope();
+
+                var sensorRepo = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
+                var readingRepo = scope.ServiceProvider.GetRequiredService<IReadingRepository>();
+                var aggregateRepo = scope.ServiceProvider.GetRequiredService<IAggregateRepository>();
+
+                await ProcessAggregatesAsync(sensorRepo, readingRepo, aggregateRepo);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during aggregation job");
+                _logger.LogError(ex, "❌ Error during aggregation job");
             }
 
             await Task.Delay(_interval, stoppingToken);
         }
     }
 
-    private async Task ProcessAggregatesAsync()
+    private async Task ProcessAggregatesAsync(
+        ISensorRepository sensorRepo,
+        IReadingRepository readingRepo,
+        IAggregateRepository aggregateRepo)
     {
         var now = DateTime.UtcNow;
         var bucketTime = new DateTime(
@@ -52,13 +55,13 @@ public class AggregateWorker : BackgroundService
         );
         var windowStart = bucketTime.AddMinutes(-10);
 
-        var sensors = await _sensorRepo.GetAllAsync();
+        var sensors = await sensorRepo.GetAllAsync();
 
         foreach (var sensor in sensors)
         {
             foreach (var variableId in sensor.Variables)
             {
-                var readings = await _readingRepo.GetBySensorAndVariableAsync(sensor.Id, variableId, windowStart, bucketTime);
+                var readings = await readingRepo.GetBySensorAndVariableAsync(sensor.Id, variableId, windowStart, bucketTime);
                 if (readings.Count == 0) continue;
 
                 var values = readings.Select(x => x.Value).ToList();
@@ -75,16 +78,14 @@ public class AggregateWorker : BackgroundService
                     Timestamp = bucketTime
                 };
 
-                var existing = await _aggregateRepo.GetBySensorAndVariableAndTimestampAsync(sensor.Id, variableId, bucketTime);
+                var existing = await aggregateRepo.GetBySensorAndVariableAndTimestampAsync(sensor.Id, variableId, bucketTime);
                 if (existing is not null) continue;
 
-                await _aggregateRepo.CreateAsync(aggregate);
-
+                await aggregateRepo.CreateAsync(aggregate);
             }
         }
 
-        // Cleanup
-        var deleted = await _readingRepo.DeleteOlderThanAsync(DateTime.UtcNow.AddHours(-24));
-        _logger.LogInformation("Aggregates computed. Deleted {Count} old readings.", deleted);
+        var deleted = await readingRepo.DeleteOlderThanAsync(DateTime.UtcNow.AddHours(-24));
+        _logger.LogInformation("✅ Aggregates computed. Deleted {Count} old readings.", deleted);
     }
 }

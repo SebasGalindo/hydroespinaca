@@ -15,7 +15,9 @@ services:
       - mqtt_log:/mosquitto/log
 
   sensor-service:
-    build: ./hardware-project/sensor-service
+    build:
+      context: .
+      dockerfile: hardware-project/sensor-service/Dockerfile
     container_name: sensor-service
     ports:
       - "5001:8080"
@@ -29,6 +31,7 @@ services:
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
+
   # actuator-service:
   #   build: ./hardware-project/actuator-service
   #   container_name: actuator-service

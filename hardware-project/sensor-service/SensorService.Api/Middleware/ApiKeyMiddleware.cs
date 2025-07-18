@@ -18,6 +18,13 @@ public class ApiKeyMiddleware
     {
         var path = context.Request.Path.Value;
 
+        if (string.IsNullOrEmpty(path))
+        {
+            context.Response.StatusCode = 400; // Bad Request
+            await context.Response.WriteAsync("Path cannot be empty");
+            return;
+        }
+
         if (path.StartsWith("/swagger") || path.StartsWith("/docs") || path == "/")
         {
             await _next(context);

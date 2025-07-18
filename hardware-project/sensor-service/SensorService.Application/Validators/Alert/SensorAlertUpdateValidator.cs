@@ -7,8 +7,6 @@ public class SensorAlertUpdateValidator : AbstractValidator<SensorAlertUpdateDto
 {
     public SensorAlertUpdateValidator()
     {
-        RuleFor(x => x.Acknowledged)
-            .NotNull()
-            .WithMessage("El campo Acknowledged no puede ser nulo.");
+        RuleFor(x => x.Id).NotEmpty().WithMessage("El campo Id no puede ser nullo");
     }
 }

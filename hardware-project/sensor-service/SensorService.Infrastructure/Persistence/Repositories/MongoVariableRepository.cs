@@ -78,4 +78,8 @@ public class MongoVariableRepository : IVariableRepository
             throw new DatabaseOperationException("Error deleting variable", ex);
         }
     }
+    public async Task<int> CountByIdsAsync(IEnumerable<string> ids)
+    {
+        return (int)await _collection.CountDocumentsAsync(x => ids.Contains(x.Id));
+    }
 }

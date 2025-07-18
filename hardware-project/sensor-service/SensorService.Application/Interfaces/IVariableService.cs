@@ -7,6 +7,6 @@ public interface IVariableService
     Task<List<VariableDto>> GetAllAsync();
     Task<VariableDto?> GetByIdAsync(string id);
     Task AddAsync(VariableCreateDto dto);
-    Task UpdateAsync(string id, VariableUpdateDto dto);
+    Task UpdateAsync(VariableUpdateDto dto);
     Task DeleteAsync(string id);
 }

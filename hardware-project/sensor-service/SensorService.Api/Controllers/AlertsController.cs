@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
@@ -21,10 +22,12 @@ public class AlertsController : ControllerBase
         return Ok(alerts);
     }
 
-    [HttpPost("acknowledge/{alertId}")]
-    public async Task<IActionResult> Acknowledge(string alertId, bool acknowledged)
+    [HttpPatch("{alertId}/acknowledge")]
+    public async Task<IActionResult> Acknowledge(string alertId, [FromBody] SensorAlertUpdateDto dto)
     {
-        await _service.AcknowledgeAsync(alertId, acknowledged);
+        dto.Id = alertId;
+        await _service.AcknowledgeAsync(dto);
         return NoContent();
     }
+
 }

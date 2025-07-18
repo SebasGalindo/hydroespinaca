@@ -1,6 +1,7 @@
-﻿using SensorService.Application.DTOs.Sensor;
+﻿using FluentValidation;
+using SensorService.Application.DTOs.Sensor;
 using SensorService.Application.Interfaces;
-using SensorService.Domain.Entities;
+using SensorService.Application.Mappers;
 using SensorService.Domain.Enums;
 using SensorService.Domain.Interfaces;
 
@@ -9,55 +10,49 @@ namespace SensorService.Application.Services;
 public class SensorApplicationService : ISensorService
 {
     private readonly ISensorRepository _repo;
+    private readonly IValidator<SensorCreateDto> _createValidator;
+    private readonly IValidator<SensorUpdateDto> _updateValidator;
 
-    public SensorApplicationService(ISensorRepository repo)
+    public SensorApplicationService(
+        ISensorRepository repo,
+        IValidator<SensorCreateDto> createValidator,
+        IValidator<SensorUpdateDto> updateValidator
+        )
     {
         _repo = repo;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
 
     public async Task<List<SensorDto>> GetAllAsync()
     {
         Console.WriteLine("Fetching all sensors from repository...");
         var sensors = await _repo.GetAllAsync();
-        return sensors.Select(MapToDto).ToList();
+        return sensors.Select(SensorMapper.ToDto).ToList();
     }
 
     public async Task<SensorDto?> GetByIdAsync(string id)
     {
         var sensor = await _repo.GetByIdAsync(id);
-        return sensor is null ? null : MapToDto(sensor);
+        return sensor is null ? null : SensorMapper.ToDto(sensor);
     }
 
     public async Task<string> CreateAsync(SensorCreateDto dto)
     {
-        var sensor = new Sensor
-        {
-            Code = dto.Code,
-            PhysicalId = dto.PhysicalId,
-            Location = dto.Location,
-            Esp32Id = dto.Esp32Id,
-            SamplingFrequency = dto.SamplingFrequency,
-            Variables = dto.Variables,
-            CreatedAt = DateTime.UtcNow,
-            Status = SensorStatus.Active
-        };
-
+        await _createValidator.ValidateAndThrowAsync(dto);
+        var sensor = SensorMapper.ToEntity(dto);
         await _repo.CreateAsync(sensor);
         return sensor.Id!;
     }
 
-    public async Task UpdateAsync(string id, SensorUpdateDto dto)
+    public async Task UpdateAsync(SensorUpdateDto dto)
     {
-        var existing = await _repo.GetByIdAsync(id);
-        if (existing == null)
-            throw new KeyNotFoundException($"Sensor with id {id} not found");
+        await _updateValidator.ValidateAndThrowAsync(dto);
 
-        existing.PhysicalId = dto.PhysicalId;
-        existing.Location = dto.Location;
-        existing.Esp32Id = dto.Esp32Id;
-        existing.SamplingFrequency = dto.SamplingFrequency;
-        existing.Variables = dto.Variables;
-        existing.Status = Enum.Parse<SensorStatus>(dto.Status, ignoreCase: true);
+        var existing = await _repo.GetByIdAsync(dto.Id);
+        if (existing == null) throw new InvalidOperationException($"Sensor with id {dto.Id} not found");
+
+        SensorMapper.MapUpdate(dto, existing);
 
         await _repo.UpdateAsync(existing);
     }
@@ -66,17 +61,4 @@ public class SensorApplicationService : ISensorService
     {
         await _repo.DeleteAsync(id);
     }
-
-    private static SensorDto MapToDto(Sensor sensor) => new()
-    {
-        Id = sensor.Id,
-        Code = sensor.Code,
-        PhysicalId = sensor.PhysicalId,
-        Location = sensor.Location,
-        Esp32Id = sensor.Esp32Id,
-        SamplingFrequency = sensor.SamplingFrequency,
-        Variables = sensor.Variables,
-        Status = sensor.Status.ToString(),
-        CreatedAt = sensor.CreatedAt
-    };
 }

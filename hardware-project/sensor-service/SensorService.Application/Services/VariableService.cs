@@ -1,5 +1,7 @@
-﻿using SensorService.Application.DTOs.Variable;
+﻿using FluentValidation;
+using SensorService.Application.DTOs.Variable;
 using SensorService.Application.Interfaces;
+using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Services;
@@ -7,73 +9,46 @@ namespace SensorService.Application.Services;
 public class VariableService : IVariableService
 {
     private readonly IVariableRepository _repo;
+    private readonly IValidator<VariableCreateDto> _createValidator;
+    private readonly IValidator<VariableUpdateDto> _updateValidator;
 
-    public VariableService(IVariableRepository repo)
+    public VariableService(
+        IVariableRepository repo,
+        IValidator<VariableCreateDto> createValidator,
+        IValidator<VariableUpdateDto> updateValidator)
     {
         _repo = repo;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
 
     public async Task<List<VariableDto>> GetAllAsync()
     {
         var list = await _repo.GetAllAsync();
-        return list.Select(x => new VariableDto
-        {
-            Id = x.Id,
-            Name = x.Name,
-            Unit = x.Unit,
-            Description = x.Description,
-            MinValue = x.MinValue,
-            MaxValue = x.MaxValue,
-            Type = x.Type,
-            LastModified = x.LastModified
-        }).ToList();
+        return list.Select(VariableMapper.ToDto).ToList();
     }
 
     public async Task<VariableDto?> GetByIdAsync(string id)
     {
         var v = await _repo.GetByIdAsync(id);
-        return v is null ? null : new VariableDto
-        {
-            Id = v.Id,
-            Name = v.Name,
-            Unit = v.Unit,
-            Description = v.Description,
-            MinValue = v.MinValue,
-            MaxValue = v.MaxValue,
-            Type = v.Type,
-            LastModified = v.LastModified
-        };
+        return v is null ? null : VariableMapper.ToDto(v);
     }
 
     public async Task AddAsync(VariableCreateDto dto)
     {
-        var entity = new Variable
-        {
-            Id = dto.Id,
-            Name = dto.Name,
-            Unit = dto.Unit,
-            Description = dto.Description,
-            MinValue = dto.MinValue,
-            MaxValue = dto.MaxValue,
-            Type = dto.Type,
-            LastModified = DateTime.UtcNow
-        };
+        await _createValidator.ValidateAndThrowAsync(dto);
+        var entity = VariableMapper.ToEntity(dto);
         await _repo.CreateAsync(entity);
     }
 
-    public async Task UpdateAsync(string id, VariableUpdateDto dto)
+    public async Task UpdateAsync(VariableUpdateDto dto)
     {
-        var entity = await _repo.GetByIdAsync(id);
-        if (entity == null) throw new Exception($"Variable '{id}' no encontrada.");
+        await _updateValidator.ValidateAndThrowAsync(dto);
+        var entity = await _repo.GetByIdAsync(dto.Id);
+        if (entity == null)
+            throw new Exception($"Variable '{dto.Id}' no encontrada.");
 
-        entity.Name = dto.Name;
-        entity.Unit = dto.Unit;
-        entity.Description = dto.Description;
-        entity.MinValue = dto.MinValue;
-        entity.MaxValue = dto.MaxValue;
-        entity.Type = dto.Type;
-        entity.LastModified = DateTime.UtcNow;
-
+        VariableMapper.MapUpdate(dto, entity);
         await _repo.UpdateAsync(entity);
     }
 

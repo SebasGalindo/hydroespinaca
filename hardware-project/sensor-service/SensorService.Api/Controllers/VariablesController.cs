@@ -35,9 +35,11 @@ public class VariablesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, [FromBody] VariableUpdateDto dto)
     {
-        await _service.UpdateAsync(id, dto);
+        dto.Id = id;
+        await _service.UpdateAsync(dto);
         return NoContent();
     }
+
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)

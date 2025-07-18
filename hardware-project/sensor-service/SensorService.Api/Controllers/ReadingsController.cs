@@ -15,13 +15,6 @@ public class ReadingsController : ControllerBase
         _service = service;
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ReadingDto dto)
-    {
-        await _service.AddAsync(dto);
-        return Ok();
-    }
-
     [HttpGet("{sensorId}/{variableId}")]
     public async Task<IActionResult> GetBySensorAndVariable(string sensorId, string variableId, [FromQuery] DateTime from, [FromQuery] DateTime to)
     {

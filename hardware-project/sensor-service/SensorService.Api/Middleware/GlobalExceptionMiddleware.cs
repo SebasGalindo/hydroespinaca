@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+using HydroEspinaca.Shared.Responses;
 
 namespace SensorService.Api.Middleware;
 
@@ -9,11 +8,13 @@ public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IWebHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task Invoke(HttpContext context)
@@ -24,20 +25,24 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            // Logea excepción completa
-            _logger.LogError(ex, "❌ Unhandled exception processing {Method} {Path}",
-                             context.Request.Method, context.Request.Path);
+            _logger.LogError(ex, "❌ Unhandled exception");
 
-            // Devuelve JSON con detalle de error
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
-            var payload = JsonSerializer.Serialize(new
+
+            var error = new ErrorResponse
             {
-                message = "Internal Server Error",
-                detail = ex.Message,
-                stack = ex.StackTrace
-            });
-            await context.Response.WriteAsync(payload);
+                Message = "Internal Server Error"
+            };
+
+            if (_env.IsDevelopment() || _env.IsStaging())
+            {
+                error.Detail = ex.Message;
+                error.Stack = ex.StackTrace;
+            }
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(error));
+
         }
     }
 }

@@ -29,4 +29,8 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
   
     public async Task UpdateStatusAsync(string id, string status) =>
         await _collection.UpdateOneAsync(d => d.Id == id, Builders<Esp32NodeDocument>.Update.Set(d => d.Status, status));
+    public async Task<bool> ExistsAsync(string id)
+    {
+        return await _collection.Find(x => x.Id == id).AnyAsync();
+    }
 }

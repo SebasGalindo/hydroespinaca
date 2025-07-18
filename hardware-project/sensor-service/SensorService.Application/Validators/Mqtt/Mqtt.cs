@@ -19,7 +19,7 @@ public class ReadingBatchValidator : AbstractValidator<ReadingBatchDto>
         RuleFor(x => x.Esp32Id).NotEmpty();
         RuleFor(x => x.Timestamp)
             .NotEmpty()
-            .LessThanOrEqualTo(DateTime.UtcNow.AddMinutes(5)); // margen de tolerancia
+            .LessThanOrEqualTo(DateTime.UtcNow.AddMinutes(5)); // margin of tolerance
         RuleFor(x => x.Readings)
             .NotNull().WithMessage("La lista de lecturas no puede ser nula.")
             .Must(r => r.Any()).WithMessage("Debe haber al menos una lectura.");

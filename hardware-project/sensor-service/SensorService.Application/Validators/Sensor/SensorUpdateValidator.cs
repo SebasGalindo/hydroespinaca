@@ -1,30 +1,46 @@
 ﻿using FluentValidation;
-using SensorService.Application.Constants;
 using SensorService.Application.DTOs.Sensor;
+using SensorService.Domain.Enums;
+using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Validators.Sensor;
 
 public class SensorUpdateValidator : AbstractValidator<SensorUpdateDto>
 {
-    public SensorUpdateValidator()
+    public SensorUpdateValidator(
+        IVariableRepository variableRepo,
+        IEsp32NodeRepository esp32Repo)
     {
-        RuleFor(x => x.PhysicalId)
-            .NotEmpty().WithMessage("El identificador físico es obligatorio.");
+        {
+            RuleFor(x => x.PhysicalId)
+                .NotEmpty().WithMessage("El identificador físico es obligatorio.");
 
-        RuleFor(x => x.Location)
-            .NotEmpty().WithMessage("La ubicación es obligatoria.");
+            RuleFor(x => x.Location)
+                .NotEmpty().WithMessage("La ubicación es obligatoria.");
 
-        RuleFor(x => x.Esp32Id)
-            .NotEmpty().WithMessage("Debe especificarse un ESP32 válido.");
+            RuleFor(x => x.Esp32Id)
+                .NotEmpty().WithMessage("Debe especificarse un ESP32 válido.")
+                .MustAsync(async (id, _) =>
+                {
+                    var exists = await esp32Repo.ExistsAsync(id);
+                    return exists;
+                }).WithMessage("El ESP32 especificado no existe.");
 
-        RuleFor(x => x.SamplingFrequency)
-            .GreaterThan(0).WithMessage("La frecuencia de muestreo debe ser mayor que cero.");
+            RuleFor(x => x.SamplingFrequency)
+                .GreaterThan(0).WithMessage("La frecuencia de muestreo debe ser mayor que cero.");
 
-        RuleFor(x => x.Variables)
-            .NotEmpty().WithMessage("Debe asociarse al menos una variable.");
+            RuleFor(x => x.Variables)
+              .NotEmpty().WithMessage("Debe asociarse al menos una variable.")
+              .MustAsync(async (variables, _) =>
+              {
+                  var count = await variableRepo.CountByIdsAsync(variables);
+                  return count == variables.Count;
+              }).WithMessage("Una o más variables no existen.");
 
-        RuleFor(x => x.Status)
-            .Must(status => SensorStatuses.All.Contains(status))
-            .WithMessage($"El estado debe ser uno de: {string.Join(", ", SensorStatuses.All)}");
+            RuleFor(x => x.Status)
+                 .Must(s => Enum.TryParse<SensorStatus>(s, true, out _))
+                 .WithMessage($"El estado debe ser uno de: {string.Join(", ", Enum.GetNames(typeof(SensorStatus)))}");
+
+        }
     }
 }

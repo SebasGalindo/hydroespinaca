@@ -60,6 +60,7 @@ Thumbs.db
 **/*.csproj.user
 **/TestResults/
 **/.vs/
+/.nuget/packages/
 
 # ------------------------------
 # IDEs & editors

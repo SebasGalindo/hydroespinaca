@@ -2,6 +2,7 @@
 
 public class SensorUpdateDto
 {
+    public string Id { get; set; } = default!;
     public string PhysicalId { get; set; } = default!;
     public string Location { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;

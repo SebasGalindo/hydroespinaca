@@ -7,4 +7,5 @@ public interface IVariableRepository
     Task CreateAsync(Variable variable);
     Task UpdateAsync(Variable variable);
     Task DeleteAsync(string id);
+    Task<int> CountByIdsAsync(IEnumerable<string> ids);
 }
