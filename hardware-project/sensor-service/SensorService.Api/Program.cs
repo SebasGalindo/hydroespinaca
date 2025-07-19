@@ -1,10 +1,13 @@
 using FluentValidation;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using SensorService.Api.Middleware;
 using SensorService.Application.Interfaces;
+using SensorService.Application.Interfaces.UseCases.AggregateWorker;
+using SensorService.Application.Interfaces.UseCases.Esp32OfflineWorker;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Application.Services;
+using SensorService.Application.UseCases;
+using SensorService.Application.UseCases.Esp32OfflineWorker;
 using SensorService.Application.UseCases.ProcessReadingBatch;
 using SensorService.Application.Validators.Esp32Node;
 using SensorService.Domain.Config;
@@ -68,6 +71,8 @@ builder.Services.AddScoped<IVariableService, VariableService>();
 // 🧠 DOMINIO: Servicios
 // ---------------------------
 builder.Services.AddScoped<IAlertCalculationService, AlertCalculationService>();
+builder.Services.AddScoped<IAggregationService, AggregationService>();
+builder.Services.AddScoped<IEsp32StatusService, Esp32StatusService>();
 
 // ---------------------------
 // 🔄 BACKGROUND WORKERS
@@ -79,11 +84,15 @@ builder.Services.AddHostedService<MqttClientService>();
 // ---------------------------
 // 🧪 USE CASES
 // ---------------------------
-builder.Services.AddScoped<IProcessReadingBatchUseCase, ProcessReadingBatchUseCase>();
 builder.Services.AddScoped<IResolveOfflineAlertsUseCase, ResolveOfflineAlertsUseCase>();
 builder.Services.AddScoped<IMatchReadingsWithSensorsUseCase, MatchReadingsWithSensorsUseCase>();
 builder.Services.AddScoped<IGenerateAlertsUseCase, GenerateAlertsUseCase>();
 builder.Services.AddScoped<IGenerateInactiveSensorAlertsUseCase, GenerateInactiveSensorAlertsUseCase>();
+
+builder.Services.AddScoped<IProcessReadingBatchUseCase, ProcessReadingBatchUseCase>();
+builder.Services.AddScoped<IProcessAggregatesUseCase, ProcessAggregatesUseCase>();
+builder.Services.AddScoped<ICheckEsp32OfflineStatusUseCase, CheckEsp32OfflineStatusUseCase>();
+
 
 // ---------------------------
 // ✅ VALIDADORES (FluentValidation)
