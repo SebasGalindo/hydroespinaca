@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs.Sensor;
+﻿using HydroEspinaca.Shared.DTOs.Sensors;
 
 namespace SensorService.Application.Interfaces;
 public interface ISensorService

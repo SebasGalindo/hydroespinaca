@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs.Variable;
+﻿using HydroEspinaca.Shared.DTOs.Variables;
 
 namespace SensorService.Application.Interfaces;
 

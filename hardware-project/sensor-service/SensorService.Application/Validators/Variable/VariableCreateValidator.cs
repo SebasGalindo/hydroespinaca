@@ -1,6 +1,6 @@
 ﻿using FluentValidation;
-using SensorService.Application.Constants;
-using SensorService.Application.DTOs.Variable;
+using HydroEspinaca.Shared.Constants;
+using HydroEspinaca.Shared.DTOs.Variables;
 
 namespace SensorService.Application.Validators.Variable;
 

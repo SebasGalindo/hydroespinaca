@@ -1,6 +1,6 @@
 ﻿using FluentValidation;
-using SensorService.Application.DTOs.Esp32Node;
-using SensorService.Application.Constants;
+using HydroEspinaca.Shared.DTOs.Esp32;
+using HydroEspinaca.Shared.Constants;
 
 namespace SensorService.Application.Validators;
 

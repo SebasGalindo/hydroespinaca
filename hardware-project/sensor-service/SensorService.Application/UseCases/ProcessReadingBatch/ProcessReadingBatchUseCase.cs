@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using SensorService.Application.DTOs.Mqtt;
+using HydroEspinaca.Shared.DTOs.Mqtt;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Interfaces;
 

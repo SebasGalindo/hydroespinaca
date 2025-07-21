@@ -1,8 +1,8 @@
 ﻿using FluentValidation;
-using SensorService.Application.DTOs.Sensor;
+using HydroEspinaca.Shared.DTOs.Sensors;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
-using SensorService.Domain.Enums;
+using HydroEspinaca.Shared.Enums;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Services;

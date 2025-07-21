@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SensorService.Application.Interfaces.UseCases.Esp32OfflineWorker;
 using SensorService.Application.UseCases.Esp32OfflineWorker;
 using SensorService.Domain.ValueObjects;
 
@@ -45,7 +46,7 @@ public class Esp32OfflineWorker : BackgroundService
     private async Task ExecuteStatusCheckCycleAsync()
     {
         using var scope = _serviceProvider.CreateScope();
-        var useCase = scope.ServiceProvider.GetRequiredService<CheckEsp32OfflineStatusUseCase>();
+        var useCase = scope.ServiceProvider.GetRequiredService<ICheckEsp32OfflineStatusUseCase>();
 
         var result = await useCase.ExecuteAsync(_offlineThreshold);
 

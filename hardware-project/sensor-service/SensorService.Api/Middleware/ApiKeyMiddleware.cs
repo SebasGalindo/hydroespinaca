@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
-using SensorService.Domain.Config;
+using HydroEspinaca.Shared.Options;
 
 namespace SensorService.Api.Middleware;
 

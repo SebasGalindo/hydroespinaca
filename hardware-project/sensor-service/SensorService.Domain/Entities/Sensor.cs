@@ -1,4 +1,4 @@
-﻿using SensorService.Domain.Enums;
+﻿using HydroEspinaca.Shared.Enums;
 namespace SensorService.Domain.Entities;
 
 public class Sensor

@@ -1,4 +1,6 @@
-﻿using SensorService.Application.DTOs.Alert;
+﻿using HydroEspinaca.Shared.DTOs.Alerts;
+using SensorService.Application.DTOs.Alert;
+
 
 namespace SensorService.Application.Interfaces;
 

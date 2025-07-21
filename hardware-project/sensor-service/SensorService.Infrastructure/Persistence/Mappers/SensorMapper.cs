@@ -1,5 +1,5 @@
 ﻿using SensorService.Domain.Entities;
-using SensorService.Domain.Enums;
+using HydroEspinaca.Shared.Enums;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;

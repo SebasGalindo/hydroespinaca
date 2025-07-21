@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using SensorService.Application.DTOs.Mqtt;
+using HydroEspinaca.Shared.DTOs.Mqtt;
 
 namespace SensorService.Application.Validators.Mqtt;
 public class ReadingInputValidator : AbstractValidator<ReadingInput>

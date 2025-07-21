@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs.Esp32Node;
+﻿using HydroEspinaca.Shared.DTOs.Esp32;
 
 namespace SensorService.Application.Interfaces;
 

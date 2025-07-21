@@ -1,5 +1,4 @@
-﻿using SensorService.Application.DTOs.Variable;
-using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.DTOs.Variables;
 
 namespace SensorService.Application.Mappers;
 

@@ -1,6 +1,6 @@
-﻿using SensorService.Application.DTOs.Sensor;
+﻿using HydroEspinaca.Shared.DTOs.Sensors;
 using SensorService.Domain.Entities;
-using SensorService.Domain.Enums;
+using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Application.Mappers;
 public static class SensorMapper

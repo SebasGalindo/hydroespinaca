@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs.Mqtt;
+﻿using HydroEspinaca.Shared.DTOs.Mqtt;
 using SensorService.Application.UseCases.ProcessReadingBatch;
 
 namespace SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;

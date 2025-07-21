@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using SensorService.Application.DTOs.Sensor;
+using HydroEspinaca.Shared.DTOs.Sensors;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Validators.Sensor;

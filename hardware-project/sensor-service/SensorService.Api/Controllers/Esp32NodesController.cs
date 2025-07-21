@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SensorService.Application.DTOs.Esp32Node;
+using HydroEspinaca.Shared.DTOs.Esp32;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.API.Controllers;

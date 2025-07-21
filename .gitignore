@@ -103,3 +103,6 @@ Thumbs.db
 **/mosquitto/config/pwfile
 **/mosquitto/config/passwd
 **/mosquitto/passwd
+
+shared/HydroEspinaca.Shared/nupkg/*
+build-shared-and-install.sh

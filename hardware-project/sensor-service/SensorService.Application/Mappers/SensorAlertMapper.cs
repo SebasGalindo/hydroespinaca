@@ -1,4 +1,4 @@
-﻿using SensorService.Application.DTOs.Alert;
+﻿using HydroEspinaca.Shared.DTOs.Alerts;
 using SensorService.Domain.Entities;
 
 namespace SensorService.Application.Mappers;

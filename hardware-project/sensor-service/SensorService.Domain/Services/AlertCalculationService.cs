@@ -1,5 +1,6 @@
 ﻿using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
+using HydroEspinaca.Shared.Constants;
 
 namespace SensorService.Domain.Services;
 public class AlertCalculationService : IAlertCalculationService
@@ -13,11 +14,11 @@ public class AlertCalculationService : IAlertCalculationService
         return new SensorAlert
         {
             SensorId = reading.SensorId,
-            Type = "OutOfRange",
+            Type = AlertTypes.OutOfRange,
             Value = reading.Value,
             Threshold = threshold,
             Timestamp = timestamp,
-            Severity = "warning",
+            Severity = AlertSeverities.Warning,
             Message = $"Valor {reading.Value} fuera del rango permitido [{variable.MinValue} - {variable.MaxValue}]",
             Acknowledged = false
         };
@@ -26,19 +27,18 @@ public class AlertCalculationService : IAlertCalculationService
     public SensorAlert? CalculateAnomalyAlert(Reading reading, Aggregate latestAggregate, DateTime timestamp)
     {
         var diff = Math.Abs(reading.Value - latestAggregate.Avg);
-        var threshold = latestAggregate.Avg * 0.2; // 20% threshold - REGLA DE NEGOCIO
-
+        var threshold = latestAggregate.Avg * AlertRules.AnomalyThresholdPercent;
         if (diff <= threshold)
             return null;
 
         return new SensorAlert
         {
             SensorId = reading.SensorId,
-            Type = "Anomaly",
+            Type = AlertTypes.Anomaly,
             Value = reading.Value,
             Threshold = latestAggregate.Avg,
             Timestamp = timestamp,
-            Severity = "info",
+            Severity = AlertSeverities.Info,
             Message = $"Valor anómalo: {reading.Value} difiere significativamente del promedio anterior {latestAggregate.Avg:F2}",
             Acknowledged = false
         };

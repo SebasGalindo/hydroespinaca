@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SensorService.Application.UseCases;
+using SensorService.Application.Interfaces.UseCases.AggregateWorker;
 
 namespace SensorService.Infrastructure.Services;
 
@@ -43,7 +43,7 @@ public class AggregateWorker : BackgroundService
     private async Task ExecuteAggregationCycleAsync()
     {
         using var scope = _serviceProvider.CreateScope();
-        var useCase = scope.ServiceProvider.GetRequiredService<ProcessAggregatesUseCase>();
+        var useCase = scope.ServiceProvider.GetRequiredService<IProcessAggregatesUseCase>();
 
         var result = await useCase.ExecuteAsync(DateTime.UtcNow);
 

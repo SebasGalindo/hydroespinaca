@@ -1,4 +1,6 @@
-﻿using SensorService.Application.DTOs.Mqtt;
+﻿using HydroEspinaca.Shared.Constants;
+using HydroEspinaca.Shared.DTOs.Mqtt;
+using HydroEspinaca.Shared.Enums;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -19,7 +21,7 @@ public class GenerateInactiveSensorAlertsUseCase : IGenerateInactiveSensorAlerts
         var alerts = new List<SensorAlert>();
 
         var expectedSensors = allSensors
-            .Where(s => s.Esp32Id == dto.Esp32Id)
+             .Where(s => s.Esp32Id == dto.Esp32Id && s.Status == SensorStatus.Active)
             .SelectMany(s => s.Variables.Select(v => new { s.Id, s.PhysicalId, VariableId = v }))
             .ToList();
 
@@ -35,11 +37,11 @@ public class GenerateInactiveSensorAlertsUseCase : IGenerateInactiveSensorAlerts
                 alerts.Add(new SensorAlert
                 {
                     SensorId = expected.Id,
-                    Type = "InactiveSensor",
+                    Type = AlertTypes.InactiveSensor,
                     Value = 0,
                     Threshold = 0,
                     Timestamp = dto.Timestamp,
-                    Severity = "critical",
+                    Severity = AlertSeverities.Critical,
                     Message = $"No se recibió lectura esperada de {expected.PhysicalId} - {expected.VariableId}",
                     Acknowledged = false
                 });

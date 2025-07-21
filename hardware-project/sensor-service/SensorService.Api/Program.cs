@@ -1,4 +1,6 @@
 using FluentValidation;
+using HydroEspinaca.Shared.Extensions;
+using HydroEspinaca.Shared.Options;
 using Microsoft.OpenApi.Models;
 using SensorService.Api.Middleware;
 using SensorService.Application.Interfaces;
@@ -10,7 +12,6 @@ using SensorService.Application.UseCases;
 using SensorService.Application.UseCases.Esp32OfflineWorker;
 using SensorService.Application.UseCases.ProcessReadingBatch;
 using SensorService.Application.Validators.Esp32Node;
-using SensorService.Domain.Config;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.Services;
 using SensorService.Infrastructure.Persistence.Repositories;
@@ -30,23 +31,9 @@ builder.Configuration
 
 // Mongo
 builder.Services
-    .AddOptions<MongoSettings>()
-    .Bind(builder.Configuration.GetSection("Mongo"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// MQTT
-builder.Services
-    .AddOptions<MqttSettings>()
-    .Bind(builder.Configuration.GetSection("Mqtt"));
-
-// API Key
-builder.Services
-    .AddOptions<ApiKeySettings>()
-    .Bind(builder.Configuration.GetSection("ApiKey"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
+    .AddMongoSettings(builder.Configuration)
+    .AddApiKeySettings(builder.Configuration)
+    .AddMqttSettings(builder.Configuration);
 
 // ---------------------------
 // 🔌 INFRA: Repositorios
