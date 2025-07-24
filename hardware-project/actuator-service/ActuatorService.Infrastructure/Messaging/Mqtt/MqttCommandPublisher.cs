@@ -1,9 +1,7 @@
-﻿using ActuatorService.Domain.Entities;
+﻿using ActuatorService.Application.UseCases.Commands;
+using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Mqtt;
-using System.Text.Json;
-
-namespace ActuatorService.Infrastructure.Messaging.Mqtt;
 
 public class MqttCommandPublisher : ICommandPublisher
 {
@@ -16,18 +14,10 @@ public class MqttCommandPublisher : ICommandPublisher
 
     public async Task PublishAsync(ActuatorCommand command)
     {
-        var topic = $"hydro/{command.Esp32Id}/actuator";
+        await _mqttClient.ConnectAsync();
 
-        var payload = new
-        {
-            commandId = command.Id,
-            actuatorId = command.ActuatorId,
-            action = command.Action,
-            durationMs = command.DurationMs,
-            metadata = command.Metadata
-        };
+        var (topic, payload) = CommandMessageBuilder.Build(command);
 
-        var json = JsonSerializer.Serialize(payload);
-        await _mqttClient.PublishAsync(topic, json);
+        await _mqttClient.PublishAsync(topic, payload);
     }
 }

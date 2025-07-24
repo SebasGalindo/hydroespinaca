@@ -1,5 +1,4 @@
-namespace HydroEspinaca.Shared.Responses;
-
+﻿namespace HydroEspinaca.Shared.Responses;
 public class SuccessResponse
 {
     public string Message { get; set; } = "Operation successful";

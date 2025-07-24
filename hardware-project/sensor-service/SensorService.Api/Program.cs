@@ -139,7 +139,13 @@ builder.Services.AddSwaggerGen(c =>
 // ---------------------------
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+if (builder.Environment.IsDevelopment())
+
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+else
+    builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 // ---------------------------
 // 🏁 APP PIPELINE
@@ -162,11 +168,11 @@ app.MapGet("/", context =>
     return Task.CompletedTask;
 });
 
-// Middlewares personalizados
+// Custom middlewares
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// Seguridad (futuro JWT)
+// Security (future JWT)
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");

@@ -17,6 +17,7 @@ public class MongoActuatorRepository : IActuatorRepository
         _baseRepo = new BaseMongoRepository<Actuator, ActuatorDocument>(ctx.Database, "actuators", mapper);
     }
 
+
     public Task<Actuator?> GetByIdAsync(string id)
         => _baseRepo.GetByIdAsync(id);
 
@@ -35,7 +36,6 @@ public class MongoActuatorRepository : IActuatorRepository
     public async Task<List<Actuator>> GetByEsp32IdAsync(string esp32Id)
     {
         var filter = Builders<ActuatorDocument>.Filter.Eq(x => x.Esp32Id, esp32Id);
-        var docs = await _baseRepo.Collection.Find(filter).ToListAsync();
-        return docs.Select(_baseRepo.Mapper.ToEntity).ToList();
+        return await _baseRepo.FindManyAsync(filter);
     }
 }

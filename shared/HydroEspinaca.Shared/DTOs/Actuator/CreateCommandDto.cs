@@ -1,7 +1,6 @@
 ﻿using HydroEspinaca.Shared.Enums;
 
-namespace ActuatorService.Application.DTOs;
-
+namespace HydroEspinaca.Shared.DTOs.Actuator;
 public class CreateCommandDto
 {
     public string ActuatorId { get; set; } = default!;
@@ -11,12 +10,13 @@ public class CreateCommandDto
     public TriggerType Trigger { get; set; }
     public string? RoutineId { get; set; }
     public int? RoutineStepOrder { get; set; }
-    
+
     public CommandMetadataDto? Metadata { get; set; }
 }
 public class CommandMetadataDto
 {
-    public string Source { get; set; } = default!;
+    public required string Source { get; set; }
     public string? FuzzyRule { get; set; }
     public Dictionary<string, double>? Inputs { get; set; }
-}   
+}
+

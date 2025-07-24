@@ -14,13 +14,33 @@ services:
       - mqtt_data:/mosquitto/data
       - mqtt_log:/mosquitto/log
 
-  sensor-service:
+  # sensor-service:
+  #   build:
+  #     context: .
+  #     dockerfile: hardware-project/sensor-service/Dockerfile
+  #   container_name: sensor-service
+  #   ports:
+  #     - "5001:8080"
+  #   environment:
+  #     - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+  #     - MONGO__Database=${MONGO_DATABASE}
+  #     - MQTT__Host=${MQTT_HOST}
+  #     - MQTT__Port=${MQTT_PORT}
+  #     - MQTT__ClientId=${SENSOR_MQTT_CLIENT_ID}
+  #     - MQTT__Username=${SENSOR_MQTT_USER}
+  #     - MQTT__Password=${SENSOR_MQTT_PASS}
+  #     - APIKEY__Key=${SENSOR_API_KEY}
+  #     - ASPNETCORE_ENVIRONMENT=Development
+
+  actuator-service:
     build:
       context: .
-      dockerfile: hardware-project/sensor-service/Dockerfile
-    container_name: sensor-service
+      dockerfile: hardware-project/actuator-service/Dockerfile
+    container_name: actuator-service
     ports:
-      - "5001:8080"
+      - "5002:8080"
+    depends_on:
+      - mqtt
     environment:
       - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
       - MONGO__Database=${MONGO_DATABASE}
@@ -31,23 +51,6 @@ services:
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
-
-  # actuator-service:
-  #   build: ./hardware-project/actuator-service
-  #   container_name: actuator-service
-  #   ports:
-  #     - "5002:80"
-  #   depends_on:
-  #     - mqtt
-  #   environment:
-  #     - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
-  #     - MONGO__Database=${MONGO_DATABASE}
-  #     - MQTT__Host=${MQTT_HOST}
-  #     - MQTT__Port=${MQTT_PORT}
-  #     - MQTT__ClientId=${ACTUATOR_MQTT_CLIENT_ID}
-  #     - MQTT__Username=${ACTUATOR_MQTT_USER}
-  #     - MQTT__Password=${ACTUATOR_MQTT_PASS}
-  #     - APIKEY__Key=${SENSOR_API_KEY}
 
  
 

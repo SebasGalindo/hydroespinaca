@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ActuatorService.Domain\ActuatorService.Domain.csproj" />
+	<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250724112656" />
     <ProjectReference Include="..\ActuatorService.Application\ActuatorService.Application.csproj" />
-	  <PackageReference Include="HydroEspinaca.Shared" Version="1.0.2" />
   </ItemGroup>
 
   <PropertyGroup>

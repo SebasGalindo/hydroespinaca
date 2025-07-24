@@ -5,24 +5,27 @@ using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 
-public class MongoCommandLogRepository
-    : BaseMongoRepository<ActuatorCommand, ActuatorCommandDocument>, ICommandLogRepository
+namespace ActuatorService.Infrastructure.Persistence.Repositories;
+
+public class MongoCommandLogRepository : ICommandLogRepository
 {
+    private readonly BaseMongoRepository<ActuatorCommand, ActuatorCommandDocument> _baseRepo;
+
     public MongoCommandLogRepository(
         MongoDbContext ctx,
         IEntityMapper<ActuatorCommand, ActuatorCommandDocument> mapper)
-        : base(ctx.Database, "actuator-commands", mapper)
     {
+        _baseRepo = new BaseMongoRepository<ActuatorCommand, ActuatorCommandDocument>(
+            ctx.Database, "actuator-commands", mapper);
     }
-    public async Task AddAsync(ActuatorCommand command)
-    {
-        await CreateAsync(command); 
-    }
+
+    public Task AddAsync(ActuatorCommand command)
+        => _baseRepo.CreateAsync(command);
+
     public async Task<List<ActuatorCommand>> GetByActuatorIdAsync(string actuatorId)
     {
         var filter = Builders<ActuatorCommandDocument>.Filter.Eq(x => x.ActuatorId, actuatorId);
-        var docs = await Collection.Find(filter).ToListAsync();
-        return docs.Select(Mapper.ToEntity).ToList();
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task<List<ActuatorCommand>> GetByDateRangeAsync(DateTime from, DateTime to)
@@ -31,8 +34,6 @@ public class MongoCommandLogRepository
             Builders<ActuatorCommandDocument>.Filter.Gte(x => x.Timestamp, from),
             Builders<ActuatorCommandDocument>.Filter.Lte(x => x.Timestamp, to)
         );
-
-        var docs = await Collection.Find(filter).ToListAsync();
-        return docs.Select(Mapper.ToEntity).ToList();
+        return await _baseRepo.FindManyAsync(filter);
     }
 }
