@@ -1,10 +1,11 @@
-﻿using SensorService.Infrastructure.Persistence.Models;
+﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class VariableMapper
+public class VariableMapper : IEntityMapper<Variable, VariableDocument>
 {
-    public static Variable ToEntity(VariableDocument doc) => new()
+    public Variable ToEntity(VariableDocument doc) => new()
     {
         Id = doc.Id,
         Name = doc.Name,
@@ -16,7 +17,7 @@ public static class VariableMapper
         LastModified = doc.LastModified
     };
 
-    public static VariableDocument ToDocument(Variable entity) => new()
+    public VariableDocument ToDocument(Variable entity) => new()
     {
         Id = entity.Id,
         Name = entity.Name,

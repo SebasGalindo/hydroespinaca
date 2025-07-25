@@ -1,33 +1,36 @@
-using SensorService.Domain.Exceptions;
+using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
+using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
 public class MongoAggregateRepository : IAggregateRepository
 {
-    private readonly IMongoCollection<AggregateDocument> _collection;
+    private readonly BaseMongoRepository<Aggregate, AggregateDocument> _baseRepo;
 
-    public MongoAggregateRepository(IConfiguration config)
+    public MongoAggregateRepository(IConfiguration config, IEntityMapper<Aggregate, AggregateDocument> mapper)
     {
         var client = new MongoClient(config["Mongo:ConnectionString"]);
         var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<AggregateDocument>("aggregates");
+
+        _baseRepo = new BaseMongoRepository<Aggregate, AggregateDocument>(
+            db, "aggregates", mapper
+        );
     }
 
     public async Task CreateAsync(Aggregate aggregate)
     {
         try
         {
-            await _collection.InsertOneAsync(AggregateMapper.ToDocument(aggregate));
+            await _baseRepo.CreateAsync(aggregate);
         }
         catch (Exception ex)
         {
-            // Log or handle the exception
             throw new DatabaseOperationException("Error creating aggregate", ex);
         }
     }
@@ -43,15 +46,14 @@ public class MongoAggregateRepository : IAggregateRepository
                 Builders<AggregateDocument>.Filter.Lte(x => x.Timestamp, to)
             );
 
-            var docs = await _collection.Find(filter).ToListAsync();
-            return docs.Select(AggregateMapper.ToEntity).ToList();
+            return await _baseRepo.FindManyAsync(filter);
         }
         catch (Exception ex)
         {
-            // Log or handle the exception
             throw new DatabaseOperationException("Error retrieving aggregates", ex);
         }
     }
+
     public async Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorId, string variableId, DateTime timestamp)
     {
         var filter = Builders<AggregateDocument>.Filter.And(
@@ -60,8 +62,6 @@ public class MongoAggregateRepository : IAggregateRepository
             Builders<AggregateDocument>.Filter.Eq(x => x.Timestamp, timestamp)
         );
 
-        var doc = await _collection.Find(filter).FirstOrDefaultAsync();
-        return doc is null ? null : AggregateMapper.ToEntity(doc);
+        return await _baseRepo.FindOneAsync(filter);
     }
-
 }

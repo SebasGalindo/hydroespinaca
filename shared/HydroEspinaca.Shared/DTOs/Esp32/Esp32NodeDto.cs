@@ -1,3 +1,5 @@
+using HydroEspinaca.Shared.Enums;
+
 namespace HydroEspinaca.Shared.DTOs.Esp32;
 
 public class Esp32NodeDto
@@ -6,5 +8,5 @@ public class Esp32NodeDto
     public string Name { get; set; } = default!;
     public string Location { get; set; } = default!;
     public DateTime LastSeen { get; set; }
-    public string Status { get; set; } = default!;
+    public Esp32Status Status { get; set; } = default!;
 }

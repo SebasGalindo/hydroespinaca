@@ -1,3 +1,5 @@
+using HydroEspinaca.Shared.Enums;
+
 namespace HydroEspinaca.Shared.DTOs.Variables;
 
 public class VariableUpdateDto
@@ -7,5 +9,5 @@ public class VariableUpdateDto
     public string Description { get; set; } = default!;
     public double MinValue { get; set; }
     public double MaxValue { get; set; }
-    public string Type { get; set; } = default!;
+    public VariableTypes Type { get; set; } = default!;
 }

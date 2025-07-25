@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using HydroEspinaca.Shared.Enums;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
@@ -25,7 +26,7 @@ public class VariableDocument
     public double MaxValue { get; set; }
 
     [BsonElement("type")]
-    public string Type { get; set; } = "analog"; // analog, boolean, digital
+    public VariableTypes Type { get; set; }
 
     [BsonElement("lastModified")]
     public DateTime LastModified { get; set; } = DateTime.UtcNow;

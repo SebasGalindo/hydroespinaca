@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using HydroEspinaca.Shared.Enums;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
@@ -19,5 +20,5 @@ public class Esp32NodeDocument
     public DateTime LastSeen { get; set; }
 
     [BsonElement("status")]
-    public string Status { get; set; } = "active";
+    public Esp32Status Status { get; set; }
 }

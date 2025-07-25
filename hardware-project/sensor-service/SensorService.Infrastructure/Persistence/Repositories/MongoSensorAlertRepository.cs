@@ -1,29 +1,27 @@
-using SensorService.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
+using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
+using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
+
 public class MongoSensorAlertRepository : ISensorAlertRepository
 {
-    private readonly IMongoCollection<SensorAlertDocument> _collection;
+    private readonly BaseMongoRepository<SensorAlert, SensorAlertDocument> _baseRepo;
 
-    public MongoSensorAlertRepository(IConfiguration config)
+    public MongoSensorAlertRepository(MongoDbContext ctx, IEntityMapper<SensorAlert, SensorAlertDocument> mapper)
     {
-        var client = new MongoClient(config["Mongo:ConnectionString"]);
-        var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<SensorAlertDocument>("sensor_alerts");
+        _baseRepo = new BaseMongoRepository<SensorAlert, SensorAlertDocument>(ctx.Database, "sensor_alerts", mapper);
     }
 
     public async Task CreateAsync(SensorAlert alert)
     {
         try
         {
-            var doc = SensorAlertMapper.ToDocument(alert);
-            await _collection.InsertOneAsync(doc);
+            await _baseRepo.CreateAsync(alert);
         }
         catch (Exception ex)
         {
@@ -36,8 +34,7 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         try
         {
             var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
-            var docs = await _collection.Find(filter).ToListAsync();
-            return docs.Select(SensorAlertMapper.ToEntity).ToList();
+            return await _baseRepo.FindManyAsync(filter);
         }
         catch (Exception ex)
         {
@@ -49,12 +46,12 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
     {
         try
         {
-            var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, acknowledged);
-            await _collection.UpdateOneAsync(x => x.Id == alertId, update);
+            await _baseRepo.UpdateFieldAsync(alertId, x => x.Acknowledged, acknowledged);
         }
         catch (Exception ex)
         {
             throw new DatabaseOperationException("Error updating alert acknowledgement", ex);
         }
     }
+
 }

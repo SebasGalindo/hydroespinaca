@@ -19,18 +19,17 @@ builder.Configuration
 
 // ---------------------------
 // 🔌 SHARED OPTIONS
-builder.Services
-    .AddMongoSettings(builder.Configuration)
-    .AddMqttSettings(builder.Configuration)
-    .AddApiKeySettings(builder.Configuration);
+// ---------------------------
+
 
 builder.Services.AddValidatorsFromAssemblyContaining<CreateActuatorValidator>();
 
 // ---------------------------
 // 🧱 DEPENDENCIAS DE CAPAS
 // ---------------------------
-builder.Services.AddInfrastructure();
-builder.Services.AddApplication();
+builder.Services
+    .AddInfrastructure(builder.Configuration)
+    .AddApplication();
 
 // ---------------------------
 // 🌐 CONTROLLERS + SWAGGER

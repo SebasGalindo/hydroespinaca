@@ -1,11 +1,12 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Domain.Entities;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class AggregateMapper
+public class AggregateMapper : IEntityMapper<Aggregate, AggregateDocument>
 {
-    public static Aggregate ToEntity(AggregateDocument doc) => new()
+    public Aggregate ToEntity(AggregateDocument doc) => new()
     {
         Id = doc.Id,
         SensorId = doc.SensorId,
@@ -17,7 +18,7 @@ public static class AggregateMapper
         Timestamp = doc.Timestamp
     };
 
-    public static AggregateDocument ToDocument(Aggregate entity) => new()
+    public AggregateDocument ToDocument(Aggregate entity) => new()
     {
         Id = entity.Id,
         SensorId = entity.SensorId,

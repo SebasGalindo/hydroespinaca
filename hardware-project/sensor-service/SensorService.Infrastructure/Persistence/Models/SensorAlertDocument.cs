@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson;
+using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 public class SensorAlertDocument
@@ -12,7 +13,7 @@ public class SensorAlertDocument
     public string SensorId { get; set; } = default!;
 
     [BsonElement("type")]
-    public string Type { get; set; } = default!;
+    public AlertType Type { get; set; } = default!;
 
     [BsonElement("value")]
     public double Value { get; set; }
@@ -27,7 +28,7 @@ public class SensorAlertDocument
     public string Message { get; set; } = default!;
 
     [BsonElement("severity")]
-    public string Severity { get; set; } = "warning";
+    public AlertSeverity Severity { get; set; }
 
     [BsonElement("acknowledged")]
     public bool Acknowledged { get; set; } = false;

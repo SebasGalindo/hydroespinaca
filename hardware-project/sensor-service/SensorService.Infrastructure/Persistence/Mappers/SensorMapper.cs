@@ -1,12 +1,13 @@
 ﻿using SensorService.Domain.Entities;
 using HydroEspinaca.Shared.Enums;
 using SensorService.Infrastructure.Persistence.Models;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class SensorMapper
+public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
 {
-    public static Sensor ToEntity(SensorDocument doc) => new()
+    public Sensor ToEntity(SensorDocument doc) => new()
     {
         Id = doc.Id,
         Code = doc.Code,
@@ -19,7 +20,7 @@ public static class SensorMapper
         CreatedAt = doc.CreatedAt
     };
 
-    public static SensorDocument ToDocument(Sensor entity) => new()
+    public SensorDocument ToDocument(Sensor entity) => new()
     {
         Id = entity.Id,
         Code = entity.Code,

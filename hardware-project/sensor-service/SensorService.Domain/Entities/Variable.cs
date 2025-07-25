@@ -1,3 +1,5 @@
+using HydroEspinaca.Shared.Enums;
+
 public class Variable
 {
     public string Id { get; set; } = default!;
@@ -6,7 +8,7 @@ public class Variable
     public string Description { get; set; } = default!;
     public double MinValue { get; set; }
     public double MaxValue { get; set; }
-    public string Type { get; set; } = "analog"; // "analog", "digital", "boolean"
+    public VariableTypes Type { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 
 }

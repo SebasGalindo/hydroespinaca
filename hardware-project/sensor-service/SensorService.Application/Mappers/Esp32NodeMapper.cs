@@ -1,4 +1,5 @@
 ﻿using HydroEspinaca.Shared.DTOs.Esp32;
+using HydroEspinaca.Shared.Enums;
 using SensorService.Domain.Entities;
 
 namespace SensorService.Application.Mappers;
@@ -20,6 +21,6 @@ public static class Esp32NodeMapper
         Name = dto.Name,
         Location = dto.Location,
         LastSeen = DateTime.UtcNow,
-        Status = "active"
+        Status = Esp32Status.Active
     };
 }

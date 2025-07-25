@@ -52,7 +52,7 @@ public class ActuatorServiceApplication : IActuatorService
     {
         var validationResult = await _createValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            throw new FluentValidation.ValidationException("Validation failed.", validationResult.Errors);
+            throw new ValidationException("Validation failed.", validationResult.Errors);
 
         var entity = ActuatorMapper.ToEntity(dto);
         await _repo.AddAsync(entity);
@@ -63,7 +63,7 @@ public class ActuatorServiceApplication : IActuatorService
     {
         var validationResult = await _updateValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            throw new FluentValidation.ValidationException("Validation failed.", validationResult.Errors);
+            throw new ValidationException("Validation failed.", validationResult.Errors);
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)

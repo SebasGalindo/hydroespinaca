@@ -1,5 +1,6 @@
 ﻿using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
+using System.Linq.Expressions;
 
 namespace HydroEspinaca.Shared.Mongo;
 
@@ -51,11 +52,31 @@ public class BaseMongoRepository<TEntity, TDocument>
         await _collection.DeleteOneAsync(filter);
     }
 
-    public async Task<List<TEntity>> FindManyAsync(FilterDefinition<TDocument> filter)
+    public async Task<List<TEntity>> FindManyAsync(
+     FilterDefinition<TDocument> filter,
+     SortDefinition<TDocument>? sort = null)
     {
-        var docs = await _collection.Find(filter).ToListAsync();
+        var findFluent = _collection.Find(filter);
+        if (sort != null)
+            findFluent = findFluent.Sort(sort);
+
+        var docs = await findFluent.ToListAsync();
         return docs.Select(_mapper.ToEntity).ToList();
     }
+
+    public async Task<TEntity?> FindLastOneAsync(
+        FilterDefinition<TDocument> filter,
+        SortDefinition<TDocument>? sort = null)
+    {
+        var findFluent = _collection.Find(filter);
+
+        if (sort != null)
+            findFluent = findFluent.Sort(sort);
+
+        var doc = await findFluent.FirstOrDefaultAsync();
+        return doc is null ? default : _mapper.ToEntity(doc);
+    }
+
 
     public async Task<TEntity?> FindOneAsync(FilterDefinition<TDocument> filter)
     {
@@ -68,14 +89,15 @@ public class BaseMongoRepository<TEntity, TDocument>
         return await _collection.Find(filter).Limit(1).AnyAsync();
     }
 
-    public async Task<long> CountAsync(FilterDefinition<TDocument> filter)
+    public async Task<long> CountAsync(Expression<Func<TDocument, bool>> predicate)
     {
-        return await _collection.CountDocumentsAsync(filter);
+        return await _collection.CountDocumentsAsync(predicate);
     }
 
-    public async Task DeleteManyAsync(FilterDefinition<TDocument> filter)
+
+    public async Task<DeleteResult> DeleteManyAsync(FilterDefinition<TDocument> filter)
     {
-        await _collection.DeleteManyAsync(filter);
+        return await _collection.DeleteManyAsync(filter);
     }
 
     public async Task ReplaceAsync(FilterDefinition<TDocument> filter, TEntity entity)
@@ -83,4 +105,12 @@ public class BaseMongoRepository<TEntity, TDocument>
         var doc = _mapper.ToDocument(entity);
         await _collection.ReplaceOneAsync(filter, doc);
     }
+
+    public async Task UpdateFieldAsync<TField>(string id, Expression<Func<TDocument, TField>> field, TField value)
+    {
+        var filter = Builders<TDocument>.Filter.Eq("_id", id);
+        var update = Builders<TDocument>.Update.Set(field, value);
+        await _collection.UpdateOneAsync(filter, update);
+    }
+
 }

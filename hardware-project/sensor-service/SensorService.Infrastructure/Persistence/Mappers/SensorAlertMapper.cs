@@ -1,11 +1,12 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Domain.Entities;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class SensorAlertMapper
+public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
 {
-    public static SensorAlert ToEntity(SensorAlertDocument doc) => new()
+    public SensorAlert ToEntity(SensorAlertDocument doc) => new()
     {
         Id = doc.Id,
         SensorId = doc.SensorId,
@@ -18,7 +19,7 @@ public static class SensorAlertMapper
         Acknowledged = doc.Acknowledged
     };
 
-    public static SensorAlertDocument ToDocument(SensorAlert entity) => new()
+    public SensorAlertDocument ToDocument(SensorAlert entity) => new()
     {
         Id = entity.Id,
         SensorId = entity.SensorId,

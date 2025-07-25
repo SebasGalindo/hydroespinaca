@@ -1,4 +1,6 @@
-﻿namespace SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Enums;
+
+namespace SensorService.Domain.Entities;
 
 public class Esp32Node
 {
@@ -6,5 +8,4 @@ public class Esp32Node
     public string Name { get; set; } = default!; // Optional display name
     public string Location { get; set; } = default!;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
-    public string Status { get; set; } = "active"; // active, offline, maintenance
-}
+    public Esp32Status Status { get; set; }}

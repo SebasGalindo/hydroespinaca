@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
+using System.Buffers;
 using System.Text;
 
 namespace HydroEspinaca.Shared.Mqtt;
@@ -10,7 +11,7 @@ public class MqttClientService : IMqttClientService
 {
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
-
+    private bool _isHandlerRegistered = false;
     public MqttClientService(IOptions<MqttSettings> mqttOptions)
     {
         var config = mqttOptions.Value;
@@ -28,26 +29,49 @@ public class MqttClientService : IMqttClientService
 
     public async Task ConnectAsync()
     {
-        if (!_client.IsConnected)
+        if (_client.IsConnected) return;
+
+        try
+        {
             await _client.ConnectAsync(_options);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Error connecting to MQTT broker", ex);
+        }
     }
 
-    public async Task SubscribeAsync(string topic, Func<string, Task> handler)
+    public async Task SubscribeAsync(string topic, Func<string, byte[], Task> handler)
     {
-        _client.ApplicationMessageReceivedAsync += e =>
+        await ConnectAsync();
+
+        if (!_isHandlerRegistered)
         {
-            var msg = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-            return handler(msg);
-        };
+            _client.ApplicationMessageReceivedAsync += e =>
+            {
+                var payload = e.ApplicationMessage.Payload.ToArray();
+                var msgTopic = e.ApplicationMessage.Topic;
+                return handler(msgTopic, payload);
+            };
+            _isHandlerRegistered = true;
+        }
 
         var options = new MqttClientSubscribeOptionsBuilder()
             .WithTopicFilter(x => x
                 .WithTopic(topic)
-                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
-            ).Build();
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+            .Build();
 
         await _client.SubscribeAsync(options);
-        await ConnectAsync();
+    }
+
+    public async Task SubscribeAsync(string topic, Func<string, string, Task> textHandler)
+    {
+        await SubscribeAsync(topic, (receivedTopic, payload) =>
+        {
+            var msg = Encoding.UTF8.GetString(payload);
+            return textHandler(receivedTopic, msg);
+        });
     }
 
     public async Task PublishAsync(string topic, string payload)

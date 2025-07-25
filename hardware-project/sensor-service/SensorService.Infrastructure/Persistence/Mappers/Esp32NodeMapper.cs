@@ -1,11 +1,12 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Domain.Entities;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class Esp32NodeMapper
+public class Esp32NodeMapper : IEntityMapper<Esp32Node, Esp32NodeDocument>
 {
-    public static Esp32Node ToEntity(Esp32NodeDocument doc) => new()
+    public Esp32Node ToEntity(Esp32NodeDocument doc) => new()
     {
         Id = doc.Id,
         Name = doc.Name,
@@ -14,7 +15,7 @@ public static class Esp32NodeMapper
         Status = doc.Status
     };
 
-    public static Esp32NodeDocument ToDocument(Esp32Node entity) => new()
+    public Esp32NodeDocument ToDocument(Esp32Node entity) => new()
     {
         Id = entity.Id,
         Name = entity.Name,

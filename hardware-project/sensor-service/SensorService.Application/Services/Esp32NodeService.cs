@@ -48,16 +48,16 @@ public class Esp32NodeService : IEsp32NodeService
         await _repo.CreateAsync(entity);
     }
 
-    public async Task UpdateStatusAsync(Esp32NodeUpdateStatusDto dto)
+    public async Task UpdateStatusAsync(string id, Esp32NodeUpdateStatusDto dto)
     {
         await _statusValidator.ValidateAndThrowAsync(dto);
 
-        var node = await _repo.GetByIdAsync(dto.Id);
+        var node = await _repo.GetByIdAsync(id);
         if (node is null)
-            throw new InvalidOperationException($"ESP32 '{dto.Id}' no encontrado.");
+            throw new InvalidOperationException($"ESP32 '{id}' no encontrado.");
 
         node.Status = dto.Status;
-        await _repo.UpdateStatusAsync(dto.Id, dto.Status);
+        await _repo.UpdateStatusAsync(id, dto.Status);
     }
 
 }

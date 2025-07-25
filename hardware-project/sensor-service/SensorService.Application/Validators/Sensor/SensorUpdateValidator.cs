@@ -38,8 +38,8 @@ public class SensorUpdateValidator : AbstractValidator<SensorUpdateDto>
               }).WithMessage("Una o más variables no existen.");
 
             RuleFor(x => x.Status)
-                 .Must(s => Enum.TryParse<SensorStatus>(s, true, out _))
-                 .WithMessage($"El estado debe ser uno de: {string.Join(", ", Enum.GetNames(typeof(SensorStatus)))}");
+                 .IsInEnum()
+                    .WithMessage($"El estado debe ser uno de los siguientes: {string.Join(", ", Enum.GetNames(typeof(SensorStatus)))}");
 
         }
     }

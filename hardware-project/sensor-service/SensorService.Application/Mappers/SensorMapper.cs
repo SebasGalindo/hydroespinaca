@@ -14,7 +14,7 @@ public static class SensorMapper
         Esp32Id = sensor.Esp32Id,
         SamplingFrequency = sensor.SamplingFrequency,
         Variables = sensor.Variables,
-        Status = sensor.Status.ToString(),
+        Status = sensor.Status,
         CreatedAt = sensor.CreatedAt
     };
 
@@ -37,7 +37,7 @@ public static class SensorMapper
         existing.Esp32Id = dto.Esp32Id;
         existing.SamplingFrequency = dto.SamplingFrequency;
         existing.Variables = dto.Variables;
-        existing.Status = Enum.Parse<SensorStatus>(dto.Status, ignoreCase: true);
+        existing.Status = dto.Status;
     }
 
 }

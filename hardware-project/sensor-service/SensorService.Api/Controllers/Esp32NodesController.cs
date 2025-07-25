@@ -39,8 +39,7 @@ public class Esp32NodesController : ControllerBase
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(string id, [FromBody] Esp32NodeUpdateStatusDto dto)
     {
-        dto.Id = id;
-        await _service.UpdateStatusAsync(dto);
+        await _service.UpdateStatusAsync(id, dto);
         return NoContent();
     }
 }

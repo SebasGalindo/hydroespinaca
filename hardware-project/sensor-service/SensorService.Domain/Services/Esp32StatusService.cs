@@ -1,4 +1,5 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Enums;
+using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.ValueObjects;
 
@@ -17,7 +18,7 @@ public class Esp32StatusService : IEsp32StatusService
         _readingRepository = readingRepository;
     }
 
-    public async Task<IEnumerable<Esp32Status>> GetAllEsp32StatusesAsync(
+    public async Task<IEnumerable<Esp32StatusRecord>> GetAllEsp32StatusesAsync(
         DateTime currentTime,
         OfflineThreshold threshold)
     {
@@ -28,7 +29,7 @@ public class Esp32StatusService : IEsp32StatusService
             .GroupBy(s => s.Esp32Id!)
             .ToList();
 
-        var statuses = new List<Esp32Status>();
+        var statuses = new List<Esp32StatusRecord>();
 
         foreach (var group in esp32Groups)
         {
@@ -38,7 +39,7 @@ public class Esp32StatusService : IEsp32StatusService
             var lastReading = await _readingRepository.GetLatestBySensorIdsAsync(sensorIds);
             var lastActivity = lastReading?.Timestamp ?? DateTime.MinValue;
 
-            var status = Esp32Status.Create(esp32Id, lastActivity, currentTime, threshold);
+            var status = Esp32StatusRecord.Create(esp32Id, lastActivity, currentTime, threshold);
             statuses.Add(status);
         }
 
@@ -46,18 +47,18 @@ public class Esp32StatusService : IEsp32StatusService
     }
 
     public SensorAlert CreateOfflineAlert(
-        Esp32Status status,
+        Esp32StatusRecord status,
         string sensorId,
         DateTime timestamp)
     {
         return new SensorAlert
         {
             SensorId = sensorId,
-            Type = "Esp32Offline",
+            Type = AlertType.Esp32Offline,
             Value = 0,
             Threshold = 0,
             Timestamp = timestamp,
-            Severity = "critical",
+            Severity = AlertSeverity.Critical,
             Message = $"ESP32 '{status.Esp32Id}' no ha enviado datos en más de {status.TimeSinceLastActivity.TotalMinutes:F1} minutos.",
             Acknowledged = false
         };

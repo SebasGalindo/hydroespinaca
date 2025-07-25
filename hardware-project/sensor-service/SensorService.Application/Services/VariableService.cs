@@ -41,12 +41,12 @@ public class VariableService : IVariableService
         await _repo.CreateAsync(entity);
     }
 
-    public async Task UpdateAsync(VariableUpdateDto dto)
+    public async Task UpdateAsync(string id, VariableUpdateDto dto)
     {
         await _updateValidator.ValidateAndThrowAsync(dto);
-        var entity = await _repo.GetByIdAsync(dto.Id);
+        var entity = await _repo.GetByIdAsync(id);
         if (entity == null)
-            throw new Exception($"Variable '{dto.Id}' no encontrada.");
+            throw new Exception($"Variable '{id}' no encontrada.");
 
         VariableMapper.MapUpdate(dto, entity);
         await _repo.UpdateAsync(entity);

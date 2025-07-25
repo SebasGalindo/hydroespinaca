@@ -1,31 +1,26 @@
-﻿using SensorService.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
-using MongoDB.Driver;
+﻿using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using SensorService.Domain.Entities;
+using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
-using System.Dynamic;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
 public class MongoSensorRepository : ISensorRepository
 {
-    private readonly IMongoCollection<SensorDocument> _collection;
+    private readonly BaseMongoRepository<Sensor, SensorDocument> _baseRepo;
 
-    public MongoSensorRepository(IConfiguration config)
+    public MongoSensorRepository(MongoDbContext ctx, IEntityMapper<Sensor, SensorDocument> mapper)
     {
-        var client = new MongoClient(config["Mongo:ConnectionString"]);
-        var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<SensorDocument>("sensors");
+        _baseRepo = new BaseMongoRepository<Sensor, SensorDocument>(ctx.Database, "sensors", mapper);
     }
 
     public async Task<Sensor?> GetByIdAsync(string id)
     {
         try
         {
-            var doc = await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
-            return doc is null ? null : SensorMapper.ToEntity(doc);
+            return await _baseRepo.GetByIdAsync(id);
         }
         catch (Exception ex)
         {
@@ -37,8 +32,7 @@ public class MongoSensorRepository : ISensorRepository
     {
         try
         {
-            var docs = await _collection.Find(_ => true).ToListAsync();
-            return docs.Select(SensorMapper.ToEntity).ToList();
+            return await _baseRepo.GetAllAsync();
         }
         catch (Exception ex)
         {
@@ -50,10 +44,7 @@ public class MongoSensorRepository : ISensorRepository
     {
         try
         {
-            var doc = SensorMapper.ToDocument(sensor);
-            await _collection.InsertOneAsync(doc);
-
-            sensor.Id = doc.Id;
+            await _baseRepo.CreateAsync(sensor);
         }
         catch (Exception ex)
         {
@@ -61,12 +52,11 @@ public class MongoSensorRepository : ISensorRepository
         }
     }
 
-
     public async Task UpdateAsync(Sensor sensor)
     {
         try
         {
-            await _collection.ReplaceOneAsync(x => x.Id == sensor.Id, SensorMapper.ToDocument(sensor));
+            await _baseRepo.UpdateAsync(sensor);
         }
         catch (Exception ex)
         {
@@ -78,7 +68,7 @@ public class MongoSensorRepository : ISensorRepository
     {
         try
         {
-            await _collection.DeleteOneAsync(x => x.Id == id);
+            await _baseRepo.DeleteAsync(id);
         }
         catch (Exception ex)
         {

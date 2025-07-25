@@ -14,10 +14,7 @@ public class MqttCommandPublisher : ICommandPublisher
 
     public async Task PublishAsync(ActuatorCommand command)
     {
-        await _mqttClient.ConnectAsync();
-
         var (topic, payload) = CommandMessageBuilder.Build(command);
-
         await _mqttClient.PublishAsync(topic, payload);
     }
 }

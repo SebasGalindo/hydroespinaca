@@ -1,11 +1,12 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Domain.Entities;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class ReadingMapper
+public class ReadingMapper : IEntityMapper<Reading, ReadingDocument>
 {
-    public static Reading ToEntity(ReadingDocument doc) => new()
+    public Reading ToEntity(ReadingDocument doc) => new()
     {
         Id = doc.Id,
         SensorId = doc.SensorId,
@@ -14,7 +15,7 @@ public static class ReadingMapper
         Timestamp = doc.Timestamp
     };
 
-    public static ReadingDocument ToDocument(Reading entity) => new()
+    public ReadingDocument ToDocument(Reading entity) => new()
     {
         Id = entity.Id,
         SensorId = entity.SensorId,

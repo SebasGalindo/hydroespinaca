@@ -1,4 +1,5 @@
-﻿using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
+﻿using HydroEspinaca.Shared.Enums;
+using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.UseCases.ProcessReadingBatch;
@@ -23,7 +24,7 @@ public class ResolveOfflineAlertsUseCase : IResolveOfflineAlertsUseCase
         if (anySensor == null) return;
 
         var offlineAlerts = (await _alertRepository.GetBySensorIdAsync(anySensor.Id!))
-            .Where(a => a.Type == "Esp32Offline" && !a.Acknowledged)
+            .Where(a => a.Type == AlertType.Esp32Offline && !a.Acknowledged)
             .ToList();
 
         foreach (var alert in offlineAlerts)

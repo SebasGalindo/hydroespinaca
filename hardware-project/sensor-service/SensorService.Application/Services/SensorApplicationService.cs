@@ -45,12 +45,12 @@ public class SensorApplicationService : ISensorService
         return sensor.Id!;
     }
 
-    public async Task UpdateAsync(SensorUpdateDto dto)
+    public async Task UpdateAsync(string id, SensorUpdateDto dto)
     {
         await _updateValidator.ValidateAndThrowAsync(dto);
 
-        var existing = await _repo.GetByIdAsync(dto.Id);
-        if (existing == null) throw new InvalidOperationException($"Sensor with id {dto.Id} not found");
+        var existing = await _repo.GetByIdAsync(id);
+        if (existing == null) throw new InvalidOperationException($"Sensor with id {id} not found");
 
         SensorMapper.MapUpdate(dto, existing);
 

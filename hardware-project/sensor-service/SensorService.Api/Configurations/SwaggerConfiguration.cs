@@ -1,4 +1,4 @@
-﻿namespace ActuatorService.Api.Configurations;
+﻿namespace SensorService.Api.Configurations;
 public static class SwaggerAppBuilderExtensions
 {
     public static IApplicationBuilder UseSwaggerDocs(this IApplicationBuilder app, string serviceName)

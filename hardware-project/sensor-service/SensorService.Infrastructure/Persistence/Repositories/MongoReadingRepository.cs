@@ -1,29 +1,27 @@
-using SensorService.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
+using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
+using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
+
 public class MongoReadingRepository : IReadingRepository
 {
-    private readonly IMongoCollection<ReadingDocument> _collection;
+    private readonly BaseMongoRepository<Reading, ReadingDocument> _baseRepo;
 
-    public MongoReadingRepository(IConfiguration config)
+    public MongoReadingRepository(MongoDbContext ctx, IEntityMapper<Reading, ReadingDocument> mapper)
     {
-        var client = new MongoClient(config["Mongo:ConnectionString"]);
-        var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<ReadingDocument>("readings");
+        _baseRepo = new BaseMongoRepository<Reading, ReadingDocument>(ctx.Database, "readings", mapper);
     }
 
     public async Task CreateAsync(Reading reading)
     {
         try
         {
-            var doc = ReadingMapper.ToDocument(reading);
-            await _collection.InsertOneAsync(doc);
+            await _baseRepo.CreateAsync(reading);
         }
         catch (Exception ex)
         {
@@ -42,8 +40,7 @@ public class MongoReadingRepository : IReadingRepository
                 Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
             );
 
-            var docs = await _collection.Find(filter).ToListAsync();
-            return docs.Select(ReadingMapper.ToEntity).ToList();
+            return await _baseRepo.FindManyAsync(filter);
         }
         catch (Exception ex)
         {
@@ -56,7 +53,7 @@ public class MongoReadingRepository : IReadingRepository
         try
         {
             var filter = Builders<ReadingDocument>.Filter.Lt(x => x.Timestamp, cutoff);
-            var result = await _collection.DeleteManyAsync(filter);
+            var result = await _baseRepo.DeleteManyAsync(filter);
             return (int)result.DeletedCount;
         }
         catch (Exception ex)
@@ -64,16 +61,18 @@ public class MongoReadingRepository : IReadingRepository
             throw new DatabaseOperationException("Error deleting old readings", ex);
         }
     }
+
     public async Task<Reading?> GetLatestBySensorIdsAsync(List<string> sensorIds)
     {
-        var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
-        return (await _collection
-            .Find(filter)
-            .SortByDescending(r => r.Timestamp)
-            .Limit(1)
-            .FirstOrDefaultAsync()) is { } doc
-            ? ReadingMapper.ToEntity(doc)
-            : null;
+        try
+        {
+            var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
+            var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
+            return await _baseRepo.FindLastOneAsync(filter,sort);
+        }
+        catch (Exception ex)
+        {
+            throw new DatabaseOperationException("Error retrieving latest reading", ex);
+        }
     }
-
 }
