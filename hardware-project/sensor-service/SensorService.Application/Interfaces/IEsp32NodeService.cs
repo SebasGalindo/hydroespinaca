@@ -8,4 +8,5 @@ public interface IEsp32NodeService
     Task<Esp32NodeDto?> GetByIdAsync(string id);
     Task<Esp32NodeDto> CreateAsync(Esp32NodeCreateDto dto);
     Task UpdateStatusAsync(string id, Esp32NodeUpdateStatusDto dto);
+    Task<bool> ExistsAsync(string id);
 }

@@ -1,9 +1,10 @@
-﻿using MongoDB.Bson;
+﻿using HydroEspinaca.Shared.Abstractions;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace ActuatorService.Infrastructure.Persistence.Models;
 
-public class ActuatorCommandDocument
+public class ActuatorCommandDocument : IIdentifiableMutable
 {
     [BsonId]
     [BsonElement("_id")]
@@ -21,6 +22,7 @@ public class ActuatorCommandDocument
     public string? UserId { get; set; }
 
     public MetadataDocument? Metadata { get; set; }
+    public void SetId(string id) => Id = id;
 }
 
 public class MetadataDocument

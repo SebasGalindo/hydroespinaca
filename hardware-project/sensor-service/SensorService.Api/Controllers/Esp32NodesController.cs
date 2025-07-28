@@ -2,6 +2,7 @@
 using HydroEspinaca.Shared.Enums;
 using Microsoft.AspNetCore.Mvc;
 using SensorService.Application.Interfaces;
+using SensorService.Application.Services;
 using SharpCompress.Common;
 
 namespace SensorService.API.Controllers;
@@ -43,6 +44,13 @@ public class Esp32NodesController : ControllerBase
     {
         await _service.UpdateStatusAsync(id, dto);
         return NoContent();
+    }
+
+    [HttpGet("{id}/exists")]
+    public async Task<IActionResult> Exists(string id)
+    {
+        var exists = await _service.ExistsAsync(id);
+        return Ok(new { exists });
     }
 
 }

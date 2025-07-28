@@ -1,5 +1,7 @@
-﻿using ActuatorService.Domain.Entities;
+﻿using ActuatorService.Application.Interfaces;
+using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Infrastructure.Http;
 using ActuatorService.Infrastructure.Persistence.Mappers;
 using ActuatorService.Infrastructure.Persistence.Mappings;
 using ActuatorService.Infrastructure.Persistence.Models;
@@ -32,6 +34,10 @@ public static class ServiceCollectionExtensions
         // MQTT Publisher
         services.AddScoped<ICommandPublisher, MqttCommandPublisher>();
         services.AddSingleton<IMqttClientService, MqttClientService>();
+
+        // Validation
+        services.AddHttpClient<IEsp32ValidationService, Esp32ValidationService>();
+
 
         return services;
     }

@@ -75,4 +75,11 @@ public class Esp32NodeService : IEsp32NodeService
         await _repo.UpdateStatusAsync(id, parsedStatus);
     }
 
+    public async Task<bool> ExistsAsync(string id)
+    {
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
+        return await _repo.ExistsAsync(id);
+    }
 }

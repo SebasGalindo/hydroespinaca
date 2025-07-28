@@ -6,18 +6,22 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 namespace ActuatorService.Infrastructure.Persistence.Mappings;
 public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
 {
-    public Actuator ToEntity(ActuatorDocument doc) => new()
+    public Actuator ToEntity(ActuatorDocument doc)
     {
-        Id = doc.Id,
-        Esp32Id = doc.Esp32Id,
-        Name = doc.Name,
-        Type = Enum.Parse<ActuatorType>(doc.Type),
-        PhysicalId = doc.PhysicalId,
-        Pin = doc.Pin,
-        Location = doc.Location,
-        Status = Enum.Parse<ActuatorStatus>(doc.Status),
-        CreatedAt = doc.CreatedAt
-    };
+        var actuator = new Actuator
+        {
+            Esp32Id = doc.Esp32Id,
+            Name = doc.Name,
+            Type = Enum.Parse<ActuatorType>(doc.Type),
+            PhysicalId = doc.PhysicalId,
+            Pin = doc.Pin,
+            Location = doc.Location,
+            Status = Enum.Parse<ActuatorStatus>(doc.Status),
+            CreatedAt = doc.CreatedAt
+        };
+        actuator.SetId(doc.Id);
+        return actuator;
+    }
 
     public ActuatorDocument ToDocument(Actuator entity) => new()
     {

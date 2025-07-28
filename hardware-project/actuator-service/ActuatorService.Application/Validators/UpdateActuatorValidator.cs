@@ -7,10 +7,20 @@ public class UpdateActuatorValidator : AbstractValidator<UpdateActuatorDto>
 {
     public UpdateActuatorValidator()
     {
-        RuleFor(x => x.Name).NotEmpty();
-        RuleFor(x => x.Pin).NotEmpty();
-        RuleFor(x => x.Location).NotEmpty();
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .WithMessage("El nombre del actuador es obligatorio.");
+
+        RuleFor(x => x.Pin)
+            .NotEmpty()
+            .WithMessage("El Pin es obligatorio.");
+
+        RuleFor(x => x.Location)
+            .NotEmpty()
+            .WithMessage("La ubicación es obligatoria.");
+
         RuleFor(x => x.Status)
-            .IsInEnum();
+            .NotEmpty()
+            .WithMessage("El estado del actuador es obligatorio.");
     }
 }

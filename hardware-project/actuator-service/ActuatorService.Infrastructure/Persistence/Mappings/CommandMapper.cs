@@ -9,9 +9,8 @@ public class CommandMapper : IEntityMapper<ActuatorCommand, ActuatorCommandDocum
 {
     public ActuatorCommand ToEntity(ActuatorCommandDocument doc)
     {
-        return new ActuatorCommand
+        var actuadorCommand = new ActuatorCommand
         {
-            Id = doc.Id,
             ActuatorId = doc.ActuatorId,
             Esp32Id = doc.Esp32Id,
             Action = doc.Action,
@@ -29,7 +28,10 @@ public class CommandMapper : IEntityMapper<ActuatorCommand, ActuatorCommandDocum
                 Inputs = doc.Metadata.Inputs
             }
         };
+        actuadorCommand.SetId(doc.Id);
+        return actuadorCommand;
     }
+
 
     public ActuatorCommandDocument ToDocument(ActuatorCommand entity)
     {

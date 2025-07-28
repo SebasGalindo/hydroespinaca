@@ -1,7 +1,8 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using HydroEspinaca.Shared.Abstractions;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace ActuatorService.Infrastructure.Persistence.Models;
-public class ActuatorDocument
+public class ActuatorDocument : IIdentifiableMutable
 {
     [BsonId]
     public string Id { get; set; } = default!;
@@ -14,4 +15,5 @@ public class ActuatorDocument
     public string Location { get; set; } = default!;
     public string Status { get; set; } = default!;
     public DateTime CreatedAt { get; set; }
+    public void SetId(string id) => Id = id;
 }

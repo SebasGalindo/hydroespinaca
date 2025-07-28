@@ -6,13 +6,16 @@ public class CommandMetadataDtoValidator : AbstractValidator<CommandMetadataDto>
     public CommandMetadataDtoValidator()
     {
         RuleFor(x => x.Source)
-            .NotEmpty().WithMessage("El campo 'Source' es obligatorio.");
+            .NotEmpty()
+            .WithMessage("El campo 'Source' es obligatorio.");
 
         RuleFor(x => x.FuzzyRule)
-            .MaximumLength(100).WithMessage("La regla difusa no puede exceder los 100 caracteres.");
+            .MaximumLength(100)
+            .WithMessage("La regla difusa no puede exceder los 100 caracteres.");
 
         RuleFor(x => x.Inputs)
-            .Must(BeValidInputs).When(x => x.Inputs is not null)
+            .Must(BeValidInputs)
+            .When(x => x.Inputs is not null)
             .WithMessage("Las entradas deben tener valores numéricos válidos.");
     }
 

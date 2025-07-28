@@ -1,10 +1,10 @@
-﻿using HydroEspinaca.Shared.Enums;
-using HydroEspinaca.Shared.Abstractions;
+﻿using HydroEspinaca.Shared.Abstractions;
+using HydroEspinaca.Shared.Enums;
 
 namespace ActuatorService.Domain.Entities;
-public class Actuator : IEntity
+public class Actuator : IIdentifiableMutable
 {
-    public string Id { get; set; } = default!;          // e.g., "led-001"
+    public string Id { get; private set; } = default!;          // e.g., "led-001"
     public string Esp32Id { get; set; } = default!;
     public string Name { get; set; } = default!;
     public ActuatorType Type { get; set; }
@@ -13,4 +13,5 @@ public class Actuator : IEntity
     public string Location { get; set; } = default!;
     public ActuatorStatus Status { get; set; } = ActuatorStatus.Active;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public void SetId(string id) => Id = id;
 }

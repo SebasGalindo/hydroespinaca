@@ -3,9 +3,9 @@ using HydroEspinaca.Shared.Abstractions;
 
 namespace ActuatorService.Domain.Entities;
 
-public class ActuatorCommand : IEntity
+public class ActuatorCommand : IIdentifiableMutable
 {
-    public string Id { get; set; } = default!;
+    public string Id { get; private set; } = default!;
     public string ActuatorId { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
     public string Action { get; set; } = default!;         // e.g., "on", "off", or a PWM string like "pwm:120"
@@ -20,6 +20,7 @@ public class ActuatorCommand : IEntity
     public string? UserId { get; set; } // null if automated
 
     public CommandMetadata? Metadata { get; set; }
+    public void SetId(string id) => Id = id;
 }
 
 public class CommandMetadata
