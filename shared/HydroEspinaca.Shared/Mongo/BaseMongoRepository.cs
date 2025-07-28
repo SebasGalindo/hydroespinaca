@@ -1,10 +1,13 @@
-﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+﻿using HydroEspinaca.Shared.Abstractions;
+using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Linq.Expressions;
 
 namespace HydroEspinaca.Shared.Mongo;
 
-public class BaseMongoRepository<TEntity, TDocument>
+public class BaseMongoRepository<TEntity, TDocument>    where TEntity : IIdentifiableMutable
+    where TDocument : IIdentifiableMutable
 {
     private readonly IMongoCollection<TDocument> _collection;
     private readonly IEntityMapper<TEntity, TDocument> _mapper;
@@ -17,7 +20,8 @@ public class BaseMongoRepository<TEntity, TDocument>
 
     public async Task<TEntity?> GetByIdAsync(string id)
     {
-        var filter = Builders<TDocument>.Filter.Eq("_id", id);
+        var objectId = ObjectId.Parse(id);
+        var filter = Builders<TDocument>.Filter.Eq("_id", objectId);
         var doc = await _collection.Find(filter).FirstOrDefaultAsync();
         return doc is null ? default : _mapper.ToEntity(doc);
     }
@@ -32,17 +36,15 @@ public class BaseMongoRepository<TEntity, TDocument>
     {
         var doc = _mapper.ToDocument(entity);
         await _collection.InsertOneAsync(doc);
+        var inserted = _mapper.ToEntity(doc);
+        entity.SetId(inserted.Id);
     }
 
     public async Task UpdateAsync(TEntity entity)
     {
         var doc = _mapper.ToDocument(entity);
-        var id = doc?.GetType().GetProperty("Id")?.GetValue(doc)?.ToString();
 
-        if (id == null)
-            throw new InvalidOperationException("Document must have an Id property");
-
-        var filter = Builders<TDocument>.Filter.Eq("_id", id);
+        var filter = Builders<TDocument>.Filter.Eq("_id", doc.Id);
         await _collection.ReplaceOneAsync(filter, doc);
     }
 
@@ -89,12 +91,6 @@ public class BaseMongoRepository<TEntity, TDocument>
         return await _collection.Find(filter).Limit(1).AnyAsync();
     }
 
-    public async Task<long> CountAsync(Expression<Func<TDocument, bool>> predicate)
-    {
-        return await _collection.CountDocumentsAsync(predicate);
-    }
-
-
     public async Task<DeleteResult> DeleteManyAsync(FilterDefinition<TDocument> filter)
     {
         return await _collection.DeleteManyAsync(filter);
@@ -111,6 +107,47 @@ public class BaseMongoRepository<TEntity, TDocument>
         var filter = Builders<TDocument>.Filter.Eq("_id", id);
         var update = Builders<TDocument>.Update.Set(field, value);
         await _collection.UpdateOneAsync(filter, update);
+    }
+
+    public async Task<List<string>> GetNonExistingIdsAsync(IEnumerable<string> ids)
+    {
+        if (ids == null) return new();
+
+        var objectIdList = new List<ObjectId>();
+        var stringIdList = new List<string>();
+
+        foreach (var id in ids)
+        {
+            if (ObjectId.TryParse(id, out var objectId))
+                objectIdList.Add(objectId);
+            else
+                stringIdList.Add(id);
+        }
+
+        FilterDefinition<TDocument> filter;
+
+        if (objectIdList.Any() && stringIdList.Any())
+        {
+            filter = Builders<TDocument>.Filter.Or(
+                Builders<TDocument>.Filter.In("_id", objectIdList),
+                Builders<TDocument>.Filter.In("_id", stringIdList)
+            );
+        }
+        else if (objectIdList.Any())
+        {
+            filter = Builders<TDocument>.Filter.In("_id", objectIdList);
+        }
+        else
+        {
+            filter = Builders<TDocument>.Filter.In("_id", stringIdList);
+        }
+
+        var existing = await _collection
+            .Find(filter)
+            .Project(d => d.Id.ToString())
+            .ToListAsync();
+
+        return ids.Except(existing).ToList();
     }
 
 }

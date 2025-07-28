@@ -27,7 +27,7 @@ public class RegisterCommandService : ICommandService
     {
         var validationResult = await _createValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
-            throw new FluentValidation.ValidationException(validationResult.Errors);
+            throw new ValidationException(validationResult.Errors);
 
         var command = CommandMapper.ToEntity(dto, userId);
 

@@ -1,8 +1,9 @@
+using HydroEspinaca.Shared.Abstractions;
 using HydroEspinaca.Shared.Enums;
 
-public class Variable
+public class Variable : IIdentifiableMutable
 {
-    public string Id { get; set; } = default!;
+    public string Id { get; private set; } = default!;
     public string Name { get; set; } = default!;
     public string Unit { get; set; } = default!;
     public string Description { get; set; } = default!;
@@ -11,4 +12,5 @@ public class Variable
     public VariableTypes Type { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 
+    public void SetId(string id) => Id = id;
 }

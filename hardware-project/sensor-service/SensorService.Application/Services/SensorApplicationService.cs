@@ -1,8 +1,9 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Sensors;
+using HydroEspinaca.Shared.Errors;
+using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
-using HydroEspinaca.Shared.Enums;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Services;
@@ -10,55 +11,99 @@ namespace SensorService.Application.Services;
 public class SensorApplicationService : ISensorService
 {
     private readonly ISensorRepository _repo;
+    private readonly IEsp32NodeRepository _esp32NodeRepository;
+    private readonly IVariableRepository _variableRepository;
     private readonly IValidator<SensorCreateDto> _createValidator;
     private readonly IValidator<SensorUpdateDto> _updateValidator;
 
     public SensorApplicationService(
         ISensorRepository repo,
+        IEsp32NodeRepository esp32NodeRepository,
+        IVariableRepository variableRepository,
         IValidator<SensorCreateDto> createValidator,
         IValidator<SensorUpdateDto> updateValidator
         )
     {
         _repo = repo;
+        _esp32NodeRepository = esp32NodeRepository;
+        _variableRepository = variableRepository;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
 
     public async Task<List<SensorDto>> GetAllAsync()
     {
-        Console.WriteLine("Fetching all sensors from repository...");
         var sensors = await _repo.GetAllAsync();
         return sensors.Select(SensorMapper.ToDto).ToList();
     }
 
     public async Task<SensorDto?> GetByIdAsync(string id)
     {
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
         var sensor = await _repo.GetByIdAsync(id);
-        return sensor is null ? null : SensorMapper.ToDto(sensor);
+        if (sensor is null)
+            throw new NotFoundException("Sensor no encontrado");
+
+        return SensorMapper.ToDto(sensor);
     }
 
-    public async Task<string> CreateAsync(SensorCreateDto dto)
+    public async Task<SensorDto> CreateAsync(SensorCreateDto dto)
     {
-        await _createValidator.ValidateAndThrowAsync(dto);
-        var sensor = SensorMapper.ToEntity(dto);
-        await _repo.CreateAsync(sensor);
-        return sensor.Id!;
+        var validation = await _createValidator.ValidateAsync(dto);
+        if (!validation.IsValid)
+            throw new ValidationException(validation.Errors);
+
+        var esp32Node = await _esp32NodeRepository.GetByIdAsync(dto.Esp32Id);
+        if (esp32Node == null)
+            throw new NotFoundException($"ESP32 con el id {dto.Esp32Id} no fue encontrado");
+
+        var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
+        if (noExistingVariable.Any())
+            throw new InvalidOperationException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
+
+        var sensorEntity = SensorMapper.ToEntity(dto);
+        await _repo.CreateAsync(sensorEntity);
+        return SensorMapper.ToDto(sensorEntity);
     }
+
 
     public async Task UpdateAsync(string id, SensorUpdateDto dto)
     {
-        await _updateValidator.ValidateAndThrowAsync(dto);
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
+        var validation = await _updateValidator.ValidateAsync(dto);
+        if (!validation.IsValid)
+            throw new ValidationException(validation.Errors);
 
         var existing = await _repo.GetByIdAsync(id);
-        if (existing == null) throw new InvalidOperationException($"Sensor with id {id} not found");
+        if (existing == null)
+            throw new NotFoundException($"Sensor with id {id} not found");
+
+        var esp32Node = await _esp32NodeRepository.GetByIdAsync(dto.Esp32Id);
+        if (esp32Node == null)
+            throw new NotFoundException($"ESP32 con el id {dto.Esp32Id} no fue encontrado");
+
+        var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
+        if (noExistingVariable.Any())
+            throw new NotFoundException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
+
 
         SensorMapper.MapUpdate(dto, existing);
-
         await _repo.UpdateAsync(existing);
     }
 
     public async Task DeleteAsync(string id)
     {
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
+        var existing = await _repo.GetByIdAsync(id);
+        if (existing == null)
+            throw new NotFoundException($"Sensor with id {id} not found");
+
         await _repo.DeleteAsync(id);
     }
 }

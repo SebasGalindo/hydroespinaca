@@ -1,5 +1,8 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Variables;
+using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Errors;
+using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
@@ -30,23 +33,42 @@ public class VariableService : IVariableService
 
     public async Task<VariableDto?> GetByIdAsync(string id)
     {
-        var v = await _repo.GetByIdAsync(id);
-        return v is null ? null : VariableMapper.ToDto(v);
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
+        var variable = await _repo.GetByIdAsync(id);
+        if (variable is null)
+            throw new NotFoundException($"Variable con ID '{id}' no encontrada.");
+
+        return VariableMapper.ToDto(variable);
     }
 
     public async Task AddAsync(VariableCreateDto dto)
     {
-        await _createValidator.ValidateAndThrowAsync(dto);
+
+        var validation = await _createValidator.ValidateAsync(dto);
+        if (!validation.IsValid)
+            throw new ValidationException(validation.Errors);
+
+        if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var parsedType))
+            throw new ArgumentException($"Tipo '{dto.Type}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(VariableTypes)))}");
+
         var entity = VariableMapper.ToEntity(dto);
         await _repo.CreateAsync(entity);
     }
 
     public async Task UpdateAsync(string id, VariableUpdateDto dto)
     {
-        await _updateValidator.ValidateAndThrowAsync(dto);
+        var validation = await _updateValidator.ValidateAsync(dto);
+        if (!validation.IsValid)
+            throw new ValidationException(validation.Errors);
+
         var entity = await _repo.GetByIdAsync(id);
         if (entity == null)
-            throw new Exception($"Variable '{id}' no encontrada.");
+            throw new NotFoundException($"Variable '{id}' no encontrada.");
+
+        if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var parsedType))
+            throw new ArgumentException($"Tipo '{dto.Type}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(VariableTypes)))}");
 
         VariableMapper.MapUpdate(dto, entity);
         await _repo.UpdateAsync(entity);
@@ -54,6 +76,10 @@ public class VariableService : IVariableService
 
     public async Task DeleteAsync(string id)
     {
+        var entity = await _repo.GetByIdAsync(id);
+        if (entity == null)
+            throw new NotFoundException($"Variable '{id}' no encontrada.");
+
         await _repo.DeleteAsync(id);
     }
 }

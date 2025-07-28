@@ -12,12 +12,11 @@ public static class Esp32NodeMapper
         Name = node.Name,
         Location = node.Location,
         LastSeen = node.LastSeen,
-        Status = node.Status
+        Status = node.Status.ToString()
     };
 
     public static Esp32Node ToEntity(Esp32NodeCreateDto dto) => new()
     {
-        Id = dto.Id,
         Name = dto.Name,
         Location = dto.Location,
         LastSeen = DateTime.UtcNow,

@@ -35,7 +35,7 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
             .WithMessage("El valor máximo debe ser mayor que el valor mínimo.");
 
         RuleFor(x => x.Type)
-          .IsInEnum()
-          .WithMessage($"El tipo debe ser uno de los siguientes: {string.Join(", ", Enum.GetNames(typeof(VariableTypes)))}");
+          .NotEmpty()
+          .WithMessage("El tipo de variable es obligatorio.");
     }
 }

@@ -19,60 +19,32 @@ public class MongoReadingRepository : IReadingRepository
 
     public async Task CreateAsync(Reading reading)
     {
-        try
-        {
-            await _baseRepo.CreateAsync(reading);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating reading", ex);
-        }
+        await _baseRepo.CreateAsync(reading);
     }
 
     public async Task<List<Reading>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
     {
-        try
-        {
-            var filter = Builders<ReadingDocument>.Filter.And(
-                Builders<ReadingDocument>.Filter.Eq(x => x.SensorId, sensorId),
-                Builders<ReadingDocument>.Filter.Eq(x => x.VariableId, variableId),
-                Builders<ReadingDocument>.Filter.Gte(x => x.Timestamp, from),
-                Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
-            );
+        var filter = Builders<ReadingDocument>.Filter.And(
+            Builders<ReadingDocument>.Filter.Eq(x => x.SensorId, sensorId),
+            Builders<ReadingDocument>.Filter.Eq(x => x.VariableId, variableId),
+            Builders<ReadingDocument>.Filter.Gte(x => x.Timestamp, from),
+            Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
+        );
 
-            return await _baseRepo.FindManyAsync(filter);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving readings", ex);
-        }
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task<int> DeleteOlderThanAsync(DateTime cutoff)
     {
-        try
-        {
-            var filter = Builders<ReadingDocument>.Filter.Lt(x => x.Timestamp, cutoff);
-            var result = await _baseRepo.DeleteManyAsync(filter);
-            return (int)result.DeletedCount;
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error deleting old readings", ex);
-        }
+        var filter = Builders<ReadingDocument>.Filter.Lt(x => x.Timestamp, cutoff);
+        var result = await _baseRepo.DeleteManyAsync(filter);
+        return (int)result.DeletedCount;
     }
 
     public async Task<Reading?> GetLatestBySensorIdsAsync(List<string> sensorIds)
     {
-        try
-        {
-            var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
-            var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
-            return await _baseRepo.FindLastOneAsync(filter,sort);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving latest reading", ex);
-        }
+        var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
+        var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
+        return await _baseRepo.FindLastOneAsync(filter, sort);
     }
 }

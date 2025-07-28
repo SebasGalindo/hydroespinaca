@@ -1,8 +1,9 @@
 ﻿using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Abstractions;
 
 namespace ActuatorService.Domain.Entities;
 
-public class ActuatorCommand
+public class ActuatorCommand : IEntity
 {
     public string Id { get; set; } = default!;
     public string ActuatorId { get; set; } = default!;

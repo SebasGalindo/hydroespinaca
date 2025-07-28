@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using HydroEspinaca.Shared.DTOs.Esp32;
+﻿using HydroEspinaca.Shared.DTOs.Esp32;
+using HydroEspinaca.Shared.Enums;
+using Microsoft.AspNetCore.Mvc;
 using SensorService.Application.Interfaces;
+using SharpCompress.Common;
 
 namespace SensorService.API.Controllers;
 
@@ -32,14 +34,15 @@ public class Esp32NodesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Esp32NodeCreateDto dto)
     {
-        await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+        var created = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = created }, created);
     }
-
+    
     [HttpPut("{id}/status")]
     public async Task<IActionResult> UpdateStatus(string id, [FromBody] Esp32NodeUpdateStatusDto dto)
     {
         await _service.UpdateStatusAsync(id, dto);
         return NoContent();
     }
+
 }

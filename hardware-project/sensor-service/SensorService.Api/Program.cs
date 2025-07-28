@@ -88,6 +88,7 @@ app.MapGet("/", context =>
     return Task.CompletedTask;
 });
 
+
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 

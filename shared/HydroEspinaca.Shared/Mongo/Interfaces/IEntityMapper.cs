@@ -1,6 +1,8 @@
-﻿namespace HydroEspinaca.Shared.Mongo.Interfaces;
+﻿using HydroEspinaca.Shared.Abstractions;
 
-public interface IEntityMapper<TEntity, TDocument>
+namespace HydroEspinaca.Shared.Mongo.Interfaces;
+
+public interface IEntityMapper<TEntity, TDocument> where TEntity : IIdentifiableMutable where TDocument : IIdentifiableMutable
 {
     TEntity ToEntity(TDocument doc);
     TDocument ToDocument(TEntity entity);

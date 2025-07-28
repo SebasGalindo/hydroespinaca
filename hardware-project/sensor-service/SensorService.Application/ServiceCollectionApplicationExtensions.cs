@@ -15,6 +15,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<ISensorAlertService, SensorAlertService>();
         services.AddScoped<IAggregateService, AggregateService>();
         services.AddScoped<IVariableService, VariableService>();
+        services.AddScoped<IEsp32NodeService, Esp32NodeService>();
 
         // Use Cases
         services.AddScoped<MqttMessageDispatcher>();

@@ -25,33 +25,19 @@ public class MongoAggregateRepository : IAggregateRepository
 
     public async Task CreateAsync(Aggregate aggregate)
     {
-        try
-        {
-            await _baseRepo.CreateAsync(aggregate);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating aggregate", ex);
-        }
+        await _baseRepo.CreateAsync(aggregate);
     }
 
     public async Task<List<Aggregate>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
     {
-        try
-        {
-            var filter = Builders<AggregateDocument>.Filter.And(
-                Builders<AggregateDocument>.Filter.Eq(x => x.SensorId, sensorId),
-                Builders<AggregateDocument>.Filter.Eq(x => x.VariableId, variableId),
-                Builders<AggregateDocument>.Filter.Gte(x => x.Timestamp, from),
-                Builders<AggregateDocument>.Filter.Lte(x => x.Timestamp, to)
-            );
+        var filter = Builders<AggregateDocument>.Filter.And(
+            Builders<AggregateDocument>.Filter.Eq(x => x.SensorId, sensorId),
+            Builders<AggregateDocument>.Filter.Eq(x => x.VariableId, variableId),
+            Builders<AggregateDocument>.Filter.Gte(x => x.Timestamp, from),
+            Builders<AggregateDocument>.Filter.Lte(x => x.Timestamp, to)
+        );
 
-            return await _baseRepo.FindManyAsync(filter);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving aggregates", ex);
-        }
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorId, string variableId, DateTime timestamp)

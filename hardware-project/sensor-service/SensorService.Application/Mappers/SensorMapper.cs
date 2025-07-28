@@ -14,7 +14,7 @@ public static class SensorMapper
         Esp32Id = sensor.Esp32Id,
         SamplingFrequency = sensor.SamplingFrequency,
         Variables = sensor.Variables,
-        Status = sensor.Status,
+        Status = sensor.Status.ToString(),
         CreatedAt = sensor.CreatedAt
     };
 
@@ -32,12 +32,15 @@ public static class SensorMapper
 
     public static void MapUpdate(SensorUpdateDto dto, Sensor existing)
     {
+        if (!Enum.TryParse<SensorStatus>(dto.Status, true, out var sensorStatus))
+            throw new ArgumentException($"Invalid sensor status: '{dto.Status}'.");
+
         existing.PhysicalId = dto.PhysicalId;
         existing.Location = dto.Location;
         existing.Esp32Id = dto.Esp32Id;
         existing.SamplingFrequency = dto.SamplingFrequency;
         existing.Variables = dto.Variables;
-        existing.Status = dto.Status;
+        existing.Status = sensorStatus;
     }
 
 }

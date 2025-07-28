@@ -19,39 +19,23 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
 
     public async Task CreateAsync(SensorAlert alert)
     {
-        try
-        {
-            await _baseRepo.CreateAsync(alert);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating sensor alert", ex);
-        }
+        await _baseRepo.CreateAsync(alert);
+    }
+
+    public async Task<SensorAlert?> GetByIdAsync(string id)
+    {
+        return await _baseRepo.GetByIdAsync(id);
     }
 
     public async Task<List<SensorAlert>> GetBySensorIdAsync(string sensorId)
     {
-        try
-        {
-            var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
-            return await _baseRepo.FindManyAsync(filter);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving sensor alerts", ex);
-        }
+        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task UpdateAcknowledgedAsync(string alertId, bool acknowledged)
     {
-        try
-        {
-            await _baseRepo.UpdateFieldAsync(alertId, x => x.Acknowledged, acknowledged);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error updating alert acknowledgement", ex);
-        }
+        await _baseRepo.UpdateFieldAsync(alertId, x => x.Acknowledged, acknowledged);
     }
 
 }

@@ -1,5 +1,3 @@
-using HydroEspinaca.Shared.Enums;
-
 namespace HydroEspinaca.Shared.DTOs.Sensors;
 
 public class SensorUpdateDto
@@ -9,5 +7,5 @@ public class SensorUpdateDto
     public string Esp32Id { get; set; } = default!;
     public int SamplingFrequency { get; set; }
     public List<string> Variables { get; set; } = new();
-    public SensorStatus Status { get; set; } = default!;
+    public string Status { get; set; } = default!;
 }

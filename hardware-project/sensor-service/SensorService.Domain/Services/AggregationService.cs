@@ -1,4 +1,5 @@
-﻿using SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Abstractions;
+using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.ValueObjects;
 
@@ -14,9 +15,8 @@ public class AggregationService : IAggregationService
     {
         var aggregateId = GenerateAggregateId(sensorId, variableId, window.End);
 
-        return new Aggregate
+        var aggregate = new Aggregate
         {
-            Id = aggregateId,
             SensorId = sensorId,
             VariableId = variableId,
             Avg = data.Average,
@@ -25,6 +25,9 @@ public class AggregationService : IAggregationService
             Count = data.Count,
             Timestamp = window.End
         };
+        aggregate.SetId(aggregateId);
+        return aggregate;
+
     }
 
     private static string GenerateAggregateId(string sensorId, string variableId, DateTime timestamp)

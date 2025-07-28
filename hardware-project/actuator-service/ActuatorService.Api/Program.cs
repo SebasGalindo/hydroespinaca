@@ -5,7 +5,7 @@ using ActuatorService.Application.Validators.Actuators;
 using ActuatorService.Infrastructure;
 using FluentValidation;
 using HydroEspinaca.Shared.Extensions;
-using SensorService.Api.Middleware;
+using ActuatorService.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 

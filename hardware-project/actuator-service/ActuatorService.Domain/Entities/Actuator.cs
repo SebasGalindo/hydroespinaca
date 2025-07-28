@@ -1,7 +1,8 @@
 ﻿using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Abstractions;
 
 namespace ActuatorService.Domain.Entities;
-public class Actuator
+public class Actuator : IEntity
 {
     public string Id { get; set; } = default!;          // e.g., "led-001"
     public string Esp32Id { get; set; } = default!;

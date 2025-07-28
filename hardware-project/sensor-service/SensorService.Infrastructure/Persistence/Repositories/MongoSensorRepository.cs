@@ -18,61 +18,26 @@ public class MongoSensorRepository : ISensorRepository
 
     public async Task<Sensor?> GetByIdAsync(string id)
     {
-        try
-        {
-            return await _baseRepo.GetByIdAsync(id);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving sensor by ID", ex);
-        }
+        return await _baseRepo.GetByIdAsync(id);
     }
 
     public async Task<List<Sensor>> GetAllAsync()
     {
-        try
-        {
-            return await _baseRepo.GetAllAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving all sensors", ex);
-        }
+        return await _baseRepo.GetAllAsync();
     }
 
     public async Task CreateAsync(Sensor sensor)
     {
-        try
-        {
-            await _baseRepo.CreateAsync(sensor);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating sensor", ex);
-        }
+        await _baseRepo.CreateAsync(sensor);
     }
 
     public async Task UpdateAsync(Sensor sensor)
     {
-        try
-        {
-            await _baseRepo.UpdateAsync(sensor);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error updating sensor", ex);
-        }
+        await _baseRepo.UpdateAsync(sensor);
     }
 
     public async Task DeleteAsync(string id)
     {
-        try
-        {
-            await _baseRepo.DeleteAsync(id);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error deleting sensor", ex);
-        }
+        await _baseRepo.DeleteAsync(id);
     }
 }

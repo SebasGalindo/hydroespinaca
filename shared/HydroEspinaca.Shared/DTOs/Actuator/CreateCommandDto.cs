@@ -1,13 +1,11 @@
-﻿using HydroEspinaca.Shared.Enums;
-
-namespace HydroEspinaca.Shared.DTOs.Actuator;
+﻿namespace HydroEspinaca.Shared.DTOs.Actuator;
 public class CreateCommandDto
 {
     public string ActuatorId { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
     public string Action { get; set; } = default!;
     public int? DurationMs { get; set; }
-    public TriggerType Trigger { get; set; }
+    public string Trigger { get; set; }
     public string? RoutineId { get; set; }
     public int? RoutineStepOrder { get; set; }
 
