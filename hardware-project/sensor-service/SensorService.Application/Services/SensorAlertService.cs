@@ -45,8 +45,10 @@ public class SensorAlertService : ISensorAlertService
 
         var sensorAlert = await _repo.GetByIdAsync(id);
         if (sensorAlert is null)
-            throw new NotFoundException($"SensorAlert '{sensorAlert}' no encontrado.");
+            throw new NotFoundException($"SensorAlert '{id}' no encontrado.");
 
-        await _repo.UpdateAcknowledgedAsync(id, dto.Acknowledged);
+        sensorAlert.Acknowledged = dto.Acknowledged;
+
+        await _repo.UpdateAsync(sensorAlert);
     }
 }

@@ -12,7 +12,6 @@ public static class ServiceCollectionUseCaseExtensions
 {
     public static IServiceCollection AddUseCases(this IServiceCollection services)
     {
-        services.AddScoped<IResolveOfflineAlertsUseCase, ResolveOfflineAlertsUseCase>();
         services.AddScoped<IMatchReadingsWithSensorsUseCase, MatchReadingsWithSensorsUseCase>();
         services.AddScoped<IGenerateAlertsUseCase, GenerateAlertsUseCase>();
         services.AddScoped<IGenerateInactiveSensorAlertsUseCase, GenerateInactiveSensorAlertsUseCase>();

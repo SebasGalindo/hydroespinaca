@@ -1,8 +1,8 @@
+using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
-using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
 
@@ -33,9 +33,19 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task UpdateAcknowledgedAsync(string alertId, bool acknowledged)
+    public async Task UpdateAsync(SensorAlert sensorAlert)
     {
-        await _baseRepo.UpdateFieldAsync(alertId, x => x.Acknowledged, acknowledged);
+        await _baseRepo.UpdateAsync(sensorAlert);
     }
 
+    public async Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorId, AlertType type)
+    {
+        var filter = Builders<SensorAlertDocument>.Filter.And(
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorId, sensorId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false)
+        );
+
+        return await _baseRepo.FindOneAsync(filter);
+    }
 }

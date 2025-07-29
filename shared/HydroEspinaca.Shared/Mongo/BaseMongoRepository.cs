@@ -6,7 +6,7 @@ using System.Linq.Expressions;
 
 namespace HydroEspinaca.Shared.Mongo;
 
-public class BaseMongoRepository<TEntity, TDocument>    where TEntity : IIdentifiableMutable
+public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiableMutable
     where TDocument : IIdentifiableMutable
 {
     private readonly IMongoCollection<TDocument> _collection;
@@ -39,14 +39,24 @@ public class BaseMongoRepository<TEntity, TDocument>    where TEntity : IIdentif
         var inserted = _mapper.ToEntity(doc);
         entity.SetId(inserted.Id);
     }
+    private static FilterDefinition<TDocument> BuildIdFilter<TDocument>(string id)
+    {
+        if (ObjectId.TryParse(id, out var objectId))
+        {
+            return Builders<TDocument>.Filter.Eq("_id", objectId);
+        }
+
+        return Builders<TDocument>.Filter.Eq("_id", id);
+    }
 
     public async Task UpdateAsync(TEntity entity)
     {
         var doc = _mapper.ToDocument(entity);
+        var filter = BuildIdFilter<TDocument>(doc.Id);
 
-        var filter = Builders<TDocument>.Filter.Eq("_id", doc.Id);
         await _collection.ReplaceOneAsync(filter, doc);
     }
+
 
     public async Task DeleteAsync(string id)
     {

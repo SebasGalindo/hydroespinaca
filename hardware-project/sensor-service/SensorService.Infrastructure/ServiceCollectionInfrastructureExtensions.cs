@@ -27,7 +27,7 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IVariableRepository, MongoVariableRepository>();
         services.AddScoped<IAggregateRepository, MongoAggregateRepository>();
         services.AddScoped<IEsp32NodeRepository, MongoEsp32NodeRepository>();
-
+        services.AddScoped<IEsp32AlertRepository, MongoEsp32AlertRepository>();
 
         // Mappers
         services.AddScoped<IEntityMapper<Sensor, SensorDocument>, SensorMapper>();
@@ -36,10 +36,11 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IEntityMapper<Variable, VariableDocument>, VariableMapper>();
         services.AddScoped<IEntityMapper<Esp32Node, Esp32NodeDocument>, Esp32NodeMapper>();
         services.AddScoped<IEntityMapper<Aggregate, AggregateDocument>, AggregateMapper>();
+        services.AddScoped<IEntityMapper<Esp32Alert, Esp32AlertDocument>, Esp32AlertMapper>();
 
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
-
+     
         return services;
     }
 }

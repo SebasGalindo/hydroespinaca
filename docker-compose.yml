@@ -21,6 +21,8 @@ services:
     container_name: sensor-service
     ports:
       - "5001:8080"
+    depends_on:
+      - mqtt
     environment:
       - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
       - MONGO__Database=${MONGO_DATABASE}

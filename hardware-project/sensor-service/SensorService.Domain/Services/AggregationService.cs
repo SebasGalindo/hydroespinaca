@@ -1,5 +1,4 @@
-﻿using HydroEspinaca.Shared.Abstractions;
-using SensorService.Domain.Entities;
+﻿using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.ValueObjects;
 

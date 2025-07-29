@@ -33,10 +33,10 @@ public class RegisterCommandService : ICommandService
     public async Task AddAsync(CreateCommandDto dto, string? userId)
     {
         if (!ObjectId.TryParse(dto.Esp32Id, out _))
-            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
 
         if (!ObjectId.TryParse(dto.ActuatorId, out _))
-            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
 
         if (!Enum.TryParse<TriggerType>(dto.Trigger, true, out var parsedTrigger))
             throw new ArgumentException($"Trigger '{dto.Trigger}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(TriggerType)))}");
@@ -57,16 +57,16 @@ public class RegisterCommandService : ICommandService
         if (parsedTrigger == TriggerType.Routine)
         {
             if (string.IsNullOrWhiteSpace(dto.RoutineId))
-                throw new ValidationException("RoutineId es obligatorio cuando Trigger es 'Routine'.");
+                throw new ArgumentException("RoutineId es obligatorio cuando Trigger es 'Routine'.");
 
             if (dto.RoutineStepOrder is null || dto.RoutineStepOrder < 0)
-                throw new ValidationException("RoutineStepOrder debe ser mayor o igual a 0 cuando Trigger es 'Routine'.");
+                throw new ArgumentException("RoutineStepOrder debe ser mayor o igual a 0 cuando Trigger es 'Routine'.");
         }
 
         if (dto.Metadata is not null)
         {
             if (string.IsNullOrWhiteSpace(dto.Metadata.Source))
-                throw new ValidationException("Metadata.Source no puede estar vacío si se proporciona Metadata.");
+                throw new ArgumentException("Metadata.Source no puede estar vacío si se proporciona Metadata.");
         }
 
         var command = CommandMapper.ToEntity(dto, userId);
@@ -79,7 +79,7 @@ public class RegisterCommandService : ICommandService
     public async Task<List<ActuatorCommandDto>> GetByActuatorIdAsync(string actuatorId)
     {
         if (!ObjectId.TryParse(actuatorId, out _))
-            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
 
         var entity = await _repo.GetByIdAsync(actuatorId);
         if (entity is null)
