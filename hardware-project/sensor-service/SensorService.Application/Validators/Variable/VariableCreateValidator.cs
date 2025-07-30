@@ -1,7 +1,5 @@
 ﻿using FluentValidation;
-using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Variables;
-using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Application.Validators.Variable;
 
@@ -10,10 +8,6 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
 
     public VariableCreateValidator()
     {
-        RuleFor(x => x.Id)
-            .NotEmpty().WithMessage("El ID no puede estar vacío.")
-            .MaximumLength(50);
-
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("El nombre es obligatorio.")
             .MaximumLength(100);

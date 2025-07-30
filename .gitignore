@@ -1,108 +1,113 @@
-# ------------------------------
-# Global .env ignores (anywhere in the repo)
-# ------------------------------
+# ===============================
+# ARCHIVOS SENSIBLES / SECRETS
+# ===============================
 .env*
 */.env*
 **/.env*
+**/secrets.json
+**/credentials.json
+**/*.pem
+**/*.crt
+**/*.cert
+**/*.enc
+**/auth.json
+**/private.key
+**/public.key
 
+# Configs internos firmware
+esp32-firmware/include/secrets.h
+# ===============================
+# LOGS / TEMPORALES
+# ===============================
 *.log
 *.tmp
 *.bak
+*.swp
 .DS_Store
 Thumbs.db
-*.swp
 
+# ===============================
+# MOSQUITTO (Broker MQTT)
+# ===============================
+**/mosquitto/config/pwfile
+**/mosquitto/config/passwd
+**/mosquitto/passwd
 
-# ------------------------------
-# Node / React / Vite / Preact
-# ------------------------------
+# ===============================
+# NODE / FRONTEND / REACT / VITE
+# ===============================
 **/node_modules/
 **/dist/
 **/.vite/
 **/.turbo/
-**/.eslintcache
 **/.parcel-cache/
-
-# ------------------------------
-# React Native / Expo
-# ------------------------------
-**/ios/
-**/android/
-**/web-build/
-**/expo-shared/
-**/.expo/
-**/.expo-shared/
-**/.expo-cache/
-**/.expo-settings/
+**/.eslintcache
+**/.next/
 **/build/
 
-# ------------------------------
-# Python (fuzzy-service)
-# ------------------------------
+# ===============================
+# PYTHON (fuzzy-service)
+# ===============================
 **/__pycache__/
 **/*.py[cod]
 **/.pytest_cache/
 **/.mypy_cache/
-**/env/
-**/venv/
-**/.venv/
 **/.ipynb_checkpoints/
+**/.venv/
+**/venv/
+**/env/
 
-# ------------------------------
-# .NET Core / C# (microservices)
-# ------------------------------
+# ===============================
+# .NET / C#
+# ===============================
 **/bin/
 **/obj/
+**/.vs/
 **/*.user
 **/*.suo
 **/*.vspscc
 **/*.vssscc
 **/*.csproj.user
 **/TestResults/
-**/.vs/
-/.nuget/packages/
+.nuget/packages/
+**/nupkg/
 
-# ------------------------------
-# IDEs & editors
-# ------------------------------
+# ===============================
+# PlatformIO / ESP32 Firmware
+# ===============================
+.pio/
+.pio/libdeps/
+.pio/build/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# ===============================
+# DOCKER / VOLUMES
+# ===============================
+**/docker-data/
+**/db/volume/
+**/deploy/mosquitto/data/
+**/docker-compose.override.yml
+
+# ===============================
+# IDEs / EDITORES
+# ===============================
 **/.idea/
 **/.vscode/
 *.code-workspace
 
-# ------------------------------
-# Docker / Compose / Volumes
-# ------------------------------
-**/db/volume/
-**/docker-data/
-**/deploy/mosquitto/data/
-**/docker-compose.override.yml
-
-# ------------------------------
-# Shared / Libraries / Output
-# ------------------------------
+# ===============================
+# LIBRERÍAS COMPILADAS / SHARED
+# ===============================
 **/packages/shared-ui/dist/
 **/packages/**/lib/
 **/packages/**/build/
+shared/HydroEspinaca.Shared/nupkg/
 
-# ------------------------------
-# Secrets and sensitive files
-# ------------------------------
-**/private.key
-**/public.key
-**/secrets.json
-**/*.pem
-**/*.crt
-**/*.cert
-**/*.enc
-**/auth.json
-**/credentials.json
-
-# ------------------------------
-# Mosquitto (Broker MQTT)
-# ------------------------------
-**/mosquitto/config/pwfile
-**/mosquitto/config/passwd
-**/mosquitto/passwd
-
-shared/HydroEspinaca.Shared/nupkg/*
+# ===============================
+# SCRIPTS INTERNOS
+# ===============================
 build-shared-and-install.sh
+

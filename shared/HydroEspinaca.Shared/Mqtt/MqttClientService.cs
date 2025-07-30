@@ -1,4 +1,5 @@
 ﻿using HydroEspinaca.Shared.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
@@ -12,8 +13,10 @@ public class MqttClientService : IMqttClientService
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
     private bool _isHandlerRegistered = false;
-    public MqttClientService(IOptions<MqttSettings> mqttOptions)
+    private readonly ILogger<MqttClientService> _logger;
+    public MqttClientService(IOptions<MqttSettings> mqttOptions, ILogger<MqttClientService> logger)
     {
+        _logger = logger;
         var config = mqttOptions.Value;
 
         var factory = new MqttClientFactory();
@@ -29,17 +32,33 @@ public class MqttClientService : IMqttClientService
 
     public async Task ConnectAsync()
     {
-        if (_client.IsConnected) return;
+        if (_client.IsConnected)
+        {
+            _logger.LogInformation("MQTT client already connected.");
+            return;
+        }
 
         try
         {
-            await _client.ConnectAsync(_options);
+            _logger.LogInformation("Connecting to MQTT broker...");
+            var result = await _client.ConnectAsync(_options);
+
+            if (_client.IsConnected)
+            {
+                _logger.LogInformation("Connected to MQTT broker.");
+            }
+            else
+            {
+                _logger.LogWarning("Failed to connect to MQTT broker. Result: {Reason}", result?.ResultCode);
+            }
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error connecting to MQTT broker.");
             throw new InvalidOperationException("Error connecting to MQTT broker", ex);
         }
     }
+
 
     public async Task SubscribeAsync(string topic, Func<string, byte[], Task> handler)
     {
@@ -51,8 +70,14 @@ public class MqttClientService : IMqttClientService
             {
                 var payload = e.ApplicationMessage.Payload.ToArray();
                 var msgTopic = e.ApplicationMessage.Topic;
+
+                _logger.LogInformation("MQTT message received. Topic: {Topic}, Payload: {Payload}",
+                    msgTopic,
+                    Encoding.UTF8.GetString(payload));
+
                 return handler(msgTopic, payload);
             };
+
             _isHandlerRegistered = true;
         }
 
@@ -62,8 +87,18 @@ public class MqttClientService : IMqttClientService
                 .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
             .Build();
 
-        await _client.SubscribeAsync(options);
+        try
+        {
+            await _client.SubscribeAsync(options);
+            _logger.LogInformation("Subscribed to MQTT topic: {Topic}", topic);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to topic: {Topic}", topic);
+            throw;
+        }
     }
+
 
     public async Task SubscribeAsync(string topic, Func<string, string, Task> textHandler)
     {

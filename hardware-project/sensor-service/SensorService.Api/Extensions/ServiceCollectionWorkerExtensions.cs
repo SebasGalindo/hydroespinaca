@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using MQTTnet;
-using SensorService.Infrastructure.Services;
+﻿using SensorService.Infrastructure.Services;
 
 namespace SensorService.Api.Extensions;
 

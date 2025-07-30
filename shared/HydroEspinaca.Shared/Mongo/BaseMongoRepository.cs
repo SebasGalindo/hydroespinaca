@@ -21,7 +21,7 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
     public async Task<TEntity?> GetByIdAsync(string id)
     {
         var objectId = ObjectId.Parse(id);
-        var filter = Builders<TDocument>.Filter.Eq("_id", objectId);
+        var filter = BuildIdFilter<TDocument>(id);
         var doc = await _collection.Find(filter).FirstOrDefaultAsync();
         return doc is null ? default : _mapper.ToEntity(doc);
     }

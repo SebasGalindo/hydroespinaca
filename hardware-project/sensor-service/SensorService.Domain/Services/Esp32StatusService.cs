@@ -82,12 +82,8 @@ public class Esp32StatusService : IEsp32StatusService
 
         if (existingAlert is not null)
         {
-            Console.WriteLine($"[ANTES] Alert: {existingAlert.Id} | Msg: {existingAlert.Message} | Timestamp: {existingAlert.Timestamp:o}");
-
             existingAlert.Message = message;
             existingAlert.Timestamp = timestamp;
-
-            Console.WriteLine($"[DESPUÉS] Alert: {existingAlert.Id} | Msg: {existingAlert.Message} | Timestamp: {existingAlert.Timestamp:o}");
 
             await _esp32AlertRepository.UpdateAsync(existingAlert);
         }

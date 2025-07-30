@@ -8,7 +8,7 @@ namespace SensorService.Infrastructure.Persistence.Models;
 public class VariableDocument : IIdentifiableMutable
 {
     [BsonId]
-    [BsonRepresentation(BsonType.String)] // Usa el string como id ("lux", "ph", etc.)
+    [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; private set; } = default!;
 
     [BsonElement("name")]

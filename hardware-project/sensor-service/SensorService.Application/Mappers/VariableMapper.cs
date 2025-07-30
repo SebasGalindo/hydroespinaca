@@ -33,7 +33,6 @@ public static class VariableMapper
             Type = variableType,
             LastModified = DateTime.UtcNow
         };
-        variableEn.SetId(dto.Id);
         return variableEn;
 
     }
