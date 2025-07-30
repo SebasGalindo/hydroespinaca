@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SensorService.Application.Interfaces.UseCases.Esp32OfflineWorker;
-using SensorService.Application.UseCases.Esp32OfflineWorker;
 using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Infrastructure.Services;
@@ -34,7 +33,7 @@ public class Esp32OfflineWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error checking ESP32 offline status");
+                _logger.LogError(ex, "❌ Error checking ESP32 offline status: {Message}", ex.ToString());
             }
 
             await Task.Delay(_interval, stoppingToken);

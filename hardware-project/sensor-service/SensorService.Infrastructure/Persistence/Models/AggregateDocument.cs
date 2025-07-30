@@ -1,13 +1,15 @@
-﻿using MongoDB.Bson;
+﻿using HydroEspinaca.Shared.Abstractions;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
-public class AggregateDocument
+
+public class AggregateDocument : IIdentifiableMutable
 {
     [BsonId]
     [BsonRepresentation(BsonType.String)]
-    public string Id { get; set; } = default!;
+    public string Id { get; private set; } = default!;
 
     [BsonElement("sensorId")]
     public string SensorId { get; set; } = default!;
@@ -29,4 +31,6 @@ public class AggregateDocument
 
     [BsonElement("timestamp")]
     public DateTime Timestamp { get; set; }
+
+    public void SetId(string id) => Id = id;
 }

@@ -1,6 +1,8 @@
-﻿using System.Net;
-using System.Text.Json;
-using HydroEspinaca.Shared.Responses;
+﻿using FluentValidation;
+using HydroEspinaca.Shared.Errors;
+using Microsoft.AspNetCore.Mvc;
+using SensorService.Api.Helpers;
+using System.Net.Mime;
 
 namespace SensorService.Api.Middleware;
 
@@ -23,26 +25,74 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning("⚠️ Validation failed. Error count: {ErrorCount}", ex.Errors?.Count() ?? 0);
+
+            if (ex.Errors != null)
+            {
+                foreach (var error in ex.Errors)
+                {
+                    _logger.LogWarning("Validation error - Property: {Property}, Error: {Error}",
+                        error.PropertyName ?? "Unknown", error.ErrorMessage);
+                }
+            }
+
+            var problem = ex.ToProblemDetails(context);
+            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning("⚠️ Not found: {Message}", ex.Message);
+
+            var problem = ProblemDetailsHelper.Create(context,
+                title: "Resource Not Found",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                env: _env);
+
+            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status404NotFound);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning("🔐 Unauthorized access: {Message}", ex.Message);
+
+            var problem = ProblemDetailsHelper.Create(context,
+                title: "Unauthorized",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status401Unauthorized,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.5.2",
+                env: _env);
+
+            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status401Unauthorized);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning("⚠️ Invalid argument: {Message}", ex.Message);
+            var problem = ProblemDetailsHelper.Create(context,
+                title: "Invalid Parameter",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                env: _env);
+            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Unhandled exception");
 
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var error = new ErrorResponse
-            {
-                Message = "Internal Server Error"
-            };
+            var problem = ProblemDetailsHelper.Create(context,
+                title: "Internal Server Error",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status500InternalServerError,
+                type: "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                env: _env);
 
             if (_env.IsDevelopment() || _env.IsStaging())
-            {
-                error.Detail = ex.Message;
-                error.Stack = ex.StackTrace;
-            }
+                problem.Extensions["stackTrace"] = ex.StackTrace;
 
-            await context.Response.WriteAsync(JsonSerializer.Serialize(error));
-
+            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status500InternalServerError);
         }
     }
 }

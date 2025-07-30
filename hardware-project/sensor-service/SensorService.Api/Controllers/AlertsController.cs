@@ -25,8 +25,7 @@ public class AlertsController : ControllerBase
     [HttpPatch("{alertId}/acknowledge")]
     public async Task<IActionResult> Acknowledge(string alertId, [FromBody] SensorAlertUpdateDto dto)
     {
-        dto.Id = alertId;
-        await _service.AcknowledgeAsync(dto);
+        await _service.AcknowledgeAsync(alertId, dto);
         return NoContent();
     }
 

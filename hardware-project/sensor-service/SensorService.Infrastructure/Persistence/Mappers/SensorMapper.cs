@@ -1,34 +1,43 @@
 ﻿using SensorService.Domain.Entities;
 using HydroEspinaca.Shared.Enums;
 using SensorService.Infrastructure.Persistence.Models;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
-public static class SensorMapper
+public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
 {
-    public static Sensor ToEntity(SensorDocument doc) => new()
+    public Sensor ToEntity(SensorDocument doc)
     {
-        Id = doc.Id,
-        Code = doc.Code,
-        PhysicalId = doc.PhysicalId,
-        Location = doc.Location,
-        Esp32Id = doc.Esp32Id,
-        SamplingFrequency = doc.SamplingFrequency,
-        Variables = doc.Variables,
-        Status = Enum.Parse<SensorStatus>(doc.Status, ignoreCase: true),
-        CreatedAt = doc.CreatedAt
-    };
+        var Sensor = new Sensor
+        {
+            Code = doc.Code,
+            PhysicalId = doc.PhysicalId,
+            Location = doc.Location,
+            Esp32Id = doc.Esp32Id,
+            SamplingFrequency = doc.SamplingFrequency,
+            Variables = doc.Variables,
+            Status = doc.Status,
+            CreatedAt = doc.CreatedAt
+        };
+        Sensor.SetId(doc.Id);
+        return Sensor;
+    }
 
-    public static SensorDocument ToDocument(Sensor entity) => new()
+    public SensorDocument ToDocument(Sensor entity)
     {
-        Id = entity.Id,
-        Code = entity.Code,
-        PhysicalId = entity.PhysicalId,
-        Location = entity.Location,
-        Esp32Id = entity.Esp32Id,
-        SamplingFrequency = entity.SamplingFrequency,
-        Variables = entity.Variables,
-        Status = entity.Status.ToString(),
-        CreatedAt = entity.CreatedAt
-    };
+        var document = new SensorDocument
+        {
+            Code = entity.Code,
+            PhysicalId = entity.PhysicalId,
+            Location = entity.Location,
+            Esp32Id = entity.Esp32Id,
+            SamplingFrequency = entity.SamplingFrequency,
+            Variables = entity.Variables,
+            Status = entity.Status,
+            CreatedAt = entity.CreatedAt
+        };
+        document.SetId(entity.Id);
+        return document;
+    }
 }

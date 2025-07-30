@@ -1,85 +1,47 @@
-using SensorService.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
-using MongoDB.Driver;
+using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
+
 public class MongoVariableRepository : IVariableRepository
 {
-    private readonly IMongoCollection<VariableDocument> _collection;
+    private readonly BaseMongoRepository<Variable, VariableDocument> _baseRepo;
 
-    public MongoVariableRepository(IConfiguration config)
+    public MongoVariableRepository(MongoDbContext ctx, IEntityMapper<Variable, VariableDocument> mapper)
     {
-        var client = new MongoClient(config["Mongo:ConnectionString"]);
-        var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<VariableDocument>("variables");
+        _baseRepo = new BaseMongoRepository<Variable, VariableDocument>(ctx.Database, "variables", mapper);
     }
 
     public async Task<Variable?> GetByIdAsync(string id)
     {
-        try
-        {
-            var doc = await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
-            return doc is null ? null : VariableMapper.ToEntity(doc);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving variable by ID", ex);
-        }
+        return await _baseRepo.GetByIdAsync(id);
     }
 
     public async Task<List<Variable>> GetAllAsync()
     {
-        try
-        {
-            var docs = await _collection.Find(_ => true).ToListAsync();
-            return docs.Select(VariableMapper.ToEntity).ToList();
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving all variables", ex);
-        }
+        return await _baseRepo.GetAllAsync();
     }
 
     public async Task CreateAsync(Variable variable)
     {
-        try
-        {
-            await _collection.InsertOneAsync(VariableMapper.ToDocument(variable));
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating variable", ex);
-        }
+        await _baseRepo.CreateAsync(variable);
     }
 
     public async Task UpdateAsync(Variable variable)
     {
-        try
-        {
-            await _collection.ReplaceOneAsync(x => x.Id == variable.Id, VariableMapper.ToDocument(variable));
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error updating variable", ex);
-        }
+        await _baseRepo.UpdateAsync(variable);
     }
 
     public async Task DeleteAsync(string id)
     {
-        try
-        {
-            await _collection.DeleteOneAsync(x => x.Id == id);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error deleting variable", ex);
-        }
+        await _baseRepo.DeleteAsync(id);
     }
-    public async Task<int> CountByIdsAsync(IEnumerable<string> ids)
+
+    public async Task<List<string>> GetNonExistingIdsAsync(IEnumerable<string> ids)
     {
-        return (int)await _collection.CountDocumentsAsync(x => ids.Contains(x.Id));
+        return await _baseRepo.GetNonExistingIdsAsync(ids);
     }
+
 }

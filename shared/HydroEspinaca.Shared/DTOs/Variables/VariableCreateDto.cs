@@ -2,7 +2,6 @@ namespace HydroEspinaca.Shared.DTOs.Variables;
 
 public class VariableCreateDto
 {
-    public string Id { get; set; } = default!;
     public string Name { get; set; } = default!;
     public string Unit { get; set; } = default!;
     public string Description { get; set; } = default!;

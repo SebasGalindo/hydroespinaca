@@ -35,8 +35,7 @@ public class SensorsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, [FromBody] SensorUpdateDto dto)
     {
-        dto.Id = id;
-        await _service.UpdateAsync(dto);
+        await _service.UpdateAsync(id, dto);
         return NoContent();
     }
 

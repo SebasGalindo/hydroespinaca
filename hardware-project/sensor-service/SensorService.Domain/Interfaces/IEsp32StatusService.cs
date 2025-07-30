@@ -5,12 +5,12 @@ namespace SensorService.Domain.Interfaces;
 
 public interface IEsp32StatusService
 {
-    Task<IEnumerable<Esp32Status>> GetAllEsp32StatusesAsync(
+    Task<IEnumerable<Esp32StatusRecord>> GetAllEsp32StatusesAsync(
         DateTime currentTime,
         OfflineThreshold threshold);
+    Task UpsertOfflineAlertAsync(
+      Esp32StatusRecord status,
+      DateTime timestamp);
+    Task AcknowledgeOfflineAlertAsync(string esp32Id);
 
-    SensorAlert CreateOfflineAlert(
-        Esp32Status status,
-        string sensorId,
-        DateTime timestamp);
 }

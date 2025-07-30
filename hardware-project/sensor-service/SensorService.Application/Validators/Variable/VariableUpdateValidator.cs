@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Variables;
+using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Application.Validators.Variable;
 
@@ -29,8 +30,7 @@ public class VariableUpdateValidator : AbstractValidator<VariableUpdateDto>
             .WithMessage("El valor máximo debe ser mayor que el valor mínimo.");
 
         RuleFor(x => x.Type)
-            .Must(type => VariableTypes.All.Contains(type))
-            .WithMessage($"El tipo debe ser uno de los siguientes: {string.Join(", ", VariableTypes.All)}.");
-
+          .NotEmpty()
+          .WithMessage("El tipo de variable es obligatorio.");
     }
 }

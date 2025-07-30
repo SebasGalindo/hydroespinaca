@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Sensors;
+using HydroEspinaca.Shared.Validations;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Validators.Sensor;
@@ -21,22 +22,12 @@ public class SensorCreateValidator : AbstractValidator<SensorCreateDto>
             .NotEmpty().WithMessage("La ubicación es obligatoria.");
 
         RuleFor(x => x.Esp32Id)
-            .NotEmpty().WithMessage("Debe especificarse un ESP32 válido.")
-            .MustAsync(async (id, _) =>
-            {
-                var exists = await esp32Repo.ExistsAsync(id);
-                return exists;
-            }).WithMessage("El ESP32 especificado no existe.");
+            .NotEmpty().WithMessage("Debe especificarse un ESP32 válido.").BeValidObjectId();
 
         RuleFor(x => x.SamplingFrequency)
             .GreaterThan(0).WithMessage("La frecuencia de muestreo debe ser mayor que cero.");
 
         RuleFor(x => x.Variables)
-            .NotEmpty().WithMessage("Debe asociarse al menos una variable.")
-            .MustAsync(async (variables, _) =>
-            {
-                var count = await variableRepo.CountByIdsAsync(variables);
-                return count == variables.Count;
-            }).WithMessage("Una o más variables no existen.");
+            .NotEmpty().WithMessage("Debe asociarse al menos una variable.");
     }
 }

@@ -1,60 +1,51 @@
-using SensorService.Domain.Exceptions;
-using Microsoft.Extensions.Configuration;
+using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Mongo;
+using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
-using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
+
 public class MongoSensorAlertRepository : ISensorAlertRepository
 {
-    private readonly IMongoCollection<SensorAlertDocument> _collection;
+    private readonly BaseMongoRepository<SensorAlert, SensorAlertDocument> _baseRepo;
 
-    public MongoSensorAlertRepository(IConfiguration config)
+    public MongoSensorAlertRepository(MongoDbContext ctx, IEntityMapper<SensorAlert, SensorAlertDocument> mapper)
     {
-        var client = new MongoClient(config["Mongo:ConnectionString"]);
-        var db = client.GetDatabase(config["Mongo:Database"]);
-        _collection = db.GetCollection<SensorAlertDocument>("sensor_alerts");
+        _baseRepo = new BaseMongoRepository<SensorAlert, SensorAlertDocument>(ctx.Database, "sensor_alerts", mapper);
     }
 
     public async Task CreateAsync(SensorAlert alert)
     {
-        try
-        {
-            var doc = SensorAlertMapper.ToDocument(alert);
-            await _collection.InsertOneAsync(doc);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error creating sensor alert", ex);
-        }
+        await _baseRepo.CreateAsync(alert);
+    }
+
+    public async Task<SensorAlert?> GetByIdAsync(string id)
+    {
+        return await _baseRepo.GetByIdAsync(id);
     }
 
     public async Task<List<SensorAlert>> GetBySensorIdAsync(string sensorId)
     {
-        try
-        {
-            var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
-            var docs = await _collection.Find(filter).ToListAsync();
-            return docs.Select(SensorAlertMapper.ToEntity).ToList();
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error retrieving sensor alerts", ex);
-        }
+        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
+        return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task UpdateAcknowledgedAsync(string alertId, bool acknowledged)
+    public async Task UpdateAsync(SensorAlert sensorAlert)
     {
-        try
-        {
-            var update = Builders<SensorAlertDocument>.Update.Set(x => x.Acknowledged, acknowledged);
-            await _collection.UpdateOneAsync(x => x.Id == alertId, update);
-        }
-        catch (Exception ex)
-        {
-            throw new DatabaseOperationException("Error updating alert acknowledgement", ex);
-        }
+        await _baseRepo.UpdateAsync(sensorAlert);
+    }
+
+    public async Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorId, AlertType type)
+    {
+        var filter = Builders<SensorAlertDocument>.Filter.And(
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorId, sensorId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false)
+        );
+
+        return await _baseRepo.FindOneAsync(filter);
     }
 }

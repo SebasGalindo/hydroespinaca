@@ -1,10 +1,15 @@
-﻿namespace SensorService.Domain.Entities;
+﻿using HydroEspinaca.Shared.Abstractions;
+using HydroEspinaca.Shared.Enums;
 
-public class Esp32Node
+namespace SensorService.Domain.Entities;
+
+public class Esp32Node : IIdentifiableMutable
 {
-    public string Id { get; set; } = default!; // ID = esp32-001
+    public string Id { get; private set; } = default!;
     public string Name { get; set; } = default!; // Optional display name
     public string Location { get; set; } = default!;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
-    public string Status { get; set; } = "active"; // active, offline, maintenance
+    public Esp32Status Status { get; set; }
+
+    public void SetId(string id) => Id = id;
 }

@@ -1,5 +1,8 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Esp32;
+using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Errors;
+using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
@@ -31,33 +34,52 @@ public class Esp32NodeService : IEsp32NodeService
 
     public async Task<Esp32NodeDto?> GetByIdAsync(string id)
     {
+        if (!ObjectId.TryParse(id, out _))
+            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
         var node = await _repo.GetByIdAsync(id);
-        return node is null ? null : Esp32NodeMapper.ToDto(node);
+        if (node is null)
+            throw new NotFoundException($"ESP32 '{id}' no encontrado.");
+
+        return Esp32NodeMapper.ToDto(node);
     }
 
-    public async Task CreateAsync(Esp32NodeCreateDto dto)
+    public async Task<Esp32NodeDto> CreateAsync(Esp32NodeCreateDto dto)
     {
-        await _createValidator.ValidateAndThrowAsync(dto);
-
-        var exists = await _repo.GetByIdAsync(dto.Id);
-        if (exists != null)
-            throw new InvalidOperationException($"El ESP32 con ID '{dto.Id}' ya existe.");
+        var validationResult = await _createValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+            throw new ValidationException(validationResult.Errors);
 
         var entity = Esp32NodeMapper.ToEntity(dto);
-
         await _repo.CreateAsync(entity);
+        return Esp32NodeMapper.ToDto(entity);
     }
 
-    public async Task UpdateStatusAsync(Esp32NodeUpdateStatusDto dto)
+    public async Task UpdateStatusAsync(string id, Esp32NodeUpdateStatusDto dto)
     {
-        await _statusValidator.ValidateAndThrowAsync(dto);
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
 
-        var node = await _repo.GetByIdAsync(dto.Id);
+        var validationResult = await _statusValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+            throw new ValidationException(validationResult.Errors);
+
+        if (!Enum.TryParse<Esp32Status>(dto.Status, true, out var parsedStatus))
+            throw new ArgumentException($"Estado '{dto.Status}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(Esp32Status)))}");
+
+        var node = await _repo.GetByIdAsync(id);
         if (node is null)
-            throw new InvalidOperationException($"ESP32 '{dto.Id}' no encontrado.");
+            throw new NotFoundException($"ESP32 '{id}' no encontrado.");
 
-        node.Status = dto.Status;
-        await _repo.UpdateStatusAsync(dto.Id, dto.Status);
+        node.Status = parsedStatus;
+        await _repo.UpdateStatusAsync(id, parsedStatus);
     }
 
+    public async Task<bool> ExistsAsync(string id)
+    {
+        if (!ObjectId.TryParse(id, out _))
+            throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+
+        return await _repo.ExistsAsync(id);
+    }
 }
