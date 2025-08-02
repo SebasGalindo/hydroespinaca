@@ -114,7 +114,7 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
 
     public async Task<bool> UpdateFieldAsync<TField>(string id, Expression<Func<TDocument, TField>> field, TField value)
     {
-        FilterDefinition<TDocument> filter = Builders<TDocument>.Filter.Eq("_id", id);
+        FilterDefinition<TDocument> filter = Builders<TDocument>.Filter.Eq("_id", ObjectId.Parse(id));
         UpdateDefinition<TDocument> update = Builders<TDocument>.Update.Set(field, value);
         
         var result = await _collection.UpdateOneAsync(filter, update);
