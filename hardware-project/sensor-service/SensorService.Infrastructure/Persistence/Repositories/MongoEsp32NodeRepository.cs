@@ -33,8 +33,13 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
     public async Task<bool> ExistsAsync(string id) =>
         await _baseRepo.ExistsAsync(id);
 
-    public async Task UpdateStatusAsync(string id, Esp32Status status)
+    public async Task<bool> UpdateStatusAsync(string id, Esp32Status status)
     {
-        await _baseRepo.UpdateFieldAsync(id, x => x.Status, status);
+        return await _baseRepo.UpdateFieldAsync(id, x => x.Status, status);
+    }
+
+    public async Task<bool> UpdateLastSeenAsync(string id, DateTime lastSeen)
+    {
+        return await _baseRepo.UpdateFieldAsync(id, x => x.LastSeen, lastSeen);
     }
 }
