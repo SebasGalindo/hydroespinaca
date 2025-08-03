@@ -1,4 +1,8 @@
-﻿using AuthService.Application.Mappers;
+﻿using AuthService.Application.DTOs;
+using AuthService.Application.Mappers;
+using AuthService.Application.Validators;
+using AuthService.Domain.Interfaces;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AuthService.Application;

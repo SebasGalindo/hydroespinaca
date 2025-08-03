@@ -1,6 +1,7 @@
 ﻿using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.UseCases;
+using AuthService.Application.Validators;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
@@ -165,5 +166,22 @@ namespace AuthService.Tests.Unit.UseCases
             // Assert
             Assert.Equal(valid, result);
         }
+    }
+
+    public class  Validators
+    {
+        [Fact]
+        public void Validator_Should_Fail_On_Empty_Email_And_Password()
+        {
+            var validator = new LoginRequestValidator();
+            var dto = new LoginRequestDto { Email = "", Password = "" };
+
+            var result = validator.Validate(dto);
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Errors, e => e.PropertyName == "Email");
+            Assert.Contains(result.Errors, e => e.PropertyName == "Password");
+        }
+
     }
 }

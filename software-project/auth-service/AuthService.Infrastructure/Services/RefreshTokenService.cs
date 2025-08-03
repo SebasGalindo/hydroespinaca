@@ -32,7 +32,7 @@ public class RefreshTokenService : IRefreshTokenService
 
         var clientId = stored.ClientId;
         return new RefreshTokenResult(
-            user.Id,
+            Guid.Parse(user.Id),
             user.Email.Value,
             user.Role.ToString(),
             clientId

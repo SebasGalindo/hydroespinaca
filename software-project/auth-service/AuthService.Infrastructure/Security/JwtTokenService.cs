@@ -88,8 +88,10 @@ namespace AuthService.Infrastructure.Security
                     ValidateAudience = true,
                     ValidAudience = _settings.Audience,
                     ValidateLifetime = true,
-                    IssuerSigningKey = new RsaSecurityKey(rsa)
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new RsaSecurityKey(rsa),
                 };
+
 
                 var handler = new JwtSecurityTokenHandler();
                 handler.ValidateToken(token, validationParameters, out _);

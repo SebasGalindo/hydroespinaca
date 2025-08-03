@@ -22,7 +22,7 @@ public class AuthenticateUserUseCase
         var user = await _authService.AuthenticateAsync(request.Email, request.Password);
 
         var tokens = _tokenService.GenerateTokens(
-            user.Id,
+            Guid.Parse(user.Id),
             user.Email.Value,
             user.Role.ToString(),
             clientId: null);

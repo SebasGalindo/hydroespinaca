@@ -1,5 +1,5 @@
 ﻿using AuthService.Application.DTOs;
-using AuthService.Domain.Aggregates;
+using AuthService.Domain.Entities;
 using AutoMapper;
 
 namespace AuthService.Application.Mappers;

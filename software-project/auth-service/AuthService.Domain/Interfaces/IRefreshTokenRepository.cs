@@ -1,4 +1,4 @@
-﻿using AuthService.Domain.Aggregates;
+﻿using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
 public interface IRefreshTokenRepository

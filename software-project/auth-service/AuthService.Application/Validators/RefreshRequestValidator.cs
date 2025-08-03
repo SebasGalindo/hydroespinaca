@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AuthService.Application.DTOs;
+using FluentValidation;
 
-namespace AuthService.Application.Validators
+namespace AuthService.Application.Validators;
+
+public class RefreshRequestValidator : AbstractValidator<RefreshRequestDto>
 {
-    internal class RefreshRequestValidator
+    public RefreshRequestValidator()
     {
+        RuleFor(x => x.RefreshToken)
+            .NotEmpty().WithMessage("El token de refresco es obligatorio.");
     }
 }
