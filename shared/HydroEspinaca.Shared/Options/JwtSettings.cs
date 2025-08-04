@@ -2,6 +2,9 @@ namespace HydroEspinaca.Shared.Options;
 
 public class JwtSettings
 {
-    public string Secret { get; set; } = default!;
-    public int ExpirationInMinutes { get; set; } = 60;
+    public required string PrivateKeyPath { get; set; }
+    public required string PublicKeyPath { get; set; }
+    public required string Issuer { get; set; } 
+    public required string Audience { get; set; }
+    public required int AccessTokenExpiryMinutes { get; set; }
 }

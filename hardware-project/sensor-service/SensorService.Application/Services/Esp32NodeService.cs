@@ -65,15 +65,13 @@ public class Esp32NodeService : IEsp32NodeService
             throw new ValidationException(validationResult.Errors);
 
         if (!Enum.TryParse<Esp32Status>(dto.Status, true, out var parsedStatus))
-            throw new ArgumentException($"Estado '{dto.Status}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(Esp32Status)))}");
+            throw new ValidationException($"Estado '{dto.Status}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(Esp32Status)))}");
 
-        var node = await _repo.GetByIdAsync(id);
-        if (node is null)
-            throw new NotFoundException($"ESP32 '{id}' no encontrado.");
-
-        node.Status = parsedStatus;
-        await _repo.UpdateStatusAsync(id, parsedStatus);
+        var updated = await _repo.UpdateStatusAsync(id, parsedStatus);
+        if (!updated)
+            throw new NotFoundException($"No se pudo actualizar el estado del ESP32 '{id}'. Puede que no exista o el valor sea el mismo.");
     }
+
 
     public async Task<bool> ExistsAsync(string id)
     {

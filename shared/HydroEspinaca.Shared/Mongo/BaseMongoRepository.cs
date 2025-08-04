@@ -112,12 +112,15 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
         await _collection.ReplaceOneAsync(filter, doc);
     }
 
-    public async Task UpdateFieldAsync<TField>(string id, Expression<Func<TDocument, TField>> field, TField value)
+    public async Task<bool> UpdateFieldAsync<TField>(string id, Expression<Func<TDocument, TField>> field, TField value)
     {
-        var filter = Builders<TDocument>.Filter.Eq("_id", id);
-        var update = Builders<TDocument>.Update.Set(field, value);
-        await _collection.UpdateOneAsync(filter, update);
+        FilterDefinition<TDocument> filter = Builders<TDocument>.Filter.Eq("_id", ObjectId.Parse(id));
+        UpdateDefinition<TDocument> update = Builders<TDocument>.Update.Set(field, value);
+        
+        var result = await _collection.UpdateOneAsync(filter, update);
+        return result.MatchedCount > 0 && result.ModifiedCount > 0;
     }
+
 
     public async Task<List<string>> GetNonExistingIdsAsync(IEnumerable<string> ids)
     {

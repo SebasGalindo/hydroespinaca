@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Mqtt;
+using SensorService.Application.Interfaces.UseCases.Esp32;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -15,6 +16,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
     private readonly IGenerateAlertsUseCase _generateAlertsUseCase;
     private readonly IGenerateInactiveSensorAlertsUseCase _generateInactiveAlertsUseCase;
     private readonly IEsp32StatusService _esp32StatusService;
+    private readonly IUpdateEsp32LastSeenUseCase _updateEsp32LastSeenUseCase;
 
     public ProcessReadingBatchUseCase(
         IValidator<ReadingBatchDto> validator,
@@ -23,7 +25,9 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         IMatchReadingsWithSensorsUseCase matchReadingsUseCase,
         IGenerateAlertsUseCase generateAlertsUseCase,
         IGenerateInactiveSensorAlertsUseCase generateInactiveAlertsUseCase,
-        IEsp32StatusService esp32StatusService)
+        IEsp32StatusService esp32StatusService,
+        IUpdateEsp32LastSeenUseCase updateEsp32LastSeenUseCase
+        )
     {
         _validator = validator;
         _readingRepository = readingRepository;
@@ -32,6 +36,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         _generateAlertsUseCase = generateAlertsUseCase;
         _generateInactiveAlertsUseCase = generateInactiveAlertsUseCase;
         _esp32StatusService = esp32StatusService;
+        _updateEsp32LastSeenUseCase = updateEsp32LastSeenUseCase;
     }
 
     public async Task<Result<ProcessReadingBatchOutput>> ExecuteAsync(ReadingBatchDto dto, CancellationToken cancellationToken = default)
@@ -48,6 +53,10 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
             await _esp32StatusService.AcknowledgeOfflineAlertAsync(dto.Esp32Id);
 
             var matchedReadings = (await _matchReadingsUseCase.ExecuteAsync(dto)).ToList();
+
+            if (matchedReadings.Any())
+                await _updateEsp32LastSeenUseCase.ExecuteAsync(dto.Esp32Id, dto.Timestamp);
+
             var sensorAlerts = (await _generateAlertsUseCase.ExecuteAsync(matchedReadings, dto.Timestamp)).ToList();
             var inactiveAlerts = await _generateInactiveAlertsUseCase.ExecuteAsync(dto);
 

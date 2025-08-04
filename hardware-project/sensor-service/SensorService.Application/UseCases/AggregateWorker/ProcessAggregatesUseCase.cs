@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using HydroEspinaca.Shared.Enums;
+using Microsoft.Extensions.Logging;
 using SensorService.Application.DTOs.Aggregate;
 using SensorService.Application.Interfaces.UseCases.AggregateWorker;
 using SensorService.Domain.Interfaces;
@@ -33,10 +34,14 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         var window = TimeWindow.CreateTenMinuteWindow(referenceTime);
         var sensors = await _sensorRepository.GetAllAsync();
 
+        var expectedSensors = sensors
+           .Where(s => s.Status == SensorStatus.Active)
+           .ToList();
+
         var processedAggregates = 0;
         var skippedAggregates = 0;
 
-        foreach (var sensor in sensors)
+        foreach (var sensor in expectedSensors)
         {
             foreach (var variableId in sensor.Variables)
             {
