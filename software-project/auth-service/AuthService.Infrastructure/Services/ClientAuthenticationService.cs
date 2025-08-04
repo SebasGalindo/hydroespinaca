@@ -1,6 +1,8 @@
-﻿using AuthService.Domain.Entities;
+﻿using AuthService.Application.Exceptions;
+using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.Errors;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace AuthService.Infrastructure.Services;
 public class ClientAuthenticationService : IClientAuthenticationService
@@ -19,11 +21,12 @@ public class ClientAuthenticationService : IClientAuthenticationService
     public async Task<ClientApp> AuthenticateClientAsync(string clientId, string clientSecret)
     {
         var app = await _appRepo.FindByClientIdAsync(clientId)
-                  ?? throw new UnauthorizedException("Client credentials inválidas.");
+                  ?? throw new InvalidClientCredentialsException();
 
-        if (!_hasher.Verify(clientSecret, app.Secret.Value))
-            throw new UnauthorizedException("Client credentials inválidas.");
+        if (!app.VerifySecret(clientSecret, _hasher))
+            throw new InvalidClientCredentialsException();
 
         return app;
     }
+   
 }

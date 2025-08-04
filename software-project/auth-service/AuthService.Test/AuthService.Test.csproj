@@ -19,7 +19,7 @@
 		<ProjectReference Include="..\AuthService.Application\AuthService.Application.csproj" />
 		<ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
 		<ProjectReference Include="..\AuthService.Infrastructure\AuthService.Infrastructure.csproj" />
-		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250802112323" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250804083156" />
 	</ItemGroup>
 
 	<ItemGroup>

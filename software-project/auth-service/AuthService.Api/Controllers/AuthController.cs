@@ -1,6 +1,7 @@
 ﻿using AuthService.Application.DTOs;
 using AuthService.Application.UseCases;
 using AuthService.Infrastructure.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Api.Controllers;
@@ -12,23 +13,21 @@ public class AuthController : ControllerBase
     private readonly AuthenticateUserUseCase _authUser;
     private readonly RefreshTokenUseCase _refresh;
     private readonly ClientCredentialsUseCase _clientCreds;
-    private readonly ValidateTokenUseCase _validate;
     private readonly IKeyStore _keyStore;
 
     public AuthController(
         AuthenticateUserUseCase authUser,
         RefreshTokenUseCase refresh,
         ClientCredentialsUseCase clientCreds,
-        ValidateTokenUseCase validate,
         IKeyStore keyStore)
     {
         _authUser = authUser;
         _refresh = refresh;
         _clientCreds = clientCreds;
-        _validate = validate;
         _keyStore = keyStore;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<TokenResponseDto>> Login([FromBody] LoginRequestDto dto)
     {
@@ -36,6 +35,7 @@ public class AuthController : ControllerBase
         return Ok(tokens);
     }
 
+    [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<ActionResult<TokenResponseDto>> Refresh([FromBody] RefreshRequestDto dto)
     {
@@ -43,6 +43,7 @@ public class AuthController : ControllerBase
         return Ok(tokens);
     }
 
+    [AllowAnonymous]
     [HttpPost("token")]
     public async Task<ActionResult<TokenResponseDto>> Token([FromBody] ClientCredentialsRequestDto dto)
     {
@@ -50,17 +51,14 @@ public class AuthController : ControllerBase
         return Ok(tokens);
     }
 
+    [Authorize]
     [HttpGet("validate")]
-    public async Task<ActionResult<bool>> Validate([FromHeader(Name = "Authorization")] string authHeader)
+    public ActionResult<bool> Validate()
     {
-        if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer "))
-            return BadRequest("Missing or invalid Authorization header.");
-
-        var token = authHeader.Substring("Bearer ".Length).Trim();
-        var isValid = await _validate.ExecuteAsync(token);
-        return Ok(isValid);
+        return Ok(true);
     }
 
+    [AllowAnonymous]
     [HttpGet("keys/public")]
     public ActionResult<string> PublicKey()
     {

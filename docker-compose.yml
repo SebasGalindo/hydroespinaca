@@ -10,9 +10,11 @@ services:
       - "1883:1883"
       - "9001:9001" # WebSocket (opcional, útil para frontends JS)
     volumes:
-      - ./deploy/mosquitto/config:/mosquitto/config
+      - ./deploy-artifacts/mosquitto/config:/mosquitto/config
       - mqtt_data:/mosquitto/data
       - mqtt_log:/mosquitto/log
+    networks:
+      - espinaca-net
 
   sensor-service:
     build:
@@ -33,6 +35,8 @@ services:
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - espinaca-net
 
   actuator-service:
     build:
@@ -53,20 +57,34 @@ services:
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
-
+    networks:
+      - espinaca-net
  
 
   # # -----------------------------
   # # Proyecto 2: Backend inteligente
   # # -----------------------------
 
-  # auth-service:
-  #   build: ./software-project/auth-service
-  #   container_name: auth-service
-  #   env_file: ./software-project/auth-service/.env
-  #   ports:
-  #     - "6001:80"
+  auth-service:
+    build:
+      context: .
+      dockerfile: software-project/auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "6001:8080"
+    environment:
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - Jwt__PrivateKeyPath=${Jwt_PrivateKeyPath}
+      - Jwt__PublicKeyPath=${Jwt_PublicKeyPath}
+      - Jwt__Issuer=${Jwt_Issuer}
+      - Jwt__Audience=${Jwt_Audience}
+      - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - espinaca-net
 
+      
   # api-gateway:
   #   build: ./software-project/api-gateway
   #   container_name: api-gateway
@@ -124,5 +142,5 @@ volumes:
   mqtt_log:
 
 networks:
-  default:
-    name: espinaca-net
+  espinaca-net:
+    driver: bridge

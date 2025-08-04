@@ -8,7 +8,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="AutoMapper" Version="15.0.1" />
-		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250802112323" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250804083156" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -6,6 +6,7 @@ using AuthService.Infrastructure.Persistence.Repositories;
 using AuthService.Infrastructure.Persistence.Schemas;
 using AuthService.Infrastructure.Security;
 using AuthService.Infrastructure.Services;
+using HydroEspinaca.Shared.Extensions;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,22 +16,29 @@ public static class ServiceCollectionApplicationExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
+        // MongoDB configuration
+        services
+           .AddMongoSettings(configuration);
+
         // Domain services
         services
             .AddScoped<IPasswordHasher, BcryptPasswordHasher>()
             .AddScoped<IAuthenticationService, AuthenticationService>()
             .AddScoped<IClientAuthenticationService, ClientAuthenticationService>()
             .AddScoped<ITokenService, JwtTokenService>()
-            .AddScoped<IClientAppRegistrationService, ClientAppRegistrationService>();
+            .AddScoped<IClientAppRegistrationService, ClientAppRegistrationService>()
+            .AddScoped<IRefreshTokenService, RefreshTokenService>();
 
-        var privateKeyPath = configuration["Jwt:PrivateKeyPath"]
-            ?? throw new ArgumentNullException("Jwt:PrivateKeyPath configuration is missing.");
+        services.AddSingleton<IKeyStore>(provider =>
+        {
+            var config = provider.GetRequiredService<IConfiguration>();
+            var privateKeyPath = config["Jwt:PrivateKeyPath"]
+                ?? throw new ArgumentNullException("Jwt:PrivateKeyPath configuration is missing.");
+            var publicKeyPath = config["Jwt:PublicKeyPath"]
+                ?? throw new ArgumentNullException("Jwt:PublicKeyPath configuration is missing.");
 
-        var publicKeyPath = configuration["Jwt:PublicKeyPath"]
-            ?? throw new ArgumentNullException("Jwt:PublicKeyPath configuration is missing.");
-
-        services.AddSingleton<IKeyStore>(new FileKeyStore(privateKeyPath, publicKeyPath));
-        services.AddSingleton<IKeyStore>(new FileKeyStore(privateKeyPath, publicKeyPath));
+            return new FileKeyStore(privateKeyPath, publicKeyPath);
+        });
 
         // Repositories
         services.AddScoped<IUserRepository, MongoUserRepository>();
