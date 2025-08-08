@@ -55,9 +55,9 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
             var matchedReadings = (await _matchReadingsUseCase.ExecuteAsync(dto)).ToList();
 
             if (matchedReadings.Any())
-                await _updateEsp32LastSeenUseCase.ExecuteAsync(dto.Esp32Id, dto.Timestamp);
+                await _updateEsp32LastSeenUseCase.ExecuteAsync(dto.Esp32Id, dto.Timestamp.DateTime);
 
-            var sensorAlerts = (await _generateAlertsUseCase.ExecuteAsync(matchedReadings, dto.Timestamp)).ToList();
+            var sensorAlerts = (await _generateAlertsUseCase.ExecuteAsync(matchedReadings, dto.Timestamp.DateTime)).ToList();
             var inactiveAlerts = await _generateInactiveAlertsUseCase.ExecuteAsync(dto);
 
             sensorAlerts.AddRange(inactiveAlerts);
