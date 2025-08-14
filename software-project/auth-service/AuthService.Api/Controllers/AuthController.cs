@@ -1,5 +1,5 @@
 ﻿using AuthService.Application.DTOs;
-using AuthService.Application.UseCases;
+using AuthService.Application.Interfaces;
 using AuthService.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,15 +10,15 @@ namespace AuthService.Api.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly AuthenticateUserUseCase _authUser;
-    private readonly RefreshTokenUseCase _refresh;
-    private readonly ClientCredentialsUseCase _clientCreds;
+    private readonly IAuthenticateUserUseCase _authUser;
+    private readonly IRefreshTokenUseCase _refresh;
+    private readonly IClientCredentialsUseCase _clientCreds;
     private readonly IKeyStore _keyStore;
 
     public AuthController(
-        AuthenticateUserUseCase authUser,
-        RefreshTokenUseCase refresh,
-        ClientCredentialsUseCase clientCreds,
+        IAuthenticateUserUseCase authUser,
+        IRefreshTokenUseCase refresh,
+        IClientCredentialsUseCase clientCreds,
         IKeyStore keyStore)
     {
         _authUser = authUser;

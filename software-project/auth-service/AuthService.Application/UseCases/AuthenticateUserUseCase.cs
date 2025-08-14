@@ -4,7 +4,7 @@ using AuthService.Domain.Interfaces;
 
 namespace AuthService.Application.UseCases;
 
-public class AuthenticateUserUseCase
+public class AuthenticateUserUseCase : IAuthenticateUserUseCase
 {
     private readonly IAuthenticationService _authService;
     private readonly ITokenService _tokenService;
@@ -24,7 +24,7 @@ public class AuthenticateUserUseCase
         var tokens = _tokenService.GenerateTokens(
             Guid.Parse(user.Id),
             user.Email.Value,
-            user.Role.ToString(),
+            user.RoleId ?? "",
             clientId: null);
 
         return tokens;

@@ -18,9 +18,9 @@ namespace AuthService.Tests.Unit.UseCases
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var email = "[test@example.com](mailto:test@example.com)";
+            var email = "test@example.com";
             var role = "User";
-            var fakeUser = new User(new Email(email), new HashedPassword("hash"), Role.User);
+            var fakeUser = new User(new Email(email), new HashedPassword("hash"), "role_user");
 
             var authServiceMock = new Mock<IAuthenticationService>();
             authServiceMock
@@ -79,7 +79,7 @@ namespace AuthService.Tests.Unit.UseCases
             var clientId = "client123";
             var secret = "secret";
             var scopes = new[] { "scope1", "scope2" };
-            var fakeApp = new ClientApp(clientId, new HashedPassword("hash"), scopes);
+            var fakeApp = new ClientApp($"client_{clientId}", new HashedPassword("hash"), scopes);
 
             var clientAuthMock = new Mock<IClientAuthenticationService>();
             clientAuthMock
@@ -145,28 +145,7 @@ namespace AuthService.Tests.Unit.UseCases
         }
     }
 
-    public class ValidateTokenUseCaseTests
-    {
-        [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task ExecuteAsync_ReturnsServiceResult(bool valid)
-        {
-            // Arrange
-            var tokenServiceMock = new Mock<ITokenService>();
-            tokenServiceMock
-                .Setup(s => s.IsTokenValid("tkn"))
-                .Returns(valid);
-
-            var sut = new ValidateTokenUseCase(tokenServiceMock.Object);
-
-            // Act
-            var result = await sut.ExecuteAsync("tkn");
-
-            // Assert
-            Assert.Equal(valid, result);
-        }
-    }
+    // ValidateTokenUseCaseTests removed - Token validation handled by individual microservices
 
     public class  Validators
     {

@@ -1,6 +1,7 @@
 using AuthService.Api.Middleware;
 using AuthService.Application;
 using AuthService.Infrastructure;
+using AuthService.Infrastructure.Services;
 using AuthService.Web;
 using HydroEspinaca.Shared.Options;
 
@@ -41,4 +42,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
+
+//// Run data seeding
+//using (var scope = app.Services.CreateScope())
+//{
+//    var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
+//    await seedingService.SeedInitialDataAsync();
+//}
+
 app.Run();

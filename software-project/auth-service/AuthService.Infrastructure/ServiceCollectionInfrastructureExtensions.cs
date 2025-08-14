@@ -44,11 +44,18 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IUserRepository, MongoUserRepository>();
         services.AddScoped<IClientAppRepository, MongoClientAppRepository>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
+        services.AddScoped<IPermissionRepository, MongoPermissionRepository>();
+        services.AddScoped<IRoleRepository, MongoRoleRepository>();
 
         // Mapping services
         services.AddScoped<IEntityMapper<User, UserDocument>, UserMapper>();
         services.AddScoped<IEntityMapper<ClientApp, ClientAppDocument>, ClientAppMapper>();
         services.AddScoped<IEntityMapper<RefreshToken, RefreshTokenDocument>, RefreshTokenMapper>();
+        services.AddScoped<IEntityMapper<Permission, PermissionDocument>, PermissionMapper>();
+        services.AddScoped<IEntityMapper<Role, RoleDocument>, RoleMapper>();
+
+        // Data seeding service
+        services.AddScoped<DataSeedingService>();
 
         return services;
     }

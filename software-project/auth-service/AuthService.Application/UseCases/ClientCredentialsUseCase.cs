@@ -4,7 +4,7 @@ using AuthService.Domain.Interfaces;
 
 namespace AuthService.Application.UseCases
 {
-    public class ClientCredentialsUseCase
+    public class ClientCredentialsUseCase : IClientCredentialsUseCase
     {
         private readonly IClientAuthenticationService _clientAuthService;
         private readonly ITokenService _tokenService;
@@ -25,7 +25,7 @@ namespace AuthService.Application.UseCases
                 userId: Guid.Empty,
                 email: string.Empty,
                 role: string.Join(',', app.Scopes),
-                clientId: app.ClientId
+                clientId: app.Code
             );
 
             return tokens with { RefreshToken = string.Empty };

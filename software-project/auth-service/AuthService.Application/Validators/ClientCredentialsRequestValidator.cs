@@ -6,7 +6,12 @@ public class ClientCredentialsRequestValidator : AbstractValidator<ClientCredent
 {
     public ClientCredentialsRequestValidator()
     {
-        RuleFor(x => x.ClientId).NotEmpty();
-        RuleFor(x => x.ClientSecret).NotEmpty();
+        RuleFor(x => x.ClientId)
+            .NotEmpty()
+            .WithMessage("El ID del cliente es requerido");
+        
+        RuleFor(x => x.ClientSecret)
+            .NotEmpty()
+            .WithMessage("El secreto del cliente es requerido");
     }
 }

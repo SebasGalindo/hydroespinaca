@@ -34,7 +34,7 @@ public class RefreshTokenService : IRefreshTokenService
         return new RefreshTokenResult(
             Guid.Parse(user.Id),
             user.Email.Value,
-            user.Role.ToString(),
+            user.RoleId ?? "",
             clientId
         );
     }

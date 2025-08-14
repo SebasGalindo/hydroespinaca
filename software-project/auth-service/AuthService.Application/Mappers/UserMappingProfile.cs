@@ -14,6 +14,6 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.ExpiresAt, opt => opt.Ignore())
             .ForMember(dest => dest.ClientId, opt => opt.Ignore())
 
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId ?? ""));
     }
 }

@@ -9,14 +9,14 @@ public class User : IIdentifiableMutable
     public string Id { get; private set; }
     public Email Email { get; private set; }
     public HashedPassword Password { get; private set; }
-    public Role Role { get; private set; }
+    public string? RoleId { get; private set; }
 
-    public User(Email email, HashedPassword password, Role role)
+    public User(Email email, HashedPassword password, string? roleId = null)
     {
         Id = Guid.NewGuid().ToString();
         Email = email ?? throw new ArgumentNullException(nameof(email));
         Password = password ?? throw new ArgumentNullException(nameof(password));
-        Role = role;
+        RoleId = roleId;
     }
 
     public bool VerifyPassword(string plainText, IPasswordHasher hasher)
@@ -27,5 +27,10 @@ public class User : IIdentifiableMutable
     public void SetId(string id)
     {
         Id = id;
+    }
+
+    public void UpdateRoleId(string? roleId)
+    {
+        RoleId = roleId;
     }
 }

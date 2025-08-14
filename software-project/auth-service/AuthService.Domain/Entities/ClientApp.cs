@@ -1,20 +1,23 @@
 ﻿using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
 using HydroEspinaca.Shared.Abstractions;
+using MongoDB.Bson;
 using System.Collections;
 
 namespace AuthService.Domain.Entities;
 public class ClientApp : IIdentifiableMutable
 {
-    public string Id { get; private set; }
-    public string ClientId { get; private set; }
+    public string Id { get; private set; } = ObjectId.GenerateNewId().ToString();
+    public string Code { get; private set; }
     public HashedPassword Secret { get; private set; }
-    public IEnumerable Scopes { get; private set; }
+    public IEnumerable<string> Scopes { get; private set; }
 
-    public ClientApp(string clientId, HashedPassword secret, IEnumerable<string> scopes)
+    public ClientApp(string code, HashedPassword secret, IEnumerable<string> scopes)
     {
-        Id = Guid.NewGuid().ToString();
-        ClientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Client code cannot be null or empty", nameof(code));
+        
+        Code = code;
         Secret = secret ?? throw new ArgumentNullException(nameof(secret));
         Scopes = scopes ?? Enumerable.Empty<string>();
     }
@@ -27,5 +30,13 @@ public class ClientApp : IIdentifiableMutable
     public void SetId(string id)
     {
         Id = id;
+    }
+
+    public void UpdateCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Client code cannot be null or empty", nameof(code));
+        
+        Code = code;
     }
 }

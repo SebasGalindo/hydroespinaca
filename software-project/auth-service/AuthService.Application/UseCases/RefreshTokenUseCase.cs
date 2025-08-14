@@ -4,7 +4,7 @@ using AuthService.Domain.Interfaces;
 
 namespace AuthService.Application.UseCases;
 
-public class RefreshTokenUseCase
+public class RefreshTokenUseCase : IRefreshTokenUseCase
 {
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly ITokenService _tokenService;

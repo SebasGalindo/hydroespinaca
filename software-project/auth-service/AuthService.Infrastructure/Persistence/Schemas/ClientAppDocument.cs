@@ -10,6 +10,9 @@ public class ClientAppDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = null!;
 
+    [BsonElement("code")]
+    public string Code { get; set; } = null!;
+
     [BsonElement("clientId")]
     public string ClientId { get; set; } = null!;
 
