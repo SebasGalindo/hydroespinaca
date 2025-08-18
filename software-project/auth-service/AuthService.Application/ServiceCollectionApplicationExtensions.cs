@@ -1,9 +1,10 @@
-﻿using AuthService.Application.Interfaces;
+using AuthService.Application.Features.Users.Mappings;
 using AuthService.Application.Mappers;
-using AuthService.Application.UseCases;
-using AuthService.Application.Validators;
-using AuthService.Domain.Interfaces;
+using AuthService.Application.Shared.Behaviors;
+using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace AuthService.Application;
 
@@ -11,36 +12,22 @@ public static class ServiceCollectionApplicationExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        // MediatR
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        
+        // Pipeline Behaviors
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // AutoMapper
         services.AddAutoMapper(cfg => { },
-             typeof(UserMappingProfile),
+             typeof(Features.Users.Mappings.UserMappingProfile),
+             typeof(Features.Roles.Mappings.RoleMappingProfile),
+             typeof(Features.Permissions.Mappings.PermissionMappingProfile),
              typeof(RefreshMappingProfile),
              typeof(DomainMappingProfile));
 
-        services.AddScoped<IAuthenticateUserUseCase, AuthenticateUserUseCase>();
-        services.AddScoped<IClientCredentialsUseCase, ClientCredentialsUseCase>();
-        services.AddScoped<IRefreshTokenUseCase, RefreshTokenUseCase>();
-
-        // Permission Use Cases
-        services.AddScoped<ICreatePermissionUseCase, CreatePermissionUseCase>();
-        services.AddScoped<IGetPermissionUseCase, GetPermissionUseCase>();
-        services.AddScoped<IGetAllPermissionsUseCase, GetAllPermissionsUseCase>();
-        services.AddScoped<IUpdatePermissionUseCase, UpdatePermissionUseCase>();
-        services.AddScoped<IDeletePermissionUseCase, DeletePermissionUseCase>();
-
-        // Role Use Cases
-        services.AddScoped<ICreateRoleUseCase, CreateRoleUseCase>();
-        services.AddScoped<IGetRoleUseCase, GetRoleUseCase>();
-        services.AddScoped<IGetAllRolesUseCase, GetAllRolesUseCase>();
-        services.AddScoped<IUpdateRoleUseCase, UpdateRoleUseCase>();
-        services.AddScoped<IDeleteRoleUseCase, DeleteRoleUseCase>();
-
-        // Validators
-        services.AddScoped<CreatePermissionRequestValidator>();
-        services.AddScoped<UpdatePermissionRequestValidator>();
-        services.AddScoped<CreateRoleRequestValidator>();
-        services.AddScoped<UpdateRoleRequestValidator>();
-
-      
+        // FluentValidation
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         return services;
     }

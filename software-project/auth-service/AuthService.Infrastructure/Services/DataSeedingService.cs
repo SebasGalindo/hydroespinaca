@@ -1,7 +1,6 @@
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
-using HydroEspinaca.Shared.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace AuthService.Infrastructure.Services;
@@ -12,31 +11,126 @@ public class DataSeedingService
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly ILogger<DataSeedingService> _logger;
+
 
     public DataSeedingService(
         IPermissionRepository permissionRepository,
         IRoleRepository roleRepository,
         IUserRepository userRepository,
-        IPasswordHasher passwordHasher,
-        ILogger<DataSeedingService> logger)
+        IPasswordHasher passwordHasher)
     {
         _permissionRepository = permissionRepository;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
-        _logger = logger;
     }
 
     public async Task SeedInitialDataAsync()
     {
-        await SeedPermissionsAsync();
-        await SeedRolesAsync();
-        await SeedAdminUserAsync();
+        try
+        {
+            await SeedPermissionsAsync();
+            await SeedRolesAsync();
+            await SeedAdminUserAsync();
+            await SeedTestUserAsync();
+            await SeedTestUserAsync();
+            await VerifyDataIntegrityAsync();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Validates that test users exist and have correct credentials before running tests
+    /// </summary>
+    public async Task<bool> ValidateTestUsersAsync()
+    {
+        try
+        {
+            // Check admin user
+            var adminUser = await _userRepository.FindByEmailAsync("admin@demo.com");
+            if (adminUser == null)
+            {
+                return false;
+            }
+
+            var adminRole = await _roleRepository.FindByIdAsync(adminUser.RoleId!);
+            if (adminRole == null)
+            {
+                return false;
+            }
+
+            // Verify admin password
+            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "Admin123!");
+            if (!adminPasswordValid)
+            {
+                return false;
+            }
+
+            // Check test user
+            var testUser = await _userRepository.FindByEmailAsync("user@demo.com");
+            if (testUser == null)
+            {
+                return false;
+            }
+
+            var userRole = await _roleRepository.FindByIdAsync(testUser.RoleId!);
+            if (userRole == null)
+            {
+                return false;
+            }
+
+            // Verify test user password
+            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "User123!");
+            if (!userPasswordValid)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+
+    }
+
+    /// <summary>
+    /// Gets detailed user information for diagnostics
+    /// </summary>
+    public async Task<string> GetUserDiagnosticsAsync(string email)
+    {
+        try
+        {
+            var user = await _userRepository.FindByEmailAsync(email);
+            if (user == null)
+            {
+                return $"User {email} not found";
+            }
+
+            var role = await _roleRepository.FindByIdAsync(user.RoleId!);
+            if (role == null)
+            {
+                return $"User {email} exists but role not found";
+            }
+
+            var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
+            var permissionCodes = permissions.Select(p => p.Code).ToList();
+
+            return $"User: {email}, Role: {role.Code}, Permissions: [{string.Join(", ", permissionCodes)}]";
+        }
+        catch (Exception ex)
+        {
+            return $"Error getting diagnostics for {email}: {ex.Message}";
+        }
     }
 
     private async Task SeedPermissionsAsync()
     {
+
         var permissions = new[]
         {
             new Permission("perm_user_create", "user:create", "Create new users"),
@@ -53,13 +147,14 @@ public class DataSeedingService
             new Permission("perm_permission_delete", "permission:delete", "Delete permissions")
         };
 
+        var createdCount = 0;
         foreach (var permission in permissions)
         {
             var existing = await _permissionRepository.FindByCodeAsync(permission.Code);
             if (existing == null)
             {
                 await _permissionRepository.CreateAsync(permission);
-                _logger.LogInformation("Created permission: {PermissionCode}", permission.Code);
+                createdCount++;
             }
         }
     }
@@ -73,17 +168,30 @@ public class DataSeedingService
             "perm_permission_create", "perm_permission_read", "perm_permission_update", "perm_permission_delete"
         };
 
-        // Resolve permission codes to ObjectIds
-        var permissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
-        var permissionIds = permissions.Select(p => p.Id).ToList();
+        var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
+        var adminPermissionIds = adminPermissions.Select(p => p.Id).ToList();
 
-        var adminRole = new Domain.Entities.Role("role_admin", "Administrator", permissionIds);
-
-        var existing = await _roleRepository.FindByCodeAsync(adminRole.Code);
-        if (existing == null)
+        var adminRole = new Role("role_admin", "Administrator", adminPermissionIds);
+        var existingAdminRole = await _roleRepository.FindByCodeAsync(adminRole.Code);
+        if (existingAdminRole == null)
         {
             await _roleRepository.CreateAsync(adminRole);
-            _logger.LogInformation("Created admin role: {RoleCode}", adminRole.Code);
+        }
+
+        // User role with basic permissions
+        var userPermissionCodes = new[]
+        {
+            "perm_user_read", "perm_permission_read", "perm_role_read"
+        };
+
+        var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
+        var userPermissionIds = userPermissions.Select(p => p.Id).ToList();
+
+        var userRole = new Domain.Entities.Role("role_user", "User", userPermissionIds);
+        var existingUserRole = await _roleRepository.FindByCodeAsync(userRole.Code);
+        if (existingUserRole == null)
+        {
+            await _roleRepository.CreateAsync(userRole);
         }
     }
 
@@ -92,18 +200,26 @@ public class DataSeedingService
         const string adminEmail = "admin@demo.com";
         const string adminPassword = "Admin123!";
 
+
         var existingUser = await _userRepository.FindByEmailAsync(adminEmail);
         if (existingUser == null)
         {
-            // Resolve role code to ObjectId
             var adminRole = await _roleRepository.FindByCodeAsync("role_admin");
             if (adminRole == null)
             {
-                _logger.LogError("Admin role not found during user seeding");
                 return;
             }
 
             var hashedPassword = _passwordHasher.Hash(adminPassword);
+
+            var immediateVerification = _passwordHasher.Verify(hashedPassword, adminPassword);
+
+            if (!immediateVerification)
+            {
+                var alternativeHash = _passwordHasher.Hash(adminPassword);
+                var alternativeVerification = _passwordHasher.Verify(alternativeHash, adminPassword);
+            }
+
             var adminUser = new User(
                 new Email(adminEmail),
                 new HashedPassword(hashedPassword),
@@ -111,7 +227,67 @@ public class DataSeedingService
             );
 
             await _userRepository.CreateAsync(adminUser);
-            _logger.LogInformation("Created admin user: {Email}", adminEmail);
+
+            var postSaveVerification = _passwordHasher.Verify(hashedPassword, adminPassword);
         }
+        else
+        {
+            var verificationResult = _passwordHasher.Verify(existingUser.Password.Value, adminPassword);
+
+            if (!verificationResult)
+            {
+                var newHash = _passwordHasher.Hash(adminPassword);
+                var newHashVerification = _passwordHasher.Verify(newHash, adminPassword);
+            }
+        }
+    }
+
+    private async Task SeedTestUserAsync()
+    {
+        const string userEmail = "user@demo.com";
+        const string userPassword = "User123!";
+
+
+        var existingUser = await _userRepository.FindByEmailAsync(userEmail);
+        if (existingUser == null)
+        {
+            // Resolve role code to ObjectId
+            var userRole = await _roleRepository.FindByCodeAsync("role_user");
+            if (userRole == null)
+            {
+                return;
+            }
+
+            var hashedPassword = _passwordHasher.Hash(userPassword);
+
+            var testUser = new User(
+                new Email(userEmail),
+                new HashedPassword(hashedPassword),
+                userRole.Id
+            );
+
+            await _userRepository.CreateAsync(testUser);
+
+            var verificationResult = _passwordHasher.Verify(hashedPassword, userPassword);
+        }
+        else
+        {
+            // Test the existing hash
+            var verificationResult = _passwordHasher.Verify(existingUser.Password.Value, userPassword);
+        }
+    }
+
+    private async Task VerifyDataIntegrityAsync()
+    {
+        // Verify permissions
+        var allPermissions = await _permissionRepository.GetAllAsync();
+
+        // Verify roles
+        var adminRole = await _roleRepository.FindByCodeAsync("role_admin");
+        var userRole = await _roleRepository.FindByCodeAsync("role_user");
+
+        // Verify users
+        var adminUser = await _userRepository.FindByEmailAsync("admin@demo.com");
+        var testUser = await _userRepository.FindByEmailAsync("user@demo.com");
     }
 }

@@ -2,7 +2,6 @@
 using AuthService.Domain.ValueObjects;
 using HydroEspinaca.Shared.Abstractions;
 using MongoDB.Bson;
-using System.Collections;
 
 namespace AuthService.Domain.Entities;
 public class ClientApp : IIdentifiableMutable
@@ -30,13 +29,5 @@ public class ClientApp : IIdentifiableMutable
     public void SetId(string id)
     {
         Id = id;
-    }
-
-    public void UpdateCode(string code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new ArgumentException("Client code cannot be null or empty", nameof(code));
-        
-        Code = code;
     }
 }

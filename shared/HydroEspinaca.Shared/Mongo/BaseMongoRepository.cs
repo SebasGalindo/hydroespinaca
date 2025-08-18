@@ -60,7 +60,7 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
 
     public async Task DeleteAsync(string id)
     {
-        var filter = Builders<TDocument>.Filter.Eq("_id", id);
+        var filter = BuildIdFilter<TDocument>(id);
         await _collection.DeleteOneAsync(filter);
     }
 

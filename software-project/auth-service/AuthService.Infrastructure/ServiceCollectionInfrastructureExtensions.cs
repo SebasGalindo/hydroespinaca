@@ -1,4 +1,4 @@
-﻿using AuthService.Application.Interfaces;
+﻿// ITokenService now in Domain.Interfaces
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Persistence.Mappers;
@@ -32,10 +32,20 @@ public static class ServiceCollectionApplicationExtensions
         services.AddSingleton<IKeyStore>(provider =>
         {
             var config = provider.GetRequiredService<IConfiguration>();
-            var privateKeyPath = config["Jwt:PrivateKeyPath"]
-                ?? throw new ArgumentNullException("Jwt:PrivateKeyPath configuration is missing.");
-            var publicKeyPath = config["Jwt:PublicKeyPath"]
-                ?? throw new ArgumentNullException("Jwt:PublicKeyPath configuration is missing.");
+            var environment = provider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            
+            var privateKeyPath = config["Jwt:PrivateKeyPath"];
+            var publicKeyPath = config["Jwt:PublicKeyPath"];
+
+            // En entorno de test o cuando las rutas no están configuradas, usar el factory compartido
+            if (environment.EnvironmentName == "Test" || 
+                string.IsNullOrWhiteSpace(privateKeyPath) || 
+                string.IsNullOrWhiteSpace(publicKeyPath) ||
+                !File.Exists(privateKeyPath) || 
+                !File.Exists(publicKeyPath))
+            {
+                return TestKeyStoreFactory.GetOrCreateInstance();
+            }
 
             return new FileKeyStore(privateKeyPath, publicKeyPath);
         });

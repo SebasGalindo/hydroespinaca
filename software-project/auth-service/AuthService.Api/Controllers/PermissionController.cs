@@ -1,5 +1,10 @@
-using AuthService.Application.DTOs;
-using AuthService.Application.Interfaces;
+using AuthService.Application.Features.Permissions.Commands.CreatePermission;
+using AuthService.Application.Features.Permissions.Commands.DeletePermission;
+using AuthService.Application.Features.Permissions.Commands.UpdatePermission;
+using AuthService.Application.Features.Permissions.DTOs;
+using AuthService.Application.Features.Permissions.Queries.GetAllPermissions;
+using AuthService.Application.Features.Permissions.Queries.GetPermission;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,39 +14,29 @@ namespace AuthService.Api.Controllers;
 [Route("api/permissions")]
 public class PermissionController : ControllerBase
 {
-    private readonly ICreatePermissionUseCase _createPermission;
-    private readonly IGetPermissionUseCase _getPermission;
-    private readonly IGetAllPermissionsUseCase _getAllPermissions;
-    private readonly IUpdatePermissionUseCase _updatePermission;
-    private readonly IDeletePermissionUseCase _deletePermission;
+    private readonly IMediator _mediator;
 
     public PermissionController(
-        ICreatePermissionUseCase createPermission,
-        IGetPermissionUseCase getPermission,
-        IGetAllPermissionsUseCase getAllPermissions,
-        IUpdatePermissionUseCase updatePermission,
-        IDeletePermissionUseCase deletePermission)
+        IMediator mediator)
     {
-        _createPermission = createPermission;
-        _getPermission = getPermission;
-        _getAllPermissions = getAllPermissions;
-        _updatePermission = updatePermission;
-        _deletePermission = deletePermission;
+        _mediator = mediator;
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult<PermissionResponseDto>> Create([FromBody] CreatePermissionRequestDto request)
     {
-        var result = await _createPermission.ExecuteAsync(request);
+        var command = new CreatePermissionCommand(request.Code, request.Name, request.Description);
+        var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetByCode), new { code = result.Code }, result);
     }
 
     [HttpGet("{code}")]
-    [Authorize(Roles = "admin,user")]
+    [Authorize(Roles = "role_admin,role_user")]
     public async Task<ActionResult<PermissionResponseDto>> GetByCode(string code)
     {
-        var result = await _getPermission.ExecuteAsync(code);
+        var query = new GetPermissionQuery(code);
+        var result = await _mediator.Send(query);
         if (result == null)
             return NotFound();
 
@@ -49,18 +44,20 @@ public class PermissionController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "admin,user")]
+    [Authorize(Roles = "role_admin,role_user")]
     public async Task<ActionResult<List<PermissionResponseDto>>> GetAll()
     {
-        var result = await _getAllPermissions.ExecuteAsync();
+        var query = new GetAllPermissionsQuery();
+        var result = await _mediator.Send(query);
         return Ok(result);
     }
 
     [HttpPut("{code}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult<PermissionResponseDto>> Update(string code, [FromBody] UpdatePermissionRequestDto request)
     {
-        var result = await _updatePermission.ExecuteAsync(code, request);
+        var command = new UpdatePermissionCommand(code, request.Name, request.Description);
+        var result = await _mediator.Send(command);
         if (result == null)
             return NotFound();
 
@@ -68,10 +65,11 @@ public class PermissionController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult> Delete(string code)
     {
-        var result = await _deletePermission.ExecuteAsync(code);
+        var command = new DeletePermissionCommand(code);
+        var result = await _mediator.Send(command);
         if (!result)
             return NotFound();
 

@@ -1,4 +1,6 @@
-using AuthService.Application.DTOs;
+using AuthService.Application.Features.Authentication.DTOs;
+using AuthService.Application.Features.Permissions.DTOs;
+using AuthService.Application.Features.Roles.DTOs;
 using AuthService.Domain.Entities;
 using AuthService.Domain.ValueObjects;
 using AutoMapper;
@@ -20,27 +22,27 @@ public class DomainMappingProfile : Profile
             .ForMember(dest => dest.Code, opt => opt.Ignore())
             .AfterMap((src, dest) => dest.UpdateDetails(src.Name, src.Description));
 
-        // Role mappings - will need custom logic to resolve permission codes to ObjectIds
+        // Role mappings
         CreateMap<CreateRoleRequestDto, Role>()
-            .ForMember(dest => dest.Permissions, opt => opt.Ignore()) // Will be handled in use case
+            .ForMember(dest => dest.Permissions, opt => opt.Ignore()) 
             .ConstructUsing(src => new Role(src.Code, src.Name, new List<string>()));
 
         CreateMap<Role, RoleResponseDto>()
-            .ForMember(dest => dest.PermissionCodes, opt => opt.Ignore()); // Will be mapped in use case
+            .ForMember(dest => dest.PermissionCodes, opt => opt.Ignore());
 
         CreateMap<UpdateRoleRequestDto, Role>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Code, opt => opt.Ignore())
-            .ForMember(dest => dest.Permissions, opt => opt.Ignore()) // Will be handled in use case
+            .ForMember(dest => dest.Permissions, opt => opt.Ignore())
             .AfterMap((src, dest) => dest.UpdateName(src.Name));
 
-        // User mappings
+        // User mappings for Authentication
         CreateMap<User, TokenResponseDto>()
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId ?? ""))
             .ForMember(dest => dest.AccessToken, opt => opt.Ignore())
             .ForMember(dest => dest.RefreshToken, opt => opt.Ignore())
             .ForMember(dest => dest.ExpiresAt, opt => opt.Ignore())
-            .ForMember(dest => dest.ClientId, opt => opt.Ignore());
+            .ForMember(dest => dest.ClientId, opt => opt.Ignore())
+            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId ?? ""));
 
         // Login request to User lookup
         CreateMap<LoginRequestDto, Email>()

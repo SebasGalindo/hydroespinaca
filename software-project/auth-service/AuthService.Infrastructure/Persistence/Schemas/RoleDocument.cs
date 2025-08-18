@@ -17,7 +17,7 @@ public class RoleDocument : IIdentifiableMutable
     public string Name { get; set; } = null!;
     
     [BsonElement("permissions")]
-    public List<string> Permissions { get; set; } = new(); // ObjectIds of Permissions
+    public List<string> Permissions { get; set; } = new();
 
     public void SetId(string id)
     {

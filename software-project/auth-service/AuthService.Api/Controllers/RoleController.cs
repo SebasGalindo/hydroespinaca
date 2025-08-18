@@ -1,5 +1,10 @@
-using AuthService.Application.DTOs;
-using AuthService.Application.Interfaces;
+using AuthService.Application.Features.Roles.Commands.CreateRole;
+using AuthService.Application.Features.Roles.Commands.DeleteRole;
+using AuthService.Application.Features.Roles.Commands.UpdateRole;
+using AuthService.Application.Features.Roles.DTOs;
+using AuthService.Application.Features.Roles.Queries.GetAllRoles;
+using AuthService.Application.Features.Roles.Queries.GetRole;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,39 +14,28 @@ namespace AuthService.Api.Controllers;
 [Route("api/roles")]
 public class RoleController : ControllerBase
 {
-    private readonly ICreateRoleUseCase _createRole;
-    private readonly IGetRoleUseCase _getRole;
-    private readonly IGetAllRolesUseCase _getAllRoles;
-    private readonly IUpdateRoleUseCase _updateRole;
-    private readonly IDeleteRoleUseCase _deleteRole;
+    private readonly IMediator _mediator;
 
-    public RoleController(
-        ICreateRoleUseCase createRole,
-        IGetRoleUseCase getRole,
-        IGetAllRolesUseCase getAllRoles,
-        IUpdateRoleUseCase updateRole,
-        IDeleteRoleUseCase deleteRole)
+    public RoleController(IMediator mediator)
     {
-        _createRole = createRole;
-        _getRole = getRole;
-        _getAllRoles = getAllRoles;
-        _updateRole = updateRole;
-        _deleteRole = deleteRole;
+        _mediator = mediator;
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult<RoleResponseDto>> Create([FromBody] CreateRoleRequestDto request)
     {
-        var result = await _createRole.ExecuteAsync(request);
+        var command = new CreateRoleCommand(request.Code, request.Name, request.PermissionCodes);
+        var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetByCode), new { code = result.Code }, result);
     }
 
     [HttpGet("{code}")]
-    [Authorize(Roles = "admin,user")]
+    [Authorize(Roles = "role_admin,role_user")]
     public async Task<ActionResult<RoleResponseDto>> GetByCode(string code)
     {
-        var result = await _getRole.ExecuteAsync(code);
+        var query = new GetRoleQuery(code);
+        var result = await _mediator.Send(query);
         if (result == null)
             return NotFound();
 
@@ -49,18 +43,20 @@ public class RoleController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "admin,user")]
+    [Authorize(Roles = "role_admin,role_user")]
     public async Task<ActionResult<List<RoleResponseDto>>> GetAll()
     {
-        var result = await _getAllRoles.ExecuteAsync();
+        var query = new GetAllRolesQuery();
+        var result = await _mediator.Send(query);
         return Ok(result);
     }
 
     [HttpPut("{code}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult<RoleResponseDto>> Update(string code, [FromBody] UpdateRoleRequestDto request)
     {
-        var result = await _updateRole.ExecuteAsync(code, request);
+        var command = new UpdateRoleCommand(code, request.Name, request.PermissionCodes);
+        var result = await _mediator.Send(command);
         if (result == null)
             return NotFound();
 
@@ -68,10 +64,11 @@ public class RoleController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "role_admin")]
     public async Task<ActionResult> Delete(string code)
     {
-        var result = await _deleteRole.ExecuteAsync(code);
+        var command = new DeleteRoleCommand(code);
+        var result = await _mediator.Send(command);
         if (!result)
             return NotFound();
 

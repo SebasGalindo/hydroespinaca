@@ -1,6 +1,6 @@
-﻿using AuthService.Application.Validators;
+﻿using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
+using AuthService.Infrastructure.Security;
 using FluentValidation;
-using HydroEspinaca.Shared.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,24 +12,49 @@ public static class ServiceCollectionWebExtensions
 {
     public static IServiceCollection AddWebApi(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment? environment = null)
     {
+
         var jwtSettings = configuration
             .GetSection("Jwt")
-            .Get<JwtSettings>()
+            .Get<AuthService.Infrastructure.Security.JwtSettings>()
             ?? throw new InvalidOperationException("Missing Jwt section in config");
+
+
+        // En entorno de test, usar KeyStore en memoria
+        var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var hostEnv = environment?.EnvironmentName;
+        var isTestEnvironment = aspNetCoreEnv == "Test" || hostEnv == "Test";
+
+        Console.WriteLine($"Environment: {aspNetCoreEnv ?? hostEnv ?? "Unknown"}");
+
+        if (isTestEnvironment)
+        {
+            Console.WriteLine("Using in-memory key store for testing.");
+        }
+        else
+        {
+            Console.WriteLine("Using persistent key store.");
+        }
 
         services.AddControllers();
 
-        var publicKeyPem = File.ReadAllText(jwtSettings.PublicKeyPath);
-        using var rsa = RSA.Create();
+        RsaSecurityKey key;
+
+        var sharedKeyStore = TestKeyStoreFactory.GetOrCreateInstance();
+
+        var publicKeyPem = sharedKeyStore.GetPublicKey();
+
+        var rsa = RSA.Create();
         rsa.ImportFromPem(publicKeyPem.ToCharArray());
-        var key = new RsaSecurityKey(rsa);
+        key = new RsaSecurityKey(rsa);
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(opts =>
             {
+
                 opts.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -41,12 +66,28 @@ public static class ServiceCollectionWebExtensions
                     IssuerSigningKey = key,
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
+
+                if (isTestEnvironment)
+                {
+                    opts.Events = new JwtBearerEvents
+                    {
+                        OnAuthenticationFailed = context =>
+                        {
+                            return Task.CompletedTask;
+                        },
+                        OnTokenValidated = context =>
+                        {
+                            return Task.CompletedTask;
+                        },
+                        OnMessageReceived = context =>
+                        {
+                            return Task.CompletedTask;
+                        }
+                    };
+                }
             });
 
         services.AddAuthorization();
-
-
-
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
@@ -69,10 +110,9 @@ public static class ServiceCollectionWebExtensions
             });
         });
 
-        services.AddValidatorsFromAssemblyContaining<ClientCredentialsRequestValidator>();
-
-
+        services.AddValidatorsFromAssemblyContaining<ClientCredentialsCommandValidator>();
         services.AddHealthChecks();
+
         return services;
     }
 }

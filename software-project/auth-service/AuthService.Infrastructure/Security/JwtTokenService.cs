@@ -1,5 +1,4 @@
-﻿using AuthService.Application.DTOs;
-using AuthService.Application.Interfaces;
+using AuthService.Domain.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -21,53 +20,66 @@ namespace AuthService.Infrastructure.Security
         {
             _keyStore = keyStore;
             _settings = options.Value;
+            
         }
 
-        public TokenResponseDto GenerateTokens(Guid userId, string email, string role, string? clientId)
+        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId)
         {
             var now = DateTime.UtcNow;
+            
+            // Ensure minimum expiry time to avoid NotBefore/Expires collision
+            var expiryMinutes = Math.Max(_settings.AccessTokenExpiryMinutes, 1);
 
             // 1. Claims for access token
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredNames.Sub, userId.ToString()),
+                new Claim(JwtRegisteredNames.Sub, userId),
                 new Claim(JwtRegisteredNames.Email, email),
-                new Claim("role", role),
+                new Claim(ClaimTypes.Role, role), // Use ClaimTypes.Role for ASP.NET Core authorization
                 new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
             };
             if (!string.IsNullOrEmpty(clientId))
                 claims.Add(new Claim("client_id", clientId));
 
-            // 2. Obtain signing credentials
+            // 2. Build token - ensure notBefore is slightly before expires
+            var notBefore = now.AddSeconds(-1); // 1 second before now
+            var expires = now.AddMinutes(expiryMinutes);
+
+            // 3. Create RSA instance and keep it alive - don't dispose manually
+            var rsa = RSA.Create();
+            
+            // Import the private key
             var privateKeyPem = _keyStore.GetPrivateKey();
-            using var rsa = RSA.Create();
             rsa.ImportFromPem(privateKeyPem.ToCharArray());
+            
+            // Create signing credentials
             var credentials = new SigningCredentials(
                 new RsaSecurityKey(rsa),
                 SecurityAlgorithms.RsaSha256
             );
-
-            // 3. Build token
+            
             var jwtToken = new JwtSecurityToken(
                 issuer: _settings.Issuer,
                 audience: _settings.Audience,
                 claims: claims,
-                notBefore: now,
-                expires: now.AddMinutes(_settings.AccessTokenExpiryMinutes),
+                notBefore: notBefore,
+                expires: expires,
                 signingCredentials: credentials
             );
 
+
+            // Generate the token string
             var accessTokenString = new JwtSecurityTokenHandler().WriteToken(jwtToken);
 
             // 4. Generate random refresh token
             var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
-            // 5. Return DTO
-            return new TokenResponseDto
+            // 5. Return TokenResult (let GC handle RSA disposal)
+            return new TokenResult
             {
                 AccessToken = accessTokenString,
                 RefreshToken = refreshToken,
-                ExpiresAt = jwtToken.ValidTo,
+                ExpiresAt = expires,
                 Role = role,
                 ClientId = clientId
             };

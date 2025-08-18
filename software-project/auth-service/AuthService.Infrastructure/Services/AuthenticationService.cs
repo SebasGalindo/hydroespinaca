@@ -20,7 +20,7 @@ public class AuthenticationService : IAuthenticationService
         var user = await _userRepo.FindByEmailAsync(email)
                    ?? throw new InvalidCredentialsException();
 
-        if (!_hasher.Verify(plainPassword, user.Password.Value))
+        if (!_hasher.Verify(user.Password.Value, plainPassword))
             throw new InvalidCredentialsException();
 
         return user;

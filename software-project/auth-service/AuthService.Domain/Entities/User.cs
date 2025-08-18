@@ -1,7 +1,5 @@
-﻿using AuthService.Domain.Interfaces;
-using AuthService.Domain.ValueObjects;
+﻿using AuthService.Domain.ValueObjects;
 using HydroEspinaca.Shared.Abstractions;
-using HydroEspinaca.Shared.Enums;
 
 namespace AuthService.Domain.Entities;
 public class User : IIdentifiableMutable
@@ -18,15 +16,19 @@ public class User : IIdentifiableMutable
         Password = password ?? throw new ArgumentNullException(nameof(password));
         RoleId = roleId;
     }
-
-    public bool VerifyPassword(string plainText, IPasswordHasher hasher)
-    {
-        return hasher.Verify(plainText, Password.Value);
-    }
-
     public void SetId(string id)
     {
         Id = id;
+    }
+
+    public void UpdateEmail(Email email)
+    {
+        Email = email ?? throw new ArgumentNullException(nameof(email));
+    }
+
+    public void UpdatePassword(HashedPassword password)
+    {
+        Password = password ?? throw new ArgumentNullException(nameof(password));
     }
 
     public void UpdateRoleId(string? roleId)
