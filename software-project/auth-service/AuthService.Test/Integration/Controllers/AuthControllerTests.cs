@@ -243,7 +243,7 @@ public class AuthControllerTests : IClassFixture<IntegrationTestBase>, IAsyncLif
     }
 
     [Fact]
-    public async Task PublicKey_ReturnsOkWithPublicKey()
+    public async Task PublicKey_ReturnsOkWithJwks()
     {
         // Act
         var response = await _client.GetAsync("/api/auth/keys/public");
@@ -253,7 +253,14 @@ public class AuthControllerTests : IClassFixture<IntegrationTestBase>, IAsyncLif
 
         var content = await response.Content.ReadAsStringAsync();
         content.Should().NotBeNullOrEmpty();
-        content.Should().Contain("BEGIN PUBLIC KEY");
+        
+        // Should return JWKS format with both user and M2M keys
+        content.Should().Contain("\"keys\"");
+        content.Should().Contain("\"kty\":\"RSA\"");
+        content.Should().Contain("\"use\":\"sig\"");
+        content.Should().Contain("\"alg\":\"RS256\"");
+        content.Should().Contain("test-user-"); // User token key ID
+        content.Should().Contain("test-machinetomachine-"); // M2M token key ID
     }
 
     public void Dispose()

@@ -3,6 +3,7 @@ using AuthService.Application.Features.Authentication.Commands.Login;
 using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 using AuthService.Application.Features.Authentication.Commands.RefreshToken;
 using AuthService.Domain.Entities;
+using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
 using AuthService.Test.Helpers;
@@ -60,7 +61,7 @@ public class LoginCommandHandlerTests
         };
 
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(It.IsAny<string>(), command.Email, It.IsAny<string>(), null))
+            .Setup(s => s.GenerateTokens(It.IsAny<string>(), command.Email, It.IsAny<string>(), null, TokenType.User))
             .Returns(expectedTokens);
 
         // Act
@@ -91,7 +92,7 @@ public class LoginCommandHandlerTests
         await act.Should().ThrowAsync<InvalidCredentialsException>();
 
         _userRepositoryMock.Verify(r => r.FindByEmailAsync(command.Email), Times.Once);
-        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TokenType>()), Times.Never);
     }
 }
 
@@ -138,7 +139,7 @@ public class ClientCredentialsCommandHandlerTests
         };
 
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(fakeApp.Id, fakeApp.Code, "client", fakeApp.Code))
+            .Setup(s => s.GenerateTokens(fakeApp.Id, fakeApp.Code, "client", fakeApp.Code, TokenType.MachineToMachine))
             .Returns(expectedTokens);
 
         // Act
@@ -167,7 +168,7 @@ public class ClientCredentialsCommandHandlerTests
         await act.Should().ThrowAsync<InvalidClientCredentialsException>();
 
         _clientAppRepositoryMock.Verify(r => r.FindByClientIdAsync(command.ClientId), Times.Once);
-        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TokenType>()), Times.Never);
     }
 }
 
@@ -224,7 +225,7 @@ public class RefreshTokenCommandHandlerTests
         };
 
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(fakeUser.Id, fakeUser.Email.Value, "role_user", command.ClientId))
+            .Setup(s => s.GenerateTokens(fakeUser.Id, fakeUser.Email.Value, "role_user", command.ClientId, It.IsAny<TokenType>()))
             .Returns(expectedTokens);
 
         // Act
@@ -254,6 +255,6 @@ public class RefreshTokenCommandHandlerTests
         await act.Should().ThrowAsync<InvalidRefreshTokenException>();
 
         _refreshTokenRepositoryMock.Verify(r => r.FindAsync(command.RefreshToken), Times.Once);
-        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _tokenServiceMock.Verify(s => s.GenerateTokens(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TokenType>()), Times.Never);
     }
 }
