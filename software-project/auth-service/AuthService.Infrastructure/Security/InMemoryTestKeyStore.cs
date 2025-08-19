@@ -1,3 +1,6 @@
+using AuthService.Domain.Enums;
+using AuthService.Infrastructure.Security.Models;
+
 namespace AuthService.Infrastructure.Security;
 
 /// <summary>
@@ -6,24 +9,54 @@ namespace AuthService.Infrastructure.Security;
 /// </summary>
 public class InMemoryTestKeyStore : IKeyStore
 {
-    private readonly string _privateKeyPem;
-    private readonly string _publicKeyPem;
+    private readonly Dictionary<TokenType, JwtKeyPair> _keyPairs;
+    private readonly Dictionary<string, JwtKeyPair> _keyPairsById;
 
     public InMemoryTestKeyStore()
     {
-        // Generar un par de claves RSA válidas en memoria para tests
-        using var rsa = System.Security.Cryptography.RSA.Create(2048);
-        _privateKeyPem = rsa.ExportPkcs8PrivateKeyPem();
-        _publicKeyPem = rsa.ExportSubjectPublicKeyInfoPem();
+        _keyPairs = new Dictionary<TokenType, JwtKeyPair>();
+        _keyPairsById = new Dictionary<string, JwtKeyPair>();
+        
+        // Generate key pairs for each token type
+        foreach (TokenType tokenType in Enum.GetValues<TokenType>())
+        {
+            var keyId = $"test-{tokenType.ToString().ToLower()}-{Guid.NewGuid():N}";
+            var keyPair = RsaKeyGenerator.GenerateKeyPair(keyId, tokenType);
+            
+            _keyPairs[tokenType] = keyPair;
+            _keyPairsById[keyId] = keyPair;
+        }
     }
 
+    public JwtKeyPair GetKeyPair(TokenType tokenType)
+    {
+        if (_keyPairs.TryGetValue(tokenType, out var keyPair))
+        {
+            return keyPair;
+        }
+        
+        throw new InvalidOperationException($"No key pair found for token type: {tokenType}");
+    }
+
+    public IEnumerable<JwtKeyPair> GetAllKeyPairs()
+    {
+        return _keyPairs.Values;
+    }
+
+    public JwtKeyPair? GetKeyPairById(string keyId)
+    {
+        _keyPairsById.TryGetValue(keyId, out var keyPair);
+        return keyPair;
+    }
+
+    // Legacy methods for backward compatibility
     public string GetPrivateKey()
     {
-        return _privateKeyPem;
+        return GetKeyPair(TokenType.User).PrivateKey;
     }
 
     public string GetPublicKey()
     {
-        return _publicKeyPem;
+        return GetKeyPair(TokenType.User).PublicKey;
     }
 }

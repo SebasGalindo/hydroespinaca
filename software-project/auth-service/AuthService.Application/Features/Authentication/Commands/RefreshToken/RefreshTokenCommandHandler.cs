@@ -1,5 +1,6 @@
 // No Application layer dependencies
 using AuthService.Application.Exceptions;
+using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using MediatR;
 using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
@@ -50,12 +51,14 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             }
         }
 
-        // Generate new tokens
+        // Generate new tokens - determine token type based on client context
+        var tokenType = string.IsNullOrEmpty(request.ClientId) ? TokenType.User : TokenType.MachineToMachine;
         var tokens = _tokenService.GenerateTokens(
             user.Id,
             user.Email.Value,
             roleCode,
-            request.ClientId);
+            request.ClientId,
+            tokenType);
 
         // Create new refresh token since current entity doesn't have update methods
         var newRefreshToken = new RefreshTokenEntity(

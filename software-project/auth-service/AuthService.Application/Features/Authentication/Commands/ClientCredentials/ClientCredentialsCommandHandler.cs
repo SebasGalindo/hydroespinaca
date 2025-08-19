@@ -1,4 +1,5 @@
 using AuthService.Application.Exceptions;
+using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using MediatR;
 
@@ -38,7 +39,8 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             clientApp.Id,
             clientApp.Code,
             "client",
-            clientApp.Code);
+            clientApp.Code,
+            TokenType.MachineToMachine);
 
         return tokens;
     }

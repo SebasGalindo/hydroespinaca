@@ -4,6 +4,7 @@ using AuthService.Application.Features.Authentication.Commands.Login;
 using AuthService.Application.Features.Authentication.Commands.RefreshToken;
 using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Security;
+using AuthService.Infrastructure.Security.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,10 +64,10 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("keys/public")]
-    public ActionResult<string> PublicKey()
+    public ActionResult<JsonWebKeySet> PublicKeys()
     {
-
-        var publicKey = _keyStore.GetPublicKey();
-        return Ok(publicKey);
+        var keyPairs = _keyStore.GetAllKeyPairs();
+        var jwks = JwkConverter.ToJsonWebKeySet(keyPairs);
+        return Ok(jwks);
     }
 }

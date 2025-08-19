@@ -34,20 +34,22 @@ public static class ServiceCollectionApplicationExtensions
             var config = provider.GetRequiredService<IConfiguration>();
             var environment = provider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             
-            var privateKeyPath = config["Jwt:PrivateKeyPath"];
-            var publicKeyPath = config["Jwt:PublicKeyPath"];
-
-            // En entorno de test o cuando las rutas no están configuradas, usar el factory compartido
-            if (environment.EnvironmentName == "Test" || 
-                string.IsNullOrWhiteSpace(privateKeyPath) || 
-                string.IsNullOrWhiteSpace(publicKeyPath) ||
-                !File.Exists(privateKeyPath) || 
-                !File.Exists(publicKeyPath))
+            // For test environment, use in-memory key store
+            if (environment.EnvironmentName == "Test")
             {
                 return TestKeyStoreFactory.GetOrCreateInstance();
             }
 
-            return new FileKeyStore(privateKeyPath, publicKeyPath);
+            // Get keys directory from configuration, default to "Keys" folder
+            var keysDirectory = config["Jwt:KeysDirectory"] ?? "Keys";
+            
+            // Ensure the keys directory path is absolute
+            if (!Path.IsPathRooted(keysDirectory))
+            {
+                keysDirectory = Path.Combine(Directory.GetCurrentDirectory(), keysDirectory);
+            }
+
+            return new FileKeyStore(keysDirectory);
         });
 
         // Repositories

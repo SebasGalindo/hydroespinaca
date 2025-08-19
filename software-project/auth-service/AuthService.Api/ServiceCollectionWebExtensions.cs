@@ -1,9 +1,12 @@
 ﻿using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
+using AuthService.Domain.Enums;
 using AuthService.Infrastructure.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace AuthService.Web;
@@ -22,39 +25,18 @@ public static class ServiceCollectionWebExtensions
             ?? throw new InvalidOperationException("Missing Jwt section in config");
 
 
-        // En entorno de test, usar KeyStore en memoria
         var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         var hostEnv = environment?.EnvironmentName;
         var isTestEnvironment = aspNetCoreEnv == "Test" || hostEnv == "Test";
 
         Console.WriteLine($"Environment: {aspNetCoreEnv ?? hostEnv ?? "Unknown"}");
 
-        if (isTestEnvironment)
-        {
-            Console.WriteLine("Using in-memory key store for testing.");
-        }
-        else
-        {
-            Console.WriteLine("Using persistent key store.");
-        }
-
         services.AddControllers();
-
-        RsaSecurityKey key;
-
-        var sharedKeyStore = TestKeyStoreFactory.GetOrCreateInstance();
-
-        var publicKeyPem = sharedKeyStore.GetPublicKey();
-
-        var rsa = RSA.Create();
-        rsa.ImportFromPem(publicKeyPem.ToCharArray());
-        key = new RsaSecurityKey(rsa);
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(opts =>
             {
-
                 opts.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -63,56 +45,162 @@ public static class ServiceCollectionWebExtensions
                     ValidAudience = jwtSettings.Audience,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = key,
-                    ClockSkew = TimeSpan.FromSeconds(30)
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    RoleClaimType = "role",
+                    NameClaimType = "sub",
+                    
+                    IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+                    {
+                        using var scope = services.BuildServiceProvider().CreateScope();
+                        var keyStore = scope.ServiceProvider.GetRequiredService<IKeyStore>();
+                        
+                        return ResolveSigningKeys(keyStore, kid, securityToken);
+                    }
                 };
 
-                if (isTestEnvironment)
+                opts.MapInboundClaims = false;
+
+                opts.Events = new JwtBearerEvents
                 {
-                    opts.Events = new JwtBearerEvents
+                    OnMessageReceived = context =>
                     {
-                        OnAuthenticationFailed = context =>
+                        var token = context.Token;
+                        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+                        
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        if (context.Principal?.Identity is ClaimsIdentity identity)
                         {
-                            return Task.CompletedTask;
-                        },
-                        OnTokenValidated = context =>
-                        {
-                            return Task.CompletedTask;
-                        },
-                        OnMessageReceived = context =>
-                        {
-                            return Task.CompletedTask;
+                            var newIdentity = new ClaimsIdentity(
+                                identity.Claims,
+                                identity.AuthenticationType,
+                                nameType: "sub",
+                                roleType: "role"
+                            );
+                            
+                            context.Principal = new ClaimsPrincipal(newIdentity);
+                            
+                            var roleClaims = newIdentity.FindAll("role").ToList();
+                            var jwtToken = context.SecurityToken as JwtSecurityToken;
                         }
-                    };
-                }
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = context =>
+                    {
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
+
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth Service API", Version = "v1" });
 
-            var scheme = new OpenApiSecurityScheme
+            var securityScheme = new OpenApiSecurityScheme
             {
-                In = ParameterLocation.Header,
-                Description = "JWT Bearer authentication",
                 Name = "Authorization",
                 Type = SecuritySchemeType.Http,
                 Scheme = "bearer",
-                BearerFormat = "JWT"
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Enter 'Bearer' [space] and then your valid token.\n\nExample: \"Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\""
             };
-            c.AddSecurityDefinition("Bearer", scheme);
 
-            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            c.AddSecurityDefinition("Bearer", securityScheme);
+
+            var securityRequirement = new OpenApiSecurityRequirement
             {
-                { scheme, Array.Empty<string>() }
-            });
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            };
+
+            c.AddSecurityRequirement(securityRequirement);
         });
 
         services.AddValidatorsFromAssemblyContaining<ClientCredentialsCommandValidator>();
         services.AddHealthChecks();
 
         return services;
+    }
+
+    /// <summary>
+    /// Resolves signing keys based on KID from JWT token header
+    /// </summary>
+    private static IEnumerable<SecurityKey> ResolveSigningKeys(IKeyStore keyStore, string? kid, SecurityToken? securityToken)
+    {
+        // Strategy 1: Use KID if provided in parameters
+        if (!string.IsNullOrEmpty(kid))
+        {
+            var keyPair = keyStore.GetKeyPairById(kid);
+            if (keyPair != null)
+            {
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(keyPair.PublicKey.ToCharArray());
+                return new[] { new RsaSecurityKey(rsa) { KeyId = kid } };
+            }
+        }
+        
+        // Strategy 2: Extract KID from JWT token header if not provided in parameters
+        if (securityToken is JwtSecurityToken jwtToken && !string.IsNullOrEmpty(jwtToken.Header.Kid))
+        {
+            var keyPair = keyStore.GetKeyPairById(jwtToken.Header.Kid);
+            if (keyPair != null)
+            {
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(keyPair.PublicKey.ToCharArray());
+                return new[] { new RsaSecurityKey(rsa) { KeyId = jwtToken.Header.Kid } };
+            }
+        }
+        
+        // Strategy 3: Legacy fallback - return all available keys for tokens without KID
+        // This allows validation of older tokens that don't have KID in the header
+        var allKeys = new List<SecurityKey>();
+        
+        try
+        {
+            var allKeyPairs = keyStore.GetAllKeyPairs();
+            foreach (var keyPair in allKeyPairs)
+            {
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(keyPair.PublicKey.ToCharArray());
+                allKeys.Add(new RsaSecurityKey(rsa) { KeyId = keyPair.KeyId });
+            }
+            
+            // If we have keys, return them
+            if (allKeys.Count > 0)
+            {
+                return allKeys;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error resolving signing keys: {ex.Message}");
+        }
+        
+        // Strategy 4: Final fallback - return empty collection (will cause validation to fail)
+        return new SecurityKey[0];
     }
 }

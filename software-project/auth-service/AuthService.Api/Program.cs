@@ -37,12 +37,12 @@ if (app.Environment.IsDevelopment())
     );
 
 
-    // //Run data seeding
-    //using (var scope = app.Services.CreateScope())
-    //{
+    //Run data seeding
+    // using (var scope = app.Services.CreateScope())
+    // {
     //  var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
     //  await seedingService.SeedInitialDataAsync();
-    //}
+    // }
 
 }
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -55,4 +55,4 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
 
 // Make Program class accessible for integration tests
-//public partial class Program { }
+// public partial class Program { }

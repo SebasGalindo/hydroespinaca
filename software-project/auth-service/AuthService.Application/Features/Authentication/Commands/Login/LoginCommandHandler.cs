@@ -1,4 +1,5 @@
 using AuthService.Application.Exceptions;
+using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using MediatR;
 using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
@@ -56,7 +57,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
             user.Id, 
             user.Email.Value, 
             roleCode, 
-            null);
+            null,
+            TokenType.User);
 
         var refreshToken = new RefreshTokenEntity(
             user.Id,
