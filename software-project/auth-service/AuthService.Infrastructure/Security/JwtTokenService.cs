@@ -17,14 +17,22 @@ namespace AuthService.Infrastructure.Security
     {
         private readonly IKeyStore _keyStore;
         private readonly JwtSettings _settings;
+        private readonly IRoleRepository _roleRepository;
+        private readonly IPermissionRepository _permissionRepository;
 
-        public JwtTokenService(IKeyStore keyStore, IOptions<JwtSettings> options)
+        public JwtTokenService(
+            IKeyStore keyStore, 
+            IOptions<JwtSettings> options,
+            IRoleRepository roleRepository,
+            IPermissionRepository permissionRepository)
         {
             _keyStore = keyStore;
             _settings = options.Value;
+            _roleRepository = roleRepository;
+            _permissionRepository = permissionRepository;
         }
 
-        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
+        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
         {
             var now = DateTime.UtcNow;
             
@@ -34,7 +42,34 @@ namespace AuthService.Infrastructure.Security
             // Get the appropriate key pair for the token type
             var keyPair = _keyStore.GetKeyPair(tokenType);
 
-            // 1. Claims for access token
+            // 1. Get scopes directly from permissions (permission.code is the scope)
+            string[] scopes;
+            if (tokenType == TokenType.MachineToMachine && !string.IsNullOrEmpty(clientId))
+            {
+                // For M2M tokens, use predefined scopes based on client
+                scopes = GetMachineToMachineScopes(clientId);
+            }
+            else
+            {
+                // For user tokens, get permissions from role - permission.code is the scope
+                var permissions = await GetUserPermissionsAsync(role);
+                scopes = permissions.ToArray();
+                
+                // Add profile scopes for all authenticated users
+                var allScopes = new List<string>(scopes);
+                allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead);
+                allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate);
+                
+                // Add system admin scope for admin users
+                if (role == HydroEspinaca.Shared.Constants.SystemRoles.Admin)
+                {
+                    allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin);
+                }
+                
+                scopes = allScopes.Distinct().ToArray();
+            }
+
+            // 2. Claims for access token
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredNames.Sub, userId),
@@ -42,8 +77,15 @@ namespace AuthService.Infrastructure.Security
                 new Claim("role", role), // Use simple "role" claim for better microservices compatibility
                 new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
             };
+            
             if (!string.IsNullOrEmpty(clientId))
                 claims.Add(new Claim("client_id", clientId));
+                
+            // Add scope claims - use space-separated string as per OAuth 2.0 spec
+            if (scopes.Length > 0)
+            {
+                claims.Add(new Claim("scope", string.Join(" ", scopes)));
+            }
 
             // 2. Build token - ensure notBefore is slightly before expires
             var notBefore = now.AddSeconds(-1); // 1 second before now
@@ -81,7 +123,8 @@ namespace AuthService.Infrastructure.Security
                 RefreshToken = refreshToken,
                 ExpiresAt = expires,
                 Role = role,
-                ClientId = clientId
+                ClientId = clientId,
+                Scopes = scopes
             };
         }
 
@@ -131,9 +174,82 @@ namespace AuthService.Infrastructure.Security
         }
 
         // Legacy method for backward compatibility
+        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
+        {
+            // For legacy compatibility, use async method synchronously
+            return GenerateTokensAsync(userId, email, role, clientId, tokenType).GetAwaiter().GetResult();
+        }
+
+        // Legacy method for backward compatibility
         public TokenResult GenerateTokens(string userId, string email, string role, string? clientId)
         {
             return GenerateTokens(userId, email, role, clientId, TokenType.User);
+        }
+
+        /// <summary>
+        /// Gets user permissions based on their role
+        /// </summary>
+        private async Task<IEnumerable<string>> GetUserPermissionsAsync(string roleCode)
+        {
+            try
+            {
+                // Find role by code
+                var role = await _roleRepository.FindByCodeAsync(roleCode);
+                if (role == null)
+                {
+                    return Array.Empty<string>();
+                }
+
+                // Get permissions for the role - permission.code is already the scope
+                var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
+                return permissions.Select(p => p.Code);
+            }
+            catch
+            {
+                // Return empty permissions on error to avoid token generation failure
+                return Array.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// Gets predefined scopes for machine-to-machine clients
+        /// </summary>
+        private string[] GetMachineToMachineScopes(string clientId)
+        {
+            // Use predefined scopes based on client ID
+            return clientId switch
+            {
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.SensorService => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorWrite 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.ActuatorService => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.Esp32Service => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Write, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Control 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.SystemMonitor => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.AdminDashboard => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth 
+                },
+                _ => new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth }
+            };
         }
     }
 }

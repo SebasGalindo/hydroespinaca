@@ -1,3 +1,4 @@
+using AuthService.Api.Authorization;
 using AuthService.Application.Features.Roles.Commands.CreateRole;
 using AuthService.Application.Features.Roles.Commands.DeleteRole;
 using AuthService.Application.Features.Roles.Commands.UpdateRole;
@@ -22,7 +23,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireRoleCreate)]
     public async Task<ActionResult<RoleResponseDto>> Create([FromBody] CreateRoleRequestDto request)
     {
         var command = new CreateRoleCommand(request.Code, request.Name, request.PermissionCodes);
@@ -31,7 +32,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpGet("{code}")]
-    [Authorize(Roles = "role_admin,role_user")]
+    [Authorize(Policy = AuthorizationPolicies.RequireRoleRead)]
     public async Task<ActionResult<RoleResponseDto>> GetByCode(string code)
     {
         var query = new GetRoleQuery(code);
@@ -43,7 +44,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "role_admin,role_user")]
+    [Authorize(Policy = AuthorizationPolicies.RequireRoleRead)]
     public async Task<ActionResult<List<RoleResponseDto>>> GetAll()
     {
         var query = new GetAllRolesQuery();
@@ -52,7 +53,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPut("{code}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireRoleUpdate)]
     public async Task<ActionResult<RoleResponseDto>> Update(string code, [FromBody] UpdateRoleRequestDto request)
     {
         var command = new UpdateRoleCommand(code, request.Name, request.PermissionCodes);
@@ -64,7 +65,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireRoleDelete)]
     public async Task<ActionResult> Delete(string code)
     {
         var command = new DeleteRoleCommand(code);

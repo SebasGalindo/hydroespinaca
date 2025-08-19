@@ -18,9 +18,7 @@ public class Permission : IIdentifiableMutable
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Permission name cannot be null or empty", nameof(name));
 
-        if (!code.StartsWith("perm_"))
-            throw new ArgumentException("Permission code must start with 'perm_'", nameof(code));
-
+      
         Code = code;
         Name = name;
         Description = description;

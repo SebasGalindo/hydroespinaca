@@ -35,10 +35,10 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             throw new InvalidClientCredentialsException();
         }
 
-        var tokens = _tokenService.GenerateTokens(
+        var tokens = await _tokenService.GenerateTokensAsync(
             clientApp.Id,
             clientApp.Code,
-            "client",
+            HydroEspinaca.Shared.Constants.SystemRoles.Client,
             clientApp.Code,
             TokenType.MachineToMachine);
 

@@ -1,4 +1,5 @@
-﻿using AuthService.Api.Models;
+﻿using AuthService.Api.Authorization;
+using AuthService.Api.Models;
 using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 using AuthService.Application.Features.Authentication.Commands.Login;
 using AuthService.Application.Features.Authentication.Commands.RefreshToken;
@@ -61,6 +62,7 @@ public class AuthController : ControllerBase
     {
         return Ok(true);
     }
+
 
     [AllowAnonymous]
     [HttpGet("keys/public")]

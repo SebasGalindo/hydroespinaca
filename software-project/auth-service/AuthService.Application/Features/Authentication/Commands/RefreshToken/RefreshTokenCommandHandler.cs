@@ -53,7 +53,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
 
         // Generate new tokens - determine token type based on client context
         var tokenType = string.IsNullOrEmpty(request.ClientId) ? TokenType.User : TokenType.MachineToMachine;
-        var tokens = _tokenService.GenerateTokens(
+        var tokens = await _tokenService.GenerateTokensAsync(
             user.Id,
             user.Email.Value,
             roleCode,
@@ -65,7 +65,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             user.Id,
             tokens.RefreshToken,
             tokens.ExpiresAt.AddDays(7),
-            request.ClientId ?? "web");
+            request.ClientId ?? HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp);
         
         await _refreshTokenRepository.AddAsync(newRefreshToken);
 

@@ -53,7 +53,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
             }
         }
 
-        var tokens = _tokenService.GenerateTokens(
+        var tokens = await _tokenService.GenerateTokensAsync(
             user.Id, 
             user.Email.Value, 
             roleCode, 
@@ -64,7 +64,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
             user.Id,
             tokens.RefreshToken,
             tokens.ExpiresAt.AddDays(7),
-            "web");
+            HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp);
 
         await _refreshTokenRepository.AddAsync(refreshToken);
 

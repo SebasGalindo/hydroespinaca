@@ -1,3 +1,4 @@
+using AuthService.Api.Authorization;
 using AuthService.Application.Features.Permissions.Commands.CreatePermission;
 using AuthService.Application.Features.Permissions.Commands.DeletePermission;
 using AuthService.Application.Features.Permissions.Commands.UpdatePermission;
@@ -23,7 +24,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequirePermissionCreate)]
     public async Task<ActionResult<PermissionResponseDto>> Create([FromBody] CreatePermissionRequestDto request)
     {
         var command = new CreatePermissionCommand(request.Code, request.Name, request.Description);
@@ -32,7 +33,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpGet("{code}")]
-    [Authorize(Roles = "role_admin,role_user")]
+    [Authorize(Policy = AuthorizationPolicies.RequirePermissionRead)]
     public async Task<ActionResult<PermissionResponseDto>> GetByCode(string code)
     {
         var query = new GetPermissionQuery(code);
@@ -44,7 +45,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "role_admin,role_user")]
+    [Authorize(Policy = AuthorizationPolicies.RequirePermissionRead)]
     public async Task<ActionResult<List<PermissionResponseDto>>> GetAll()
     {
         var query = new GetAllPermissionsQuery();
@@ -53,7 +54,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpPut("{code}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequirePermissionUpdate)]
     public async Task<ActionResult<PermissionResponseDto>> Update(string code, [FromBody] UpdatePermissionRequestDto request)
     {
         var command = new UpdatePermissionCommand(code, request.Name, request.Description);
@@ -65,7 +66,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequirePermissionDelete)]
     public async Task<ActionResult> Delete(string code)
     {
         var command = new DeletePermissionCommand(code);

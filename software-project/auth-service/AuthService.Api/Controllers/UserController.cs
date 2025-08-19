@@ -1,3 +1,4 @@
+using AuthService.Api.Authorization;
 using AuthService.Application.Features.Users.Commands.CreateUser;
 using AuthService.Application.Features.Users.Commands.DeleteUser;
 using AuthService.Application.Features.Users.Commands.UpdateUser;
@@ -22,7 +23,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireUserCreate)]
     public async Task<ActionResult<UserResponseDto>> Create([FromBody] UserCreateDto request)
     {
         var command = new CreateUserCommand(request.Email, request.Password, request.RoleId);
@@ -31,7 +32,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "role_admin,role_user")]
+    [Authorize(Policy = AuthorizationPolicies.RequireUserRead)]
     public async Task<ActionResult<UserResponseDto>> GetById(string id)
     {
         var query = new GetUserQuery(id);
@@ -43,7 +44,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireUserRead)]
     public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll()
     {
         var query = new GetAllUsersQuery();
@@ -52,7 +53,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireUserUpdate)]
     public async Task<ActionResult<UserResponseDto>> Update(string id, [FromBody] UserUpdateDto request)
     {
         var command = new UpdateUserCommand(id, request.Email, request.Password, request.RoleId);
@@ -61,7 +62,7 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "role_admin")]
+    [Authorize(Policy = AuthorizationPolicies.RequireUserDelete)]
     public async Task<ActionResult> Delete(string id)
     {
         var command = new DeleteUserCommand(id);

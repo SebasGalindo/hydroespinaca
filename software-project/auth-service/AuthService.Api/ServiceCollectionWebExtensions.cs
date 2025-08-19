@@ -1,8 +1,10 @@
-﻿using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
+﻿using AuthService.Api.Authorization;
+using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 using AuthService.Domain.Enums;
 using AuthService.Infrastructure.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
@@ -103,12 +105,26 @@ public static class ServiceCollectionWebExtensions
             options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();
+                
+            // Configure scope-based authorization policies
+            AuthorizationPolicies.ConfigurePolicies(options);
         });
+
+        // Register the system admin override handler for global bypass
+        services.AddSingleton<IAuthorizationHandler, SystemAdminOverrideHandler>();
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth Service API", Version = "v1" });
+            // Generate dynamic scope documentation
+            var scopeDocumentation = GenerateScopeDocumentation();
+            
+            c.SwaggerDoc("v1", new OpenApiInfo 
+            { 
+                Title = "Auth Service API", 
+                Version = "v1",
+                Description = "Authentication service with scope-based authorization. Each endpoint requires specific scopes in the JWT token.\n\n" + scopeDocumentation
+            });
 
             var securityScheme = new OpenApiSecurityScheme
             {
@@ -117,7 +133,7 @@ public static class ServiceCollectionWebExtensions
                 Scheme = "bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Enter 'Bearer' [space] and then your valid token.\n\nExample: \"Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\""
+                Description = "JWT Authorization header using the Bearer scheme. Swagger will automatically add 'Bearer ' prefix to your token."
             };
 
             c.AddSecurityDefinition("Bearer", securityScheme);
@@ -138,6 +154,14 @@ public static class ServiceCollectionWebExtensions
             };
 
             c.AddSecurityRequirement(securityRequirement);
+            
+            // Enable XML comments if available
+            var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+            if (File.Exists(xmlPath))
+            {
+                c.IncludeXmlComments(xmlPath);
+            }
         });
 
         services.AddValidatorsFromAssemblyContaining<ClientCredentialsCommandValidator>();
@@ -202,5 +226,107 @@ public static class ServiceCollectionWebExtensions
         
         // Strategy 4: Final fallback - return empty collection (will cause validation to fail)
         return new SecurityKey[0];
+    }
+
+    /// <summary>
+    /// Generates dynamic scope documentation from the AuthorizationScopes enum
+    /// </summary>
+    private static string GenerateScopeDocumentation()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("## Available Scopes\n");
+        
+        // Get all scope constants from the enum using reflection
+        var scopeType = typeof(HydroEspinaca.Shared.Enums.AuthorizationScopes);
+        var scopeFields = scopeType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.FlattenHierarchy)
+                                  .Where(f => f.IsLiteral && !f.IsInitOnly && f.FieldType == typeof(string))
+                                  .OrderBy(f => f.Name);
+
+        // Group scopes by category
+        var scopeGroups = new Dictionary<string, List<(string Name, string Value)>>
+        {
+            ["User Management"] = new(),
+            ["Profile Management"] = new(),
+            ["Role Management"] = new(),
+            ["Permission Management"] = new(),
+            ["IoT Hardware"] = new(),
+            ["Data Management"] = new(),
+            ["System Operations"] = new()
+        };
+
+        foreach (var field in scopeFields)
+        {
+            var scopeName = field.Name;
+            var scopeValue = field.GetValue(null)?.ToString() ?? "";
+            
+            // Categorize scopes based on their name
+            if (scopeName.StartsWith("User"))
+                scopeGroups["User Management"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("Profile"))
+                scopeGroups["Profile Management"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("Role"))
+                scopeGroups["Role Management"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("Permission"))
+                scopeGroups["Permission Management"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("Sensor") || scopeName.StartsWith("Actuator") || scopeName.StartsWith("Esp32"))
+                scopeGroups["IoT Hardware"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("Variable") || scopeName.StartsWith("Alert"))
+                scopeGroups["Data Management"].Add((scopeName, scopeValue));
+            else if (scopeName.StartsWith("System"))
+                scopeGroups["System Operations"].Add((scopeName, scopeValue));
+        }
+
+        // Generate documentation for each category
+        foreach (var group in scopeGroups.Where(g => g.Value.Any()))
+        {
+            sb.AppendLine($"### {group.Key}");
+            foreach (var scope in group.Value)
+            {
+                sb.AppendLine($"- `{scope.Value}` - {GetScopeDescription(scope.Name, scope.Value)}");
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Gets a human-readable description for a scope
+    /// </summary>
+    private static string GetScopeDescription(string scopeName, string scopeValue)
+    {
+        return scopeName switch
+        {
+            "UserCreate" => "Create new users",
+            "UserRead" => "Read user information",
+            "UserUpdate" => "Update user information", 
+            "UserDelete" => "Delete users",
+            "ProfileRead" => "Read own profile information",
+            "ProfileUpdate" => "Update own profile information",
+            "RoleCreate" => "Create new roles",
+            "RoleRead" => "Read role information",
+            "RoleUpdate" => "Update role information",
+            "RoleDelete" => "Delete roles",
+            "PermissionCreate" => "Create new permissions",
+            "PermissionRead" => "Read permission information",
+            "PermissionUpdate" => "Update permission information",
+            "PermissionDelete" => "Delete permissions",
+            "SensorRead" => "Read sensor data and status",
+            "SensorWrite" => "Write sensor data and configuration",
+            "ActuatorRead" => "Read actuator status and information",
+            "ActuatorControl" => "Control actuator operations",
+            "Esp32Read" => "Read ESP32 node information",
+            "Esp32Write" => "Write ESP32 node configuration",
+            "Esp32Control" => "Control ESP32 node operations",
+            "VariableRead" => "Read variable information",
+            "VariableWrite" => "Write variable data and configuration",
+            "AlertRead" => "Read alert information",
+            "AlertWrite" => "Write alert data and configuration",
+            "AlertManage" => "Manage alert rules and configuration",
+            "SystemAdmin" => "System administration access",
+            "SystemHealth" => "Access system health information",
+            "SystemMonitor" => "Monitor system operations",
+            _ => $"Access to {scopeValue.Replace(":", " ")} operations"
+        };
     }
 }
