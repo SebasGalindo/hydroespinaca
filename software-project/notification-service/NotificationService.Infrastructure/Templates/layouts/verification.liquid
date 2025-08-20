@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ model.subject | default: "Verificación" }}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:24px;background:#f6f7fb;color:#111}
+      .container{max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8ee}
+      .header{padding:16px 20px;background:#16a34a;color:#fff;font-weight:600}
+      .content{padding:24px}
+      .code{font-size:28px;letter-spacing:4px;font-weight:700;background:#f3f4f6;padding:12px 16px;border-radius:8px;text-align:center;margin:16px 0}
+      .hint{color:#6b7280;font-size:12px}
+      @media (prefers-color-scheme: dark){ body{background:#0b0f1a;color:#e5e7eb} .container{background:#0f172a;border-color:#1f2937} .hint{color:#9ca3af} }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">Código de verificación</div>
+      <div class="content">
+        {{ body | raw }}
+        <p class="hint">Si no solicitaste este código, ignora este correo.</p>
+      </div>
+    </div>
+  </body>
+</html>
