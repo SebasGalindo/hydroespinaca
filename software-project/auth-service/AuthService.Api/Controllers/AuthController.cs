@@ -1,6 +1,12 @@
-﻿using AuthService.Application.DTOs;
-using AuthService.Application.UseCases;
+﻿using AuthService.Api.Authorization;
+using AuthService.Api.Models;
+using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
+using AuthService.Application.Features.Authentication.Commands.Login;
+using AuthService.Application.Features.Authentication.Commands.RefreshToken;
+using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Security;
+using AuthService.Infrastructure.Security.Models;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,46 +16,45 @@ namespace AuthService.Api.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly AuthenticateUserUseCase _authUser;
-    private readonly RefreshTokenUseCase _refresh;
-    private readonly ClientCredentialsUseCase _clientCreds;
+    private readonly IMediator _mediator;
     private readonly IKeyStore _keyStore;
 
     public AuthController(
-        AuthenticateUserUseCase authUser,
-        RefreshTokenUseCase refresh,
-        ClientCredentialsUseCase clientCreds,
-        IKeyStore keyStore)
+       IMediator mediator,
+       IKeyStore keyStore
+    )
     {
-        _authUser = authUser;
-        _refresh = refresh;
-        _clientCreds = clientCreds;
+        _mediator = mediator;
         _keyStore = keyStore;
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<ActionResult<TokenResponseDto>> Login([FromBody] LoginRequestDto dto)
+    public async Task<ActionResult<TokenResult>> Login([FromBody] LoginRequest dto)
     {
-        var tokens = await _authUser.ExecuteAsync(dto);
+        var command = new LoginCommand(dto.Email, dto.Password);
+        var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }
 
     [AllowAnonymous]
     [HttpPost("refresh")]
-    public async Task<ActionResult<TokenResponseDto>> Refresh([FromBody] RefreshRequestDto dto)
+    public async Task<ActionResult<TokenResult>> Refresh([FromBody] RefreshRequest dto)
     {
-        var tokens = await _refresh.ExecuteAsync(dto);
+        var command = new RefreshTokenCommand(dto.RefreshToken, dto.ClientId);
+        var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }
 
     [AllowAnonymous]
     [HttpPost("token")]
-    public async Task<ActionResult<TokenResponseDto>> Token([FromBody] ClientCredentialsRequestDto dto)
+    public async Task<ActionResult<TokenResult>> Token([FromBody] ClientCredentialsRequest dto)
     {
-        var tokens = await _clientCreds.ExecuteAsync(dto.ClientId, dto.ClientSecret);
+        var command = new ClientCredentialsCommand(dto.ClientId, dto.ClientSecret);
+        var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }
+
 
     [Authorize]
     [HttpGet("validate")]
@@ -58,11 +63,13 @@ public class AuthController : ControllerBase
         return Ok(true);
     }
 
+
     [AllowAnonymous]
     [HttpGet("keys/public")]
-    public ActionResult<string> PublicKey()
+    public ActionResult<JsonWebKeySet> PublicKeys()
     {
-        var pub = _keyStore.GetPublicKey();
-        return Ok(pub);
+        var keyPairs = _keyStore.GetAllKeyPairs();
+        var jwks = JwkConverter.ToJsonWebKeySet(keyPairs);
+        return Ok(jwks);
     }
 }

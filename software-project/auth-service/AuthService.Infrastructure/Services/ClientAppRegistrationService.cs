@@ -25,7 +25,7 @@ public class ClientAppRegistrationService : IClientAppRegistrationService
         var hashed = _hasher.Hash(secretPlain);
 
         var app = new ClientApp(
-            clientId,
+            $"client_{clientId}",
             new HashedPassword(hashed),
             scopes
         );

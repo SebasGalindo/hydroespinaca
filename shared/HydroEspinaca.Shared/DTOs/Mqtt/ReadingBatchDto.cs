@@ -8,7 +8,7 @@ public class ReadingBatchDto
     public string Esp32Id { get; set; } = default!;
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
 
     [JsonPropertyName("readings")]
     public List<ReadingInput> Readings { get; set; } = new();

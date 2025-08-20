@@ -1,4 +1,4 @@
-﻿using AuthService.Application.Interfaces;
+﻿// ITokenService now in Domain.Interfaces
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Persistence.Mappers;
@@ -32,23 +32,42 @@ public static class ServiceCollectionApplicationExtensions
         services.AddSingleton<IKeyStore>(provider =>
         {
             var config = provider.GetRequiredService<IConfiguration>();
-            var privateKeyPath = config["Jwt:PrivateKeyPath"]
-                ?? throw new ArgumentNullException("Jwt:PrivateKeyPath configuration is missing.");
-            var publicKeyPath = config["Jwt:PublicKeyPath"]
-                ?? throw new ArgumentNullException("Jwt:PublicKeyPath configuration is missing.");
+            var environment = provider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            
+            // For test environment, use in-memory key store
+            if (environment.EnvironmentName == "Test")
+            {
+                return TestKeyStoreFactory.GetOrCreateInstance();
+            }
 
-            return new FileKeyStore(privateKeyPath, publicKeyPath);
+            // Get keys directory from configuration, default to "Keys" folder
+            var keysDirectory = config["Jwt:KeysDirectory"] ?? "Keys";
+            
+            // Ensure the keys directory path is absolute
+            if (!Path.IsPathRooted(keysDirectory))
+            {
+                keysDirectory = Path.Combine(Directory.GetCurrentDirectory(), keysDirectory);
+            }
+
+            return new FileKeyStore(keysDirectory);
         });
 
         // Repositories
         services.AddScoped<IUserRepository, MongoUserRepository>();
         services.AddScoped<IClientAppRepository, MongoClientAppRepository>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
+        services.AddScoped<IPermissionRepository, MongoPermissionRepository>();
+        services.AddScoped<IRoleRepository, MongoRoleRepository>();
 
         // Mapping services
         services.AddScoped<IEntityMapper<User, UserDocument>, UserMapper>();
         services.AddScoped<IEntityMapper<ClientApp, ClientAppDocument>, ClientAppMapper>();
         services.AddScoped<IEntityMapper<RefreshToken, RefreshTokenDocument>, RefreshTokenMapper>();
+        services.AddScoped<IEntityMapper<Permission, PermissionDocument>, PermissionMapper>();
+        services.AddScoped<IEntityMapper<Role, RoleDocument>, RoleMapper>();
+
+        // Data seeding service
+        services.AddScoped<DataSeedingService>();
 
         return services;
     }

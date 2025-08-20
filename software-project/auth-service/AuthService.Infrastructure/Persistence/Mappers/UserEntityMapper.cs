@@ -11,7 +11,7 @@ public class UserMapper : IEntityMapper<User, UserDocument>
         var user = new User(
             new Email(doc.Email),
             new HashedPassword(doc.Password),
-            doc.Role
+            doc.RoleId
         );
         user.SetId(doc.Id);
         return user;
@@ -24,7 +24,7 @@ public class UserMapper : IEntityMapper<User, UserDocument>
             Id = entity.Id.ToString(),
             Email = entity.Email.Value,
             Password = entity.Password.Value,
-            Role = entity.Role
+            RoleId = entity.RoleId
         };
     }
 }

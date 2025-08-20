@@ -38,7 +38,7 @@ public class GenerateInactiveSensorAlertsUseCase : IGenerateInactiveSensorAlerts
                 {
                     SensorId = expected.Id,
                     Type = AlertType.InactiveSensor,
-                    Timestamp = dto.Timestamp,
+                    Timestamp = dto.Timestamp.DateTime,
                     Severity = AlertSeverity.Critical,
                     Message = $"No se recibió lectura esperada de {expected.PhysicalId} - {expected.VariableId}",
                     Acknowledged = false

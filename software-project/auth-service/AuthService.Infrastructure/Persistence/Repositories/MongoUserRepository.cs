@@ -29,6 +29,23 @@ public class MongoUserRepository : IUserRepository
     public Task<User?> FindByIdAsync(Guid id)
         => _baseRepo.GetByIdAsync(id.ToString());
 
+    public async Task<User?> FindByIdAsync(string id)
+    {
+        try
+        {
+            return await _baseRepo.GetByIdAsync(id);
+        }
+        catch (FormatException)
+        {
+
+            var filter = Builders<UserDocument>.Filter.Eq(x => x.Id, id);
+            return await _baseRepo.FindOneAsync(filter);
+        }
+    }
+
+    public Task<List<User>> GetAllAsync()
+        => _baseRepo.GetAllAsync();
+
     public Task CreateAsync(User user)
         => _baseRepo.CreateAsync(user);
 

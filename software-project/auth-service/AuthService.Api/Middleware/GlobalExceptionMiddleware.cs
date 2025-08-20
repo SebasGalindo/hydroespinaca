@@ -126,6 +126,7 @@ public class GlobalExceptionMiddleware
         catch (NotFoundException ex)
         {
             _logger.LogWarning("⚠️ Not found: {Message}", ex.Message);
+            Console.WriteLine($"🔍 [GlobalExceptionMiddleware] Handling NotFoundException: {ex.Message}");
 
             var problem = ProblemDetailsHelper.Create(context,
                 title: "Resource Not Found",

@@ -1,4 +1,4 @@
-﻿using AuthService.Application.DTOs;
+﻿using AuthService.Application.Features.Authentication.DTOs;
 using AuthService.Domain.Entities;
 using AutoMapper;
 
@@ -19,7 +19,7 @@ public class RefreshMappingProfile : Profile
         CreateMap<RefreshRequestDto, RefreshToken>()
             .ConstructUsing(dto =>
                 new RefreshToken(
-                    Guid.Empty,
+                    string.Empty,
                     dto.RefreshToken,
                     DateTime.UtcNow,
                     dto.ClientId ?? string.Empty

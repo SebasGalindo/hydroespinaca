@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace HydroEspinaca.Shared.Mqtt;
@@ -12,8 +13,15 @@ public class MqttClientService : IMqttClientService
 {
     private readonly IMqttClient _client;
     private readonly MqttClientOptions _options;
-    private bool _isHandlerRegistered = false;
+    private bool _isHandlerRegistered;
+    private readonly object _handlerLock = new();
+    private readonly SemaphoreSlim _connectLock = new SemaphoreSlim(1, 1);
     private readonly ILogger<MqttClientService> _logger;
+    private readonly string _instanceId = Guid.NewGuid().ToString("N");
+    private readonly ConcurrentDictionary<string, byte> _subscribedTopics = new();
+
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
+
     public MqttClientService(IOptions<MqttSettings> mqttOptions, ILogger<MqttClientService> logger)
     {
         _logger = logger;
@@ -34,92 +42,125 @@ public class MqttClientService : IMqttClientService
     {
         if (_client.IsConnected)
         {
-            _logger.LogInformation("MQTT client already connected.");
+            _logger.LogInformation("[{Instance}] MQTT client already connected.", _instanceId);
             return;
         }
 
+        await _connectLock.WaitAsync();
         try
         {
-            _logger.LogInformation("Connecting to MQTT broker...");
-            var result = await _client.ConnectAsync(_options);
-
+            // doble-check dentro del lock
             if (_client.IsConnected)
             {
-                _logger.LogInformation("Connected to MQTT broker.");
+                _logger.LogInformation("[{Instance}] MQTT client already connected (post-lock).", _instanceId);
+                return;
             }
-            else
+
+            try
             {
-                _logger.LogWarning("Failed to connect to MQTT broker. Result: {Reason}", result?.ResultCode);
+                _logger.LogInformation("[{Instance}] Connecting to MQTT broker...", _instanceId);
+                using (var cts = new CancellationTokenSource(ConnectTimeout))
+                {
+                    MqttClientConnectResult mqttClientConnectResult = await _client.ConnectAsync(_options, cts.Token);
+                    if (_client.IsConnected)
+                    {
+                        _logger.LogInformation("[{Instance}] Connected to MQTT broker. Result: {Result}", _instanceId, mqttClientConnectResult?.ResultCode);
+                        return;
+                    }
+
+                    _logger.LogWarning("[{Instance}] Failed to connect to MQTT broker. Result: {Reason}", _instanceId, mqttClientConnectResult?.ResultCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[{Instance}] Error connecting to MQTT broker.", _instanceId);
+                throw new InvalidOperationException("Error connecting to MQTT broker", ex);
             }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Error connecting to MQTT broker.");
-            throw new InvalidOperationException("Error connecting to MQTT broker", ex);
+            _connectLock.Release();
         }
     }
-
 
     public async Task SubscribeAsync(string topic, Func<string, byte[], Task> handler)
     {
         await ConnectAsync();
 
-        if (!_isHandlerRegistered)
+        // Protege el registro del handler contra race conditions
+        lock (_handlerLock)
         {
-            _client.ApplicationMessageReceivedAsync += e =>
+            if (!_isHandlerRegistered)
             {
-                var payload = e.ApplicationMessage.Payload.ToArray();
-                var msgTopic = e.ApplicationMessage.Topic;
+                _client.ApplicationMessageReceivedAsync += async e =>
+                {
+                    ReadOnlySequence<byte> sequence = e.ApplicationMessage.Payload;
+                    byte[] array = BuffersExtensions.ToArray(in sequence);
+                    string topicReceived = e.ApplicationMessage.Topic;
+                    _logger.LogInformation("[{Instance}] MQTT message received. Topic: {Topic}, Payload: {Payload}", _instanceId, topicReceived, Encoding.UTF8.GetString(array));
+                    try
+                    {
+                        await handler(topicReceived, array).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[{Instance}] Error in message handler", _instanceId);
+                        // no rethrow: evita que excepciones asincrónicas rompan el loop del cliente
+                    }
+                };
 
-                _logger.LogInformation("MQTT message received. Topic: {Topic}, Payload: {Payload}",
-                    msgTopic,
-                    Encoding.UTF8.GetString(payload));
-
-                return handler(msgTopic, payload);
-            };
-
-            _isHandlerRegistered = true;
+                _isHandlerRegistered = true;
+                _logger.LogInformation("[{Instance}] Registered ApplicationMessageReceived handler.", _instanceId);
+            }
+            else
+            {
+                _logger.LogDebug("[{Instance}] Handler already registered - skipping.", _instanceId);
+            }
         }
 
-        var options = new MqttClientSubscribeOptionsBuilder()
-            .WithTopicFilter(x => x
-                .WithTopic(topic)
-                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
-            .Build();
+        // Evita suscripciones repetidas
+        if (!_subscribedTopics.TryAdd(topic, 0))
+        {
+            _logger.LogDebug("[{Instance}] Already subscribed to topic {Topic} - skipping subscribe call", _instanceId, topic);
+            return;
+        }
+
+        var options = new MqttClientSubscribeOptionsBuilder().WithTopicFilter(x =>
+        {
+            x.WithTopic(topic).WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce);
+        }).Build();
 
         try
         {
             await _client.SubscribeAsync(options);
-            _logger.LogInformation("Subscribed to MQTT topic: {Topic}", topic);
+            _logger.LogInformation("[{Instance}] Subscribed to MQTT topic: {Topic}", _instanceId, topic);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Failed to subscribe to topic: {Topic}", topic);
+            _subscribedTopics.TryRemove(topic, out _); // rollback on failure
+            _logger.LogError(exception, "[{Instance}] Failed to subscribe to topic: {Topic}", _instanceId, topic);
             throw;
         }
     }
-
 
     public async Task SubscribeAsync(string topic, Func<string, string, Task> textHandler)
     {
         await SubscribeAsync(topic, (receivedTopic, payload) =>
         {
-            var msg = Encoding.UTF8.GetString(payload);
-            return textHandler(receivedTopic, msg);
+            string @string = Encoding.UTF8.GetString(payload);
+            return textHandler(receivedTopic, @string);
         });
     }
 
     public async Task PublishAsync(string topic, string payload)
     {
         await ConnectAsync();
-
-        var message = new MqttApplicationMessageBuilder()
+        MqttApplicationMessage applicationMessage = new MqttApplicationMessageBuilder()
             .WithTopic(topic)
             .WithPayload(payload)
             .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.ExactlyOnce)
             .WithRetainFlag()
             .Build();
-
-        await _client.PublishAsync(message);
+        await _client.PublishAsync(applicationMessage);
     }
 }

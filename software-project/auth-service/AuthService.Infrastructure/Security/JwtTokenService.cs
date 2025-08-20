@@ -1,5 +1,6 @@
-﻿using AuthService.Application.DTOs;
-using AuthService.Application.Interfaces;
+using AuthService.Domain.Enums;
+using AuthService.Domain.Interfaces;
+using AuthService.Infrastructure.Security.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -10,66 +11,120 @@ using JwtRegisteredNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNam
 namespace AuthService.Infrastructure.Security
 {
     /// <summary>
-    /// Service to generate and validate JWT using RS256.
+    /// Service to generate and validate JWT using RS256 with support for multiple key pairs.
     /// </summary>
     public class JwtTokenService : ITokenService
     {
         private readonly IKeyStore _keyStore;
         private readonly JwtSettings _settings;
+        private readonly IRoleRepository _roleRepository;
+        private readonly IPermissionRepository _permissionRepository;
 
-        public JwtTokenService(IKeyStore keyStore, IOptions<JwtSettings> options)
+        public JwtTokenService(
+            IKeyStore keyStore, 
+            IOptions<JwtSettings> options,
+            IRoleRepository roleRepository,
+            IPermissionRepository permissionRepository)
         {
             _keyStore = keyStore;
             _settings = options.Value;
+            _roleRepository = roleRepository;
+            _permissionRepository = permissionRepository;
         }
 
-        public TokenResponseDto GenerateTokens(Guid userId, string email, string role, string? clientId)
+        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
         {
             var now = DateTime.UtcNow;
+            
+            // Ensure minimum expiry time to avoid NotBefore/Expires collision
+            var expiryMinutes = Math.Max(_settings.AccessTokenExpiryMinutes, 1);
 
-            // 1. Claims for access token
+            // Get the appropriate key pair for the token type
+            var keyPair = _keyStore.GetKeyPair(tokenType);
+
+            // 1. Get scopes directly from permissions (permission.code is the scope)
+            string[] scopes;
+            if (tokenType == TokenType.MachineToMachine && !string.IsNullOrEmpty(clientId))
+            {
+                // For M2M tokens, use predefined scopes based on client
+                scopes = GetMachineToMachineScopes(clientId);
+            }
+            else
+            {
+                // For user tokens, get permissions from role - permission.code is the scope
+                var permissions = await GetUserPermissionsAsync(role);
+                scopes = permissions.ToArray();
+                
+                // Add profile scopes for all authenticated users
+                var allScopes = new List<string>(scopes);
+                allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead);
+                allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate);
+                
+                // Add system admin scope for admin users
+                if (role == HydroEspinaca.Shared.Constants.SystemRoles.Admin)
+                {
+                    allScopes.Add(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin);
+                }
+                
+                scopes = allScopes.Distinct().ToArray();
+            }
+
+            // 2. Claims for access token
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredNames.Sub, userId.ToString()),
+                new Claim(JwtRegisteredNames.Sub, userId),
                 new Claim(JwtRegisteredNames.Email, email),
-                new Claim("role", role),
+                new Claim("role", role), // Use simple "role" claim for better microservices compatibility
                 new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
             };
+            
             if (!string.IsNullOrEmpty(clientId))
                 claims.Add(new Claim("client_id", clientId));
+                
+            // Add scope claims - use space-separated string as per OAuth 2.0 spec
+            if (scopes.Length > 0)
+            {
+                claims.Add(new Claim("scope", string.Join(" ", scopes)));
+            }
 
-            // 2. Obtain signing credentials
-            var privateKeyPem = _keyStore.GetPrivateKey();
-            using var rsa = RSA.Create();
-            rsa.ImportFromPem(privateKeyPem.ToCharArray());
-            var credentials = new SigningCredentials(
-                new RsaSecurityKey(rsa),
-                SecurityAlgorithms.RsaSha256
-            );
+            // 2. Build token - ensure notBefore is slightly before expires
+            var notBefore = now.AddSeconds(-1); // 1 second before now
+            var expires = now.AddMinutes(expiryMinutes);
 
-            // 3. Build token
+            // 3. Create RSA instance and keep it alive - don't dispose manually
+            var rsa = RSA.Create();
+            
+            // Import the private key for the specified token type
+            rsa.ImportFromPem(keyPair.PrivateKey.ToCharArray());
+            
+            // Create signing credentials with KID
+            var rsaKey = new RsaSecurityKey(rsa) { KeyId = keyPair.KeyId };
+            var credentials = new SigningCredentials(rsaKey, SecurityAlgorithms.RsaSha256);
+            
             var jwtToken = new JwtSecurityToken(
                 issuer: _settings.Issuer,
                 audience: _settings.Audience,
                 claims: claims,
-                notBefore: now,
-                expires: now.AddMinutes(_settings.AccessTokenExpiryMinutes),
+                notBefore: notBefore,
+                expires: expires,
                 signingCredentials: credentials
             );
 
+            // Generate the token string
             var accessTokenString = new JwtSecurityTokenHandler().WriteToken(jwtToken);
 
             // 4. Generate random refresh token
             var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
-            // 5. Return DTO
-            return new TokenResponseDto
+            // 5. Return TokenResult (let GC handle RSA disposal)
+            return new TokenResult
             {
                 AccessToken = accessTokenString,
                 RefreshToken = refreshToken,
-                ExpiresAt = jwtToken.ValidTo,
+                ExpiresAt = expires,
                 Role = role,
-                ClientId = clientId
+                ClientId = clientId,
+                Scopes = scopes
             };
         }
 
@@ -77,9 +132,26 @@ namespace AuthService.Infrastructure.Security
         {
             try
             {
-                var publicKeyPem = _keyStore.GetPublicKey();
+                var handler = new JwtSecurityTokenHandler();
+                var jsonToken = handler.ReadJwtToken(token);
+                
+                // Extract the KID from the token header
+                var kid = jsonToken.Header.Kid;
+                if (string.IsNullOrEmpty(kid))
+                {
+                    // Fallback to user token type for legacy tokens without KID
+                    kid = _keyStore.GetKeyPair(TokenType.User).KeyId;
+                }
+
+                // Get the key pair by KID
+                var keyPair = _keyStore.GetKeyPairById(kid);
+                if (keyPair == null)
+                {
+                    return false;
+                }
+
                 using var rsa = RSA.Create();
-                rsa.ImportFromPem(publicKeyPem.ToCharArray());
+                rsa.ImportFromPem(keyPair.PublicKey.ToCharArray());
 
                 var validationParameters = new TokenValidationParameters
                 {
@@ -89,11 +161,9 @@ namespace AuthService.Infrastructure.Security
                     ValidAudience = _settings.Audience,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new RsaSecurityKey(rsa),
+                    IssuerSigningKey = new RsaSecurityKey(rsa) { KeyId = kid },
                 };
 
-
-                var handler = new JwtSecurityTokenHandler();
                 handler.ValidateToken(token, validationParameters, out _);
                 return true;
             }
@@ -101,6 +171,85 @@ namespace AuthService.Infrastructure.Security
             {
                 return false;
             }
+        }
+
+        // Legacy method for backward compatibility
+        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
+        {
+            // For legacy compatibility, use async method synchronously
+            return GenerateTokensAsync(userId, email, role, clientId, tokenType).GetAwaiter().GetResult();
+        }
+
+        // Legacy method for backward compatibility
+        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId)
+        {
+            return GenerateTokens(userId, email, role, clientId, TokenType.User);
+        }
+
+        /// <summary>
+        /// Gets user permissions based on their role
+        /// </summary>
+        private async Task<IEnumerable<string>> GetUserPermissionsAsync(string roleCode)
+        {
+            try
+            {
+                // Find role by code
+                var role = await _roleRepository.FindByCodeAsync(roleCode);
+                if (role == null)
+                {
+                    return Array.Empty<string>();
+                }
+
+                // Get permissions for the role - permission.code is already the scope
+                var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
+                return permissions.Select(p => p.Code);
+            }
+            catch
+            {
+                // Return empty permissions on error to avoid token generation failure
+                return Array.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// Gets predefined scopes for machine-to-machine clients
+        /// </summary>
+        private string[] GetMachineToMachineScopes(string clientId)
+        {
+            // Use predefined scopes based on client ID
+            return clientId switch
+            {
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.SensorService => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorWrite 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.ActuatorService => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.Esp32Service => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Write, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Control 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.SystemMonitor => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead 
+                },
+                HydroEspinaca.Shared.Constants.ClientIdentifiers.AdminDashboard => new[] 
+                { 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, 
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth 
+                },
+                _ => new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth }
+            };
         }
     }
 }

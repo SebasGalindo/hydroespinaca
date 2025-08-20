@@ -1,8 +1,10 @@
-﻿using AuthService.Application.Mappers;
-using AuthService.Application.UseCases;
-using AuthService.Application.Validators;
-using AuthService.Domain.Interfaces;
+using AuthService.Application.Features.Users.Mappings;
+using AuthService.Application.Mappers;
+using AuthService.Application.Shared.Behaviors;
+using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace AuthService.Application;
 
@@ -10,17 +12,22 @@ public static class ServiceCollectionApplicationExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        // MediatR
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        
+        // Pipeline Behaviors
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // AutoMapper
         services.AddAutoMapper(cfg => { },
-             typeof(UserMappingProfile),
-             typeof(RefreshMappingProfile));
+             typeof(Features.Users.Mappings.UserMappingProfile),
+             typeof(Features.Roles.Mappings.RoleMappingProfile),
+             typeof(Features.Permissions.Mappings.PermissionMappingProfile),
+             typeof(RefreshMappingProfile),
+             typeof(DomainMappingProfile));
 
-        services.AddScoped<AuthenticateUserUseCase>();
-        services.AddScoped<ClientCredentialsUseCase>();
-        services.AddScoped<CreateClientAppUseCase>();
-        services.AddScoped<RefreshTokenUseCase>();
-        services.AddScoped<ValidateTokenUseCase>();
-
-      
+        // FluentValidation
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         return services;
     }

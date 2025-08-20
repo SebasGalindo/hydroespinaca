@@ -11,7 +11,7 @@ public class ClientAppMapper : IEntityMapper<ClientApp, ClientAppDocument>
         return new ClientAppDocument
         {
             Id = entity.Id.ToString(),
-            ClientId = entity.ClientId,
+            Code = entity.Code,
             SecretHash = entity.Secret.Value,
             Scopes = entity.Scopes.Cast<string>().ToList()
         };
@@ -19,10 +19,12 @@ public class ClientAppMapper : IEntityMapper<ClientApp, ClientAppDocument>
 
     public ClientApp ToEntity(ClientAppDocument document)
     {
-        return new ClientApp(
-            document.ClientId,
+        var clientApp = new ClientApp(
+            document.Code,
             new HashedPassword(document.SecretHash),
             document.Scopes
         );
+        clientApp.SetId(document.Id);
+        return clientApp;
     }
 }
