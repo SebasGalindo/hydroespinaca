@@ -1,10 +1,10 @@
-using AuthService.Api.Authorization;
 using AuthService.Application.Features.Users.Commands.CreateUser;
 using AuthService.Application.Features.Users.Commands.DeleteUser;
 using AuthService.Application.Features.Users.Commands.UpdateUser;
 using AuthService.Application.Features.Users.DTOs;
 using AuthService.Application.Features.Users.Queries.GetAllUsers;
 using AuthService.Application.Features.Users.Queries.GetUser;
+using HydroEspinaca.Shared.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +23,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.RequireUserCreate)]
+    [Authorize(Policy = PolicyNames.UserCreate)]
     public async Task<ActionResult<UserResponseDto>> Create([FromBody] UserCreateDto request)
     {
         var command = new CreateUserCommand(request.Email, request.Password, request.RoleId);
@@ -32,7 +32,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireUserRead)]
+    [Authorize(Policy = PolicyNames.UserRead)]
     public async Task<ActionResult<UserResponseDto>> GetById(string id)
     {
         var query = new GetUserQuery(id);
@@ -44,7 +44,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = AuthorizationPolicies.RequireUserRead)]
+    [Authorize(Policy = PolicyNames.UserRead)]
     public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll()
     {
         var query = new GetAllUsersQuery();
@@ -53,7 +53,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireUserUpdate)]
+    [Authorize(Policy = PolicyNames.UserUpdate)]
     public async Task<ActionResult<UserResponseDto>> Update(string id, [FromBody] UserUpdateDto request)
     {
         var command = new UpdateUserCommand(id, request.Email, request.Password, request.RoleId);
@@ -62,7 +62,7 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireUserDelete)]
+    [Authorize(Policy = PolicyNames.UserDelete)]
     public async Task<ActionResult> Delete(string id)
     {
         var command = new DeleteUserCommand(id);

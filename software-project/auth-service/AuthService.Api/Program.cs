@@ -1,8 +1,11 @@
 using AuthService.Api.Middleware;
+using AuthService.Api.Services;
 using AuthService.Application;
 using AuthService.Infrastructure;
 using AuthService.Infrastructure.Services;
 using AuthService.Web;
+using HydroEspinaca.Shared.Authentication.Interfaces;
+using HydroEspinaca.Shared.Errors;
 using HydroEspinaca.Shared.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +21,10 @@ builder.Services.Configure<MongoSettings>(
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddWebApi(builder.Configuration, builder.Environment);
+
+// Register auth-service specific exception mapper
+builder.Services.AddSingleton<ProblemDetailsFactory>();
+builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, AuthServiceExceptionMapper>();
 
 var app = builder.Build();
 
