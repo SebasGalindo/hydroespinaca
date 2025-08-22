@@ -1,0 +1,1 @@
+# Workers - Tareas de background para procesamiento asíncrono
