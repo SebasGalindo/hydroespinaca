@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using HydroEspinaca.Shared.DTOs.Sensors;
+using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
@@ -16,9 +18,11 @@ public class SensorsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.SensorRead)]
     public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
     [HttpGet("{id}")]
+    [Authorize(Policy = PolicyNames.SensorRead)]
     public async Task<IActionResult> GetById(string id)
     {
         var sensor = await _service.GetByIdAsync(id);
@@ -26,6 +30,7 @@ public class SensorsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.SensorCreate)]
     public async Task<IActionResult> Create([FromBody] SensorCreateDto dto)
     {
         var id = await _service.CreateAsync(dto);
@@ -33,6 +38,7 @@ public class SensorsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.SensorUpdate)]
     public async Task<IActionResult> Update(string id, [FromBody] SensorUpdateDto dto)
     {
         await _service.UpdateAsync(id, dto);
@@ -40,6 +46,7 @@ public class SensorsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.SensorDelete)]
     public async Task<IActionResult> Delete(string id)
     {
         await _service.DeleteAsync(id);

@@ -2,7 +2,6 @@
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.Errors;
-using Microsoft.AspNetCore.DataProtection;
 
 namespace AuthService.Infrastructure.Services;
 public class ClientAuthenticationService : IClientAuthenticationService

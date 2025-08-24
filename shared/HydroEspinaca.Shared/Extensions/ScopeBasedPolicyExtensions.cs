@@ -130,7 +130,22 @@ public static class PolicyNames
     
     // Hardware management policies
     public const string SensorRead = nameof(AuthorizationScopes.SensorRead);
+    public const string SensorCreate = nameof(AuthorizationScopes.SensorCreate);
+    public const string SensorUpdate = nameof(AuthorizationScopes.SensorUpdate);
+    public const string SensorDelete = nameof(AuthorizationScopes.SensorDelete);
     public const string SensorWrite = nameof(AuthorizationScopes.SensorWrite);
+    
+    // Reading management policies
+    public const string ReadingRead = nameof(AuthorizationScopes.ReadingRead);
+    public const string ReadingCreate = nameof(AuthorizationScopes.ReadingCreate);
+    
+    // Aggregate data policies
+    public const string AggregateRead = nameof(AuthorizationScopes.AggregateRead);
+    
+    // ESP32 Alert management policies
+    public const string Esp32AlertRead = nameof(AuthorizationScopes.Esp32AlertRead);
+    public const string Esp32AlertWrite = nameof(AuthorizationScopes.Esp32AlertWrite);
+    
     public const string ActuatorRead = nameof(AuthorizationScopes.ActuatorRead);
     public const string ActuatorControl = nameof(AuthorizationScopes.ActuatorControl);
     

@@ -101,6 +101,7 @@ public class ClientCredentialsCommandHandlerTests
     private readonly Mock<IClientAppRepository> _clientAppRepositoryMock;
     private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly Mock<ITokenService> _tokenServiceMock;
+    private readonly Mock<IPermissionRepository> _permissionRepositoryMock;
     private readonly ClientCredentialsCommandHandler _sut;
 
     public ClientCredentialsCommandHandlerTests()
@@ -108,10 +109,12 @@ public class ClientCredentialsCommandHandlerTests
         _clientAppRepositoryMock = new Mock<IClientAppRepository>();
         _passwordHasherMock = new Mock<IPasswordHasher>();
         _tokenServiceMock = new Mock<ITokenService>();
+        _permissionRepositoryMock = new Mock<IPermissionRepository>();
         _sut = new ClientCredentialsCommandHandler(
             _clientAppRepositoryMock.Object,
             _passwordHasherMock.Object,
-            _tokenServiceMock.Object);
+            _tokenServiceMock.Object,
+            _permissionRepositoryMock.Object);
     }
 
     [Fact]
@@ -138,9 +141,18 @@ public class ClientCredentialsCommandHandlerTests
             ClientId = command.ClientId
         };
 
+        // Mock the permission repository to return some test permissions
+        var fakePermissions = new[] {
+            new Permission("read", "read", "Read permission"),
+            new Permission("write", "write", "Write permission")
+        };
+        _permissionRepositoryMock
+            .Setup(p => p.FindByIdsAsync(fakeApp.Scopes))
+            .ReturnsAsync(fakePermissions.ToList());
+
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(fakeApp.Id, fakeApp.Code, "client", fakeApp.Code, TokenType.MachineToMachine))
-            .Returns(expectedTokens);
+            .Setup(s => s.GenerateTokensAsync(fakeApp.Id, fakeApp.Code, "client", fakeApp.Code, TokenType.MachineToMachine, It.IsAny<string[]>()))
+            .ReturnsAsync(expectedTokens);
 
         // Act
         var result = await _sut.Handle(command, CancellationToken.None);

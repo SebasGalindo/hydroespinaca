@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
 
@@ -16,6 +18,7 @@ public class AlertsController : ControllerBase
     }
 
     [HttpGet("sensor/{sensorId}")]
+    [Authorize(Policy = PolicyNames.AlertRead)]
     public async Task<IActionResult> GetBySensorId(string sensorId)
     {
         var alerts = await _service.GetBySensorIdAsync(sensorId);
@@ -23,6 +26,7 @@ public class AlertsController : ControllerBase
     }
 
     [HttpPatch("{alertId}/acknowledge")]
+    [Authorize(Policy = PolicyNames.AlertWrite)]
     public async Task<IActionResult> Acknowledge(string alertId, [FromBody] SensorAlertUpdateDto dto)
     {
         await _service.AcknowledgeAsync(alertId, dto);

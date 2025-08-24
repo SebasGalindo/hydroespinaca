@@ -1,4 +1,7 @@
 using FluentValidation;
+using HydroEspinaca.Shared.Authentication.Services;
+using HydroEspinaca.Shared.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
@@ -46,6 +49,9 @@ public static class MicroserviceExtensions
         
         // Add health checks
         services.AddHealthChecks();
+        
+        // Add M2M authentication services
+        services.AddM2MAuthentication(configuration);
 
         return services;
     }
@@ -128,6 +134,28 @@ public static class MicroserviceExtensions
     {
         var envInfo = GetEnvironmentInfo(serviceName);
         Console.WriteLine($"🚀 Starting {envInfo.ServiceName} in {envInfo.Environment} environment");
+    }
+
+    /// <summary>
+    /// Adds M2M authentication services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">Configuration containing M2M settings</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddM2MAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Configure M2M options
+        services.Configure<M2MAuthOptions>(configuration.GetSection(M2MAuthOptions.SectionName));
+        
+        // Register HTTP client for M2M token service
+        services.AddHttpClient<M2MTokenService>();
+        
+        // Register M2M token service
+        services.AddScoped<M2MTokenService>();
+        
+        return services;
     }
 }
 

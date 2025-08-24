@@ -34,6 +34,11 @@ namespace AuthService.Infrastructure.Security
 
         public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
         {
+            return await GenerateTokensAsync(userId, email, role, clientId, tokenType, null);
+        }
+        
+        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType, string[]? explicitScopes)
+        {
             var now = DateTime.UtcNow;
             
             // Ensure minimum expiry time to avoid NotBefore/Expires collision
@@ -46,8 +51,16 @@ namespace AuthService.Infrastructure.Security
             string[] scopes;
             if (tokenType == TokenType.MachineToMachine && !string.IsNullOrEmpty(clientId))
             {
-                // For M2M tokens, use predefined scopes based on client
-                scopes = GetMachineToMachineScopes(clientId);
+                // For M2M tokens, use explicit scopes from database if provided
+                if (explicitScopes != null && explicitScopes.Length > 0)
+                {
+                    scopes = explicitScopes;
+                }
+                else
+                {
+                    // M2M tokens require explicit scopes - empty array if none provided
+                    scopes = Array.Empty<string>();
+                }
             }
             else
             {
@@ -209,47 +222,6 @@ namespace AuthService.Infrastructure.Security
                 // Return empty permissions on error to avoid token generation failure
                 return Array.Empty<string>();
             }
-        }
-
-        /// <summary>
-        /// Gets predefined scopes for machine-to-machine clients
-        /// </summary>
-        private string[] GetMachineToMachineScopes(string clientId)
-        {
-            // Use predefined scopes based on client ID
-            return clientId switch
-            {
-                HydroEspinaca.Shared.Constants.ClientIdentifiers.SensorService => new[] 
-                { 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorWrite 
-                },
-                HydroEspinaca.Shared.Constants.ClientIdentifiers.ActuatorService => new[] 
-                { 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl 
-                },
-                HydroEspinaca.Shared.Constants.ClientIdentifiers.Esp32Service => new[] 
-                { 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Write, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Control 
-                },
-                HydroEspinaca.Shared.Constants.ClientIdentifiers.SystemMonitor => new[] 
-                { 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor,
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead 
-                },
-                HydroEspinaca.Shared.Constants.ClientIdentifiers.AdminDashboard => new[] 
-                { 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, 
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth 
-                },
-                _ => new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth }
-            };
         }
     }
 }

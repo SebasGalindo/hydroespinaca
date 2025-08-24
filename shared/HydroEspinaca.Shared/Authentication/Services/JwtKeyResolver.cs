@@ -28,10 +28,11 @@ public class JwtKeyResolver : IJwtKeyResolver
         try
         {
             // Construct JWKS endpoint URL
-            var jwksEndpoint = $"{issuer.TrimEnd('/')}/keys/public";
+            var jwksEndpoint = $"{issuer.TrimEnd('/')}/api/auth/keys/public";
+            Console.WriteLine($"JWKS Endpoint: {jwksEndpoint}");
             
             // Try to get from cache first
-            if (_keyCache.TryGetValue(jwksEndpoint, out var cached) && 
+            if (_keyCache.TryGetValue(jwksEndpoint, out var cached) &&
                 DateTime.UtcNow - cached.CachedAt < _cacheExpiry)
             {
                 _logger.LogDebug("Using cached JWKS for {Issuer}", issuer);

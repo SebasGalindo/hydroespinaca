@@ -30,7 +30,22 @@ public static class AuthorizationScopes
     
     // Machine-to-Machine (M2M) scopes for IoT/Hardware services
     public const string SensorRead = "sensor:read";
-    public const string SensorWrite = "sensor:write";
+    public const string SensorCreate = "sensor:create";
+    public const string SensorUpdate = "sensor:update";
+    public const string SensorDelete = "sensor:delete";
+    public const string SensorWrite = "sensor:write"; // Legacy - for bulk operations
+    
+    // Reading management scopes
+    public const string ReadingRead = "reading:read";
+    public const string ReadingCreate = "reading:create";
+    
+    // Aggregate data scopes
+    public const string AggregateRead = "aggregate:read";
+    
+    // ESP32 Alert management scopes
+    public const string Esp32AlertRead = "esp32alert:read";
+    public const string Esp32AlertWrite = "esp32alert:write";
+    
     public const string ActuatorRead = "actuator:read";
     public const string ActuatorControl = "actuator:control";
     
@@ -83,7 +98,10 @@ public static class AuthorizationScopes
     /// </summary>
     public static readonly string[] HardwareScopes = 
     {
-        SensorRead, SensorWrite, 
+        SensorRead, SensorCreate, SensorUpdate, SensorDelete, SensorWrite,
+        ReadingRead, ReadingCreate,
+        AggregateRead,
+        Esp32AlertRead, Esp32AlertWrite,
         ActuatorRead, ActuatorControl,
         Esp32Read, Esp32Write, Esp32Control
     };
@@ -118,7 +136,10 @@ public static class AuthorizationScopes
         RoleRead, RoleCreate, RoleUpdate, RoleDelete,
         PermissionRead, PermissionCreate, PermissionUpdate, PermissionDelete,
         // IoT Hardware
-        SensorRead, SensorWrite, 
+        SensorRead, SensorCreate, SensorUpdate, SensorDelete, SensorWrite,
+        ReadingRead, ReadingCreate,
+        AggregateRead,
+        Esp32AlertRead, Esp32AlertWrite,
         ActuatorRead, ActuatorControl,
         Esp32Read, Esp32Write, Esp32Control,
         // Data and monitoring

@@ -26,6 +26,8 @@ services:
     depends_on:
       - mqtt
     environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
       - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
       - MONGO__Database=${MONGO_DATABASE}
       - MQTT__Host=${MQTT_HOST}
@@ -34,31 +36,35 @@ services:
       - MQTT__Username=${SENSOR_MQTT_USER}
       - MQTT__Password=${SENSOR_MQTT_PASS}
       - APIKEY__Key=${SENSOR_API_KEY}
+      - M2M__ClientId=${SENSOR_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${SENSOR_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
 
-  actuator-service:
-    build:
-      context: .
-      dockerfile: hardware-project/actuator-service/Dockerfile
-    container_name: actuator-service
-    ports:
-      - "5002:8080"
-    depends_on:
-      - mqtt
-    environment:
-      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
-      - MONGO__Database=${MONGO_DATABASE}
-      - MQTT__Host=${MQTT_HOST}
-      - MQTT__Port=${MQTT_PORT}
-      - MQTT__ClientId=${SENSOR_MQTT_CLIENT_ID}
-      - MQTT__Username=${SENSOR_MQTT_USER}
-      - MQTT__Password=${SENSOR_MQTT_PASS}
-      - APIKEY__Key=${SENSOR_API_KEY}
-      - ASPNETCORE_ENVIRONMENT=Development
-    networks:
-      - espinaca-net
+  # actuator-service:
+  #   build:
+  #     context: .
+  #     dockerfile: hardware-project/actuator-service/Dockerfile
+  #   container_name: actuator-service
+  #   ports:
+  #     - "5002:8080"
+  #   depends_on:
+  #     - mqtt
+  #   environment:
+  #     - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+  #     - MONGO__Database=${MONGO_DATABASE}
+  #     - MQTT__Host=${MQTT_HOST}
+  #     - MQTT__Port=${MQTT_PORT}
+  #     - MQTT__ClientId=${SENSOR_MQTT_CLIENT_ID}
+  #     - MQTT__Username=${SENSOR_MQTT_USER}
+  #     - MQTT__Password=${SENSOR_MQTT_PASS}
+  #     - APIKEY__Key=${SENSOR_API_KEY}
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #   networks:
+  #     - espinaca-net
  
 
   # # -----------------------------
@@ -72,11 +78,12 @@ services:
     container_name: auth-service
     ports:
       - "6001:8080"
+    volumes:
+      - ./software-project/auth-service/Keys:/app/Keys
     environment:
       - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
       - MONGO__Database=${MONGO_DATABASE}
-      - Jwt__PrivateKeyPath=${Jwt_PrivateKeyPath}
-      - Jwt__PublicKeyPath=${Jwt_PublicKeyPath}
+      - Jwt__KeysDirectory=/app/Keys
       - Jwt__Issuer=${Jwt_Issuer}
       - Jwt__Audience=${Jwt_Audience}
       - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}

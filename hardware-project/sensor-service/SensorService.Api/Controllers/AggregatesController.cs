@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
@@ -15,6 +17,7 @@ public class AggregatesController : ControllerBase
     }
 
     [HttpGet("{sensorId}/{variableId}")]
+    [Authorize(Policy = PolicyNames.AggregateRead)]
     public async Task<IActionResult> GetBySensorAndVariable(string sensorId, string variableId, [FromQuery] DateTime from, [FromQuery] DateTime to)
     {
         var aggregates = await _service.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
