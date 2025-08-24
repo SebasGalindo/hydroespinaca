@@ -147,7 +147,14 @@ public static class PolicyNames
     public const string Esp32AlertWrite = nameof(AuthorizationScopes.Esp32AlertWrite);
     
     public const string ActuatorRead = nameof(AuthorizationScopes.ActuatorRead);
+    public const string ActuatorCreate = nameof(AuthorizationScopes.ActuatorCreate);
+    public const string ActuatorUpdate = nameof(AuthorizationScopes.ActuatorUpdate);
+    public const string ActuatorDelete = nameof(AuthorizationScopes.ActuatorDelete);
     public const string ActuatorControl = nameof(AuthorizationScopes.ActuatorControl);
+    
+    // Command management policies
+    public const string CommandRead = nameof(AuthorizationScopes.CommandRead);
+    public const string CommandCreate = nameof(AuthorizationScopes.CommandCreate);
     
     // ESP32 management policies
     public const string Esp32Read = nameof(AuthorizationScopes.Esp32Read);

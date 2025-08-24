@@ -47,7 +47,14 @@ public static class AuthorizationScopes
     public const string Esp32AlertWrite = "esp32alert:write";
     
     public const string ActuatorRead = "actuator:read";
+    public const string ActuatorCreate = "actuator:create";
+    public const string ActuatorUpdate = "actuator:update";
+    public const string ActuatorDelete = "actuator:delete";
     public const string ActuatorControl = "actuator:control";
+    
+    // Command management scopes
+    public const string CommandRead = "command:read";
+    public const string CommandCreate = "command:create";
     
     // ESP32 Node management scopes
     public const string Esp32Read = "esp32:read";
@@ -102,7 +109,8 @@ public static class AuthorizationScopes
         ReadingRead, ReadingCreate,
         AggregateRead,
         Esp32AlertRead, Esp32AlertWrite,
-        ActuatorRead, ActuatorControl,
+        ActuatorRead, ActuatorCreate, ActuatorUpdate, ActuatorDelete, ActuatorControl,
+        CommandRead, CommandCreate,
         Esp32Read, Esp32Write, Esp32Control
     };
     
@@ -140,7 +148,8 @@ public static class AuthorizationScopes
         ReadingRead, ReadingCreate,
         AggregateRead,
         Esp32AlertRead, Esp32AlertWrite,
-        ActuatorRead, ActuatorControl,
+        ActuatorRead, ActuatorCreate, ActuatorUpdate, ActuatorDelete, ActuatorControl,
+        CommandRead, CommandCreate,
         Esp32Read, Esp32Write, Esp32Control,
         // Data and monitoring
         VariableRead, VariableWrite,

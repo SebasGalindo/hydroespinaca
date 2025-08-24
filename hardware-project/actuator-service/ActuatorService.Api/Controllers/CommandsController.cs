@@ -1,5 +1,7 @@
 ﻿using HydroEspinaca.Shared.DTOs.Actuator;
 using ActuatorService.Application.Interfaces;
+using HydroEspinaca.Shared.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ActuatorService.Api.Controllers;
@@ -16,6 +18,7 @@ public class CommandsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.CommandCreate)]
     public async Task<IActionResult> Register([FromBody] CreateCommandDto dto)
     {
         string? userId = HttpContext.User?.Identity?.Name;
@@ -24,6 +27,7 @@ public class CommandsController : ControllerBase
     }
 
     [HttpGet("actuator/{actuatorId}")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
     public async Task<ActionResult<List<ActuatorCommandDto>>> GetByActuatorId(string actuatorId)
     {
         var result = await _commandService.GetByActuatorIdAsync(actuatorId);
@@ -31,6 +35,7 @@ public class CommandsController : ControllerBase
     }
 
     [HttpGet("range")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
     public async Task<ActionResult<List<ActuatorCommandDto>>> GetByDateRange([FromQuery] DateTime from, [FromQuery] DateTime to)
     {
         var result = await _commandService.GetByDateRangeAsync(from, to);

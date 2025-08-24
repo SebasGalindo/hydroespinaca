@@ -1,6 +1,8 @@
 ﻿using ActuatorService.Application.Interfaces;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Errors;
+using HydroEspinaca.Shared.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ActuatorService.Api.Controllers;
@@ -17,6 +19,7 @@ public class ActuatorsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.ActuatorRead)]
     public async Task<ActionResult<List<ActuatorDto>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -25,6 +28,7 @@ public class ActuatorsController : ControllerBase
 
 
     [HttpGet("{id}")]
+    [Authorize(Policy = PolicyNames.ActuatorRead)]
     public async Task<ActionResult<ActuatorDto>> GetById(string id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -34,6 +38,7 @@ public class ActuatorsController : ControllerBase
 
 
     [HttpGet("esp32/{esp32Id}")]
+    [Authorize(Policy = PolicyNames.ActuatorRead)]
     public async Task<ActionResult<List<ActuatorDto>>> GetByEsp32Id(string esp32Id)
     {
         var result = await _service.GetByEsp32IdAsync(esp32Id);
@@ -42,6 +47,7 @@ public class ActuatorsController : ControllerBase
 
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.ActuatorCreate)]
     public async Task<ActionResult<string>> Create([FromBody] CreateActuatorDto dto)
     {
         var id = await _service.AddAsync(dto);
@@ -50,6 +56,7 @@ public class ActuatorsController : ControllerBase
 
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.ActuatorUpdate)]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateActuatorDto dto)
     {
         await _service.UpdateAsync(id, dto);
@@ -58,6 +65,7 @@ public class ActuatorsController : ControllerBase
 
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.ActuatorDelete)]
     public async Task<IActionResult> Delete(string id)
     {
         await _service.DeleteAsync(id);
