@@ -1,7 +1,6 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.Errors;
 using Microsoft.AspNetCore.Mvc;
-using ActuatorService.Api.Helpers;
 using System.Net.Mime;
 
 namespace ActuatorService.Api.Middleware;
@@ -38,61 +37,38 @@ public class GlobalExceptionMiddleware
                 }
             }
 
-            var problem = ex.ToProblemDetails(context);
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
-        }
-        catch (NotFoundException ex)
-        {
-            _logger.LogWarning("⚠️ Not found: {Message}", ex.Message);
+            var problemDetails = new ProblemDetails
+            {
+                Title = "Validation Failed",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "One or more validation errors occurred.",
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+            };
+            
+            problemDetails.Extensions["errors"] = ex.Errors?.Select(e => new { property = e.PropertyName, message = e.ErrorMessage }).ToArray() ?? Array.Empty<object>();
 
-            var problem = ProblemDetailsHelper.Create(context,
-                title: "Resource Not Found",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status404NotFound,
-                type: "https://tools.ietf.org/html/rfc9110#section-15.5.5",
-                env: _env);
-
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status404NotFound);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogWarning("🔐 Unauthorized access: {Message}", ex.Message);
-
-            var problem = ProblemDetailsHelper.Create(context,
-                title: "Unauthorized",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status401Unauthorized,
-                type: "https://tools.ietf.org/html/rfc9110#section-15.5.2",
-                env: _env);
-
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status401Unauthorized);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning("⚠️ Invalid argument: {Message}", ex.Message);
-            var problem = ProblemDetailsHelper.Create(context,
-                title: "Invalid Parameter",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status400BadRequest,
-                type: "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                env: _env);
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(problemDetails);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Unhandled exception");
+            _logger.LogError(ex, "❌ Unhandled exception occurred");
 
-            var problem = ProblemDetailsHelper.Create(context,
-                title: "Internal Server Error",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status500InternalServerError,
-                type: "https://tools.ietf.org/html/rfc9110#section-15.6.1",
-                env: _env);
+            var problem = new ProblemDetails
+            {
+                Title = "An error occurred",
+                Detail = _env.IsDevelopment() ? ex.Message : "An internal server error occurred",
+                Status = StatusCodes.Status500InternalServerError,
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+            };
 
-            if (_env.IsDevelopment() || _env.IsStaging())
+            if (_env.IsDevelopment())
                 problem.Extensions["stackTrace"] = ex.StackTrace;
 
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status500InternalServerError);
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(problem);
         }
     }
 }

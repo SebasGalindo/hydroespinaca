@@ -1,93 +1,38 @@
-﻿using ActuatorService.Api.Configurations;
+﻿using ActuatorService.Api.Extensions;
 using ActuatorService.Api.Middleware;
+using ActuatorService.Api.Services;
 using ActuatorService.Application;
-using ActuatorService.Application.Validators.Actuators;
 using ActuatorService.Infrastructure;
-using FluentValidation;
-using HydroEspinaca.Shared.Extensions;
-using ActuatorService.Api.Middleware;
+using HydroEspinaca.Shared.Authentication.Interfaces;
+using HydroEspinaca.Shared.Errors;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---------------------------
-// ⚙️ CONFIGURACIÓN
-// ---------------------------
-builder.Configuration
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables();
+// Service layers
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
+builder.Services.AddActuatorServiceApi(builder.Configuration);
 
-// ---------------------------
-// 🔌 SHARED OPTIONS
-// ---------------------------
+// Exception mapper
+builder.Services.AddSingleton<ProblemDetailsFactory>();
+builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, ActuatorServiceExceptionMapper>();
 
-
-builder.Services.AddValidatorsFromAssemblyContaining<CreateActuatorValidator>();
-
-// ---------------------------
-// 🧱 DEPENDENCIAS DE CAPAS
-// ---------------------------
-builder.Services
-    .AddInfrastructure(builder.Configuration)
-    .AddApplication();
-
-// ---------------------------
-// 🌐 CONTROLLERS + SWAGGER
-// ---------------------------
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerWithApiKey("ActuatorService", "v1");
-
-// ---------------------------
-// 🧪 HEALTH CHECKS
-// ---------------------------
-builder.Services.AddHealthChecks();
-
-// ---------------------------
-// 🔊 LOGGING
-// ---------------------------
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-if (builder.Environment.IsDevelopment())
-{
-    builder.Logging.SetMinimumLevel(LogLevel.Debug);
-}
-else
-{
-    builder.Logging.SetMinimumLevel(LogLevel.Warning);
-}
-
-// ---------------------------
-// 🏁 APP PIPELINE
-// ---------------------------
 var app = builder.Build();
 
-
-
-if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
+// Standard pipeline
+if (app.Environment.IsDevelopment())
 {
-    app.UseSwaggerDocs("ActuatorService");
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Actuator Service API v1"));
 }
 
-if (!app.Environment.IsDevelopment())
-    app.UseHttpsRedirection();
-
-app.MapGet("/", context =>
-{
-    context.Response.Redirect("/docs", permanent: false);
-    return Task.CompletedTask;
-});
-
-
-app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
-
+app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapHealthChecks("/health");
 app.MapControllers();
-
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+public partial class Program { }

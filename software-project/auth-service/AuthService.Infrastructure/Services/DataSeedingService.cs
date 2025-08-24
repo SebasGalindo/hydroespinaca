@@ -10,6 +10,7 @@ public class DataSeedingService
     private readonly IPermissionRepository _permissionRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IClientAppRepository _clientAppRepository;
     private readonly IPasswordHasher _passwordHasher;
 
 
@@ -17,11 +18,13 @@ public class DataSeedingService
         IPermissionRepository permissionRepository,
         IRoleRepository roleRepository,
         IUserRepository userRepository,
+        IClientAppRepository clientAppRepository,
         IPasswordHasher passwordHasher)
     {
         _permissionRepository = permissionRepository;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
+        _clientAppRepository = clientAppRepository;
         _passwordHasher = passwordHasher;
     }
 
@@ -31,8 +34,8 @@ public class DataSeedingService
         {
             await SeedPermissionsAsync();
             await SeedRolesAsync();
+            await SeedM2MClientsAsync();
             await SeedAdminUserAsync();
-            await SeedTestUserAsync();
             await SeedTestUserAsync();
             await VerifyDataIntegrityAsync();
         }
@@ -132,55 +135,73 @@ public class DataSeedingService
     {
         var permissions = new[]
         {
-            // User management permissions - ID descriptivo, Code es el scope exacto
-            new Permission("user-create-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.UserCreate, "Create new users"),
-            new Permission("user-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, "Read user information"),
-            new Permission("user-update-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.UserUpdate, "Update user information"),
-            new Permission("user-delete-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.UserDelete, "Delete users"),
+            // User management permissions - Code es el scope exacto, Name es descriptivo
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.UserCreate, "User Create Permission", "Create new users"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, "User Read Permission", "Read user information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.UserUpdate, "User Update Permission", "Update user information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.UserDelete, "User Delete Permission", "Delete users"),
             
             // Profile management permissions (self-service)
-            new Permission("profile-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead, "Read own profile information"),
-            new Permission("profile-update-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate, "Update own profile information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead, "Profile Read Permission", "Read own profile information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate, "Profile Update Permission", "Update own profile information"),
             
             // Role management permissions
-            new Permission("role-create-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleCreate, "Create new roles"),
-            new Permission("role-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, "Read role information"),
-            new Permission("role-update-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleUpdate, "Update role information"),
-            new Permission("role-delete-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleDelete, "Delete roles"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleCreate, "Role Create Permission", "Create new roles"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, "Role Read Permission", "Read role information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleUpdate, "Role Update Permission", "Update role information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleDelete, "Role Delete Permission", "Delete roles"),
             
             // Permission management permissions
-            new Permission("permission-create-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionCreate, "Create new permissions"),
-            new Permission("permission-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, "Read permission information"),
-            new Permission("permission-update-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionUpdate, "Update permission information"),
-            new Permission("permission-delete-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionDelete, "Delete permissions"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionCreate, "Permission Create Permission", "Create new permissions"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, "Permission Read Permission", "Read permission information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionUpdate, "Permission Update Permission", "Update permission information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionDelete, "Permission Delete Permission", "Delete permissions"),
             
-            // IoT Hardware permissions
-            new Permission("sensor-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, "Read sensor data and information"),
-            new Permission("sensor-write-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorWrite, "Write sensor data and configuration"),
-            new Permission("actuator-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, "Read actuator status and information"),
-            new Permission("actuator-control-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl, "Control actuator operations"),
+            // === SENSOR-SERVICE PERMISSIONS ===
+            // Sensor management permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, "Sensor Read Permission", "Read sensor data and information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorCreate, "Sensor Create Permission", "Create new sensors"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorUpdate, "Sensor Update Permission", "Update sensor configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorDelete, "Sensor Delete Permission", "Delete sensors"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorWrite, "Sensor Write Permission", "Write sensor data and configuration"),
+            
+            // Reading management permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead, "Reading Read Permission", "Read sensor reading data"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingCreate, "Reading Create Permission", "Create sensor readings"),
+            
+            // Aggregate data permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AggregateRead, "Aggregate Read Permission", "Read aggregated sensor data"),
+            
+            // ESP32 Alert management permissions (sensor-service)
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32AlertRead, "ESP32 Alert Read Permission", "Read ESP32 alert information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32AlertWrite, "ESP32 Alert Write Permission", "Write and acknowledge ESP32 alerts"),
+            
+            // === ACTUATOR-SERVICE PERMISSIONS ===
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, "Actuator Read Permission", "Read actuator status and information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl, "Actuator Control Permission", "Control actuator operations"),
             
             // ESP32 Node permissions
-            new Permission("esp32-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, "Read ESP32 node information"),
-            new Permission("esp32-write-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Write, "Write ESP32 node configuration"),
-            new Permission("esp32-control-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Control, "Control ESP32 node operations"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, "ESP32 Read Permission", "Read ESP32 node information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Write, "ESP32 Write Permission", "Write ESP32 node configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Control, "ESP32 Control Permission", "Control ESP32 node operations"),
             
             // Variable management permissions
-            new Permission("variable-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead, "Read variable information"),
-            new Permission("variable-write-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableWrite, "Write variable data and configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead, "Variable Read Permission", "Read variable information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableWrite, "Variable Write Permission", "Write variable data and configuration"),
             
             // Alert management permissions
-            new Permission("alert-read-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertRead, "Read alert information"),
-            new Permission("alert-write-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite, "Write alert data and configuration"),
-            new Permission("alert-manage-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertManage, "Manage alert rules and configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertRead, "Alert Read Permission", "Read alert information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite, "Alert Write Permission", "Write alert data and configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertManage, "Alert Manage Permission", "Manage alert rules and configuration"),
             
             // System-level permissions
-            new Permission("system-admin-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, "System administration access"),
-            new Permission("system-health-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, "Access system health information"),
-            new Permission("system-monitor-permission", HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor, "Monitor system operations")
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, "System Admin Permission", "System administration access"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, "System Health Permission", "Access system health information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor, "System Monitor Permission", "Monitor system operations")
         };
 
         var createdCount = 0;
+        var totalPermissions = permissions.Length;
         foreach (var permission in permissions)
         {
             var existing = await _permissionRepository.FindByCodeAsync(permission.Code);
@@ -190,52 +211,39 @@ public class DataSeedingService
                 createdCount++;
             }
         }
+        Console.WriteLine($"🛠️  Permissions: Created {createdCount} new permissions, {totalPermissions - createdCount} already existed. Total: {totalPermissions}");
     }
 
     private async Task SeedRolesAsync()
     {
-        // Admin role with full management permissions - usar los CODES (scopes), no los IDs
+        // Admin role with full management permissions - usar los CODES (scopes)
         var adminPermissionCodes = new[]
         {
-            // User management
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.UserCreate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.UserUpdate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.UserDelete,
-            // Role management
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleCreate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleUpdate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleDelete,
-            // Permission management
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionCreate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionUpdate, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionDelete,
-            // IoT Hardware (for admin dashboard)
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read,
-            // Data and monitoring
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableWrite, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertRead, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertManage,
-            // System access
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, 
-            HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
         };
 
         var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
         var adminPermissionIds = adminPermissions.Select(p => p.Id).ToList();
+
+        // Debug: Verificar que se encontraron los permisos
+        Console.WriteLine($"🔍 Admin role: Found {adminPermissions.Count} permissions out of {adminPermissionCodes.Length} requested");
+        if (adminPermissions.Count != adminPermissionCodes.Length)
+        {
+            var foundCodes = adminPermissions.Select(p => p.Code).ToHashSet();
+            var missingCodes = adminPermissionCodes.Where(code => !foundCodes.Contains(code)).ToList();
+            Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
+        }
 
         var adminRole = new Role(HydroEspinaca.Shared.Constants.SystemRoles.Admin, "Administrator", adminPermissionIds);
         var existingAdminRole = await _roleRepository.FindByCodeAsync(adminRole.Code);
         if (existingAdminRole == null)
         {
             await _roleRepository.CreateAsync(adminRole);
+            Console.WriteLine($"✅ Created Admin role with {adminPermissionIds.Count} permissions");
+        }
+        else
+        {
+            Console.WriteLine($"ℹ️  Admin role already exists with {existingAdminRole.Permissions.Count()} permissions");
         }
 
         // Regular user role with basic read permissions
@@ -253,11 +261,25 @@ public class DataSeedingService
         var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
         var userPermissionIds = userPermissions.Select(p => p.Id).ToList();
 
+        // Debug: Verificar que se encontraron los permisos de usuario
+        Console.WriteLine($"🔍 User role: Found {userPermissions.Count} permissions out of {userPermissionCodes.Length} requested");
+        if (userPermissions.Count != userPermissionCodes.Length)
+        {
+            var foundCodes = userPermissions.Select(p => p.Code).ToHashSet();
+            var missingCodes = userPermissionCodes.Where(code => !foundCodes.Contains(code)).ToList();
+            Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
+        }
+
         var userRole = new Domain.Entities.Role(HydroEspinaca.Shared.Constants.SystemRoles.User, "User", userPermissionIds);
         var existingUserRole = await _roleRepository.FindByCodeAsync(userRole.Code);
         if (existingUserRole == null)
         {
             await _roleRepository.CreateAsync(userRole);
+            Console.WriteLine($"✅ Created User role with {userPermissionIds.Count} permissions");
+        }
+        else
+        {
+            Console.WriteLine($"ℹ️  User role already exists with {existingUserRole.Permissions.Count()} permissions");
         }
     }
 
@@ -355,5 +377,83 @@ public class DataSeedingService
         // Verify users
         var adminUser = await _userRepository.FindByEmailAsync("admin@demo.com");
         var testUser = await _userRepository.FindByEmailAsync("user@demo.com");
+    }
+
+    /// <summary>
+    /// Seeds M2M (Machine-to-Machine) client applications for microservice authentication
+    /// </summary>
+    private async Task SeedM2MClientsAsync()
+    {
+        var m2mClients = new[]
+        {
+            // === SENSOR-SERVICE M2M CLIENT ===
+            // Solo scopes para servicios externos (notificaciones, fuzzy logic, etc.)
+            new {
+                Code = "sensor-service-client",           // Código interno único
+                ClientId = "sensor-service-m2m",         // ID para protocolo OAuth2
+                ClientSecret = "sk_sensor_2024_HydroPonic_M2M_Secret_Key_v1",
+                Scopes = new[]
+                {
+                    // Comunicación con actuator-service para comandos automáticos
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl,
+                    // Puede necesitar enviar notificaciones (cuando se implemente)
+                    // HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend
+                }
+            },
+            
+            // === ACTUATOR-SERVICE M2M CLIENT ===
+            // Solo scopes para servicios externos
+            new {
+                Code = "actuator-service-client",         // Código interno único
+                ClientId = "actuator-service-m2m",       // ID para protocolo OAuth2
+                ClientSecret = "sk_actuator_2024_HydroPonic_M2M_Secret_Key_v1",
+                Scopes = new[]
+                {
+                    // Comunicación con sensor-service para leer datos
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.AggregateRead,
+                    // Puede necesitar enviar alertas y notificaciones
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite,
+                    // HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend
+                }
+            }
+        };
+
+        foreach (var client in m2mClients)
+        {
+            var existing = await _clientAppRepository.FindByClientIdAsync(client.ClientId);
+            if (existing == null)
+            {
+                // Buscar permission IDs por sus codes (scopes)
+                var permissions = await _permissionRepository.FindByCodesAsync(client.Scopes);
+                var permissionIds = permissions.Select(p => p.Id).ToList();
+                
+                // Debug: Verificar que se encontraron los permisos
+                Console.WriteLine($"🔍 M2M Client {client.ClientId}: Found {permissions.Count} permissions out of {client.Scopes.Length} requested");
+                if (permissions.Count != client.Scopes.Length)
+                {
+                    var foundCodes = permissions.Select(p => p.Code).ToHashSet();
+                    var missingCodes = client.Scopes.Where(code => !foundCodes.Contains(code)).ToList();
+                    Console.WriteLine($"⚠️  Missing permission codes for {client.ClientId}: {string.Join(", ", missingCodes)}");
+                }
+                
+                var hashedSecret = _passwordHasher.Hash(client.ClientSecret);
+                var clientApp = new ClientApp(
+                    client.Code,      // Code - Identificador interno único
+                    client.ClientId,  // ClientId - Para protocolo OAuth2
+                    new HashedPassword(hashedSecret), 
+                    permissionIds     // Usar IDs de permisos encontrados
+                );
+                await _clientAppRepository.AddAsync(clientApp);
+                
+                Console.WriteLine($"✅ Created M2M client: Code='{client.Code}', ClientId='{client.ClientId}' with {permissionIds.Count} permission IDs");
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️  M2M client already exists: {client.ClientId} with {existing.Scopes.Count()} scopes");
+            }
+        }
     }
 }

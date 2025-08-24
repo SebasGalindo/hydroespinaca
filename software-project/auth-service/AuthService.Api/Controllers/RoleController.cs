@@ -1,10 +1,10 @@
-using AuthService.Api.Authorization;
 using AuthService.Application.Features.Roles.Commands.CreateRole;
 using AuthService.Application.Features.Roles.Commands.DeleteRole;
 using AuthService.Application.Features.Roles.Commands.UpdateRole;
 using AuthService.Application.Features.Roles.DTOs;
 using AuthService.Application.Features.Roles.Queries.GetAllRoles;
 using AuthService.Application.Features.Roles.Queries.GetRole;
+using HydroEspinaca.Shared.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +23,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.RequireRoleCreate)]
+    [Authorize(Policy = PolicyNames.RoleCreate)]
     public async Task<ActionResult<RoleResponseDto>> Create([FromBody] CreateRoleRequestDto request)
     {
         var command = new CreateRoleCommand(request.Code, request.Name, request.PermissionCodes);
@@ -32,7 +32,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpGet("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireRoleRead)]
+    [Authorize(Policy = PolicyNames.RoleRead)]
     public async Task<ActionResult<RoleResponseDto>> GetByCode(string code)
     {
         var query = new GetRoleQuery(code);
@@ -44,7 +44,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = AuthorizationPolicies.RequireRoleRead)]
+    [Authorize(Policy = PolicyNames.RoleRead)]
     public async Task<ActionResult<List<RoleResponseDto>>> GetAll()
     {
         var query = new GetAllRolesQuery();
@@ -53,7 +53,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpPut("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireRoleUpdate)]
+    [Authorize(Policy = PolicyNames.RoleUpdate)]
     public async Task<ActionResult<RoleResponseDto>> Update(string code, [FromBody] UpdateRoleRequestDto request)
     {
         var command = new UpdateRoleCommand(code, request.Name, request.PermissionCodes);
@@ -65,7 +65,7 @@ public class RoleController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequireRoleDelete)]
+    [Authorize(Policy = PolicyNames.RoleDelete)]
     public async Task<ActionResult> Delete(string code)
     {
         var command = new DeleteRoleCommand(code);

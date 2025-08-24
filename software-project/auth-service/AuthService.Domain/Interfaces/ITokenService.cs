@@ -9,6 +9,11 @@ public interface ITokenService
     /// </summary>
     Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User);
     
+    /// <summary>
+    /// Generates M2M tokens with explicit scopes from client app database
+    /// </summary>
+    Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType, string[] explicitScopes);
+    
     bool IsTokenValid(string token);
     
     // Legacy methods for backward compatibility

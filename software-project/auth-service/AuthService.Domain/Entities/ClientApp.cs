@@ -8,15 +8,20 @@ public class ClientApp : IIdentifiableMutable
 {
     public string Id { get; private set; } = ObjectId.GenerateNewId().ToString();
     public string Code { get; private set; }
+    public string ClientId { get; private set; }
     public HashedPassword Secret { get; private set; }
     public IEnumerable<string> Scopes { get; private set; }
 
-    public ClientApp(string code, HashedPassword secret, IEnumerable<string> scopes)
+    public ClientApp(string code, string clientId, HashedPassword secret, IEnumerable<string> scopes)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("Client code cannot be null or empty", nameof(code));
         
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("Client ID cannot be null or empty", nameof(clientId));
+        
         Code = code;
+        ClientId = clientId;
         Secret = secret ?? throw new ArgumentNullException(nameof(secret));
         Scopes = scopes ?? Enumerable.Empty<string>();
     }

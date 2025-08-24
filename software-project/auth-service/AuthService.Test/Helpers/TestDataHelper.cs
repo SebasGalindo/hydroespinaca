@@ -41,7 +41,8 @@ public static class TestDataHelper
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         return new ClientApp(
-            code ?? $"client_test_{uniqueId}",
+            code ?? $"client_test_{uniqueId}",      // Code
+            code ?? $"client_test_{uniqueId}",      // ClientId
             new HashedPassword(secret ?? "$2a$11$hashedpasswordhere"),
             scopes ?? new[] { "read", "write" }
         );

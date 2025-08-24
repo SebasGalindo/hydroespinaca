@@ -1,10 +1,10 @@
-using AuthService.Api.Authorization;
 using AuthService.Application.Features.Permissions.Commands.CreatePermission;
 using AuthService.Application.Features.Permissions.Commands.DeletePermission;
 using AuthService.Application.Features.Permissions.Commands.UpdatePermission;
 using AuthService.Application.Features.Permissions.DTOs;
 using AuthService.Application.Features.Permissions.Queries.GetAllPermissions;
 using AuthService.Application.Features.Permissions.Queries.GetPermission;
+using HydroEspinaca.Shared.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +24,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.RequirePermissionCreate)]
+    [Authorize(Policy = PolicyNames.PermissionCreate)]
     public async Task<ActionResult<PermissionResponseDto>> Create([FromBody] CreatePermissionRequestDto request)
     {
         var command = new CreatePermissionCommand(request.Code, request.Name, request.Description);
@@ -33,7 +33,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpGet("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequirePermissionRead)]
+    [Authorize(Policy = PolicyNames.PermissionRead)]
     public async Task<ActionResult<PermissionResponseDto>> GetByCode(string code)
     {
         var query = new GetPermissionQuery(code);
@@ -45,7 +45,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = AuthorizationPolicies.RequirePermissionRead)]
+    [Authorize(Policy = PolicyNames.PermissionRead)]
     public async Task<ActionResult<List<PermissionResponseDto>>> GetAll()
     {
         var query = new GetAllPermissionsQuery();
@@ -54,7 +54,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpPut("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequirePermissionUpdate)]
+    [Authorize(Policy = PolicyNames.PermissionUpdate)]
     public async Task<ActionResult<PermissionResponseDto>> Update(string code, [FromBody] UpdatePermissionRequestDto request)
     {
         var command = new UpdatePermissionCommand(code, request.Name, request.Description);
@@ -66,7 +66,7 @@ public class PermissionController : ControllerBase
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Policy = AuthorizationPolicies.RequirePermissionDelete)]
+    [Authorize(Policy = PolicyNames.PermissionDelete)]
     public async Task<ActionResult> Delete(string code)
     {
         var command = new DeletePermissionCommand(code);

@@ -1,5 +1,4 @@
-﻿using AuthService.Api.Authorization;
-using AuthService.Api.Models;
+﻿using AuthService.Api.Models;
 using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 using AuthService.Application.Features.Authentication.Commands.Login;
 using AuthService.Application.Features.Authentication.Commands.RefreshToken;
