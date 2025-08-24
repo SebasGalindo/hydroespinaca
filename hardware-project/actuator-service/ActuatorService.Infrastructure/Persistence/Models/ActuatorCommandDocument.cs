@@ -7,9 +7,8 @@ namespace ActuatorService.Infrastructure.Persistence.Models;
 public class ActuatorCommandDocument : IIdentifiableMutable
 {
     [BsonId]
-    [BsonElement("_id")]
-    public string Id { get; set; } = default!;
-
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Id { get; private set; } = default!;
     public string ActuatorId { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
     public string Action { get; set; } = default!;

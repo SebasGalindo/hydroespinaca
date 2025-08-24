@@ -2,6 +2,7 @@
 using HydroEspinaca.Shared.Interfaces;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -30,8 +31,11 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
     public async Task CreateAsync(Esp32Node node) =>
         await _baseRepo.CreateAsync(node);
 
-    public async Task<bool> ExistsAsync(string id) =>
-        await _baseRepo.ExistsAsync(id);
+    public async Task<bool> ExistsAsync(string id)
+    {
+        var filter = Builders<Esp32NodeDocument>.Filter.Eq(x => x.Id, id);
+        return await _baseRepo.ExistsAsync(filter);
+    }
 
     public async Task<bool> UpdateStatusAsync(string id, Esp32Status status)
     {

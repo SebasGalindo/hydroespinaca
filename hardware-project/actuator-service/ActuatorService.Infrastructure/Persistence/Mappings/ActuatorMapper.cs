@@ -23,16 +23,20 @@ public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
         return actuator;
     }
 
-    public ActuatorDocument ToDocument(Actuator entity) => new()
+    public ActuatorDocument ToDocument(Actuator entity)
     {
-        Id = entity.Id,
-        Esp32Id = entity.Esp32Id,
-        Name = entity.Name,
-        Type = entity.Type.ToString(),
-        PhysicalId = entity.PhysicalId,
-        Pin = entity.Pin,
-        Location = entity.Location,
-        Status = entity.Status.ToString(),
-        CreatedAt = entity.CreatedAt
-    };
+        var doc = new ActuatorDocument
+        {
+            Esp32Id = entity.Esp32Id,
+            Name = entity.Name,
+            Type = entity.Type.ToString(),
+            PhysicalId = entity.PhysicalId,
+            Pin = entity.Pin,
+            Location = entity.Location,
+            Status = entity.Status.ToString(),
+            CreatedAt = entity.CreatedAt
+        };
+        doc.SetId(entity.Id);
+        return doc;
+    }
 }

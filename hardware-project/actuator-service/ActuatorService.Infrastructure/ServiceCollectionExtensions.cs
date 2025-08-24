@@ -36,7 +36,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMqttClientService, MqttClientService>();
 
         // Validation
-        services.AddHttpClient<IEsp32ValidationService, Esp32ValidationService>();
+        services.AddHttpClient<IEsp32ValidationService, Esp32ValidationService>(client =>
+        {
+            var sensorServiceUrl = configuration["SensorService:BaseUrl"];
+            if (!string.IsNullOrEmpty(sensorServiceUrl))
+            {
+                client.BaseAddress = new Uri(sensorServiceUrl);
+            }
+        });
 
 
         return services;
