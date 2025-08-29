@@ -1,15 +1,23 @@
-﻿using HydroEspinaca.Shared.DTOs.Actuator;
-using FluentValidation;
+﻿using FluentValidation;
+using HydroEspinaca.Shared.Constants;
+using HydroEspinaca.Shared.DTOs.Actuator;
 
-namespace ActuatorService.Application.Validators.Actuators;
+namespace ActuatorService.Application.Validators;
 
 public class UpdateActuatorValidator : AbstractValidator<UpdateActuatorDto>
 {
     public UpdateActuatorValidator()
     {
-        RuleFor(x => x.Name)
+        RuleFor(x => x.Code)
             .NotEmpty()
-            .WithMessage("El nombre del actuador es obligatorio.");
+            .WithMessage("El código/modelo del actuador es obligatorio.")
+            .MaximumLength(100).WithMessage("El código no debe superar los 100 caracteres.");
+
+        RuleFor(x => x.Mode)
+            .NotEmpty()
+            .WithMessage("El modo del actuador es obligatorio.")
+            .Must(mode => ActuatorConstants.Modes.ValidModes.Contains(mode))
+            .WithMessage($"El modo debe ser '{ActuatorConstants.Modes.Digital}' o '{ActuatorConstants.Modes.Pwm}'.");
 
         RuleFor(x => x.Pin)
             .NotEmpty()

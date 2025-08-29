@@ -9,8 +9,9 @@ public class ActuatorDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; private set; } = default!;
     public string Esp32Id { get; set; } = default!;
-    public string Name { get; set; } = default!;
+    public string Code { get; set; } = default!;
     public string Type { get; set; } = default!;
+    public string Mode { get; set; } = default!;
     public string PhysicalId { get; set; } = default!;
     public string Pin { get; set; } = default!;
     public string Location { get; set; } = default!;

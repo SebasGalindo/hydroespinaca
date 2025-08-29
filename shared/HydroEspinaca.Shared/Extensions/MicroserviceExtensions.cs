@@ -34,22 +34,22 @@ public static class MicroserviceExtensions
 
         // Add standard web API services
         services.AddControllers();
-        
+
         // Add authentication and authorization
         services.AddHydroEspinacaAuth(configuration, serviceName);
-        
+
         // Add Swagger documentation
         services.AddHydroEspinacaSwagger(apiTitle);
-        
+
         // Add FluentValidation if assembly provided
         if (validatorAssembly != null)
         {
             services.AddValidatorsFromAssembly(validatorAssembly);
         }
-        
+
         // Add health checks
         services.AddHealthChecks();
-        
+
         // Add M2M authentication services
         services.AddM2MAuthentication(configuration);
 
@@ -67,10 +67,10 @@ public static class MicroserviceExtensions
         string serviceName)
     {
         LogEnvironmentInfo(serviceName);
-        
+
         services.AddControllers();
         services.AddHealthChecks();
-        
+
         return services;
     }
 
@@ -110,7 +110,7 @@ public static class MicroserviceExtensions
     {
         var aspNetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         var hostEnv = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
-        
+
         var environment = aspNetCoreEnv ?? hostEnv ?? "Unknown";
         var isTestEnvironment = environment == "Test";
         var isDevelopment = environment == "Development";
@@ -148,13 +148,13 @@ public static class MicroserviceExtensions
     {
         // Configure M2M options
         services.Configure<M2MAuthOptions>(configuration.GetSection(M2MAuthOptions.SectionName));
-        
+
         // Register HTTP client for M2M token service
         services.AddHttpClient<M2MTokenService>();
-        
+
         // Register M2M token service
         services.AddScoped<M2MTokenService>();
-        
+
         return services;
     }
 }

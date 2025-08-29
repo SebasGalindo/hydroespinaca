@@ -11,8 +11,9 @@ public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
         var actuator = new Actuator
         {
             Esp32Id = doc.Esp32Id,
-            Name = doc.Name,
+            Code = doc.Code,
             Type = Enum.Parse<ActuatorType>(doc.Type),
+            Mode = Enum.Parse<ActuatorMode>(doc.Mode),
             PhysicalId = doc.PhysicalId,
             Pin = doc.Pin,
             Location = doc.Location,
@@ -28,8 +29,9 @@ public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
         var doc = new ActuatorDocument
         {
             Esp32Id = entity.Esp32Id,
-            Name = entity.Name,
+            Code = entity.Code,
             Type = entity.Type.ToString(),
+            Mode = entity.Mode.ToString(),
             PhysicalId = entity.PhysicalId,
             Pin = entity.Pin,
             Location = entity.Location,

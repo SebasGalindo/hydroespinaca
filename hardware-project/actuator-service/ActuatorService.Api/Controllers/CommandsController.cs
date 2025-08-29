@@ -1,5 +1,5 @@
-﻿using HydroEspinaca.Shared.DTOs.Actuator;
-using ActuatorService.Application.Interfaces;
+﻿using ActuatorService.Application.Interfaces;
+using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,35 +10,31 @@ namespace ActuatorService.Api.Controllers;
 [Route("api/commands")]
 public class CommandsController : ControllerBase
 {
-    private readonly ICommandService _commandService;
+    private readonly IExecuteMultiRoutineCommandUseCase _executeMultiRoutineCommandUseCase;
+    private readonly IJobScheduleService _jobScheduleService;
 
-    public CommandsController(ICommandService commandService)
+    public CommandsController(
+        IExecuteMultiRoutineCommandUseCase executeMultiRoutineCommandUseCase,
+        IJobScheduleService jobScheduleService)
     {
-        _commandService = commandService;
+        _executeMultiRoutineCommandUseCase = executeMultiRoutineCommandUseCase;
+        _jobScheduleService = jobScheduleService;
     }
 
     [HttpPost]
     [Authorize(Policy = PolicyNames.CommandCreate)]
-    public async Task<IActionResult> Register([FromBody] CreateCommandDto dto)
+    public async Task<IActionResult> ExecuteRoutines([FromBody] List<RoutineCommandDto> routines)
     {
-        string? userId = HttpContext.User?.Identity?.Name;
-        await _commandService.AddAsync(dto, userId);
-        return Ok();
+        var multiRoutineCommand = new MultiRoutineCommandDto { Routines = routines };
+        var commandIds = await _executeMultiRoutineCommandUseCase.ExecuteAsync(multiRoutineCommand);
+        return Ok(new { CommandIds = commandIds });
     }
 
-    [HttpGet("actuator/{actuatorId}")]
+    [HttpGet("jobs/status")]
     [Authorize(Policy = PolicyNames.CommandRead)]
-    public async Task<ActionResult<List<ActuatorCommandDto>>> GetByActuatorId(string actuatorId)
+    public async Task<IActionResult> GetJobsStatus([FromQuery] string? esp32Id = null)
     {
-        var result = await _commandService.GetByActuatorIdAsync(actuatorId);
-        return Ok(result);
-    }
-
-    [HttpGet("range")]
-    [Authorize(Policy = PolicyNames.CommandRead)]
-    public async Task<ActionResult<List<ActuatorCommandDto>>> GetByDateRange([FromQuery] DateTime from, [FromQuery] DateTime to)
-    {
-        var result = await _commandService.GetByDateRangeAsync(from, to);
-        return Ok(result);
+        var jobStatus = await _jobScheduleService.GetJobStatusAsync(esp32Id);
+        return Ok(jobStatus);
     }
 }
