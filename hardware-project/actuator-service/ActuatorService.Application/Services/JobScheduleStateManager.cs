@@ -157,6 +157,7 @@ public class JobScheduleStateManager : IJobScheduleStateManager
                 channelQueue = channel.Queue.Select(r => new JobRoutineDto
                 {
                     CommandId = r.CommandId,
+                    BaseId = r.BaseId,
                     Steps = r.Steps.Select(s => new JobStepDto
                     {
                         Pin = s.Pin,

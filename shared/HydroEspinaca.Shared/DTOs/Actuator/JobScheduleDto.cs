@@ -15,6 +15,7 @@ public class JobChannelDto
 public class JobRoutineDto
 {
     public string CommandId { get; set; } = default!;
+    public string BaseId { get; set; } = default!;
     public List<JobStepDto> Steps { get; set; } = new();
 }
 

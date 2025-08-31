@@ -95,6 +95,7 @@ public class JobScheduleService : IJobScheduleService
         var jobRoutine = new JobRoutineState
         {
             CommandId = commandId,
+            BaseId = routine.RoutineId,
             Steps = enrichedSteps,
             Status = ActuatorConstants.CommandStatuses.Scheduled // Always start as SCHEDULED, will be updated if needed
         };

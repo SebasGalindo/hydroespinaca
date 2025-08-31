@@ -18,6 +18,7 @@ public interface IJobScheduleStateManager
 public class JobRoutineState
 {
     public string CommandId { get; set; } = default!;
+    public string BaseId { get; set; } = default!;
     public List<JobStepState> Steps { get; set; } = new();
     public string Status { get; set; } = ActuatorConstants.CommandStatuses.Scheduled;
     public List<string> NotificationLogs { get; set; } = new();
