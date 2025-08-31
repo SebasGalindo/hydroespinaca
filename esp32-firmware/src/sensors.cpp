@@ -1,166 +1,111 @@
 #include "sensors.h"
 #include "config.h"
 
-SensorManager::SensorManager() : dht(DHT_PIN, DHT_TYPE), bufferIndex(0) {
-    // Initialize buffers
-    for(int i = 0; i < BUFFER_SIZE; i++) {
-        phBuffer[i] = 7.0; // Neutral pH
-        ecBuffer[i] = 0.0;
-    }
+SensorManager::SensorManager() : dht(DHT_PIN, DHT_TYPE), dhtInitialized(false), bh1750Initialized(false) {
 }
 
 void SensorManager::begin() {
-    dht.begin();
+    // Initialize I2C
+    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
     
-    // Initialize ADC
-    analogReadResolution(12); // 12-bit ADC
-    analogSetAttenuation(ADC_11db); // 0-3.3V range
+    // Initialize DHT22
+    dht.begin();
+    dhtInitialized = true;
+    Serial.println("✅ DHT22 inicializado");
+    
+    // Initialize BH1750
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        bh1750Initialized = true;
+        Serial.println("✅ BH1750 inicializado");
+    } else {
+        Serial.println("❌ Error inicializando BH1750");
+        bh1750Initialized = false;
+    }
     
     Serial.println("✅ Sensores inicializados");
 }
 
 float SensorManager::readTemperature() {
+    if (!dhtInitialized) return NAN;
+    
     float temp = dht.readTemperature();
     if (isnan(temp)) {
         Serial.println("❌ Error leyendo temperatura");
-        return -999.0;
+        return NAN;
     }
     return temp;
 }
 
 float SensorManager::readHumidity() {
+    if (!dhtInitialized) return NAN;
+    
     float humidity = dht.readHumidity();
     if (isnan(humidity)) {
         Serial.println("❌ Error leyendo humedad");
-        return -999.0;
+        return NAN;
     }
     return humidity;
 }
 
-float SensorManager::readPH() {
-    int rawValue = analogRead(PH_SENSOR_PIN);
-    float voltage = rawValue * (3.3 / 4095.0);
-    
-    // Conversión básica pH (ajustar según tu sensor)
-    float ph = 7.0 - ((voltage - 1.65) / 0.18) + phCalibration;
-    
-    // Aplicar filtro de media móvil
-    ph = getMovingAverage(phBuffer, ph);
-    
-    return constrain(ph, 0.0, 14.0);
-}
-
-float SensorManager::readEC() {
-    int rawValue = analogRead(EC_SENSOR_PIN);
-    float voltage = rawValue * (3.3f / 4095.0f);
-    
-    float ec = (voltage * 2.0f) * ecCalibration;
-    ec = getMovingAverage(ecBuffer, ec);
-
-    // Evita el error usando float en ambos lados
-    return max(ec, 0.0f);
-}
-
-
-// float SensorManager::readWaterLevel() {
-//     int rawValue = analogRead(WATER_LEVEL_PIN);
-//     float percentage = (rawValue / 4095.0f) * 100.0f;
-//     return constrain(percentage, 0.0f, 100.0f);
-// }
-
 float SensorManager::readLightLevel() {
-    int rawValue = analogRead(LDR_PIN);
-    float lux = map(rawValue, 0, 4095, 0, 1000); // Aproximación
+    if (!bh1750Initialized) return NAN;
+    
+    float lux = lightMeter.readLightLevel();
+    if (lux < 0) {
+        Serial.println("❌ Error leyendo sensor de luz");
+        return NAN;
+    }
     return lux;
 }
 
-float SensorManager::getMovingAverage(float* buffer, float newValue) {
-    buffer[bufferIndex] = newValue;
-    bufferIndex = (bufferIndex + 1) % BUFFER_SIZE;
-    
-    float sum = 0;
-    for(int i = 0; i < BUFFER_SIZE; i++) {
-        sum += buffer[i];
-    }
-    return sum / BUFFER_SIZE;
-}
-
-void SensorManager::createReadingsBatch(DynamicJsonDocument& doc) {
-    // Clear document
-    doc.clear();
-    
-    // Backend format - esp32Id and ISO timestamp
-    doc["esp32Id"] = ESP32_ID;
-    
-    // ISO 8601 timestamp (usar NTP en producción)
+String SensorManager::getCurrentTimestamp() {
+    // Simple timestamp - in production use NTP
+    unsigned long currentTime = millis() / 1000;
     char timestamp[32];
-    unsigned long currentTime = millis() / 1000; // Segundos desde boot
-    sprintf(timestamp, "2025-07-29T%02d:%02d:%02dZ", 
+    sprintf(timestamp, "2025-08-31T%02d:%02d:%02dZ", 
             (int)((currentTime / 3600) % 24),
             (int)((currentTime / 60) % 60), 
             (int)(currentTime % 60));
-    doc["timestamp"] = timestamp;
+    return String(timestamp);
+}
+
+void SensorManager::createReadingsBatch(DynamicJsonDocument& doc) {
+    doc.clear();
     
-    // Readings array con physicalId y variableId
+    // Set ESP32 ID and timestamp
+    doc["esp32Id"] = ESP32_ID;
+    doc["timestamp"] = getCurrentTimestamp();
+    
+    // Create readings array
     JsonArray readings = doc.createNestedArray("readings");
     
-    // Temperature
+    // Temperature - only add if sensor is working
     float tempValue = readTemperature();
-    if (tempValue != -999.0) {
+    if (!isnan(tempValue)) {
         JsonObject tempReading = readings.createNestedObject();
         tempReading["physicalId"] = "temp-01";
         tempReading["variableId"] = "temperature";
         tempReading["value"] = tempValue;
     }
     
-    // Humidity
+    // Humidity - only add if sensor is working
     float humidityValue = readHumidity();
-    if (humidityValue != -999.0) {
+    if (!isnan(humidityValue)) {
         JsonObject humidityReading = readings.createNestedObject();
         humidityReading["physicalId"] = "humidity-01";
         humidityReading["variableId"] = "humidity";
         humidityReading["value"] = humidityValue;
     }
     
-    // pH
-    float phValue = readPH();
-    JsonObject phReading = readings.createNestedObject();
-    phReading["physicalId"] = "ph-01";
-    phReading["variableId"] = "ph";
-    phReading["value"] = phValue;
-    
-    // EC (Conductividad Eléctrica)
-    float ecValue = readEC();
-    JsonObject ecReading = readings.createNestedObject();
-    ecReading["physicalId"] = "ec-01";
-    ecReading["variableId"] = "ec";
-    ecReading["value"] = ecValue;
-    
-    // Water Level
-    // float waterValue = readWaterLevel();
-    // JsonObject waterReading = readings.createNestedObject();
-    // waterReading["physicalId"] = "water-level-01";
-    // waterReading["variableId"] = "water_level";
-    // waterReading["value"] = waterValue;
-    
-    // Light Level
+    // Light Level - only add if sensor is working
     float lightValue = readLightLevel();
-    JsonObject lightReading = readings.createNestedObject();
-    lightReading["physicalId"] = "light-01";
-    lightReading["variableId"] = "light_intensity";
-    lightReading["value"] = lightValue;
-}
-
-void SensorManager::calibratePH(float referenceValue) {
-    float currentReading = readPH();
-    phCalibration = referenceValue - currentReading;
-    Serial.printf("✅ pH calibrado. Offset: %.2f\n", phCalibration);
-}
-
-void SensorManager::calibrateEC(float referenceValue) {
-    float currentReading = readEC();
-    if (currentReading > 0) {
-        ecCalibration = referenceValue / currentReading;
-        Serial.printf("✅ EC calibrado. Factor: %.2f\n", ecCalibration);
+    if (!isnan(lightValue)) {
+        JsonObject lightReading = readings.createNestedObject();
+        lightReading["physicalId"] = "light-01";
+        lightReading["variableId"] = "light_intensity";
+        lightReading["value"] = lightValue;
     }
+    
+    // Note: Stubbed sensors (pH, EC, water temp, water level) are not included
+    // The backend will detect missing sensors and notify admin
 }

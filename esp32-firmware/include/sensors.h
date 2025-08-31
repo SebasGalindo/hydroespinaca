@@ -4,41 +4,36 @@
 #include <Arduino.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <BH1750.h>
 
 class SensorManager {
 private:
     DHT dht;
+    BH1750 lightMeter;
     
-    // Calibration values
-    float phCalibration = 0.0;
-    float ecCalibration = 1.0;
+    // Sensor validity flags
+    bool dhtInitialized;
+    bool bh1750Initialized;
     
-    // Moving average buffers
-    static const int BUFFER_SIZE = 5;
-    float phBuffer[BUFFER_SIZE];
-    float ecBuffer[BUFFER_SIZE];
-    int bufferIndex;
-    
-    float getMovingAverage(float* buffer, float newValue);
+    // Time management
+    String getCurrentTimestamp();
     
 public:
     SensorManager();
     void begin();
     
-    // Individual sensor readings
+    // Individual sensor readings (return NaN if sensor fails)
     float readTemperature();
     float readHumidity();
-    float readPH();
-    float readEC();
-    // float readWaterLevel();
     float readLightLevel();
     
-    // Batch reading
+    // Batch reading - creates JSON with null values for failed sensors
     void createReadingsBatch(DynamicJsonDocument& doc);
     
-    // Calibration
-    void calibratePH(float referenceValue);
-    void calibrateEC(float referenceValue);
+    // Sensor status
+    bool isDHTAvailable() const { return dhtInitialized; }
+    bool isBH1750Available() const { return bh1750Initialized; }
 };
 
 #endif

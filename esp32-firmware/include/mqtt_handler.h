@@ -4,36 +4,53 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "actuators.h"
+#include <queue>
+
+// Forward declaration
+class JobScheduler;
+
+struct TelemetryBuffer {
+    String payload;
+    unsigned long timestamp;
+};
 
 class MQTTHandler {
 private:
     WiFiClient wifiClient;
     PubSubClient mqttClient;
-    ActuatorManager* actuatorManager;
+    JobScheduler* jobScheduler;
     
-    // Connection management
+    // Connection management with exponential backoff
     unsigned long lastReconnectAttempt;
-    bool shouldReconnect;
+    unsigned long reconnectInterval;
+    int reconnectAttempts;
+    
+    // Telemetry buffering
+    std::queue<TelemetryBuffer> telemetryQueue;
+    static const int MAX_BUFFERED_TELEMETRY = 10;
     
     // Callback function
     static void messageCallback(char* topic, byte* payload, unsigned int length);
-    static MQTTHandler* instance; // For static callback
+    static MQTTHandler* instance;
     
     // Internal methods
     bool connectWiFi();
     bool connectMQTT();
-    void handleCommand(const String& payload);
+    void handleJobSchedule(const String& payload);
+    void processBufferedTelemetry();
+    String getCurrentTimestamp();
+    unsigned long getBackoffInterval();
     
 public:
-    MQTTHandler(ActuatorManager* actuators);
+    MQTTHandler(JobScheduler* scheduler);
     void begin();
     void loop();
     
-    // Publishing
+    // Publishing methods
     bool publishReadings(DynamicJsonDocument& readings);
     bool publishStatus(const String& status);
-    bool publishState(DynamicJsonDocument& state);
+    bool publishCompletion(const DynamicJsonDocument& completion);
+    bool publishNotification(const DynamicJsonDocument& notification);
     
     // Connection status
     bool isConnected();
@@ -41,6 +58,9 @@ public:
     
     // Message handling
     void onMessageReceived(char* topic, byte* payload, unsigned int length);
+    
+    // Buffer telemetry when offline
+    void bufferTelemetry(const String& payload);
 };
 
 #endif
