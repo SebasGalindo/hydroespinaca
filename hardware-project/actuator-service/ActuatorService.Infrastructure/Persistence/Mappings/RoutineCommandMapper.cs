@@ -13,16 +13,17 @@ public class RoutineCommandMapper : IEntityMapper<RoutineCommand, RoutineCommand
         {
             CommandId = doc.CommandId,
             RoutineId = doc.RoutineId,
-            StatusGeneral = Enum.Parse<RoutineCommandStatus>(doc.StatusGeneral),
+            Esp32Id = doc.Esp32Id,
+            StatusGeneral = doc.StatusGeneral,
             CreatedAt = doc.CreatedAt,
             FinishedAt = doc.FinishedAt,
             Channel = doc.Channel,
             Results = doc.Results?.Select(r => new RoutineResult
             {
                 Pin = r.Pin,
-                Status = r.Status
-            }).ToList(),
-            ExecutionLogs = doc.ExecutionLogs
+                Status = r.Status,
+                ExecutionLog = r.ExecutionLog
+            }).ToList()
         };
         entity.SetId(doc.Id);
         return entity;
@@ -34,16 +35,17 @@ public class RoutineCommandMapper : IEntityMapper<RoutineCommand, RoutineCommand
         {
             CommandId = entity.CommandId,
             RoutineId = entity.RoutineId,
-            StatusGeneral = entity.StatusGeneral.ToString(),
+            Esp32Id = entity.Esp32Id,
+            StatusGeneral = entity.StatusGeneral,
             CreatedAt = entity.CreatedAt,
             FinishedAt = entity.FinishedAt,
             Channel = entity.Channel,
             Results = entity.Results?.Select(r => new RoutineResultDocument
             {
                 Pin = r.Pin,
-                Status = r.Status
-            }).ToList(),
-            ExecutionLogs = entity.ExecutionLogs
+                Status = r.Status,
+                ExecutionLog = r.ExecutionLog
+            }).ToList()
         };
         doc.SetId(entity.Id);
         return doc;

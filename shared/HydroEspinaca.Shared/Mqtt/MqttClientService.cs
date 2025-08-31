@@ -19,6 +19,7 @@ public class MqttClientService : IMqttClientService
     private readonly ILogger<MqttClientService> _logger;
     private readonly string _instanceId = Guid.NewGuid().ToString("N");
     private readonly ConcurrentDictionary<string, byte> _subscribedTopics = new();
+    private readonly ConcurrentDictionary<string, Func<string, byte[], Task>> _topicHandlers = new();
 
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
@@ -87,6 +88,9 @@ public class MqttClientService : IMqttClientService
     {
         await ConnectAsync();
 
+        // Store the topic-specific handler
+        _topicHandlers.TryAdd(topic, handler);
+
         // Protege el registro del handler contra race conditions
         lock (_handlerLock)
         {
@@ -98,14 +102,23 @@ public class MqttClientService : IMqttClientService
                     byte[] array = BuffersExtensions.ToArray(in sequence);
                     string topicReceived = e.ApplicationMessage.Topic;
                     _logger.LogInformation("[{Instance}] MQTT message received. Topic: {Topic}, Payload: {Payload}", _instanceId, topicReceived, Encoding.UTF8.GetString(array));
-                    try
+                    
+                    // Route message to the correct topic handler
+                    if (_topicHandlers.TryGetValue(topicReceived, out var topicHandler))
                     {
-                        await handler(topicReceived, array).ConfigureAwait(false);
+                        try
+                        {
+                            await topicHandler(topicReceived, array).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[{Instance}] Error in message handler for topic: {Topic}", _instanceId, topicReceived);
+                            // no rethrow: evita que excepciones asincrónicas rompan el loop del cliente
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.LogError(ex, "[{Instance}] Error in message handler", _instanceId);
-                        // no rethrow: evita que excepciones asincrónicas rompan el loop del cliente
+                        _logger.LogWarning("[{Instance}] No handler found for topic: {Topic}", _instanceId, topicReceived);
                     }
                 };
 
@@ -114,7 +127,7 @@ public class MqttClientService : IMqttClientService
             }
             else
             {
-                _logger.LogDebug("[{Instance}] Handler already registered - skipping.", _instanceId);
+                _logger.LogDebug("[{Instance}] Handler already registered - using topic-based routing.", _instanceId);
             }
         }
 

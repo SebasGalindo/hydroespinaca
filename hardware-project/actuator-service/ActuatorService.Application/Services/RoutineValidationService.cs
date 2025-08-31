@@ -1,4 +1,5 @@
 using ActuatorService.Domain.Interfaces;
+using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Errors;
@@ -50,7 +51,7 @@ public class RoutineValidationService : IRoutineValidationService
                 }
                 if (string.IsNullOrEmpty(step.Power))
                 {
-                    throw new ConflictException($"Digital actuator {step.Actuator} requires 'power' parameter (ON/OFF).");
+                    throw new ConflictException($"Digital actuator {step.Actuator} requires 'power' parameter ({ActuatorConstants.PowerStates.On}/{ActuatorConstants.PowerStates.Off}).");
                 }
                 break;
 
@@ -61,7 +62,7 @@ public class RoutineValidationService : IRoutineValidationService
                 }
                 if (!step.DutyCycle.HasValue)
                 {
-                    throw new ConflictException($"PWM actuator {step.Actuator} requires 'dutyCycle' parameter (0-100).");
+                    throw new ConflictException($"PWM actuator {step.Actuator} requires 'dutyCycle' parameter ({ActuatorConstants.Validation.MinDutyCycle}-{ActuatorConstants.Validation.MaxDutyCycle}).");
                 }
                 break;
         }

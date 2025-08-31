@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IActuatorService, ActuatorServiceApplication>();
         // Routine command services
+        services.AddScoped<IRoutineCommandService, RoutineCommandService>();
         services.AddScoped<IRoutineValidationService, RoutineValidationService>();
         services.AddScoped<ICommandIdGenerator, CommandIdGenerator>();
         services.AddScoped<IMqttPayloadEnrichmentService, MqttPayloadEnrichmentService>();

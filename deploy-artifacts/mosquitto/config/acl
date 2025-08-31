@@ -3,6 +3,7 @@ user esp32-001
 topic write sensor/esp32-001/readings
 topic read  actuator/job/schedule
 topic write actuator/routine/completions
+topic write actuator/routine/notifications
 
 # SensorService backend
 user sensor-apiuser

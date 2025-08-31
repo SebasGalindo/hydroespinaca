@@ -12,13 +12,16 @@ public class CommandsController : ControllerBase
 {
     private readonly IExecuteMultiRoutineCommandUseCase _executeMultiRoutineCommandUseCase;
     private readonly IJobScheduleService _jobScheduleService;
+    private readonly IRoutineCommandService _routineCommandService;
 
     public CommandsController(
         IExecuteMultiRoutineCommandUseCase executeMultiRoutineCommandUseCase,
-        IJobScheduleService jobScheduleService)
+        IJobScheduleService jobScheduleService,
+        IRoutineCommandService routineCommandService)
     {
         _executeMultiRoutineCommandUseCase = executeMultiRoutineCommandUseCase;
         _jobScheduleService = jobScheduleService;
+        _routineCommandService = routineCommandService;
     }
 
     [HttpPost]
@@ -36,5 +39,21 @@ public class CommandsController : ControllerBase
     {
         var jobStatus = await _jobScheduleService.GetJobStatusAsync(esp32Id);
         return Ok(jobStatus);
+    }
+
+    [HttpGet("routines")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
+    public async Task<IActionResult> GetRoutineCommands([FromQuery] string? esp32Id = null)
+    {
+        var routineCommands = await _routineCommandService.GetAllRoutineCommandsAsync(esp32Id);
+        return Ok(routineCommands);
+    }
+
+    [HttpGet("routines/{commandId}")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
+    public async Task<IActionResult> GetRoutineCommand(string commandId)
+    {
+        var routineCommand = await _routineCommandService.GetRoutineCommandByIdAsync(commandId);
+        return Ok(routineCommand);
     }
 }

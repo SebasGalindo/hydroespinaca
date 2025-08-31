@@ -11,7 +11,7 @@ public class UpdateActuatorValidator : AbstractValidator<UpdateActuatorDto>
         RuleFor(x => x.Code)
             .NotEmpty()
             .WithMessage("El código/modelo del actuador es obligatorio.")
-            .MaximumLength(100).WithMessage("El código no debe superar los 100 caracteres.");
+            .MaximumLength(ActuatorConstants.Validation.MaxCodeLength).WithMessage($"El código no debe superar los {ActuatorConstants.Validation.MaxCodeLength} caracteres.");
 
         RuleFor(x => x.Mode)
             .NotEmpty()

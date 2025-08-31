@@ -1,19 +1,21 @@
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Interfaces;
+using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
+using HydroEspinaca.Shared.Enums;
+using HydroEspinaca.Shared.Errors;
 using Microsoft.Extensions.Logging;
 
 namespace ActuatorService.Application.Services;
 
 public class JobScheduleService : IJobScheduleService
 {
-    private const int NUM_CHANNELS = 3;
     private readonly IActuatorRepository _actuatorRepository;
     private readonly IJobScheduleStateManager _stateManager;
     private readonly ILogger<JobScheduleService> _logger;
 
     public JobScheduleService(
-        IActuatorRepository actuatorRepository, 
+        IActuatorRepository actuatorRepository,
         IJobScheduleStateManager stateManager,
         ILogger<JobScheduleService> logger)
     {
@@ -33,6 +35,12 @@ public class JobScheduleService : IJobScheduleService
         foreach (var routine in routines)
         {
             await AssignRoutineToChannelAsync(esp32Id, routine);
+        }
+
+        // Mark ONLY the first routine in each channel as running (respecting existing queue)
+        for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
+        {
+            _stateManager.MarkNextCommandAsRunning(esp32Id, channelId);
         }
 
         return _stateManager.GetCurrentJobSchedule(esp32Id);
@@ -56,46 +64,51 @@ public class JobScheduleService : IJobScheduleService
 
     private async Task<string> GetEsp32IdForRoutinesAsync(List<RoutineCommandDto> routines)
     {
-        // Get the first actuator ID from the routines to determine ESP32
         var firstActuatorId = routines.SelectMany(r => r.Steps).Select(s => s.Actuator).FirstOrDefault();
-        
-        if (firstActuatorId != null)
+
+        if (firstActuatorId == null)
         {
-            var actuator = await _actuatorRepository.GetByIdAsync(firstActuatorId);
-            if (actuator?.Esp32Id != null)
-            {
-                return actuator.Esp32Id;
-            }
+            throw new NotFoundException(
+                $"No se encontró ningún actuador en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
         }
-        
-        // Default ESP32 ID if we can't determine it
-        return "default-esp32";
+
+        var actuator = await _actuatorRepository.GetByIdAsync(firstActuatorId);
+
+        if (actuator?.Esp32Id == null)
+        {
+            throw new NotFoundException(
+                $"No se pudo determinar el ESP32 asociado al actuador '{firstActuatorId}' en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
+        }
+
+        return actuator.Esp32Id;
     }
+
+
 
     private async Task AssignRoutineToChannelAsync(string esp32Id, RoutineCommandDto routine)
     {
         var commandId = GenerateCommandId(routine.RoutineId);
-        
+
         // Enrich steps with actuator data
         var enrichedSteps = await EnrichRoutineStepsAsync(routine.Steps);
-        
+
         var jobRoutine = new JobRoutineState
         {
             CommandId = commandId,
             Steps = enrichedSteps,
-            Status = "scheduled"
+            Status = ActuatorConstants.CommandStatuses.Scheduled // Always start as SCHEDULED, will be updated if needed
         };
 
         // Determine priority level
         var priority = DeterminePriority(routine);
-        
+
         // Find the best channel for this routine (simplified for now - round robin)
         var channelId = FindBestChannelForRoutine(routine, priority);
-        
+
         // Add to the selected channel via state manager
         _stateManager.AddRoutineToSchedule(esp32Id, jobRoutine, channelId);
 
-        _logger.LogInformation("Assigned routine {CommandId} to channel {ChannelId} with priority {Priority}", 
+        _logger.LogInformation("Assigned routine {CommandId} to channel {ChannelId} with priority {Priority}",
             commandId, channelId, priority);
     }
 
@@ -134,9 +147,9 @@ public class JobScheduleService : IJobScheduleService
     private RoutinePriority DeterminePriority(RoutineCommandDto routine)
     {
         // Control routines: all steps have "OFF" power or 0 duty cycle
-        bool isControl = routine.Steps.All(step => 
-            (step.Power == "OFF") || (step.DutyCycle == 0));
-            
+        bool isControl = routine.Steps.All(step =>
+            (step.Power == ActuatorConstants.PowerStates.Off) || (step.DutyCycle == ActuatorConstants.Validation.MinDutyCycle));
+
         if (isControl)
             return RoutinePriority.Control;
 
@@ -151,7 +164,7 @@ public class JobScheduleService : IJobScheduleService
     {
         // Simplified channel assignment - round robin based on routine hash
         var routineHash = routine.RoutineId.GetHashCode();
-        return (Math.Abs(routineHash) % NUM_CHANNELS) + 1;
+        return (Math.Abs(routineHash) % ActuatorConstants.Channels.MaxChannels) + ActuatorConstants.Channels.MinChannelId;
     }
 }
 

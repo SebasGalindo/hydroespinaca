@@ -33,7 +33,7 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
             .WithMessage("Actuator ID debe ser un ObjectId válido");
 
         RuleFor(x => x.Duration)
-            .GreaterThan(0)
+            .GreaterThan(ActuatorConstants.Validation.MinDuration - 1)
             .WithMessage("Duration debe ser mayor a 0 segundos");
 
         // Ensure that either Power (for digital) or DutyCycle (for PWM) is provided, but not both
@@ -49,8 +49,8 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
 
         When(x => x.DutyCycle.HasValue, () => {
             RuleFor(x => x.DutyCycle)
-                .InclusiveBetween(0, 100)
-                .WithMessage("DutyCycle debe estar entre 0 y 100");
+                .InclusiveBetween(ActuatorConstants.Validation.MinDutyCycle, ActuatorConstants.Validation.MaxDutyCycle)
+                .WithMessage($"DutyCycle debe estar entre {ActuatorConstants.Validation.MinDutyCycle} y {ActuatorConstants.Validation.MaxDutyCycle}");
         });
     }
 

@@ -1,4 +1,5 @@
 using ActuatorService.Application.Interfaces;
+using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
@@ -7,7 +8,6 @@ namespace ActuatorService.Application.Services;
 
 public class JobScheduleStateManager : IJobScheduleStateManager
 {
-    private const int NUM_CHANNELS = 3;
     private readonly ILogger<JobScheduleStateManager> _logger;
     
     // In-memory job schedule representation
@@ -61,6 +61,74 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         }
     }
 
+    public void UpdateCommandWithNotification(string commandId, string status, string notificationLog)
+    {
+        foreach (var scheduleState in _jobSchedules.Values)
+        {
+            foreach (var channel in scheduleState.Channels.Values)
+            {
+                var command = channel.Queue.FirstOrDefault(c => c.CommandId == commandId);
+                if (command != null)
+                {
+                    command.Status = status;
+                    command.NotificationLogs.Add($"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss}Z: {notificationLog}");
+                    _logger.LogInformation("Updated command {CommandId} status to {Status} with notification", commandId, status);
+                    return;
+                }
+            }
+        }
+        
+        _logger.LogWarning("Could not find command {CommandId} to update with notification", commandId);
+    }
+
+    public void RemoveCompletedRoutine(string commandId)
+    {
+        foreach (var scheduleState in _jobSchedules.Values)
+        {
+            foreach (var channel in scheduleState.Channels.Values)
+            {
+                var routineToRemove = channel.Queue.FirstOrDefault(c => c.CommandId == commandId);
+                if (routineToRemove != null)
+                {
+                    channel.Queue.Remove(routineToRemove);
+                    _logger.LogInformation("Removed completed routine {CommandId} from in-memory job schedule", commandId);
+                    return;
+                }
+            }
+        }
+        
+        _logger.LogWarning("Could not find routine {CommandId} to remove from in-memory job schedule", commandId);
+    }
+
+    public void MarkNextCommandAsRunning(string esp32Id, int channelId)
+    {
+        if (_jobSchedules.TryGetValue(esp32Id, out var scheduleState))
+        {
+            if (scheduleState.Channels.TryGetValue(channelId, out var channel))
+            {
+                // Check if there's already a command running in this channel
+                var runningCommand = channel.Queue.FirstOrDefault(c => c.Status == ActuatorConstants.CommandStatuses.Running);
+                if (runningCommand != null)
+                {
+                    _logger.LogDebug("Channel {ChannelId} already has a running command: {CommandId}", channelId, runningCommand.CommandId);
+                    return;
+                }
+
+                // Mark the first scheduled command as running
+                var nextCommand = channel.Queue.FirstOrDefault(c => c.Status == ActuatorConstants.CommandStatuses.Scheduled);
+                if (nextCommand != null)
+                {
+                    nextCommand.Status = ActuatorConstants.CommandStatuses.Running;
+                    _logger.LogInformation("Marked command {CommandId} as running in channel {ChannelId}", nextCommand.CommandId, channelId);
+                }
+                else
+                {
+                    _logger.LogInformation("No scheduled commands found in channel {ChannelId} for ESP32 {Esp32Id}", channelId, esp32Id);
+                }
+            }
+        }
+    }
+
     public List<string> GetActiveEsp32Ids()
     {
         return _jobSchedules.Keys.ToList();
@@ -80,7 +148,7 @@ public class JobScheduleStateManager : IJobScheduleStateManager
     {
         var channels = new List<JobChannelDto>();
         
-        for (int i = 1; i <= NUM_CHANNELS; i++)
+        for (int i = ActuatorConstants.Channels.MinChannelId; i <= ActuatorConstants.Channels.MaxChannelId; i++)
         {
             var channelQueue = new List<JobRoutineDto>();
             
@@ -118,7 +186,7 @@ public class JobScheduleStateManager : IJobScheduleStateManager
     {
         var channels = new List<ChannelStatusDto>();
         
-        for (int i = 1; i <= NUM_CHANNELS; i++)
+        for (int i = ActuatorConstants.Channels.MinChannelId; i <= ActuatorConstants.Channels.MaxChannelId; i++)
         {
             var queuedCommands = new List<QueuedCommandDto>();
             

@@ -9,7 +9,7 @@ public class MultiRoutineCommandValidator : AbstractValidator<MultiRoutineComman
     {
         RuleFor(x => x.Routines)
             .NotEmpty()
-            .WithMessage("At least one routine must be provided");
+            .WithMessage("Al menos una rutina debe ser proporcionada");
 
         RuleForEach(x => x.Routines)
             .SetValidator(new RoutineCommandValidator());

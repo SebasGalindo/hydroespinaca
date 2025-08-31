@@ -30,6 +30,17 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
+    public async Task<List<RoutineCommand>> GetAllAsync()
+    {
+        return await _baseRepo.FindManyAsync(FilterDefinition<RoutineCommandDocument>.Empty);
+    }
+
+    public async Task<List<RoutineCommand>> GetByEsp32IdAsync(string esp32Id)
+    {
+        var filter = Builders<RoutineCommandDocument>.Filter.Eq(x => x.Esp32Id, esp32Id);
+        return await _baseRepo.FindManyAsync(filter);
+    }
+
     public Task AddAsync(RoutineCommand routineCommand)
         => _baseRepo.CreateAsync(routineCommand);
 

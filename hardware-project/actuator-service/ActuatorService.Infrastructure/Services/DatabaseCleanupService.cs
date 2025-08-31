@@ -1,4 +1,5 @@
 using ActuatorService.Domain.Interfaces;
+using HydroEspinaca.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -10,8 +11,8 @@ public class DatabaseCleanupService : BackgroundService
 {
     private readonly ILogger<DatabaseCleanupService> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly TimeSpan _cleanupInterval = TimeSpan.FromDays(7); // Weekly cleanup
-    private readonly TimeSpan _recordRetentionPeriod = TimeSpan.FromDays(30); // Keep records for 30 days
+    private readonly TimeSpan _cleanupInterval = TimeSpan.FromDays(ActuatorConstants.Cleanup.CleanupIntervalDays); // Weekly cleanup
+    private readonly TimeSpan _recordRetentionPeriod = TimeSpan.FromDays(ActuatorConstants.Cleanup.RecordRetentionDays); // Keep records for retention period
 
     public DatabaseCleanupService(
         ILogger<DatabaseCleanupService> logger,
@@ -41,7 +42,7 @@ public class DatabaseCleanupService : BackgroundService
             {
                 _logger.LogError(ex, "An error occurred during database cleanup");
                 // Wait a shorter period before retrying on error
-                await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromHours(ActuatorConstants.Cleanup.ErrorRetryDelayHours), stoppingToken);
             }
         }
     }

@@ -36,11 +36,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRoutineCommandPublisher, MqttRoutineCommandPublisher>();
         services.AddSingleton<IMqttClientService, MqttClientService>();
 
-        // MQTT Subscriber
-        services.AddScoped<MqttRoutineCompletionSubscriber>();
-
         // Background Services
         services.AddHostedService<DatabaseCleanupService>();
+        services.AddHostedService<MqttRoutineCompletionSubscriber>();
+        services.AddHostedService<MqttRoutineNotificationSubscriber>();
 
         // Validation
         services.AddHttpClient<IEsp32ValidationService, Esp32ValidationService>(client =>

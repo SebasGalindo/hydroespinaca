@@ -17,7 +17,7 @@ public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
         RuleFor(x => x.Code)
             .NotEmpty()
             .WithMessage("El código/modelo del actuador es obligatorio.")
-            .MaximumLength(100).WithMessage("El código no debe superar los 100 caracteres.");
+            .MaximumLength(ActuatorConstants.Validation.MaxCodeLength).WithMessage($"El código no debe superar los {ActuatorConstants.Validation.MaxCodeLength} caracteres.");
 
         RuleFor(x => x.Type)
             .NotEmpty()
@@ -40,7 +40,7 @@ public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
         RuleFor(x => x.Location)
             .NotEmpty()
             .WithMessage("La ubicación es obligatoria.")
-            .MaximumLength(100)
-            .WithMessage("La ubicación no debe superar los 100 caracteres.");
+            .MaximumLength(ActuatorConstants.Validation.MaxLocationLength)
+            .WithMessage($"La ubicación no debe superar los {ActuatorConstants.Validation.MaxLocationLength} caracteres.");
     }
 }
