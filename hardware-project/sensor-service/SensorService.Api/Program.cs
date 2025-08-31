@@ -24,13 +24,18 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, SensorServiceExc
 
 var app = builder.Build();
 
-// ✅ Standard pipeline with shared middleware
+// Configure middleware based on environment
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sensor Service API v1")
     );
+}
+
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

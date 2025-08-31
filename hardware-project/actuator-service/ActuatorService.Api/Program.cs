@@ -19,11 +19,16 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, ActuatorServiceE
 
 var app = builder.Build();
 
-// Standard pipeline
+// Configure middleware based on environment
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Actuator Service API v1"));
+}
+
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

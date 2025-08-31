@@ -28,7 +28,7 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, AuthServiceExcep
 
 var app = builder.Build();
 
-// Middleware
+// Configure middleware based on environment
 if (app.Environment.IsDevelopment())
 {
     builder.Host.UseDefaultServiceProvider(options =>
@@ -37,20 +37,22 @@ if (app.Environment.IsDevelopment())
         options.ValidateOnBuild = true;
     });
 
-
     app.UseSwagger();
     app.UseSwaggerUI(c =>
        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Auth Service API v1")
     );
 
-
-    // Run data seeding
+    // Run data seeding only in development
     using (var scope = app.Services.CreateScope())
     {
      var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
      await seedingService.SeedInitialDataAsync();
     }
+}
 
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
 }
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();

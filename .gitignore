@@ -112,3 +112,17 @@ shared/HydroEspinaca.Shared/nupkg/
 # ===============================
 build-shared-and-install.sh
 
+# ===============================
+# EXCLUSIONES PARA DESPLIEGUE
+# ===============================
+fuzzy-service/
+shared/
+packages/
+esp32-firmware/
+apps/
+deploy/
+package.json
+pnpm-lock.yaml
+turbo.json
+tsconfig.base.json
+pnpm-workspace.yaml
