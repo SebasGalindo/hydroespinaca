@@ -33,10 +33,10 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-if (app.Environment.IsProduction())
-{
-    app.UseHsts();
-}
+// if (app.Environment.IsProduction())
+// {
+//     app.UseHsts();
+// }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();

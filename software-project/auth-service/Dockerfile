@@ -4,7 +4,6 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 
 COPY NuGet.config ./NuGet.config
-COPY .nuget/packages/ ./.nuget/packages/
 COPY deploy-artifacts ./deploy-artifacts
 COPY ./software-project/auth-service ./auth-service
 

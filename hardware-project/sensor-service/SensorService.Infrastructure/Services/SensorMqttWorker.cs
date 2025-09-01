@@ -11,7 +11,7 @@ public class SensorMqttWorker : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly IMqttClientService _mqttService;
     private readonly ILogger<SensorMqttWorker> _logger;
-    private const string SENSOR_TOPIC = MqttTopics.Sensor.AllReadings;
+    private const string SENSOR_TOPIC = MqttTopics.Sensor.ReadingBatches;
 
     public SensorMqttWorker(IServiceProvider serviceProvider, IMqttClientService mqttService, ILogger<SensorMqttWorker> logger)
     {

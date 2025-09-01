@@ -26,10 +26,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Actuator Service API v1"));
 }
 
-if (app.Environment.IsProduction())
-{
-    app.UseHsts();
-}
+// if (app.Environment.IsProduction())
+// {
+//     app.UseHsts();
+// }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();
