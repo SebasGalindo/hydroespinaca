@@ -24,5 +24,5 @@ public class RoutineResult
 {
     public string Pin { get; set; } = default!;
     public string Status { get; set; } = default!;  // ok, cancelled, error
-    public string? ExecutionLog { get; set; }
+    public List<string>? ExecutionLog { get; set; }
 }
