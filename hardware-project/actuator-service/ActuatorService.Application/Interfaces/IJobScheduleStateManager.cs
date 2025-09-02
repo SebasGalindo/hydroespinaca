@@ -8,7 +8,7 @@ public interface IJobScheduleStateManager
     void AddRoutineToSchedule(string esp32Id, JobRoutineState routine, int channelId);
     JobStatusDto GetJobStatus(string? esp32Id = null);
     void UpdateCommandStatus(string commandId, string status);
-    void UpdateCommandWithNotification(string commandId, string status, string notificationLog);
+    void UpdateCommandWithNotification(string commandId, string status, List<string> notificationLogs);
     void RemoveCompletedRoutine(string commandId);
     void MarkNextCommandAsRunning(string esp32Id, int channelId);
     List<string> GetActiveEsp32Ids();

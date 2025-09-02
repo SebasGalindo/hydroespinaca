@@ -61,7 +61,7 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         }
     }
 
-    public void UpdateCommandWithNotification(string commandId, string status, string notificationLog)
+    public void UpdateCommandWithNotification(string commandId, string status, List<string> notificationLogs)
     {
         foreach (var scheduleState in _jobSchedules.Values)
         {
@@ -71,7 +71,11 @@ public class JobScheduleStateManager : IJobScheduleStateManager
                 if (command != null)
                 {
                     command.Status = status;
-                    command.NotificationLogs.Add($"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss}Z: {notificationLog}");
+                    var timestamp = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss}Z";
+                    foreach (var log in notificationLogs)
+                    {
+                        command.NotificationLogs.Add($"{timestamp}: {log}");
+                    }
                     _logger.LogInformation("Updated command {CommandId} status to {Status} with notification", commandId, status);
                     return;
                 }

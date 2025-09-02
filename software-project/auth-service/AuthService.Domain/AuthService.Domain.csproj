@@ -7,7 +7,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250902180704" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250902183403" />
 	</ItemGroup>
 
 </Project>
