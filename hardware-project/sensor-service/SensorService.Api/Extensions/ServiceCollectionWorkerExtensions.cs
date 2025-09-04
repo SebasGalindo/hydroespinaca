@@ -7,8 +7,8 @@ public static class ServiceCollectionWorkerExtensions
     public static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
         services.AddHostedService<AggregateWorker>();
-        services.AddHostedService<Esp32OfflineWorker>();
         services.AddHostedService<SensorMqttWorker>();
+        services.AddHostedService<Esp32StatusMqttWorker>();
         
         return services;
     }

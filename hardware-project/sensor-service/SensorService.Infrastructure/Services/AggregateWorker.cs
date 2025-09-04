@@ -9,7 +9,7 @@ public class AggregateWorker : BackgroundService
 {
     private readonly ILogger<AggregateWorker> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(10);
+    private readonly TimeSpan _interval = TimeSpan.FromMinutes(20);
 
     public AggregateWorker(
         ILogger<AggregateWorker> logger,
