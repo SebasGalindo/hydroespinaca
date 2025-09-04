@@ -61,29 +61,6 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         }
     }
 
-    public void UpdateCommandWithNotification(string commandId, string status, List<string> notificationLogs)
-    {
-        foreach (var scheduleState in _jobSchedules.Values)
-        {
-            foreach (var channel in scheduleState.Channels.Values)
-            {
-                var command = channel.Queue.FirstOrDefault(c => c.CommandId == commandId);
-                if (command != null)
-                {
-                    command.Status = status;
-                    var timestamp = $"{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss}Z";
-                    foreach (var log in notificationLogs)
-                    {
-                        command.NotificationLogs.Add($"{timestamp}: {log}");
-                    }
-                    _logger.LogInformation("Updated command {CommandId} status to {Status} with notification", commandId, status);
-                    return;
-                }
-            }
-        }
-        
-        _logger.LogWarning("Could not find command {CommandId} to update with notification", commandId);
-    }
 
     public void RemoveCompletedRoutine(string commandId)
     {

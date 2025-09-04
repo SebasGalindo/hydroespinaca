@@ -8,7 +8,6 @@ public interface IJobScheduleStateManager
     void AddRoutineToSchedule(string esp32Id, JobRoutineState routine, int channelId);
     JobStatusDto GetJobStatus(string? esp32Id = null);
     void UpdateCommandStatus(string commandId, string status);
-    void UpdateCommandWithNotification(string commandId, string status, List<string> notificationLogs);
     void RemoveCompletedRoutine(string commandId);
     void MarkNextCommandAsRunning(string esp32Id, int channelId);
     List<string> GetActiveEsp32Ids();
@@ -21,7 +20,6 @@ public class JobRoutineState
     public string BaseId { get; set; } = default!;
     public List<JobStepState> Steps { get; set; } = new();
     public string Status { get; set; } = ActuatorConstants.CommandStatuses.Scheduled;
-    public List<string> NotificationLogs { get; set; } = new();
 }
 
 public class JobStepState

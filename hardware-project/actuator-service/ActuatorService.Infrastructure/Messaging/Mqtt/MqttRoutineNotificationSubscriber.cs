@@ -127,8 +127,8 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
             _logger.LogInformation("🗑️ Deleted consolidated routine command {CommandId} from database", notification.AffectedCommand);
         }
         
-        // Update the target command status and log
-        stateManager.UpdateCommandWithNotification(notification.TargetCommand, ActuatorConstants.CommandStatuses.Running, notification.ExecutionLog);
+        // Update the target command status
+        stateManager.UpdateCommandStatus(notification.TargetCommand, ActuatorConstants.CommandStatuses.Running);
 
         _logger.LogInformation("✅ Consolidated notification processed successfully");
     }
