@@ -1,11 +1,14 @@
 using HydroEspinaca.Shared.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SensorService.Application.DTOs.Esp32Status;
 using SensorService.Application.UseCases.Esp32Status;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Xunit;
+using Esp32StatusEnum = HydroEspinaca.Shared.Enums.Esp32Status;
 
 namespace SensorService.Tests.Integration;
 
@@ -15,14 +18,16 @@ namespace SensorService.Tests.Integration;
 public class SimplifiedEsp32StatusTests
 {
     private readonly Mock<IEsp32AlertRepository> _mockAlertRepository;
+    private readonly Mock<IEsp32NodeRepository> _mockEsp32NodeRepository;
     private readonly Mock<ILogger<HandleEsp32StatusUseCase>> _mockLogger;
     private readonly HandleEsp32StatusUseCase _useCase;
 
     public SimplifiedEsp32StatusTests()
     {
         _mockAlertRepository = new Mock<IEsp32AlertRepository>();
+        _mockEsp32NodeRepository = new Mock<IEsp32NodeRepository>();
         _mockLogger = new Mock<ILogger<HandleEsp32StatusUseCase>>();
-        _useCase = new HandleEsp32StatusUseCase(_mockAlertRepository.Object, _mockLogger.Object);
+        _useCase = new HandleEsp32StatusUseCase(_mockAlertRepository.Object, _mockEsp32NodeRepository.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -211,5 +216,209 @@ public class SimplifiedEsp32StatusTests
 
         // Assert
         Assert.True(normalizedPayload == "online" || normalizedPayload == "offline");
+    }
+
+    [Fact]
+    public async Task HandleStatusPayloadAsync_OnlineJson_ShouldUpdateTelemetryAndResolveAlert()
+    {
+        // Arrange
+        var esp32Id = "test-esp32-json";
+        var timestamp = DateTime.UtcNow;
+        var freeHeap = 213960L;
+        var uptime = 3600L;
+
+        var payload = new Esp32StatusPayloadDto
+        {
+            Esp32Id = esp32Id,
+            Status = "online",
+            Timestamp = timestamp,
+            FreeHeap = freeHeap,
+            Uptime = uptime
+        };
+
+        var esp32Node = new Esp32Node
+        {
+            Name = "Test Node",
+            Location = "Test Location",
+            Status = Esp32StatusEnum.Active
+        };
+        esp32Node.SetId(esp32Id);
+
+        var activeAlert = new Esp32Alert
+        {
+            Esp32Id = esp32Id,
+            Type = AlertType.Esp32Offline,
+            Acknowledged = false
+        };
+
+        _mockEsp32NodeRepository.Setup(r => r.GetByIdAsync(esp32Id)).ReturnsAsync(esp32Node);
+        _mockAlertRepository.Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .ReturnsAsync(activeAlert);
+
+        // Act
+        await _useCase.HandleStatusPayloadAsync(payload);
+
+        // Assert
+        _mockEsp32NodeRepository.Verify(r => r.UpdateLastSeenAsync(esp32Id, timestamp), Times.Once);
+        _mockEsp32NodeRepository.Verify(r => r.UpdateStatusAsync(esp32Id, Esp32StatusEnum.Active), Times.Once);
+
+        _mockAlertRepository.Verify(r => r.UpdateAsync(It.Is<Esp32Alert>(a =>
+            a.Esp32Id == esp32Id &&
+            a.Acknowledged == true &&
+            a.ResolvedAt == timestamp
+        )), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleStatusPayloadAsync_OfflineJson_ShouldCreateAlertAndUpdateStatus()
+    {
+        // Arrange
+        var esp32Id = "test-esp32-offline-json";
+        var timestamp = DateTime.UtcNow;
+
+        var payload = new Esp32StatusPayloadDto
+        {
+            Esp32Id = esp32Id,
+            Status = "offline"
+        };
+
+        var esp32Node = new Esp32Node
+        {
+            Name = "Test Node",
+            Location = "Test Location", 
+            Status = Esp32StatusEnum.Active
+        };
+        esp32Node.SetId(esp32Id);
+
+        _mockEsp32NodeRepository.Setup(r => r.GetByIdAsync(esp32Id)).ReturnsAsync(esp32Node);
+        _mockAlertRepository.Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .ReturnsAsync((Esp32Alert?)null);
+
+        // Act
+        await _useCase.HandleStatusPayloadAsync(payload);
+
+        // Assert
+        _mockAlertRepository.Verify(r => r.CreateAsync(It.Is<Esp32Alert>(a =>
+            a.Esp32Id == esp32Id &&
+            a.Type == AlertType.Esp32Offline &&
+            a.Severity == AlertSeverity.Critical &&
+            !a.Acknowledged &&
+            a.ResolvedAt == null
+        )), Times.Once);
+
+        _mockEsp32NodeRepository.Verify(r => r.UpdateLastSeenAsync(esp32Id, It.IsAny<DateTime>()), Times.Once);
+        _mockEsp32NodeRepository.Verify(r => r.UpdateStatusAsync(esp32Id, Esp32StatusEnum.Active), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("unknown")]
+    [InlineData("")]
+    public async Task HandleStatusPayloadAsync_InvalidStatus_ShouldLogWarningAndReturn(string invalidStatus)
+    {
+        // Arrange
+        var payload = new Esp32StatusPayloadDto
+        {
+            Esp32Id = "test-esp32",
+            Status = invalidStatus
+        };
+
+        // Act
+        await _useCase.HandleStatusPayloadAsync(payload);
+
+        // Assert
+        _mockAlertRepository.Verify(r => r.CreateAsync(It.IsAny<Esp32Alert>()), Times.Never);
+        _mockAlertRepository.Verify(r => r.UpdateAsync(It.IsAny<Esp32Alert>()), Times.Never);
+        _mockEsp32NodeRepository.Verify(r => r.UpdateLastSeenAsync(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
+        _mockEsp32NodeRepository.Verify(r => r.UpdateStatusAsync(It.IsAny<string>(), It.IsAny<Esp32StatusEnum>()), Times.Never);
+    }
+
+    [Fact]
+    public void JsonDeserialization_OnlinePayload_ShouldDeserializeCorrectly()
+    {
+        // Arrange
+        var jsonPayload = """
+        {
+            "esp32Id": "6883fff7b079309f3ba4f238",
+            "status": "online",
+            "timestamp": "2025-08-31T00:00:03Z",
+            "freeHeap": 213960,
+            "uptime": 3
+        }
+        """;
+
+        // Act
+        var result = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(jsonPayload, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("6883fff7b079309f3ba4f238", result.Esp32Id);
+        Assert.Equal("online", result.Status);
+        Assert.True(result.IsOnline);
+        Assert.False(result.IsOffline);
+        Assert.True(result.IsValidStatus);
+        Assert.Equal(213960, result.FreeHeap);
+        Assert.Equal(3, result.Uptime);
+        Assert.Equal(new DateTime(2025, 8, 31, 0, 0, 3, DateTimeKind.Utc), result.Timestamp);
+    }
+
+    [Fact]
+    public void JsonDeserialization_OfflinePayload_ShouldDeserializeCorrectly()
+    {
+        // Arrange
+        var jsonPayload = """
+        {
+            "esp32Id": "6883fff7b079309f3ba4f238",
+            "status": "offline"
+        }
+        """;
+
+        // Act
+        var result = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(jsonPayload, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("6883fff7b079309f3ba4f238", result.Esp32Id);
+        Assert.Equal("offline", result.Status);
+        Assert.False(result.IsOnline);
+        Assert.True(result.IsOffline);
+        Assert.True(result.IsValidStatus);
+        Assert.Null(result.FreeHeap);
+        Assert.Null(result.Uptime);
+        Assert.Null(result.Timestamp);
+    }
+
+    [Fact]
+    public void JsonDeserialization_WithExtraFields_ShouldIgnoreThem()
+    {
+        // Arrange
+        var jsonPayload = """
+        {
+            "esp32Id": "test-esp32",
+            "status": "online",
+            "freeHeap": 100000,
+            "extraField": "should be ignored",
+            "anotherField": 123
+        }
+        """;
+
+        // Act
+        var result = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(jsonPayload, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("test-esp32", result.Esp32Id);
+        Assert.Equal("online", result.Status);
+        Assert.Equal(100000, result.FreeHeap);
+        Assert.True(result.IsValidStatus);
     }
 }

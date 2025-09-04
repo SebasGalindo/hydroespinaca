@@ -31,7 +31,8 @@ public class Esp32StatusMqttIntegrationTests
         _mockServiceScope.Setup(s => s.ServiceProvider).Returns(_mockServiceProvider.Object);
         _mockServiceProvider.Setup(p => p.GetService(typeof(IHandleEsp32StatusUseCase))).Returns(_useCase);
 
-        _useCase = new HandleEsp32StatusUseCase(_mockAlertRepository.Object, _mockLogger.Object);
+        var mockEsp32NodeRepository = new Mock<IEsp32NodeRepository>();
+        _useCase = new HandleEsp32StatusUseCase(_mockAlertRepository.Object, mockEsp32NodeRepository.Object, _mockLogger.Object);
     }
 
     [Fact]

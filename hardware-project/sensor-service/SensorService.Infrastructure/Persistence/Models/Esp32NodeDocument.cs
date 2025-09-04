@@ -23,5 +23,14 @@ public class Esp32NodeDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.String)]
     public Esp32Status Status { get; set; }
 
+    [BsonElement("freeHeap")]
+    public long? FreeHeap { get; set; }
+
+    [BsonElement("uptime")]
+    public long? Uptime { get; set; }
+
+    [BsonElement("lastHeartbeat")]
+    public DateTime? LastHeartbeat { get; set; }
+
     public void SetId(string id) => Id = id;
 }

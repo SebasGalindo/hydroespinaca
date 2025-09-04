@@ -3,7 +3,9 @@ using HydroEspinaca.Shared.Mqtt;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SensorService.Application.DTOs.Esp32Status;
 using SensorService.Application.Interfaces.UseCases.Esp32Status;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace SensorService.Infrastructure.Services;
@@ -72,29 +74,59 @@ public class Esp32StatusMqttWorker : BackgroundService
                 return;
             }
 
-            var esp32Id = match.Groups[1].Value;
-            var timestamp = DateTime.UtcNow;
+            var topicEsp32Id = match.Groups[1].Value;
 
             using var scope = _serviceProvider.CreateScope();
             var statusHandler = scope.ServiceProvider.GetRequiredService<IHandleEsp32StatusUseCase>();
 
-            // Process based on payload
-            switch (payload.ToLowerInvariant().Trim())
+            // Try to parse JSON payload first
+            Esp32StatusPayloadDto? statusPayload = null;
+            try
             {
-                case "online":
-                    await statusHandler.HandleOnlineAsync(esp32Id, timestamp);
-                    break;
+                statusPayload = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(payload, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true
+                });
+
+                // Validate that esp32Id in payload matches topic (if provided)
+                if (!string.IsNullOrWhiteSpace(statusPayload.Esp32Id) && 
+                    !string.Equals(statusPayload.Esp32Id, topicEsp32Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("⚠️ ESP32 ID mismatch - Topic: {TopicId}, Payload: {PayloadId}", 
+                        topicEsp32Id, statusPayload.Esp32Id);
+                }
+
+                // Use topic esp32Id if payload doesn't have one
+                if (string.IsNullOrWhiteSpace(statusPayload.Esp32Id))
+                {
+                    statusPayload.Esp32Id = topicEsp32Id;
+                }
+            }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogDebug("📄 Payload no es JSON válido, intentando parsing como texto plano: {Error}", jsonEx.Message);
                 
-                case "offline":
-                    await statusHandler.HandleOfflineAsync(esp32Id, timestamp);
-                    break;
-                
-                default:
-                    _logger.LogWarning("⚠️ Unknown status payload: {Payload} for ESP32: {Esp32Id}", payload, esp32Id);
-                    break;
+                // Fallback to plain text parsing for backward compatibility
+                var plainTextStatus = payload.ToLowerInvariant().Trim();
+                statusPayload = new Esp32StatusPayloadDto
+                {
+                    Esp32Id = topicEsp32Id,
+                    Status = plainTextStatus,
+                    Timestamp = DateTime.UtcNow
+                };
             }
 
-            _logger.LogDebug("✅ Successfully processed ESP32 status message for {Esp32Id}: {Status}", esp32Id, payload);
+            if (statusPayload != null)
+            {
+                await statusHandler.HandleStatusPayloadAsync(statusPayload);
+                _logger.LogDebug("✅ Successfully processed ESP32 status message for {Esp32Id}: {Status}", 
+                    statusPayload.Esp32Id, statusPayload.Status);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ No se pudo procesar payload para topic: {Topic}", topic);
+            }
         }
         catch (Exception ex)
         {
