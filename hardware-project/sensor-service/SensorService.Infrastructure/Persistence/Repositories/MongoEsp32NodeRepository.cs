@@ -31,6 +31,9 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
     public async Task CreateAsync(Esp32Node node) =>
         await _baseRepo.CreateAsync(node);
 
+    public async Task UpdateAsync(Esp32Node node) =>
+        await _baseRepo.UpdateAsync(node);
+
     public async Task<bool> ExistsAsync(string id)
     {
         var filter = Builders<Esp32NodeDocument>.Filter.Eq(x => x.Id, id);

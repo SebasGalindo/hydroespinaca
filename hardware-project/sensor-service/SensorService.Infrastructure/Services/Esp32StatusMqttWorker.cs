@@ -28,6 +28,7 @@ public class Esp32StatusMqttWorker : BackgroundService
         _serviceProvider = serviceProvider;
         _mqttService = mqttService;
         _logger = logger;
+        
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -52,7 +53,8 @@ public class Esp32StatusMqttWorker : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Fatal error in ESP32 Status MQTT Worker");
+            _logger.LogError(ex, "❌ Fatal error in ESP32 Status MQTT Worker: {Message}", ex.Message);
+            _logger.LogError("❌ Stack trace: {StackTrace}", ex.StackTrace);
             throw;
         }
     }
@@ -64,7 +66,7 @@ public class Esp32StatusMqttWorker : BackgroundService
 
         try
         {
-            _logger.LogDebug("📨 Received ESP32 status message on topic: {Topic}, payload: {Payload}", topic, payload);
+            _logger.LogDebug("📨 Processing ESP32 status message on topic: {Topic}, payload: {Payload}", topic, payload);
 
             // Extract esp32Id from topic
             var match = TopicRegex.Match(topic);

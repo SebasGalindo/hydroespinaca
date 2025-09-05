@@ -10,4 +10,5 @@ public interface IEsp32AlertRepository
     Task UpdateAsync(Esp32Alert alert);
     Task<Esp32Alert?> GetByIdAsync(string id);
     Task<List<Esp32Alert>> GetByEsp32IdAsync(string esp32Id);
+    Task<int> DeleteOlderThanAsync(DateTime cutoffDate);
 }

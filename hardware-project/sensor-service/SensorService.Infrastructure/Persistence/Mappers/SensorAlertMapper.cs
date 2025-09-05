@@ -17,7 +17,8 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
             Timestamp = doc.Timestamp,
             Message = doc.Message,
             Severity = doc.Severity,
-            Acknowledged = doc.Acknowledged
+            Acknowledged = doc.Acknowledged,
+            ResolvedAt = doc.ResolvedAt
         };
         entity.SetId(doc.Id);
         return entity;
@@ -34,7 +35,8 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
             Timestamp = entity.Timestamp,
             Message = entity.Message,
             Severity = entity.Severity,
-            Acknowledged = entity.Acknowledged
+            Acknowledged = entity.Acknowledged,
+            ResolvedAt = entity.ResolvedAt
         };
         document.SetId(entity.Id);
         return document;

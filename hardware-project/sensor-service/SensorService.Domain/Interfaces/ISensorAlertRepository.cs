@@ -9,4 +9,5 @@ public interface ISensorAlertRepository
     Task UpdateAsync(SensorAlert alert);
     Task<SensorAlert?> GetByIdAsync(string id);
     Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorId, AlertType type);
+    Task<int> DeleteOlderThanAsync(DateTime cutoffDate);
 }

@@ -8,21 +8,44 @@ public class AlertCalculationService : IAlertCalculationService
 {
     public SensorAlert? CalculateOutOfRangeAlert(Reading reading, Variable variable, DateTime timestamp)
     {
-        if (reading.Value >= variable.MinValue && reading.Value <= variable.MaxValue)
-            return null;
+        var value = reading.Value;
 
-        var threshold = reading.Value < variable.MinValue ? variable.MinValue : variable.MaxValue;
-        return new SensorAlert
+        // Caso 1 (Error): Valor fuera del rango físico - sensor posiblemente roto
+        if (value < variable.PhysicalMin || value > variable.PhysicalMax)
         {
-            Type = AlertType.OutOfRange,
-            SensorId = reading.SensorId,
-            Value = reading.Value,
-            Threshold = threshold,
-            Timestamp = timestamp,
-            Severity = AlertSeverity.Warning,
-            Message = $"Valor {reading.Value} fuera del rango permitido [{variable.MinValue} - {variable.MaxValue}]",
-            Acknowledged = false
-        };
+            var physicalThreshold = value < variable.PhysicalMin ? variable.PhysicalMin : variable.PhysicalMax;
+            return new SensorAlert
+            {
+                Type = AlertType.OutOfRange,
+                SensorId = reading.SensorId,
+                Value = value,
+                Threshold = physicalThreshold,
+                Timestamp = timestamp,
+                Severity = AlertSeverity.Critical,
+                Message = $"Valor {value} fuera del rango físico permitido [{variable.PhysicalMin} - {variable.PhysicalMax}]",
+                Acknowledged = false
+            };
+        }
+
+        // Caso 2 (Warning): Dentro del rango físico pero fuera del óptimo - condiciones subóptimas
+        if (value < variable.OptimalMin || value > variable.OptimalMax)
+        {
+            var optimalThreshold = value < variable.OptimalMin ? variable.OptimalMin : variable.OptimalMax;
+            return new SensorAlert
+            {
+                Type = AlertType.OutOfRange,
+                SensorId = reading.SensorId,
+                Value = value,
+                Threshold = optimalThreshold,
+                Timestamp = timestamp,
+                Severity = AlertSeverity.Warning,
+                Message = $"Valor {value} fuera del rango óptimo [{variable.OptimalMin} - {variable.OptimalMax}]",
+                Acknowledged = false
+            };
+        }
+
+        // Caso 3 (OK): Dentro del rango óptimo - no generar alerta
+        return null;
     }
 
     public SensorAlert? CalculateAnomalyAlert(Reading reading, Aggregate latestAggregate, DateTime timestamp)

@@ -9,6 +9,7 @@ public static class ServiceCollectionWorkerExtensions
         services.AddHostedService<AggregateWorker>();
         services.AddHostedService<SensorMqttWorker>();
         services.AddHostedService<Esp32StatusMqttWorker>();
+        services.AddHostedService<AlertCleanupWorker>();
         
         return services;
     }
