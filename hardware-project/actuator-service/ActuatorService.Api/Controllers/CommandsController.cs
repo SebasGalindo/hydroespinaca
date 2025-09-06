@@ -56,4 +56,14 @@ public class CommandsController : ControllerBase
         var routineCommand = await _routineCommandService.GetRoutineCommandByIdAsync(commandId);
         return Ok(routineCommand);
     }
+
+    [HttpDelete("jobs/clear")]
+    [Authorize(Policy = PolicyNames.ActuatorControl)]
+    public async Task<IActionResult> ClearJobSchedule([FromQuery] string? esp32Id = null)
+    {
+        await _jobScheduleService.ClearJobScheduleAsync(esp32Id);
+        return Ok(new { Message = esp32Id != null 
+            ? $"Job schedule cleared for ESP32: {esp32Id}" 
+            : "All job schedules cleared" });
+    }
 }

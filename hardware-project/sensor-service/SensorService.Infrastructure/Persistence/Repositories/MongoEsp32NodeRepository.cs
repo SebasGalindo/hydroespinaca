@@ -28,6 +28,22 @@ public class MongoEsp32NodeRepository : IEsp32NodeRepository
     public async Task<Esp32Node?> GetByIdAsync(string id) =>
         await _baseRepo.GetByIdAsync(id);
 
+    public async Task<Esp32Node?> GetByIdentifierAsync(string identifier)
+    {
+        // First, try to get by ObjectId if the identifier is a valid ObjectId format
+        if (ObjectId.TryParse(identifier, out var objectId))
+        {
+            return await _baseRepo.GetByIdAsync(identifier);
+        }
+
+        // If not a valid ObjectId, search by name (case-insensitive)
+        // This handles cases like "esp32-001" which should match the 'name' field
+        var filter = Builders<Esp32NodeDocument>.Filter.Regex(x => x.Name, 
+            new BsonRegularExpression($"^{identifier}$", "i"));
+
+        return await _baseRepo.FindOneAsync(filter);
+    }
+
     public async Task CreateAsync(Esp32Node node) =>
         await _baseRepo.CreateAsync(node);
 

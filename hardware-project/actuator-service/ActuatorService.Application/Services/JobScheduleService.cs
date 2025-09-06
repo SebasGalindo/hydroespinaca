@@ -62,6 +62,12 @@ public class JobScheduleService : IJobScheduleService
         return Task.FromResult(_stateManager.GetActiveEsp32Ids());
     }
 
+    public Task ClearJobScheduleAsync(string? esp32Id = null)
+    {
+        _stateManager.ClearJobSchedule(esp32Id);
+        return Task.CompletedTask;
+    }
+
     private async Task<string> GetEsp32IdForRoutinesAsync(List<RoutineCommandDto> routines)
     {
         var firstActuatorId = routines.SelectMany(r => r.Steps).Select(s => s.Actuator).FirstOrDefault();
@@ -103,8 +109,8 @@ public class JobScheduleService : IJobScheduleService
         // Determine priority level
         var priority = DeterminePriority(routine);
 
-        // Find the best channel for this routine (simplified for now - round robin)
-        var channelId = FindBestChannelForRoutine(routine, priority);
+        // Find the best channel for this routine (prevents GPIO conflicts)
+        var channelId = await FindBestChannelForRoutineAsync(routine, priority);
 
         // Add to the selected channel via state manager with priority
         _stateManager.AddRoutineToSchedule(esp32Id, jobRoutine, channelId, (int)priority);
@@ -168,30 +174,45 @@ public class JobScheduleService : IJobScheduleService
         return RoutinePriority.Normal;
     }
 
-    private int FindBestChannelForRoutine(RoutineCommandDto routine, RoutinePriority priority)
+    private async Task<int> FindBestChannelForRoutineAsync(RoutineCommandDto routine, RoutinePriority priority)
     {
         var routineActuators = routine.Steps.Select(s => s.Actuator).ToHashSet();
         
-        // 1. Try to find channels with same actuators (for consistency)
+        // 1. CRITICAL: Find channels that already have ANY of the same actuators
+        //    All routines using the same actuator/pin MUST go to the same channel to prevent GPIO conflicts
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
-            var channelActuators = GetChannelActuators(channelId);
+            var channelActuators = GetChannelActuatorIds(channelId);
             if (channelActuators.Any() && routineActuators.Overlaps(channelActuators))
             {
+                _logger.LogInformation("🎯 Assigning routine to channel {ChannelId} - found matching actuators: {MatchingActuators}", 
+                    channelId, string.Join(", ", routineActuators.Intersect(channelActuators)));
                 return channelId;
             }
         }
         
-        // 2. Try to find free channels
+        // 2. No actuator conflicts - try to find channels that don't conflict with our GPIO pins
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
-            if (IsChannelFree(channelId))
+            var channelPins = GetChannelPins(channelId);
+            var routinePins = await GetRoutinePinsAsync(routine);
+            
+            // Check if there's any GPIO pin conflict
+            if (channelPins.Any() && routinePins.Overlaps(channelPins))
             {
-                return channelId;
+                _logger.LogDebug("⚠️  Channel {ChannelId} has GPIO pin conflicts: {ConflictingPins}", 
+                    channelId, string.Join(", ", routinePins.Intersect(channelPins)));
+                continue; // Skip this channel due to GPIO conflict
             }
+            
+            // This channel is safe to use
+            _logger.LogInformation("✅ Assigning routine to channel {ChannelId} - no GPIO conflicts", channelId);
+            return channelId;
         }
         
-        // 3. Find channel with minimum load
+        // 3. All channels have conflicts - find the one with minimum load as last resort
+        // This should ideally not happen if channels are managed correctly
+        _logger.LogWarning("⚠️  All channels have conflicts - using channel with minimum load");
         var channelLoads = new List<(int channelId, int load)>();
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
@@ -201,10 +222,33 @@ public class JobScheduleService : IJobScheduleService
         return channelLoads.OrderBy(cl => cl.load).First().channelId;
     }
     
-    private HashSet<string> GetChannelActuators(int channelId)
+    private HashSet<string> GetChannelActuatorIds(int channelId)
     {
-        // Get all actuators currently in this channel across all ESP32s
-        var actuators = new HashSet<string>();
+        // Get all actuator IDs currently in this channel across all ESP32s
+        // We need to access the internal state that has ActuatorId, not the DTO conversion
+        var actuatorIds = new HashSet<string>();
+        foreach (var esp32Id in _stateManager.GetActiveEsp32Ids())
+        {
+            // Get the internal state which has ActuatorId in JobStepState
+            var internalSchedule = _stateManager.GetInternalScheduleState(esp32Id);
+            if (internalSchedule != null && internalSchedule.Channels.TryGetValue(channelId, out var channel))
+            {
+                foreach (var routine in channel.Queue)
+                {
+                    foreach (var step in routine.Steps)
+                    {
+                        actuatorIds.Add(step.ActuatorId);
+                    }
+                }
+            }
+        }
+        return actuatorIds;
+    }
+
+    private HashSet<string> GetChannelPins(int channelId)
+    {
+        // Get all GPIO pins currently in use by this channel across all ESP32s
+        var pins = new HashSet<string>();
         foreach (var esp32Id in _stateManager.GetActiveEsp32Ids())
         {
             var schedule = _stateManager.GetCurrentJobSchedule(esp32Id);
@@ -215,12 +259,27 @@ public class JobScheduleService : IJobScheduleService
                 {
                     foreach (var step in routine.Steps)
                     {
-                        actuators.Add(step.Pin); // Using pin as unique identifier
+                        pins.Add(step.Pin);
                     }
                 }
             }
         }
-        return actuators;
+        return pins;
+    }
+
+    private async Task<HashSet<string>> GetRoutinePinsAsync(RoutineCommandDto routine)
+    {
+        // Get all GPIO pins that this routine will use
+        var pins = new HashSet<string>();
+        foreach (var step in routine.Steps)
+        {
+            var actuator = await _actuatorRepository.GetByIdAsync(step.Actuator);
+            if (actuator != null)
+            {
+                pins.Add(actuator.Pin.ToString());
+            }
+        }
+        return pins;
     }
     
     private bool IsChannelFree(int channelId)

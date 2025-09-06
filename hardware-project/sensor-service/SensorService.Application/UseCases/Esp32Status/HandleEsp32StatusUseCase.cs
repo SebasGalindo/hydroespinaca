@@ -112,36 +112,28 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
     {
         try
         {
-            // Buscar ESP32 existente o crear uno nuevo
-            var esp32Node = await _esp32NodeRepository.GetByIdAsync(esp32Id);
+            // Buscar ESP32 existente usando el identificador (ObjectId o nombre)
+            var esp32Node = await _esp32NodeRepository.GetByIdentifierAsync(esp32Id);
             
             if (esp32Node == null)
             {
-                // Crear nuevo ESP32 node si no existe
-                esp32Node = new Esp32Node
-                {
-                    Name = $"ESP32-{esp32Id}",
-                    Location = "Sin ubicación asignada"
-                };
-                esp32Node.SetId(esp32Id);
-                esp32Node.SetOnline(timestamp, uptime, freeHeap);
-                
-                await _esp32NodeRepository.CreateAsync(esp32Node);
-                _logger.LogInformation("📡 Nuevo ESP32 registrado: {Esp32Id}", esp32Id);
+                _logger.LogWarning("⚠️  ESP32 {Esp32Id} no encontrado en la base de datos - no se puede marcar como online", esp32Id);
+                // No crear automáticamente nodos desde mensajes MQTT para evitar spam
+                // Los nodos ESP32 deben ser registrados explícitamente desde el API
+                return;
             }
-            else
-            {
-                // Actualizar ESP32 existente
-                esp32Node.SetOnline(timestamp, uptime, freeHeap);
-                await _esp32NodeRepository.UpdateAsync(esp32Node);
-            }
-
-            _logger.LogDebug("📊 ESP32 {Esp32Id} marcado como online - FreeHeap: {FreeHeap}KB, Uptime: {Uptime}s", 
-                esp32Id, freeHeap, uptime);
+            
+            // Actualizar estado a online del nodo existente
+            esp32Node.SetOnline(timestamp, uptime, freeHeap);
+            await _esp32NodeRepository.UpdateAsync(esp32Node);
+            
+            _logger.LogDebug("✅ ESP32 {Esp32Id} (real ID: {RealId}) marcado como online - FreeHeap: {FreeHeap}KB, Uptime: {Uptime}s", 
+                esp32Id, esp32Node.Id, freeHeap, uptime);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error configurando ESP32 {Esp32Id} como online", esp32Id);
+            // No re-lanzar la excepción para evitar que falle el procesamiento de otros mensajes MQTT
         }
     }
 
@@ -149,13 +141,13 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
     {
         try
         {
-            var esp32Node = await _esp32NodeRepository.GetByIdAsync(esp32Id);
+            var esp32Node = await _esp32NodeRepository.GetByIdentifierAsync(esp32Id);
             
             if (esp32Node != null)
             {
                 esp32Node.SetOffline(timestamp);
                 await _esp32NodeRepository.UpdateAsync(esp32Node);
-                _logger.LogDebug("📊 ESP32 {Esp32Id} marcado como offline", esp32Id);
+                _logger.LogDebug("📊 ESP32 {Esp32Id} (real ID: {RealId}) marcado como offline", esp32Id, esp32Node.Id);
             }
             else
             {
@@ -165,6 +157,7 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error configurando ESP32 {Esp32Id} como offline", esp32Id);
+            // No re-lanzar la excepción para evitar que falle el procesamiento de otros mensajes MQTT
         }
     }
 }

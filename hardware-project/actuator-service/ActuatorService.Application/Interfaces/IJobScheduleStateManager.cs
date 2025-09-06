@@ -1,5 +1,6 @@
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
+using System.Collections.Concurrent;
 
 namespace ActuatorService.Application.Interfaces;
 
@@ -12,6 +13,8 @@ public interface IJobScheduleStateManager
     void MarkNextCommandAsRunning(string esp32Id, int channelId);
     List<string> GetActiveEsp32Ids();
     JobScheduleDto GetCurrentJobSchedule(string esp32Id);
+    JobScheduleState? GetInternalScheduleState(string esp32Id);
+    void ClearJobSchedule(string? esp32Id = null);
 }
 
 public class JobRoutineState
@@ -31,4 +34,21 @@ public class JobStepState
     public int? DutyCycle { get; set; }
     public int Duration { get; set; }
     public string ActuatorId { get; set; } = default!;
+}
+
+public class JobScheduleState
+{
+    public string Esp32Id { get; set; }
+    public ConcurrentDictionary<int, ChannelState> Channels { get; set; } = new();
+
+    public JobScheduleState(string esp32Id)
+    {
+        Esp32Id = esp32Id;
+    }
+}
+
+public class ChannelState
+{
+    public int ChannelId { get; set; }
+    public List<JobRoutineState> Queue { get; set; } = new();
 }

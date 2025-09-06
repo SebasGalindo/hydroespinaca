@@ -154,6 +154,32 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         return new JobScheduleDto { Esp32Id = esp32Id, JobSchedule = new() };
     }
 
+    public JobScheduleState? GetInternalScheduleState(string esp32Id)
+    {
+        return _jobSchedules.TryGetValue(esp32Id, out var scheduleState) ? scheduleState : null;
+    }
+
+    public void ClearJobSchedule(string? esp32Id = null)
+    {
+        if (esp32Id != null)
+        {
+            if (_jobSchedules.TryRemove(esp32Id, out var removed))
+            {
+                _logger.LogInformation("🧹 Cleared job schedule for ESP32: {Esp32Id}", esp32Id);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️  No job schedule found for ESP32: {Esp32Id}", esp32Id);
+            }
+        }
+        else
+        {
+            var clearedCount = _jobSchedules.Count;
+            _jobSchedules.Clear();
+            _logger.LogInformation("🧹 Cleared all job schedules - {Count} ESP32s", clearedCount);
+        }
+    }
+
     private JobScheduleDto ConvertToJobScheduleDto(JobScheduleState state)
     {
         var channels = new List<JobChannelDto>();
@@ -225,20 +251,3 @@ public class JobScheduleStateManager : IJobScheduleStateManager
     }
 }
 
-// Internal state classes
-internal class JobScheduleState
-{
-    public string Esp32Id { get; set; }
-    public ConcurrentDictionary<int, ChannelState> Channels { get; set; } = new();
-
-    public JobScheduleState(string esp32Id)
-    {
-        Esp32Id = esp32Id;
-    }
-}
-
-internal class ChannelState
-{
-    public int ChannelId { get; set; }
-    public List<JobRoutineState> Queue { get; set; } = new();
-}

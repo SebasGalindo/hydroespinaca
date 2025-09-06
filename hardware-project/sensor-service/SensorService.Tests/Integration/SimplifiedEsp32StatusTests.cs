@@ -251,7 +251,7 @@ public class SimplifiedEsp32StatusTests
             Acknowledged = false
         };
 
-        _mockEsp32NodeRepository.Setup(r => r.GetByIdAsync(esp32Id)).ReturnsAsync(esp32Node);
+        _mockEsp32NodeRepository.Setup(r => r.GetByIdentifierAsync(esp32Id)).ReturnsAsync(esp32Node);
         _mockAlertRepository.Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
             .ReturnsAsync(activeAlert);
 
@@ -289,7 +289,7 @@ public class SimplifiedEsp32StatusTests
         };
         esp32Node.SetId(esp32Id);
 
-        _mockEsp32NodeRepository.Setup(r => r.GetByIdAsync(esp32Id)).ReturnsAsync(esp32Node);
+        _mockEsp32NodeRepository.Setup(r => r.GetByIdentifierAsync(esp32Id)).ReturnsAsync(esp32Node);
         _mockAlertRepository.Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
             .ReturnsAsync((Esp32Alert?)null);
 
@@ -419,5 +419,40 @@ public class SimplifiedEsp32StatusTests
         Assert.True(result.IsValidStatus);
         // ESP32 ID should be set from topic, not payload
         Assert.Equal(string.Empty, result.Esp32Id);
+    }
+
+    [Fact]
+    public async Task HandleStatusPayloadAsync_WithStringIdentifier_ShouldNotThrowFormatException()
+    {
+        // Arrange
+        var esp32Id = "esp32-001"; // String identifier, not ObjectId
+        var timestamp = DateTime.UtcNow;
+        var freeHeap = 218660L;
+        var uptime = 1656L;
+
+        var payload = new Esp32StatusPayloadDto
+        {
+            Status = "online",
+            Timestamp = timestamp,
+            FreeHeap = freeHeap,
+            Uptime = uptime
+        };
+        payload.Esp32Id = esp32Id;
+
+        // Mock: ESP32 node NOT found (simulating realistic scenario)
+        _mockEsp32NodeRepository
+            .Setup(r => r.GetByIdentifierAsync(esp32Id))
+            .ReturnsAsync((Esp32Node?)null);
+
+        // Act & Assert
+        // This should NOT throw a FormatException anymore
+        var exception = await Record.ExceptionAsync(async () => 
+            await _useCase.HandleStatusPayloadAsync(payload));
+
+        Assert.Null(exception);
+
+        // Verify that GetByIdentifierAsync was called (not GetByIdAsync)
+        _mockEsp32NodeRepository.Verify(r => r.GetByIdentifierAsync(esp32Id), Times.Once);
+        _mockEsp32NodeRepository.Verify(r => r.GetByIdAsync(It.IsAny<string>()), Times.Never);
     }
 }

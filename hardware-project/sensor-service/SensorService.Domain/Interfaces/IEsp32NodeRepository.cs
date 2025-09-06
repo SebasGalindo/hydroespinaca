@@ -7,6 +7,7 @@ public interface IEsp32NodeRepository
 {
     Task<List<Esp32Node>> GetAllAsync();
     Task<Esp32Node?> GetByIdAsync(string id);
+    Task<Esp32Node?> GetByIdentifierAsync(string identifier);
     Task CreateAsync(Esp32Node node);
     Task UpdateAsync(Esp32Node node);
     Task<bool> UpdateStatusAsync(string id, Esp32Status status);
