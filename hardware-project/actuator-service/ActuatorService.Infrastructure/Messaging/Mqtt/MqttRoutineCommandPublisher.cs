@@ -41,6 +41,9 @@ public class MqttRoutineCommandPublisher : IRoutineCommandPublisher
             var channelCount = jobSchedule.JobSchedule?.Count ?? 0;
 
             var jsonPayload = JsonSerializer.Serialize(jobSchedule, JsonConstants.SerializerOptions.CamelCase);
+            var payloadSizeBytes = System.Text.Encoding.UTF8.GetByteCount(jsonPayload);
+            
+            _logger.LogInformation("📊 MQTT payload size: {PayloadSize} bytes for ESP32 {Esp32Id}", payloadSizeBytes, jobSchedule.Esp32Id);
             
             await _mqttClient.PublishAsync(JOB_SCHEDULE_TOPIC, jsonPayload);
             
