@@ -20,6 +20,11 @@ class DomainId(RootModel[str]):
             root = str(uuid.uuid4())
         super().__init__(root=root)
 
+    @classmethod
+    def generate(cls) -> "DomainId":
+        """Genera un nuevo ID único (UUIDv4) respetando la subclase."""
+        return cls(str(uuid.uuid4()))
+
     @field_validator("root", mode="before")
     @classmethod
     def _coerce_mongo_oid(cls, v: Any) -> str:
@@ -78,34 +83,27 @@ class DomainId(RootModel[str]):
 
 class FuzzySystemId(DomainId):
     """ID específico para sistemas difusos."""
-    pass
 
 
 class FuzzyVariableId(DomainId):
     """ID específico para variables difusas."""
-    pass
 
 
 class FuzzyTermId(DomainId):
     """ID específico para términos difusos."""
-    pass
 
 
 class FuzzyRuleId(DomainId):
     """ID específico para reglas difusas."""
-    pass
 
 
 class FuzzyRoutineId(DomainId):
     """ID específico para rutinas difusas."""
-    pass
 
 
 class FuzzyEvaluationId(DomainId):
     """ID específico para evaluaciones difusas."""
-    pass
 
 
 class ActuatorId(DomainId):
     """ID específico para actuadores."""
-    pass

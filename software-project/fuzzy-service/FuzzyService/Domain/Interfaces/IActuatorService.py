@@ -4,23 +4,20 @@ This remains technology-agnostic and expresses the contract needed by the domain
 """
 
 from abc import ABC, abstractmethod
-from typing import List
-
-from ..Entities.fuzzy_routine import FuzzyRoutine
+from typing import List, Dict, Any
 
 
 class IActuatorService(ABC):
     """Port for sending routines/commands to the Actuator Service."""
 
     @abstractmethod
-    async def send_routines(self, routines: List[FuzzyRoutine]) -> bool:
-        """Sends a list of domain routines to the Actuator Service.
+    async def send_routines(self, routines_payload: List[Dict[str, Any]]) -> bool:
+        """Sends a pre-built routines payload to the Actuator Service.
         
-        The translation from domain routines to the external service payload/format is a responsibility
-        of the infrastructure adapter, typically orchestrated by the application layer.
+        The application should provide the already-defuzzified payload that the external service expects.
         
         Args:
-            routines: List of domain routines to execute on actuators
+            routines_payload: List of routines with steps to execute on actuators
         
         Returns:
             True if the Actuator Service accepted the routines, False otherwise

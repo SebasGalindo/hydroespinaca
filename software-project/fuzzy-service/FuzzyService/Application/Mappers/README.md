@@ -1,6 +1,6 @@
-# Mappers Centralizados
+# Mappers Específicos
 
-Este módulo contiene mappers centralizados para eliminar la duplicación de entidades entre las capas Domain e Infrastructure del sistema fuzzy.
+Este módulo contiene mappers específicos para cada entidad, siguiendo el patrón de clases con métodos estáticos `to_infra` y `to_domain` para eliminar la duplicación entre las capas Domain e Infrastructure del sistema fuzzy.
 
 ## Problema Resuelto
 
@@ -13,39 +13,37 @@ Antes de esta refactorización, existían múltiples conversiones inline dispers
 
 ## Solución
 
-### DomainToInfrastructureMapper
+### Mappers Específicos por Entidad
 
-Convierte entidades del dominio a estructuras de infraestructura:
-
-```python
-from FuzzyService.Application.Mappers import DomainToInfrastructureMapper
-
-# Convertir una regla
-infra_rule = DomainToInfrastructureMapper.map_fuzzy_rule(domain_rule)
-
-# Convertir múltiples reglas
-infra_rules = DomainToInfrastructureMapper.map_rules_batch(domain_rules)
-
-# Convertir variables y términos
-infra_variable = DomainToInfrastructureMapper.map_fuzzy_variable(domain_variable)
-infra_term = DomainToInfrastructureMapper.map_fuzzy_term(domain_term)
-```
-
-### InfrastructureToDomainMapper
-
-Convierte estructuras de infraestructura a entidades del dominio:
+Cada entidad tiene su propio mapper con métodos estáticos:
 
 ```python
-from FuzzyService.Application.Mappers import InfrastructureToDomainMapper
-
-# Convertir respuesta de evaluación
-domain_evaluation = InfrastructureToDomainMapper.map_evaluation_response(
-    engine_response, system_id, inputs
+from FuzzyService.Application.Mappers import (
+    FuzzyRuleMapper,
+    FuzzyVariableMapper,
+    FuzzyTermMapper,
+    FuzzySystemMapper,
+    FuzzyEvaluationMapper,
+    FuzzyRoutineMapper
 )
 
-# Convertir entidades individuales
-domain_rule = InfrastructureToDomainMapper.map_fuzzy_rule(infra_rule, system_id)
-domain_variable = InfrastructureToDomainMapper.map_fuzzy_variable(infra_variable)
+# Convertir reglas
+infra_rule = FuzzyRuleMapper.to_infra(domain_rule)
+domain_rule = FuzzyRuleMapper.to_domain(infra_rule)
+
+# Convertir variables
+infra_variable = FuzzyVariableMapper.to_infra(domain_variable)
+domain_variable = FuzzyVariableMapper.to_domain(infra_variable, system_id)
+
+# Convertir términos
+infra_term = FuzzyTermMapper.to_infra(domain_term)
+domain_term = FuzzyTermMapper.to_domain(infra_term, variable_id)
+
+# Convertir evaluaciones
+infra_evaluation = FuzzyEvaluationMapper.to_infra_request(domain_evaluation)
+domain_evaluation = FuzzyEvaluationMapper.from_rule_evaluation_result(
+    engine_response, system_id, inputs
+)
 ```
 
 ## Beneficios
@@ -69,16 +67,16 @@ for rule in rules:
     infra_rules.append(infra_rule)
 
 # Después
-infra_rules = DomainToInfrastructureMapper.map_rules_batch(rules)
+infra_rules = [FuzzyRuleMapper.to_infra(rule) for rule in rules]
 ```
 
 ### Repositorios
 
-Los repositorios pueden seguir usando sus métodos `_to_domain_*` para conversiones específicas de persistencia, pero para conversiones complejas pueden usar los mappers centralizados.
+Los repositorios pueden seguir usando sus métodos `_to_domain_*` para conversiones específicas de persistencia, pero para conversiones complejas pueden usar los mappers específicos.
 
 ### DTOs
 
-Los DTOs pueden usar los mappers para conversiones más complejas:
+Los DTOs pueden usar los mappers específicos para conversiones más complejas:
 
 ```python
 def to_entity(self) -> FuzzyRule:

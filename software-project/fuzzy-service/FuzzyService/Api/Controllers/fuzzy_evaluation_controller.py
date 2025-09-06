@@ -18,6 +18,8 @@ from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetFuzzyEvaluati
     GetFuzzyEvaluationsBySystemQuery,
     GetFuzzyEvaluationsBySystemResponse
 )
+from FuzzyService.Application.Features.FuzzyEvaluations.Commands.CreateFuzzyEvaluationCommand import CreateFuzzyEvaluationCommand
+from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.CreateFuzzyEvaluationHandler import CreateFuzzyEvaluationHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetAllFuzzyEvaluationsHandler import GetAllFuzzyEvaluationsHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetFuzzyEvaluationByIdHandler import GetFuzzyEvaluationByIdHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetFuzzyEvaluationsBySystemHandler import GetFuzzyEvaluationsBySystemHandler
@@ -34,6 +36,47 @@ router = APIRouter(
         500: {"description": "Error interno del servidor"}
     }
 )
+
+
+@router.post(
+    "/",
+    response_model=FuzzyEvaluationDto,
+    status_code=201,
+    summary="Crear evaluación fuzzy",
+    description="Crea una nueva evaluación fuzzy con valores de entrada y reglas activadas"
+)
+async def create_evaluation(
+    command: CreateFuzzyEvaluationCommand
+) -> FuzzyEvaluationDto:
+    """
+    Crea una nueva evaluación fuzzy.
+    
+    Args:
+        command: Datos de la evaluación a crear
+        
+    Returns:
+        FuzzyEvaluationDto: La evaluación creada
+        
+    Raises:
+        HTTPException: Si hay errores de validación o el sistema no existe
+    """
+    try:
+        # Obtener el handler desde el contenedor de dependencias
+        handler: CreateFuzzyEvaluationHandler = di[CreateFuzzyEvaluationHandler]
+        
+        # Ejecutar el comando
+        await handler(command)
+        
+        # Retornar el resultado
+        if command._result is None:
+            raise HTTPException(status_code=500, detail="Error al crear la evaluación")
+            
+        return command._result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Error de validación: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
 @router.get(

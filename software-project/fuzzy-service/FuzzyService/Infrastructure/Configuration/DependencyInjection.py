@@ -107,6 +107,21 @@ async def on_startup() -> None:
         except Exception as ex:
             _logger.warning("Optional FuzzyEvaluationRepository not initialized: %s", ex)
 
+        # ActuatorService (external service)
+        try:
+            from FuzzyService.Infrastructure.ExternalServices.ActuatorService.ActuatorService import ActuatorService
+            from FuzzyService.Domain.Interfaces.IActuatorService import IActuatorService
+            
+            actuator_service_url = os.getenv("ACTUATOR_SERVICE_URL", "http://localhost:5002")
+            actuator_service_timeout = float(os.getenv("ACTUATOR_SERVICE_TIMEOUT", "30.0"))
+            
+            actuator_service = ActuatorService(actuator_service_url, actuator_service_timeout)
+            di[IActuatorService] = actuator_service
+            di["actuator_service"] = actuator_service
+            _logger.info("ActuatorService initialized and registered in DI.")
+        except Exception as ex:
+            _logger.warning("ActuatorService not initialized: %s", ex)
+
         ensure_indexes_env = os.getenv("FUZZY_ENSURE_INDEXES_ON_STARTUP", "true").strip().lower()
         ensure_indexes = ensure_indexes_env in ("1", "true", "yes", "y", "on")
         if ensure_indexes:

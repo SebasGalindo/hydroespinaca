@@ -28,10 +28,10 @@ from FuzzyService.Infrastructure.FuzzyEngine.FuzzyEngineConfiguration import (
     FuzzyEngineConfiguration
 )
 
-# Mappers centralizados
+# Mappers específicos
 from FuzzyService.Application.Mappers import (
-    DomainToInfrastructureMapper,
-    InfrastructureToDomainMapper
+    FuzzyRuleMapper,
+    FuzzyEvaluationMapper
 )
 
 
@@ -178,7 +178,7 @@ class FuzzyEngineService(IFuzzyEngine):
                                         defuzz_method: Optional[DefuzzificationMethod]) -> FuzzyEvaluationRequest:
         """Convierte entidades del dominio a FuzzyEvaluationRequest de infraestructura.
         
-        Utiliza el DomainToInfrastructureMapper centralizado para eliminar duplicación.
+        Utiliza mappers específicos para cada entidad.
         """
         
         # Convertir inputs a dict sensor_id -> value
@@ -199,8 +199,8 @@ class FuzzyEngineService(IFuzzyEngine):
                         "params": term.mf.params
                     }
         
-        # Usar mapper centralizado para convertir reglas
-        infra_rules = DomainToInfrastructureMapper.map_rules_batch(rules)
+        # Usar mapper específico para convertir reglas
+        infra_rules = [FuzzyRuleMapper.to_infra(rule) for rule in rules]
         
         return FuzzyEvaluationRequest(
             request_id=f"eval_{system.id}_{int((at or datetime.now(timezone.utc)).timestamp())}",
@@ -218,10 +218,10 @@ class FuzzyEngineService(IFuzzyEngine):
                                            at: Optional[datetime]) -> FuzzyEvaluation:
         """Convierte FuzzyEvaluationResponse de infraestructura a FuzzyEvaluation del dominio.
         
-        Utiliza el InfrastructureToDomainMapper centralizado para eliminar duplicación.
+        Utiliza mappers específicos para cada entidad.
         """
         
-        # Usar mapper centralizado para la conversión
-        return InfrastructureToDomainMapper.map_evaluation_response(
+        # Usar mapper específico para la conversión
+        return FuzzyEvaluationMapper.from_rule_evaluation_result(
             engine_response, system_id, inputs
         )
