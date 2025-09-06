@@ -1,1 +1,0 @@
-# Infrastructure layer - Implementaciones concretas de repositorios, clientes externos, etc.

@@ -1,1 +1,0 @@
-# Domain layer - Entidades de negocio y lógica de dominio pura

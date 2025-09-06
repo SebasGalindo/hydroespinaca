@@ -1,0 +1,6 @@
+from .CreateFuzzyVariableHandler import CreateFuzzyVariableHandler
+from .UpdateFuzzyVariableHandler import UpdateFuzzyVariableHandler
+from .DeleteFuzzyVariableHandler import DeleteFuzzyVariableHandler
+from .GetAllFuzzyVariablesHandler import GetAllFuzzyVariablesHandler
+from .GetFuzzyVariableByIdHandler import GetFuzzyVariableByIdHandler
+from .GetFuzzyVariablesBySystemHandler import GetFuzzyVariablesBySystemHandler

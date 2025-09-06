@@ -1,0 +1,3 @@
+from .CreateFuzzyVariableCommand import CreateFuzzyVariableCommand
+from .UpdateFuzzyVariableCommand import UpdateFuzzyVariableCommand
+from .DeleteFuzzyVariableCommand import DeleteFuzzyVariableCommand

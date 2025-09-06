@@ -1,1 +1,0 @@
-# API layer - Endpoints REST y configuración de FastAPI

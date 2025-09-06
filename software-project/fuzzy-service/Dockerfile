@@ -1,6 +1,6 @@
 # Dockerfile for fuzzy-service
 # Clean Architecture implementation with secure dependencies
-FROM python:3.12.9-slim
+FROM python:3.12.11-slim
 
 # Set working directory
 WORKDIR /app
