@@ -10,6 +10,16 @@ using HydroEspinaca.Shared.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.IncludeScopes = false;
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
+
 // Configura settings y capas...
 builder.Services.Configure<AuthService.Infrastructure.Security.JwtSettings>(
     builder.Configuration.GetSection("Jwt")

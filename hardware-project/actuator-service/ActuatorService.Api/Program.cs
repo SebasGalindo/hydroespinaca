@@ -8,6 +8,17 @@ using HydroEspinaca.Shared.Errors;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.IncludeScopes = false;
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
+
 // Service layers
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
