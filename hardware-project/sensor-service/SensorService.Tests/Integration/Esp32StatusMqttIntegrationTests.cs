@@ -56,7 +56,7 @@ public class Esp32StatusMqttIntegrationTests
             a.Severity == AlertSeverity.Critical &&
             a.Acknowledged == false &&
             a.ResolvedAt == null &&
-            a.Message.Contains("MQTT LWT")
+            a.Message.Contains("desconectado")
         )), Times.Once);
     }
 

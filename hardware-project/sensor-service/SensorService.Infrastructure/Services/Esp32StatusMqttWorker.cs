@@ -81,53 +81,31 @@ public class Esp32StatusMqttWorker : BackgroundService
             using var scope = _serviceProvider.CreateScope();
             var statusHandler = scope.ServiceProvider.GetRequiredService<IHandleEsp32StatusUseCase>();
 
-            // Try to parse JSON payload first
-            Esp32StatusPayloadDto? statusPayload = null;
+            // Parse JSON payload - no fallback support
             try
             {
-                statusPayload = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(payload, new JsonSerializerOptions
+                var statusPayload = JsonSerializer.Deserialize<Esp32StatusPayloadDto>(payload, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                     AllowTrailingCommas = true
                 });
 
-                // Validate that esp32Id in payload matches topic (if provided)
-                if (!string.IsNullOrWhiteSpace(statusPayload.Esp32Id) && 
-                    !string.Equals(statusPayload.Esp32Id, topicEsp32Id, StringComparison.OrdinalIgnoreCase))
+                if (statusPayload == null)
                 {
-                    _logger.LogWarning("⚠️ ESP32 ID mismatch - Topic: {TopicId}, Payload: {PayloadId}", 
-                        topicEsp32Id, statusPayload.Esp32Id);
+                    _logger.LogWarning("⚠️ Payload JSON deserializado como null para topic: {Topic}", topic);
+                    return;
                 }
 
-                // Use topic esp32Id if payload doesn't have one
-                if (string.IsNullOrWhiteSpace(statusPayload.Esp32Id))
-                {
-                    statusPayload.Esp32Id = topicEsp32Id;
-                }
-            }
-            catch (JsonException jsonEx)
-            {
-                _logger.LogDebug("📄 Payload no es JSON válido, intentando parsing como texto plano: {Error}", jsonEx.Message);
-                
-                // Fallback to plain text parsing for backward compatibility
-                var plainTextStatus = payload.ToLowerInvariant().Trim();
-                statusPayload = new Esp32StatusPayloadDto
-                {
-                    Esp32Id = topicEsp32Id,
-                    Status = plainTextStatus,
-                    Timestamp = DateTime.UtcNow
-                };
-            }
+                // Set ESP32 ID from topic (authoritative source)
+                statusPayload.Esp32Id = topicEsp32Id;
 
-            if (statusPayload != null)
-            {
                 await statusHandler.HandleStatusPayloadAsync(statusPayload);
                 _logger.LogDebug("✅ Successfully processed ESP32 status message for {Esp32Id}: {Status}", 
                     statusPayload.Esp32Id, statusPayload.Status);
             }
-            else
+            catch (JsonException jsonEx)
             {
-                _logger.LogWarning("⚠️ No se pudo procesar payload para topic: {Topic}", topic);
+                _logger.LogError("❌ Payload JSON inválido para topic {Topic}: {Error}", topic, jsonEx.Message);
             }
         }
         catch (Exception ex)

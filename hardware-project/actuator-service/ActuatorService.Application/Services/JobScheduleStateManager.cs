@@ -18,14 +18,43 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         _logger = logger;
     }
 
-    public void AddRoutineToSchedule(string esp32Id, JobRoutineState routine, int channelId)
+    public void AddRoutineToSchedule(string esp32Id, JobRoutineState routine, int channelId, int priority = 0)
     {
         var jobScheduleState = _jobSchedules.GetOrAdd(esp32Id, _ => new JobScheduleState(esp32Id));
         var channel = jobScheduleState.Channels.GetOrAdd(channelId, _ => new ChannelState { ChannelId = channelId });
         
-        channel.Queue.Add(routine);
-        _logger.LogInformation("Added routine {CommandId} to channel {ChannelId} for ESP32 {Esp32Id}", 
-            routine.CommandId, channelId, esp32Id);
+        routine.Priority = priority;
+        
+        // Insert based on priority and existing queue state
+        if (priority == 2) // Control priority - interrupt execution if possible
+        {
+            // Find first non-running command and insert before it
+            var runningIndex = channel.Queue.FindIndex(r => r.Status == ActuatorConstants.CommandStatuses.Running);
+            var insertIndex = runningIndex >= 0 ? runningIndex + 1 : 0;
+            channel.Queue.Insert(insertIndex, routine);
+            _logger.LogInformation("Inserted CONTROL routine {CommandId} at position {Position} in channel {ChannelId} for ESP32 {Esp32Id}", 
+                routine.CommandId, insertIndex, channelId, esp32Id);
+        }
+        else if (priority == 1) // SingleStep priority - insert before normal routines
+        {
+            var insertIndex = channel.Queue.FindIndex(r => r.Priority == 0);
+            if (insertIndex >= 0)
+            {
+                channel.Queue.Insert(insertIndex, routine);
+            }
+            else
+            {
+                channel.Queue.Add(routine);
+            }
+            _logger.LogInformation("Inserted SINGLE-STEP routine {CommandId} with priority in channel {ChannelId} for ESP32 {Esp32Id}", 
+                routine.CommandId, channelId, esp32Id);
+        }
+        else // Normal priority - add to end
+        {
+            channel.Queue.Add(routine);
+            _logger.LogInformation("Added NORMAL routine {CommandId} to end of channel {ChannelId} for ESP32 {Esp32Id}", 
+                routine.CommandId, channelId, esp32Id);
+        }
     }
 
     public JobStatusDto GetJobStatus(string? esp32Id = null)

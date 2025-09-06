@@ -4,9 +4,6 @@ namespace SensorService.Application.DTOs.Esp32Status;
 
 public class Esp32StatusPayloadDto
 {
-    [JsonPropertyName("esp32Id")]
-    public string Esp32Id { get; set; } = default!;
-
     [JsonPropertyName("status")]
     public string Status { get; set; } = default!;
 
@@ -18,6 +15,9 @@ public class Esp32StatusPayloadDto
 
     [JsonPropertyName("uptime")]
     public long? Uptime { get; set; }
+
+    // ESP32 ID is derived from MQTT topic, not from payload
+    public string Esp32Id { get; set; } = string.Empty;
 
     public bool IsOnline => string.Equals(Status, "online", StringComparison.OrdinalIgnoreCase);
     public bool IsOffline => string.Equals(Status, "offline", StringComparison.OrdinalIgnoreCase);

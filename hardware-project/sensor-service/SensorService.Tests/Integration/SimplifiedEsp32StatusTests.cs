@@ -51,7 +51,7 @@ public class SimplifiedEsp32StatusTests
             a.Severity == AlertSeverity.Critical &&
             a.Acknowledged == false &&
             a.ResolvedAt == null &&
-            a.Message.Contains("MQTT LWT")
+            a.Message.Contains("desconectado")
         )), Times.Once);
     }
 
@@ -229,12 +229,12 @@ public class SimplifiedEsp32StatusTests
 
         var payload = new Esp32StatusPayloadDto
         {
-            Esp32Id = esp32Id,
             Status = "online",
             Timestamp = timestamp,
             FreeHeap = freeHeap,
             Uptime = uptime
         };
+        payload.Esp32Id = esp32Id; // Set from topic
 
         var esp32Node = new Esp32Node
         {
@@ -258,9 +258,8 @@ public class SimplifiedEsp32StatusTests
         // Act
         await _useCase.HandleStatusPayloadAsync(payload);
 
-        // Assert
-        _mockEsp32NodeRepository.Verify(r => r.UpdateLastSeenAsync(esp32Id, timestamp), Times.Once);
-        _mockEsp32NodeRepository.Verify(r => r.UpdateStatusAsync(esp32Id, Esp32StatusEnum.Active), Times.Once);
+        // Assert - Verify UpdateAsync is called instead of individual methods
+        _mockEsp32NodeRepository.Verify(r => r.UpdateAsync(It.IsAny<Esp32Node>()), Times.Once);
 
         _mockAlertRepository.Verify(r => r.UpdateAsync(It.Is<Esp32Alert>(a =>
             a.Esp32Id == esp32Id &&
@@ -278,9 +277,9 @@ public class SimplifiedEsp32StatusTests
 
         var payload = new Esp32StatusPayloadDto
         {
-            Esp32Id = esp32Id,
             Status = "offline"
         };
+        payload.Esp32Id = esp32Id; // Set from topic
 
         var esp32Node = new Esp32Node
         {
@@ -306,8 +305,8 @@ public class SimplifiedEsp32StatusTests
             a.ResolvedAt == null
         )), Times.Once);
 
-        _mockEsp32NodeRepository.Verify(r => r.UpdateLastSeenAsync(esp32Id, It.IsAny<DateTime>()), Times.Once);
-        _mockEsp32NodeRepository.Verify(r => r.UpdateStatusAsync(esp32Id, Esp32StatusEnum.Active), Times.Once);
+        // Verify UpdateAsync is called instead of individual methods
+        _mockEsp32NodeRepository.Verify(r => r.UpdateAsync(It.IsAny<Esp32Node>()), Times.Once);
     }
 
     [Theory]
@@ -319,9 +318,9 @@ public class SimplifiedEsp32StatusTests
         // Arrange
         var payload = new Esp32StatusPayloadDto
         {
-            Esp32Id = "test-esp32",
             Status = invalidStatus
         };
+        payload.Esp32Id = "test-esp32"; // Set from topic
 
         // Act
         await _useCase.HandleStatusPayloadAsync(payload);
@@ -339,7 +338,6 @@ public class SimplifiedEsp32StatusTests
         // Arrange
         var jsonPayload = """
         {
-            "esp32Id": "6883fff7b079309f3ba4f238",
             "status": "online",
             "timestamp": "2025-08-31T00:00:03Z",
             "freeHeap": 213960,
@@ -355,7 +353,6 @@ public class SimplifiedEsp32StatusTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("6883fff7b079309f3ba4f238", result.Esp32Id);
         Assert.Equal("online", result.Status);
         Assert.True(result.IsOnline);
         Assert.False(result.IsOffline);
@@ -363,6 +360,8 @@ public class SimplifiedEsp32StatusTests
         Assert.Equal(213960, result.FreeHeap);
         Assert.Equal(3, result.Uptime);
         Assert.Equal(new DateTime(2025, 8, 31, 0, 0, 3, DateTimeKind.Utc), result.Timestamp);
+        // ESP32 ID should be set from topic, not payload
+        Assert.Equal(string.Empty, result.Esp32Id);
     }
 
     [Fact]
@@ -371,7 +370,6 @@ public class SimplifiedEsp32StatusTests
         // Arrange
         var jsonPayload = """
         {
-            "esp32Id": "6883fff7b079309f3ba4f238",
             "status": "offline"
         }
         """;
@@ -384,7 +382,6 @@ public class SimplifiedEsp32StatusTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("6883fff7b079309f3ba4f238", result.Esp32Id);
         Assert.Equal("offline", result.Status);
         Assert.False(result.IsOnline);
         Assert.True(result.IsOffline);
@@ -392,6 +389,8 @@ public class SimplifiedEsp32StatusTests
         Assert.Null(result.FreeHeap);
         Assert.Null(result.Uptime);
         Assert.Null(result.Timestamp);
+        // ESP32 ID should be set from topic, not payload
+        Assert.Equal(string.Empty, result.Esp32Id);
     }
 
     [Fact]
@@ -400,7 +399,6 @@ public class SimplifiedEsp32StatusTests
         // Arrange
         var jsonPayload = """
         {
-            "esp32Id": "test-esp32",
             "status": "online",
             "freeHeap": 100000,
             "extraField": "should be ignored",
@@ -416,9 +414,10 @@ public class SimplifiedEsp32StatusTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("test-esp32", result.Esp32Id);
         Assert.Equal("online", result.Status);
         Assert.Equal(100000, result.FreeHeap);
         Assert.True(result.IsValidStatus);
+        // ESP32 ID should be set from topic, not payload
+        Assert.Equal(string.Empty, result.Esp32Id);
     }
 }

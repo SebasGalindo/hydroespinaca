@@ -32,9 +32,9 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
             .Must(ObjectIdHelper.IsValidObjectId)
             .WithMessage("Actuator ID debe ser un ObjectId válido");
 
-        RuleFor(x => x.Duration)
-            .GreaterThan(ActuatorConstants.Validation.MinDuration - 1)
-            .WithMessage("Duration debe ser mayor a 0 segundos");
+        RuleFor(x => x)
+            .Must(step => IsValidDuration(step))
+            .WithMessage("Duration debe ser mayor a 0 segundos, excepto para comandos de control (power=Off o dutyCycle=0) que pueden tener duration=0");
 
         // Ensure that either Power (for digital) or DutyCycle (for PWM) is provided, but not both
         RuleFor(x => x)
@@ -61,5 +61,23 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
 
         // Must have exactly one of them
         return hasPower ^ hasDutyCycle;
+    }
+    
+    private bool IsValidDuration(RoutineStepDto step)
+    {
+        // Duration must be >= 0 for all cases
+        if (step.Duration < 0)
+            return false;
+            
+        // Duration = 0 is only allowed for control commands (power=Off or dutyCycle=0)
+        if (step.Duration == 0)
+        {
+            bool isControlCommand = (step.Power == ActuatorConstants.PowerStates.Off) || 
+                                  (step.DutyCycle == ActuatorConstants.Validation.MinDutyCycle);
+            return isControlCommand;
+        }
+        
+        // Duration > 0 is always valid
+        return true;
     }
 }

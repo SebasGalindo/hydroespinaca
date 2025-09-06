@@ -106,8 +106,8 @@ public class JobScheduleService : IJobScheduleService
         // Find the best channel for this routine (simplified for now - round robin)
         var channelId = FindBestChannelForRoutine(routine, priority);
 
-        // Add to the selected channel via state manager
-        _stateManager.AddRoutineToSchedule(esp32Id, jobRoutine, channelId);
+        // Add to the selected channel via state manager with priority
+        _stateManager.AddRoutineToSchedule(esp32Id, jobRoutine, channelId, (int)priority);
 
         _logger.LogInformation("Assigned routine {CommandId} to channel {ChannelId} with priority {Priority}",
             commandId, channelId, priority);
@@ -145,6 +145,13 @@ public class JobScheduleService : IJobScheduleService
         return enrichedSteps;
     }
 
+    /// <summary>
+    /// Determines the priority of a routine based on its characteristics.
+    /// Priority rules:
+    /// - Control (2): All steps have power=Off or dutyCycle=0. Interrupts execution and allows duration=0.
+    /// - SingleStep (1): Routines with exactly one step. Higher priority than normal routines.
+    /// - Normal (0): Multi-step routines without control characteristics.
+    /// </summary>
     private RoutinePriority DeterminePriority(RoutineCommandDto routine)
     {
         // Control routines: all steps have "OFF" power or 0 duty cycle
@@ -163,9 +170,83 @@ public class JobScheduleService : IJobScheduleService
 
     private int FindBestChannelForRoutine(RoutineCommandDto routine, RoutinePriority priority)
     {
-        // Simplified channel assignment - round robin based on routine hash
-        var routineHash = routine.RoutineId.GetHashCode();
-        return (Math.Abs(routineHash) % ActuatorConstants.Channels.MaxChannels) + ActuatorConstants.Channels.MinChannelId;
+        var routineActuators = routine.Steps.Select(s => s.Actuator).ToHashSet();
+        
+        // 1. Try to find channels with same actuators (for consistency)
+        for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
+        {
+            var channelActuators = GetChannelActuators(channelId);
+            if (channelActuators.Any() && routineActuators.Overlaps(channelActuators))
+            {
+                return channelId;
+            }
+        }
+        
+        // 2. Try to find free channels
+        for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
+        {
+            if (IsChannelFree(channelId))
+            {
+                return channelId;
+            }
+        }
+        
+        // 3. Find channel with minimum load
+        var channelLoads = new List<(int channelId, int load)>();
+        for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
+        {
+            channelLoads.Add((channelId, GetChannelLoad(channelId)));
+        }
+        
+        return channelLoads.OrderBy(cl => cl.load).First().channelId;
+    }
+    
+    private HashSet<string> GetChannelActuators(int channelId)
+    {
+        // Get all actuators currently in this channel across all ESP32s
+        var actuators = new HashSet<string>();
+        foreach (var esp32Id in _stateManager.GetActiveEsp32Ids())
+        {
+            var schedule = _stateManager.GetCurrentJobSchedule(esp32Id);
+            var channel = schedule.JobSchedule.FirstOrDefault(c => c.Channel == channelId);
+            if (channel != null)
+            {
+                foreach (var routine in channel.Queue)
+                {
+                    foreach (var step in routine.Steps)
+                    {
+                        actuators.Add(step.Pin); // Using pin as unique identifier
+                    }
+                }
+            }
+        }
+        return actuators;
+    }
+    
+    private bool IsChannelFree(int channelId)
+    {
+        foreach (var esp32Id in _stateManager.GetActiveEsp32Ids())
+        {
+            var schedule = _stateManager.GetCurrentJobSchedule(esp32Id);
+            var channel = schedule.JobSchedule.FirstOrDefault(c => c.Channel == channelId);
+            if (channel?.Queue.Any() == true)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private int GetChannelLoad(int channelId)
+    {
+        int totalLoad = 0;
+        foreach (var esp32Id in _stateManager.GetActiveEsp32Ids())
+        {
+            var schedule = _stateManager.GetCurrentJobSchedule(esp32Id);
+            var channel = schedule.JobSchedule.FirstOrDefault(c => c.Channel == channelId);
+            totalLoad += channel?.Queue.Count ?? 0;
+        }
+        return totalLoad;
     }
 }
 
