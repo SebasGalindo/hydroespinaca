@@ -25,35 +25,89 @@ public class JobScheduleStateManager : IJobScheduleStateManager
         
         routine.Priority = priority;
         
-        // Insert based on priority and existing queue state
+        // Insert based on priority, duration, and existing queue state
         if (priority == 2) // Control priority - interrupt execution if possible
         {
-            // Find first non-running command and insert before it
+            // Control commands get highest priority - insert right after running commands
             var runningIndex = channel.Queue.FindIndex(r => r.Status == ActuatorConstants.CommandStatuses.Running);
             var insertIndex = runningIndex >= 0 ? runningIndex + 1 : 0;
+            
+            // Among control commands, insert by duration (shorter first)
+            var controlCommands = channel.Queue.Skip(insertIndex).TakeWhile(r => r.Priority == 2).ToList();
+            var totalDuration = routine.Steps.Sum(s => s.Duration);
+            var positionInControl = controlCommands.FindIndex(r => r.Steps.Sum(s => s.Duration) > totalDuration);
+            
+            if (positionInControl >= 0)
+            {
+                insertIndex += positionInControl;
+            }
+            else
+            {
+                insertIndex += controlCommands.Count;
+            }
+            
             channel.Queue.Insert(insertIndex, routine);
-            _logger.LogInformation("Inserted CONTROL routine {CommandId} at position {Position} in channel {ChannelId} for ESP32 {Esp32Id}", 
-                routine.CommandId, insertIndex, channelId, esp32Id);
+            _logger.LogInformation("Inserted CONTROL routine {CommandId} at position {Position} in channel {ChannelId} for ESP32 {Esp32Id} (duration: {Duration}s)", 
+                routine.CommandId, insertIndex, channelId, esp32Id, totalDuration);
         }
-        else if (priority == 1) // SingleStep priority - insert before normal routines
+        else if (priority == 1) // SingleStep priority - insert before normal routines, ordered by duration
         {
             var insertIndex = channel.Queue.FindIndex(r => r.Priority == 0);
             if (insertIndex >= 0)
             {
+                // Find correct position among single-step routines (ordered by duration)
+                var singleStepStart = channel.Queue.FindIndex(r => r.Priority == 1);
+                if (singleStepStart >= 0)
+                {
+                    var totalDuration = routine.Steps.Sum(s => s.Duration);
+                    var singleStepCommands = channel.Queue.Skip(singleStepStart).TakeWhile(r => r.Priority >= 1).Where(r => r.Priority == 1).ToList();
+                    var positionInSingleStep = singleStepCommands.FindIndex(r => r.Steps.Sum(s => s.Duration) > totalDuration);
+                    
+                    if (positionInSingleStep >= 0)
+                    {
+                        insertIndex = singleStepStart + positionInSingleStep;
+                    }
+                    else
+                    {
+                        insertIndex = singleStepStart + singleStepCommands.Count;
+                    }
+                }
                 channel.Queue.Insert(insertIndex, routine);
             }
             else
             {
                 channel.Queue.Add(routine);
             }
-            _logger.LogInformation("Inserted SINGLE-STEP routine {CommandId} with priority in channel {ChannelId} for ESP32 {Esp32Id}", 
-                routine.CommandId, channelId, esp32Id);
+            var duration = routine.Steps.Sum(s => s.Duration);
+            _logger.LogInformation("Inserted SINGLE-STEP routine {CommandId} with priority in channel {ChannelId} for ESP32 {Esp32Id} (duration: {Duration}s)", 
+                routine.CommandId, channelId, esp32Id, duration);
         }
-        else // Normal priority - add to end
+        else // Normal priority - insert ordered by duration among normal routines
         {
-            channel.Queue.Add(routine);
-            _logger.LogInformation("Added NORMAL routine {CommandId} to end of channel {ChannelId} for ESP32 {Esp32Id}", 
-                routine.CommandId, channelId, esp32Id);
+            var totalDuration = routine.Steps.Sum(s => s.Duration);
+            var normalStart = channel.Queue.FindIndex(r => r.Priority == 0);
+            
+            if (normalStart >= 0)
+            {
+                var normalCommands = channel.Queue.Skip(normalStart).Where(r => r.Priority == 0).ToList();
+                var positionInNormal = normalCommands.FindIndex(r => r.Steps.Sum(s => s.Duration) > totalDuration);
+                
+                if (positionInNormal >= 0)
+                {
+                    channel.Queue.Insert(normalStart + positionInNormal, routine);
+                }
+                else
+                {
+                    channel.Queue.Add(routine);
+                }
+            }
+            else
+            {
+                channel.Queue.Add(routine);
+            }
+            
+            _logger.LogInformation("Added NORMAL routine {CommandId} to channel {ChannelId} for ESP32 {Esp32Id} ordered by duration ({Duration}s)", 
+                routine.CommandId, channelId, esp32Id, totalDuration);
         }
     }
 

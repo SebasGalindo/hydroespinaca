@@ -31,7 +31,7 @@ public class MatchReadingsWithSensorsUseCase : IMatchReadingsWithSensorsUseCase
                     SensorId = matchedSensor.Id!,
                     VariableId = reading.VariableId,
                     Value = reading.Value,
-                    Timestamp = dto.Timestamp.DateTime
+                    Timestamp = dto.Timestamp.UtcDateTime
                 });
             }
         }

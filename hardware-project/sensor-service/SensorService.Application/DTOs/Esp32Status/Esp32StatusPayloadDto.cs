@@ -21,5 +21,6 @@ public class Esp32StatusPayloadDto
 
     public bool IsOnline => string.Equals(Status, "online", StringComparison.OrdinalIgnoreCase);
     public bool IsOffline => string.Equals(Status, "offline", StringComparison.OrdinalIgnoreCase);
-    public bool IsValidStatus => IsOnline || IsOffline;
+    public bool IsRunning => string.Equals(Status, "running", StringComparison.OrdinalIgnoreCase);
+    public bool IsValidStatus => IsOnline || IsOffline || IsRunning;
 }

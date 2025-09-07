@@ -53,6 +53,30 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         }
     }
 
+    public async Task HandleRunningAsync(string esp32Id, DateTime timestamp, long? freeHeap = null, long? uptime = null)
+    {
+        _logger.LogInformation("🔄 ESP32 {Esp32Id} en estado running - FreeHeap: {FreeHeap}KB, Uptime: {Uptime}s", 
+            esp32Id, freeHeap, uptime);
+
+        // Actualizar ESP32 node a estado online con telemetría (running se trata como online)
+        await SetEsp32OnlineAsync(esp32Id, timestamp, freeHeap ?? 0, uptime ?? 0);
+
+        // Resolver alerta offline activa si existe (igual que online)
+        var activeAlert = await _esp32AlertRepository
+            .GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline);
+
+        if (activeAlert != null)
+        {
+            activeAlert.ResolvedAt = timestamp;
+            activeAlert.Acknowledged = true;
+            activeAlert.Message = AlertMessages.Esp32Offline.Reconnected;
+            
+            await _esp32AlertRepository.UpdateAsync(activeAlert);
+            
+            _logger.LogInformation("✅ Alerta resuelta al recibir running para ESP32 {Esp32Id}", esp32Id);
+        }
+    }
+
     public async Task HandleOfflineAsync(string esp32Id, DateTime timestamp)
     {
         _logger.LogWarning("⚠️ ESP32 {Esp32Id} marcado offline por LWT", esp32Id);
@@ -101,6 +125,11 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         if (payload.IsOnline)
         {
             await HandleOnlineAsync(payload.Esp32Id, timestamp, payload.FreeHeap, payload.Uptime);
+        }
+        else if (payload.IsRunning)
+        {
+            // Running status indicates ESP32 is actively sending periodic metrics
+            await HandleRunningAsync(payload.Esp32Id, timestamp, payload.FreeHeap, payload.Uptime);
         }
         else if (payload.IsOffline)
         {
