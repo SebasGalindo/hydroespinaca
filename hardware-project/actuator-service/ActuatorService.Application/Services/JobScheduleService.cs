@@ -191,11 +191,13 @@ public class JobScheduleService : IJobScheduleService
             }
         }
         
-        // 2. No actuator conflicts - try to find channels that don't conflict with our GPIO pins
+        // 2. No actuator conflicts - find channel with minimum load among safe channels
+        var routinePins = await GetRoutinePinsAsync(routine);
+        var safeChannels = new List<(int channelId, int load)>();
+        
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
             var channelPins = GetChannelPins(channelId);
-            var routinePins = await GetRoutinePinsAsync(routine);
             
             // Check if there's any GPIO pin conflict
             if (channelPins.Any() && routinePins.Overlaps(channelPins))
@@ -205,21 +207,32 @@ public class JobScheduleService : IJobScheduleService
                 continue; // Skip this channel due to GPIO conflict
             }
             
-            // This channel is safe to use
-            _logger.LogInformation("✅ Assigning routine to channel {ChannelId} - no GPIO conflicts", channelId);
-            return channelId;
+            // This channel is safe - add to candidates with its current load
+            var load = GetChannelLoad(channelId);
+            safeChannels.Add((channelId, load));
+            _logger.LogDebug("✅ Channel {ChannelId} is safe - current load: {Load}", channelId, load);
         }
         
-        // 3. All channels have conflicts - find the one with minimum load as last resort
-        // This should ideally not happen if channels are managed correctly
-        _logger.LogWarning("⚠️  All channels have conflicts - using channel with minimum load");
-        var channelLoads = new List<(int channelId, int load)>();
+        // 3. Choose the safe channel with minimum load for load balancing
+        if (safeChannels.Any())
+        {
+            var bestChannel = safeChannels.OrderBy(c => c.load).First();
+            _logger.LogInformation("🎯 Assigning routine to channel {ChannelId} for load balancing (load: {Load})", 
+                bestChannel.channelId, bestChannel.load);
+            return bestChannel.channelId;
+        }
+        
+        // 4. All channels have GPIO conflicts - find the one with minimum load as last resort
+        _logger.LogWarning("⚠️  All channels have GPIO conflicts - using channel with minimum load");
+        var allChannelLoads = new List<(int channelId, int load)>();
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
-            channelLoads.Add((channelId, GetChannelLoad(channelId)));
+            allChannelLoads.Add((channelId, GetChannelLoad(channelId)));
         }
         
-        return channelLoads.OrderBy(cl => cl.load).First().channelId;
+        var fallbackChannel = allChannelLoads.OrderBy(cl => cl.load).First();
+        _logger.LogWarning("📍 Using fallback channel {ChannelId} with load {Load}", fallbackChannel.channelId, fallbackChannel.load);
+        return fallbackChannel.channelId;
     }
     
     private HashSet<string> GetChannelActuatorIds(int channelId)
