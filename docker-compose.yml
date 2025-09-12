@@ -68,6 +68,7 @@ services:
       - M2M__ClientSecret=${ACTUATOR_SERVICE_CLIENT_SECRET}
       - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
       - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - SensorService__BaseUrl=http://sensor-service:8080
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
@@ -107,14 +108,34 @@ services:
   #   ports:
   #     - "80:80"
 
-  # bff-service:
-  #   build: ./software-project/bff-service
-  #   container_name: bff-service
-  #   env_file: ./software-project/bff-service/.env
-  #   depends_on:
-  #     - auth-service
-  #   ports:
-  #     - "6002:80"
+  bff-service:
+    build:
+      context: .
+      dockerfile: software-project/bff-service/Dockerfile
+    container_name: bff-service
+    ports:
+      - "6002:8080"
+    depends_on:
+      - auth-service
+      - sensor-service
+      - actuator-service
+    environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - M2M__ClientId=${BFF_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${BFF_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - Sessions__SessionIdHeader=${BFF_SESSION_ID_HEADER}
+      - Sessions__CsrfTokenHeader=${BFF_CSRF_TOKEN_HEADER}
+      - Sessions__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - Sessions__RefreshTokenExpiryDays=${Jwt_RefreshTokenExpiryDays}
+      - Services__SensorService__Url=${SENSOR_SERVICE_URL}
+      - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - espinaca-net
 
   # fuzzy-service:
   #   build: ./software-project/fuzzy-service
