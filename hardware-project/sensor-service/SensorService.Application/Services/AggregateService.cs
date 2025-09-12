@@ -5,6 +5,7 @@ using SensorService.Application.DTOs.Aggregate;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -35,11 +36,11 @@ public class AggregateService : IAggregateService
 
         var sensor = await _sensorRepo.GetByIdAsync(sensorId);
         if (sensor is null)
-            throw new NotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
+            throw new SensorNotFoundException(sensorId);
 
         var variable = await _variableRepo.GetByIdAsync(variableId);
         if (variable is null)
-            throw new NotFoundException($"Variable con ID '{variableId}' no encontrada.");
+            throw new SensorDataNotFoundException($"Variable con ID no encontrada");
 
         var results = await _repo.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
         return results.Select(AggregateMapper.ToDto).ToList();

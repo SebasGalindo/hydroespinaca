@@ -7,6 +7,7 @@ using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -32,7 +33,7 @@ public class SensorAlertService : ISensorAlertService
 
         var sensor = await _sensorRepo.GetByIdAsync(sensorId);
         if (sensor is null)
-            throw new NotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
+            throw new SensorNotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
 
         var list = await _repo.GetBySensorIdAsync(sensorId);
         return list.Select(SensorAlertMapper.ToDto).ToList();
@@ -45,7 +46,7 @@ public class SensorAlertService : ISensorAlertService
 
         var sensorAlert = await _repo.GetByIdAsync(id);
         if (sensorAlert is null)
-            throw new NotFoundException($"SensorAlert '{id}' no encontrado.");
+            throw new SensorDataNotFoundException("Alert no encontrado");
 
         sensorAlert.Acknowledged = dto.Acknowledged;
 

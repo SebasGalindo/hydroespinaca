@@ -5,6 +5,7 @@ using SensorService.Application.DTOs.Reading;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -35,11 +36,11 @@ public class ReadingService : IReadingService
 
         var sensor = await _sensorRepo.GetByIdAsync(sensorId);
         if (sensor is null)
-            throw new NotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
+            throw new SensorNotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
 
         var variable = await _variableRepo.GetByIdAsync(variableId);
         if (variable is null)
-            throw new NotFoundException($"Variable con ID '{variableId}' no encontrada.");
+            throw new SensorDataNotFoundException($"Variable con ID no encontrada");
 
         var list = await _repo.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
         return list.Select(ReadingMapper.ToDto).ToList();

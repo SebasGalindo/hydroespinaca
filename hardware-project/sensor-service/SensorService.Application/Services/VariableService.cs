@@ -6,6 +6,7 @@ using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -38,7 +39,7 @@ public class VariableService : IVariableService
 
         var variable = await _repo.GetByIdAsync(id);
         if (variable is null)
-            throw new NotFoundException($"Variable con ID '{id}' no encontrada.");
+            throw new SensorDataNotFoundException($"Variable con ID no encontrada");
 
         return VariableMapper.ToDto(variable);
     }
@@ -65,7 +66,7 @@ public class VariableService : IVariableService
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity == null)
-            throw new NotFoundException($"Variable '{id}' no encontrada.");
+            throw new SensorDataNotFoundException($"Variable con ID no encontrada");
 
         if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var parsedType))
             throw new ArgumentException($"Tipo '{dto.Type}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(VariableTypes)))}");
@@ -78,7 +79,7 @@ public class VariableService : IVariableService
     {
         var entity = await _repo.GetByIdAsync(id);
         if (entity == null)
-            throw new NotFoundException($"Variable '{id}' no encontrada.");
+            throw new SensorDataNotFoundException($"Variable con ID no encontrada");
 
         await _repo.DeleteAsync(id);
     }

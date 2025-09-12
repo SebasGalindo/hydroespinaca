@@ -5,6 +5,7 @@ using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -44,7 +45,7 @@ public class SensorApplicationService : ISensorService
 
         var sensor = await _repo.GetByIdAsync(id);
         if (sensor is null)
-            throw new NotFoundException("Sensor no encontrado");
+            throw new SensorNotFoundException(id);
 
         return SensorMapper.ToDto(sensor);
     }
@@ -57,7 +58,7 @@ public class SensorApplicationService : ISensorService
 
         var esp32Node = await _esp32NodeRepository.GetByIdAsync(dto.Esp32Id);
         if (esp32Node == null)
-            throw new NotFoundException($"ESP32 con el id {dto.Esp32Id} no fue encontrado");
+            throw new Esp32NotFoundException(dto.Esp32Id);
 
         var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
         if (noExistingVariable.Any())
@@ -80,15 +81,15 @@ public class SensorApplicationService : ISensorService
 
         var existing = await _repo.GetByIdAsync(id);
         if (existing == null)
-            throw new NotFoundException($"Sensor with id {id} not found");
+            throw new SensorNotFoundException(id);
 
         var esp32Node = await _esp32NodeRepository.GetByIdAsync(dto.Esp32Id);
         if (esp32Node == null)
-            throw new NotFoundException($"ESP32 con el id {dto.Esp32Id} no fue encontrado");
+            throw new Esp32NotFoundException(dto.Esp32Id);
 
         var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
         if (noExistingVariable.Any())
-            throw new NotFoundException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
+            throw new SensorDataNotFoundException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
 
 
         SensorMapper.MapUpdate(dto, existing);
@@ -102,7 +103,7 @@ public class SensorApplicationService : ISensorService
 
         var existing = await _repo.GetByIdAsync(id);
         if (existing == null)
-            throw new NotFoundException($"Sensor with id {id} not found");
+            throw new SensorNotFoundException(id);
 
         await _repo.DeleteAsync(id);
     }

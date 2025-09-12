@@ -1,6 +1,7 @@
 ﻿using ActuatorService.Application.Interfaces;
 using ActuatorService.Application.Mappers;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using FluentValidation;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
@@ -43,7 +44,7 @@ public class ActuatorServiceApplication : IActuatorService
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)
-            throw new NotFoundException($"Actuator con el ID {id} no encontrado.");
+            throw new ActuatorNotFoundException(id);
 
         return ActuatorMapper.ToDto(entity);
     }
@@ -54,7 +55,7 @@ public class ActuatorServiceApplication : IActuatorService
             throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         if (!await _esp32Validator.ExistsAsync(esp32Id))
-            throw new NotFoundException("El ID del ESP32 no existe");
+            throw new Esp32NotFoundException(esp32Id);
 
         var entities = await _repo.GetByEsp32IdAsync(esp32Id);
         return entities.Select(ActuatorMapper.ToDto).ToList();
@@ -66,7 +67,7 @@ public class ActuatorServiceApplication : IActuatorService
             throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         if (!await _esp32Validator.ExistsAsync(dto.Esp32Id))
-            throw new NotFoundException("El ID del ESP32 no existe");
+            throw new Esp32NotFoundException(dto.Esp32Id);
 
         var validationResult = await _createValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
@@ -92,7 +93,7 @@ public class ActuatorServiceApplication : IActuatorService
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)
-            throw new NotFoundException($"Actuador {id} no encontrado.");
+            throw new ActuatorNotFoundException(id);
 
         ActuatorMapper.MapUpdate(dto, entity);
         await _repo.UpdateAsync(entity);
@@ -105,7 +106,7 @@ public class ActuatorServiceApplication : IActuatorService
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)
-            throw new NotFoundException($"Actuador {id} no encontrado.");
+            throw new ActuatorNotFoundException(id);
 
         await _repo.DeleteAsync(id);
     }

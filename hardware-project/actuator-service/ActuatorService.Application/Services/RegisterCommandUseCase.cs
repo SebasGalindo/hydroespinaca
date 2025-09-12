@@ -1,6 +1,7 @@
 ﻿using ActuatorService.Application.Interfaces;
 using ActuatorService.Application.Mappers;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
@@ -42,11 +43,11 @@ public class RegisterCommandService : ICommandService
             throw new ArgumentException($"Trigger '{dto.Trigger}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(TriggerType)))}");
 
         if (!await _esp32Validator.ExistsAsync(dto.Esp32Id))
-            throw new NotFoundException("El ID del ESP32 no existe");
+            throw new Esp32NotFoundException("unknown");
 
         var actuator = await _repo.GetByIdAsync(dto.ActuatorId);
         if (actuator is null)
-            throw new NotFoundException($"Actuador {dto.ActuatorId} no encontrado.");
+            throw new ActuatorNotFoundException(dto.ActuatorId);
 
         // Structural validation with FluentValidation
         var validationResult = await _createValidator.ValidateAsync(dto);
@@ -83,7 +84,7 @@ public class RegisterCommandService : ICommandService
 
         var entity = await _repo.GetByIdAsync(actuatorId);
         if (entity is null)
-            throw new NotFoundException($"Actuador {actuatorId} no encontrado.");
+            throw new ActuatorNotFoundException(actuatorId);
 
         var commands = await _commandRepo.GetByActuatorIdAsync(actuatorId);
         return commands.Select(CommandMapper.ToDto).ToList();

@@ -1,4 +1,5 @@
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Errors;
 
@@ -26,7 +27,7 @@ public class MqttPayloadEnrichmentService : IMqttPayloadEnrichmentService
         var missingActuators = actuatorIds.Except(actuators.Select(a => a.Id)).ToList();
         if (missingActuators.Any())
         {
-            throw new NotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
+            throw new ActuatorNotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
         }
 
         var actuatorMap = actuators.ToDictionary(a => a.Id);

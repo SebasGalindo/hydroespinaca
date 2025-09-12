@@ -1,5 +1,6 @@
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
@@ -74,7 +75,7 @@ public class JobScheduleService : IJobScheduleService
 
         if (firstActuatorId == null)
         {
-            throw new NotFoundException(
+            throw new ScheduledJobNotFoundException(
                 $"No se encontró ningún actuador en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
         }
 
@@ -82,7 +83,7 @@ public class JobScheduleService : IJobScheduleService
 
         if (actuator?.Esp32Id == null)
         {
-            throw new NotFoundException(
+            throw new ScheduledJobNotFoundException(
                 $"No se pudo determinar el ESP32 asociado al actuador '{firstActuatorId}' en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
         }
 

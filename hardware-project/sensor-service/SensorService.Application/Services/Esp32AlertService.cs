@@ -5,6 +5,7 @@ using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -29,7 +30,7 @@ public class Esp32AlertService : IEsp32AlertService
 
         var esp32 = await _esp32Repo.GetByIdAsync(esp32Id);
         if (esp32 is null)
-            throw new NotFoundException($"ESP32 con ID '{esp32Id}' no encontrado.");
+            throw new Esp32NotFoundException(esp32Id);
 
         var alerts = await _repo.GetByEsp32IdAsync(esp32Id);
         return alerts.Select(Esp32AlertMapper.ToDto).ToList();
@@ -42,7 +43,7 @@ public class Esp32AlertService : IEsp32AlertService
 
         var alert = await _repo.GetByIdAsync(id);
         if (alert is null)
-            throw new NotFoundException($"Esp32Alert '{id}' no encontrado.");
+            throw new SensorDataNotFoundException("Alert no encontrado");
 
         alert.Acknowledged = dto.Acknowledged;
 

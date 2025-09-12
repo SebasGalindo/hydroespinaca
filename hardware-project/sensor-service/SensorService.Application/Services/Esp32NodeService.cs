@@ -6,6 +6,7 @@ using MongoDB.Bson;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Mappers;
 using SensorService.Domain.Interfaces;
+using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
@@ -39,7 +40,7 @@ public class Esp32NodeService : IEsp32NodeService
 
         var node = await _repo.GetByIdAsync(id);
         if (node is null)
-            throw new NotFoundException($"ESP32 '{id}' no encontrado.");
+            throw new Esp32NotFoundException(id);
 
         return Esp32NodeMapper.ToDto(node);
     }
@@ -69,7 +70,7 @@ public class Esp32NodeService : IEsp32NodeService
 
         var updated = await _repo.UpdateStatusAsync(id, parsedStatus);
         if (!updated)
-            throw new NotFoundException($"No se pudo actualizar el estado del ESP32 '{id}'. Puede que no exista o el valor sea el mismo.");
+            throw new SensorDataNotFoundException("No se pudo actualizar el estado");
     }
 
 

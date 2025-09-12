@@ -1,4 +1,5 @@
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
@@ -28,7 +29,7 @@ public class RoutineValidationService : IRoutineValidationService
         var missingActuators = actuatorIds.Except(actuators.Select(a => a.Id)).ToList();
         if (missingActuators.Any())
         {
-            throw new NotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
+            throw new ActuatorNotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
         }
 
         var actuatorModeMap = actuators.ToDictionary(a => a.Id, a => a.Mode);
@@ -47,22 +48,22 @@ public class RoutineValidationService : IRoutineValidationService
             case ActuatorMode.DIGITAL:
                 if (step.DutyCycle.HasValue)
                 {
-                    throw new ConflictException($"Digital actuator {step.Actuator} cannot use 'dutyCycle'. Use 'power' instead.");
+                    throw new RoutineScheduleConflictException($"Digital actuator {step.Actuator} cannot use 'dutyCycle'. Use 'power' instead.");
                 }
                 if (string.IsNullOrEmpty(step.Power))
                 {
-                    throw new ConflictException($"Digital actuator {step.Actuator} requires 'power' parameter ({ActuatorConstants.PowerStates.On}/{ActuatorConstants.PowerStates.Off}).");
+                    throw new RoutineScheduleConflictException($"Digital actuator {step.Actuator} requires 'power' parameter ({ActuatorConstants.PowerStates.On}/{ActuatorConstants.PowerStates.Off}).");
                 }
                 break;
 
             case ActuatorMode.PWM:
                 if (!string.IsNullOrEmpty(step.Power))
                 {
-                    throw new ConflictException($"PWM actuator {step.Actuator} cannot use 'power'. Use 'dutyCycle' instead.");
+                    throw new RoutineScheduleConflictException($"PWM actuator {step.Actuator} cannot use 'power'. Use 'dutyCycle' instead.");
                 }
                 if (!step.DutyCycle.HasValue)
                 {
-                    throw new ConflictException($"PWM actuator {step.Actuator} requires 'dutyCycle' parameter ({ActuatorConstants.Validation.MinDutyCycle}-{ActuatorConstants.Validation.MaxDutyCycle}).");
+                    throw new RoutineScheduleConflictException($"PWM actuator {step.Actuator} requires 'dutyCycle' parameter ({ActuatorConstants.Validation.MinDutyCycle}-{ActuatorConstants.Validation.MaxDutyCycle}).");
                 }
                 break;
         }

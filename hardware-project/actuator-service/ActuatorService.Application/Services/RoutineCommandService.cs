@@ -1,6 +1,7 @@
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using HydroEspinaca.Shared.Errors;
 
@@ -34,7 +35,7 @@ public class RoutineCommandService : IRoutineCommandService
 
         if (routineCommand == null)
         {
-            throw new NotFoundException($"Routine command with ID '{commandId}' not found");
+            throw new RoutineNotFoundException(commandId);
         }
 
         _logger.LogInformation("Getting routine command: {CommandId}", commandId);
