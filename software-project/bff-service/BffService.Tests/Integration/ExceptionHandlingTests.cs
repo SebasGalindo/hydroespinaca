@@ -7,7 +7,7 @@ using Xunit;
 using BffService.Domain.Exceptions;
 using BffService.Application.Interfaces;
 using Moq;
-using BffService.Application.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace BffService.Tests.Integration;
 

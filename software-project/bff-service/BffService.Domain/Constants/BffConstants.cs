@@ -28,12 +28,22 @@ public static class BffConstants
         {
             public const string SensorService = "sensor-service";
             public const string ActuatorService = "actuator-service";
+            public const string AuthService = "auth-service";
         }
 
         public static readonly Dictionary<string, string> ServiceRoutes = new()
         {
             { "/sensor", Services.SensorService },
-            { "/actuator", Services.ActuatorService }
+            { "/actuator", Services.ActuatorService },
+            { "/auth", Services.AuthService }
+        };
+
+        // Public routes that don't require authentication
+        public static readonly HashSet<string> PublicRoutes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "/proxy/auth/api/auth/keys/public",
+            "/proxy/auth/api/auth/login",
+            "/proxy/auth/api/auth/token"
         };
     }
 

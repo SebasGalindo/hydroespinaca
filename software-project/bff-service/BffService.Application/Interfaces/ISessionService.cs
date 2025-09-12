@@ -1,4 +1,3 @@
-using BffService.Application.DTOs;
 using BffService.Domain.Entities;
 using HydroEspinaca.Shared.DTOs.Authentication;
 

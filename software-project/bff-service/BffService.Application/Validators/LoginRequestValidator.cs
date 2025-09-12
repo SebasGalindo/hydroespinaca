@@ -1,5 +1,5 @@
 using FluentValidation;
-using BffService.Application.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace BffService.Application.Validators;
 

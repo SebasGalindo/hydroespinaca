@@ -2,6 +2,7 @@ using BffService.Domain.Interfaces;
 using BffService.Domain.ValueObjects;
 using BffService.Domain.Exceptions;
 using BffService.Domain.Constants;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
@@ -59,9 +60,9 @@ public class AuthService : IAuthService
             }
 
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseContent, new JsonSerializerOptions
+            var tokenResponse = JsonSerializer.Deserialize<TokenResultDto>(responseContent, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
@@ -70,9 +71,9 @@ public class AuthService : IAuthService
             }
 
             var claims = ExtractClaimsFromToken(tokenResponse.AccessToken);
-            var scopes = ExtractScopesFromToken(tokenResponse.AccessToken);
+            var scopes = tokenResponse.Scopes?.ToList() ?? ExtractScopesFromToken(tokenResponse.AccessToken);
 
-            var expiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
+            var expiresAt = tokenResponse.ExpiresAt;
             var refreshTokenExpiresAt = !string.IsNullOrEmpty(tokenResponse.RefreshToken) 
                 ? DateTime.UtcNow.AddDays(7)
                 : (DateTime?)null;
@@ -87,7 +88,7 @@ public class AuthService : IAuthService
             var authResult = new AuthenticationResult(
                 tokenInfo,
                 claims.FirstOrDefault(c => c.Type == "sub")?.Value ?? string.Empty,
-                claims.FirstOrDefault(c => c.Type == "role")?.Value ?? string.Empty,
+                tokenResponse.Role ?? claims.FirstOrDefault(c => c.Type == "role")?.Value ?? string.Empty,
                 scopes
             );
 
@@ -126,9 +127,9 @@ public class AuthService : IAuthService
             }
 
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseContent, new JsonSerializerOptions
+            var tokenResponse = JsonSerializer.Deserialize<TokenResultDto>(responseContent, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
@@ -136,7 +137,7 @@ public class AuthService : IAuthService
                 throw new InvalidTokenException("Invalid token response from auth service");
             }
 
-            var expiresAt = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
+            var expiresAt = tokenResponse.ExpiresAt;
             var refreshTokenExpiresAt = !string.IsNullOrEmpty(tokenResponse.RefreshToken) 
                 ? DateTime.UtcNow.AddDays(7)
                 : (DateTime?)null;
@@ -237,11 +238,4 @@ public class AuthService : IAuthService
         return scopeClaim.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 
-    private class TokenResponse
-    {
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public int ExpiresIn { get; set; }
-        public string TokenType { get; set; } = "Bearer";
-    }
 }

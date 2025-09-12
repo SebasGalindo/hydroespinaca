@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
-using BffService.Application.DTOs;
 using BffService.Application.Interfaces;
 using BffService.Domain.Constants;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BffService.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly ISessionService _sessionService;
@@ -22,18 +22,19 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("login")]
+    [AllowAnonymous]
+    [HttpPost("login")]   
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
         var result = await _sessionService.LoginAsync(request, cancellationToken);
-        
+
         // Set session ID in response header using config values
         var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
         var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
-        
-        Response.Headers.Add(sessionIdHeader, result.SessionId);
-        Response.Headers.Add(csrfTokenHeader, result.CsrfToken);
-        
+
+        Response.Headers[sessionIdHeader] = result.SessionId;
+        Response.Headers[csrfTokenHeader] = result.CsrfToken;
+
         return Ok(result);
     }
 

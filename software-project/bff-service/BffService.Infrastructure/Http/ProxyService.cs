@@ -25,13 +25,14 @@ public class ProxyService : IProxyService
         _serviceUrls = new Dictionary<string, string>
         {
             { BffConstants.Proxy.Services.SensorService, _configuration["Services:SensorService:Url"] ?? "http://sensor-service:8080" },
-            { BffConstants.Proxy.Services.ActuatorService, _configuration["Services:ActuatorService:Url"] ?? "http://actuator-service:8080" }
+            { BffConstants.Proxy.Services.ActuatorService, _configuration["Services:ActuatorService:Url"] ?? "http://actuator-service:8080" },
+            { BffConstants.Proxy.Services.AuthService, _configuration["Services:AuthService:Url"] ?? "http://auth-service:8080" }
         };
     }
 
     public async Task<ProxyResponse> ForwardRequestAsync(
         ProxyRequest request, 
-        string accessToken, 
+        string? accessToken, 
         string targetService, 
         CancellationToken cancellationToken = default)
     {
@@ -48,8 +49,11 @@ public class ProxyService : IProxyService
             var requestUri = $"{serviceUrl}{request.Path}";
             using var httpRequestMessage = new HttpRequestMessage(new HttpMethod(request.Method), requestUri);
 
-            // Add authorization header
-            httpRequestMessage.Headers.Add(BffConstants.Headers.Authorization, $"Bearer {accessToken}");
+            // Add authorization header if access token is provided
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                httpRequestMessage.Headers.Add(BffConstants.Headers.Authorization, $"Bearer {accessToken}");
+            }
 
             // Add request headers (excluding authorization to prevent override)
             foreach (var header in request.Headers.Where(h => 
@@ -125,6 +129,11 @@ public class ProxyService : IProxyService
         }
 
         return matchedRoute.Value;
+    }
+
+    public bool IsPublicRoute(string path)
+    {
+        return BffConstants.Proxy.PublicRoutes.Contains(path);
     }
 
     private static bool IsAllowedHeader(string headerName)

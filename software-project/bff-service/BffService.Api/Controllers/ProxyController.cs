@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using BffService.Application.Interfaces;
 using BffService.Domain.Interfaces;
 using BffService.Domain.ValueObjects;
@@ -10,6 +11,7 @@ namespace BffService.Api.Controllers;
 
 [ApiController]
 [Route("proxy")]
+[AllowAnonymous] // Allow anonymous access, we'll check authentication internally based on route
 public class ProxyController : ControllerBase
 {
     private readonly ISessionService _sessionService;
@@ -64,37 +66,8 @@ public class ProxyController : ControllerBase
 
     private async Task<ActionResult> ForwardRequest(string method, string path, CancellationToken cancellationToken)
     {
-        // Get session ID from headers using config
-        var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-        var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
-
-        if (!Request.Headers.TryGetValue(sessionIdHeader, out var sessionIdValues) ||
-            !sessionIdValues.Any())
-        {
-            return Unauthorized(new { message = "Session ID required" });
-        }
-
-        var sessionId = sessionIdValues.First()!;
-        
-        // Validate CSRF token for state-changing operations
-        if (IsStateChangingOperation(method))
-        {
-            if (!Request.Headers.TryGetValue(csrfTokenHeader, out var csrfValues) ||
-                !csrfValues.Any())
-            {
-                return BadRequest(new { message = "CSRF token required" });
-            }
-        }
-
-        // Get session info and validate
-        var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
-        if (sessionInfo == null || !sessionInfo.IsValid)
-        {
-            return Unauthorized(new { message = "Invalid or expired session" });
-        }
-
-        // Construct full path for proxy
-        var fullPath = $"/{path}";
+        // Construct full path for proxy (add /proxy prefix since route captures everything after proxy/)
+        var fullPath = $"/proxy/{path}";
         
         if (!_proxyService.IsValidProxyPath(fullPath))
         {
@@ -102,6 +75,7 @@ public class ProxyController : ControllerBase
         }
 
         var targetService = _proxyService.GetTargetService(fullPath);
+        var isPublicRoute = _proxyService.IsPublicRoute(fullPath);
 
         // Read request body if present
         string? requestBody = null;
@@ -123,16 +97,53 @@ public class ProxyController : ControllerBase
             requestBody
         );
 
-        // Forward request
-        var session = await GetSessionWithTokens(sessionId, cancellationToken);
-        if (session == null)
+        string? accessToken = null;
+
+        // Handle authentication for non-public routes
+        if (!isPublicRoute)
         {
-            return Unauthorized(new { message = "Session not found" });
+            var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+            var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
+
+            if (!Request.Headers.TryGetValue(sessionIdHeader, out var sessionIdValues) ||
+                !sessionIdValues.Any())
+            {
+                return Unauthorized(new { message = "Session ID required" });
+            }
+
+            var sessionId = sessionIdValues.First()!;
+            
+            // Validate CSRF token for state-changing operations
+            if (IsStateChangingOperation(method))
+            {
+                if (!Request.Headers.TryGetValue(csrfTokenHeader, out var csrfValues) ||
+                    !csrfValues.Any())
+                {
+                    return BadRequest(new { message = "CSRF token required" });
+                }
+            }
+
+            // Get session info and validate
+            var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
+            if (sessionInfo == null || !sessionInfo.IsValid)
+            {
+                return Unauthorized(new { message = "Invalid or expired session" });
+            }
+
+            // Get the session with tokens
+            var session = await GetSessionWithTokens(sessionId, cancellationToken);
+            if (session == null)
+            {
+                return Unauthorized(new { message = "Session not found" });
+            }
+
+            accessToken = session.AccessToken;
         }
 
+        // Forward request
         var proxyResponse = await _proxyService.ForwardRequestAsync(
             proxyRequest,
-            session.AccessToken,
+            accessToken,
             targetService,
             cancellationToken);
 
@@ -174,12 +185,24 @@ public class ProxyController : ControllerBase
 
     private static string RemoveProxyPrefix(string path)
     {
-        if (path.StartsWith(BffConstants.Proxy.ProxyBasePath))
+        if (!path.StartsWith(BffConstants.Proxy.ProxyBasePath))
         {
-            return path.Substring(BffConstants.Proxy.ProxyBasePath.Length);
+            return path;
+        }
+
+        // Remove "/proxy" prefix first
+        var pathWithoutProxy = path.Substring(BffConstants.Proxy.ProxyBasePath.Length);
+        
+        // Now remove the service prefix (e.g., "/auth", "/sensor", "/actuator")
+        foreach (var serviceRoute in BffConstants.Proxy.ServiceRoutes.Keys)
+        {
+            if (pathWithoutProxy.StartsWith(serviceRoute, StringComparison.OrdinalIgnoreCase))
+            {
+                return pathWithoutProxy.Substring(serviceRoute.Length);
+            }
         }
         
-        return path;
+        return pathWithoutProxy;
     }
 
     private async Task<Domain.Entities.Session?> GetSessionWithTokens(string sessionId, CancellationToken cancellationToken)

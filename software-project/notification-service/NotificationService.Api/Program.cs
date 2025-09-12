@@ -49,7 +49,6 @@ if (app.Environment.IsDevelopment())
 }
 
 // Pipeline b�sico: HTTPS, AuthN/Z, Controllers y Health
-app.UseHttpsRedirection();
 
 // Activar AuthN/Z solo si fue configurado en DI (Jwt presente) sin resolver scoped desde root
 var isServiceChecker = app.Services.GetService<Microsoft.Extensions.DependencyInjection.IServiceProviderIsService>();

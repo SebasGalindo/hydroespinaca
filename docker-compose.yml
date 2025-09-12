@@ -133,6 +133,7 @@ services:
       - Sessions__RefreshTokenExpiryDays=${Jwt_RefreshTokenExpiryDays}
       - Services__SensorService__Url=${SENSOR_SERVICE_URL}
       - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
+      - Services__AuthService__Url=${AUTH_SERVICE_URL}
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
