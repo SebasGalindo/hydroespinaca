@@ -2,6 +2,7 @@
 using ActuatorService.Application.Mappers;
 using ActuatorService.Domain.Interfaces;
 using FluentValidation;
+using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Errors;
@@ -38,7 +39,7 @@ public class ActuatorServiceApplication : IActuatorService
     public async Task<ActuatorDto> GetByIdAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))
-            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)
@@ -50,7 +51,7 @@ public class ActuatorServiceApplication : IActuatorService
     public async Task<List<ActuatorDto>> GetByEsp32IdAsync(string esp32Id)
     {
         if (!ObjectId.TryParse(esp32Id, out _))
-            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         if (!await _esp32Validator.ExistsAsync(esp32Id))
             throw new NotFoundException("El ID del ESP32 no existe");
@@ -62,7 +63,7 @@ public class ActuatorServiceApplication : IActuatorService
     public async Task<string> AddAsync(CreateActuatorDto dto)
     {
         if (!ObjectId.TryParse(dto.Esp32Id, out _))
-            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         if (!await _esp32Validator.ExistsAsync(dto.Esp32Id))
             throw new NotFoundException("El ID del ESP32 no existe");
@@ -80,7 +81,7 @@ public class ActuatorServiceApplication : IActuatorService
     {
 
         if (!ObjectId.TryParse(id, out _))
-            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         if (!Enum.TryParse<ActuatorStatus>(dto.Status, true, out var parsedStatus))
             throw new ArgumentException($"Estado '{dto.Status}' no es válido. Valores permitidos: {string.Join(", ", Enum.GetNames(typeof(ActuatorStatus)))}");
@@ -100,7 +101,7 @@ public class ActuatorServiceApplication : IActuatorService
     public async Task DeleteAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))
-            throw new ArgumentException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
+            throw new ArgumentException($"Formato de ID no válido. Se esperaba una cadena hexadecimal de {ActuatorConstants.Validation.ObjectIdLength} caracteres.");
 
         var entity = await _repo.GetByIdAsync(id);
         if (entity is null)
