@@ -48,4 +48,11 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
 
         return await _baseRepo.FindOneAsync(filter);
     }
+
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoffDate)
+    {
+        var filter = Builders<SensorAlertDocument>.Filter.Lt(a => a.Timestamp, cutoffDate);
+        var result = await _baseRepo.DeleteManyAsync(filter);
+        return (int)result.DeletedCount;
+    }
 }

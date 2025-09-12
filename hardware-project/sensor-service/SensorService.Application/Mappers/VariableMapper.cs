@@ -12,8 +12,10 @@ public static class VariableMapper
         Name = v.Name,
         Unit = v.Unit,
         Description = v.Description,
-        MinValue = v.MinValue,
-        MaxValue = v.MaxValue,
+        PhysicalMin = v.PhysicalMin,
+        PhysicalMax = v.PhysicalMax,
+        OptimalMin = v.OptimalMin,
+        OptimalMax = v.OptimalMax,
         Type = v.Type.ToString(),
         LastModified = v.LastModified
     };
@@ -28,8 +30,10 @@ public static class VariableMapper
             Name = dto.Name,
             Unit = dto.Unit,
             Description = dto.Description,
-            MinValue = dto.MinValue,
-            MaxValue = dto.MaxValue,
+            PhysicalMin = dto.PhysicalMin,
+            PhysicalMax = dto.PhysicalMax,
+            OptimalMin = dto.OptimalMin,
+            OptimalMax = dto.OptimalMax,
             Type = variableType,
             LastModified = DateTime.UtcNow
         };
@@ -45,8 +49,10 @@ public static class VariableMapper
         entity.Name = dto.Name;
         entity.Unit = dto.Unit;
         entity.Description = dto.Description;
-        entity.MinValue = dto.MinValue;
-        entity.MaxValue = dto.MaxValue;
+        entity.PhysicalMin = dto.PhysicalMin;
+        entity.PhysicalMax = dto.PhysicalMax;
+        entity.OptimalMin = dto.OptimalMin;
+        entity.OptimalMax = dto.OptimalMax;
         entity.Type = variableType;
         entity.LastModified = DateTime.UtcNow;
     }

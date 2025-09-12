@@ -1,8 +1,9 @@
 ﻿using FluentValidation;
+using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Validations;
 
-namespace ActuatorService.Application.Validators.Actuators;
+namespace ActuatorService.Application.Validators;
 
 public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
 {
@@ -13,14 +14,20 @@ public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
             .WithMessage("Debe especificarse un ESP32.")
             .BeValidObjectId();
 
-        RuleFor(x => x.Name)
+        RuleFor(x => x.Code)
             .NotEmpty()
-            .WithMessage("El nombre del actuador es obligatorio.")
-            .MaximumLength(50).WithMessage("El nombre no debe superar los 50 caracteres.");
+            .WithMessage("El código/modelo del actuador es obligatorio.")
+            .MaximumLength(ActuatorConstants.Validation.MaxCodeLength).WithMessage($"El código no debe superar los {ActuatorConstants.Validation.MaxCodeLength} caracteres.");
 
         RuleFor(x => x.Type)
             .NotEmpty()
             .WithMessage("Debe especificarse un tipo de actuador.");
+
+        RuleFor(x => x.Mode)
+            .NotEmpty()
+            .WithMessage($"Debe especificarse un modo de actuador ({ActuatorConstants.Modes.Digital} o {ActuatorConstants.Modes.Pwm}).")
+            .Must(mode => ActuatorConstants.Modes.ValidModes.Contains(mode))
+            .WithMessage($"El modo debe ser '{ActuatorConstants.Modes.Digital}' o '{ActuatorConstants.Modes.Pwm}'.");
 
         RuleFor(x => x.PhysicalId)
             .NotEmpty()
@@ -33,7 +40,7 @@ public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
         RuleFor(x => x.Location)
             .NotEmpty()
             .WithMessage("La ubicación es obligatoria.")
-            .MaximumLength(100)
-            .WithMessage("La ubicación no debe superar los 100 caracteres.");
+            .MaximumLength(ActuatorConstants.Validation.MaxLocationLength)
+            .WithMessage($"La ubicación no debe superar los {ActuatorConstants.Validation.MaxLocationLength} caracteres.");
     }
 }

@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.DS_Store
+TestResults/
+coverage.json
+coverage.xml
+*.trx
+
+# Deprecated Services layer (refactored to use repositories directly)
+AuthService.Application/Services/

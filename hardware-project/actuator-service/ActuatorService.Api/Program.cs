@@ -8,6 +8,17 @@ using HydroEspinaca.Shared.Errors;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.IncludeScopes = false;
+    options.SingleLine = true;
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
+
 // Service layers
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
@@ -19,12 +30,17 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, ActuatorServiceE
 
 var app = builder.Build();
 
-// Standard pipeline
+// Configure middleware based on environment
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Actuator Service API v1"));
 }
+
+// if (app.Environment.IsProduction())
+// {
+//     app.UseHsts();
+// }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();

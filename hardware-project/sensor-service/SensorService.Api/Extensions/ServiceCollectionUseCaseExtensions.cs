@@ -1,8 +1,8 @@
 ﻿using SensorService.Application.Interfaces.UseCases.AggregateWorker;
-using SensorService.Application.Interfaces.UseCases.Esp32OfflineWorker;
+using SensorService.Application.Interfaces.UseCases.Esp32Status;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Application.UseCases;
-using SensorService.Application.UseCases.Esp32OfflineWorker;
+using SensorService.Application.UseCases.Esp32Status;
 using SensorService.Application.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Interfaces;
 
@@ -18,7 +18,7 @@ public static class ServiceCollectionUseCaseExtensions
 
         services.AddScoped<IProcessReadingBatchUseCase, ProcessReadingBatchUseCase>();
         services.AddScoped<IProcessAggregatesUseCase, ProcessAggregatesUseCase>();
-        services.AddScoped<ICheckEsp32OfflineStatusUseCase, CheckEsp32OfflineStatusUseCase>();
+        services.AddScoped<IHandleEsp32StatusUseCase, HandleEsp32StatusUseCase>();
         services.AddScoped<IMqttMessageHandler, MqttMessageHandler>();
         return services;
     }

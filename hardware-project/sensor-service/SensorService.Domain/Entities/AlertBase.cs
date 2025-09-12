@@ -10,6 +10,7 @@ public abstract class AlertBase : IIdentifiableMutable
     public string Message { get; set; } = default!;
     public AlertSeverity Severity { get; set; }
     public bool Acknowledged { get; set; } = false;
+    public DateTime? ResolvedAt { get; set; }
 
     public void SetId(string id) => Id = id;
 }
