@@ -2,12 +2,13 @@
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
 using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
 
 namespace AuthService.Application.Features.Authentication.Commands.RefreshToken;
 
-public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResult>
+public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResultDto>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUserRepository _userRepository;
@@ -26,7 +27,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
         _tokenService = tokenService;
     }
 
-    public async Task<TokenResult> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
+    public async Task<TokenResultDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
         var refreshToken = await _refreshTokenRepository.FindAsync(request.RefreshToken);
         if (refreshToken == null || refreshToken.ExpiresAt <= DateTime.UtcNow)
@@ -69,6 +70,13 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
         
         await _refreshTokenRepository.AddAsync(newRefreshToken);
 
-        return tokens;
+        return new TokenResultDto(
+            tokens.AccessToken,
+            tokens.RefreshToken,
+            tokens.ExpiresAt,
+            tokens.Role,
+            tokens.ClientId,
+            tokens.Scopes
+        );
     }
 }

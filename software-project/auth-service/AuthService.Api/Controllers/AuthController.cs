@@ -1,10 +1,10 @@
-﻿using AuthService.Api.Models;
 using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 using AuthService.Application.Features.Authentication.Commands.Login;
 using AuthService.Application.Features.Authentication.Commands.RefreshToken;
 using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Security;
 using AuthService.Infrastructure.Security.Models;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +29,7 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<ActionResult<TokenResult>> Login([FromBody] LoginRequest dto)
+    public async Task<ActionResult<TokenResultDto>> Login([FromBody] LoginRequestDto dto)
     {
         var command = new LoginCommand(dto.Email, dto.Password);
         var tokens = await _mediator.Send(command);
@@ -38,7 +38,7 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("refresh")]
-    public async Task<ActionResult<TokenResult>> Refresh([FromBody] RefreshRequest dto)
+    public async Task<ActionResult<TokenResultDto>> Refresh([FromBody] RefreshRequestDto dto)
     {
         var command = new RefreshTokenCommand(dto.RefreshToken, dto.ClientId);
         var tokens = await _mediator.Send(command);
@@ -47,7 +47,7 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("token")]
-    public async Task<ActionResult<TokenResult>> Token([FromBody] ClientCredentialsRequest dto)
+    public async Task<ActionResult<TokenResultDto>> Token([FromBody] ClientCredentialsRequestDto dto)
     {
         var command = new ClientCredentialsCommand(dto.ClientId, dto.ClientSecret);
         var tokens = await _mediator.Send(command);

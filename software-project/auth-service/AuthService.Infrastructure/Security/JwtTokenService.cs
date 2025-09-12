@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using JwtRegisteredNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames;
+using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace AuthService.Infrastructure.Security
 {
@@ -184,19 +185,6 @@ namespace AuthService.Infrastructure.Security
             {
                 return false;
             }
-        }
-
-        // Legacy method for backward compatibility
-        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
-        {
-            // For legacy compatibility, use async method synchronously
-            return GenerateTokensAsync(userId, email, role, clientId, tokenType).GetAwaiter().GetResult();
-        }
-
-        // Legacy method for backward compatibility
-        public TokenResult GenerateTokens(string userId, string email, string role, string? clientId)
-        {
-            return GenerateTokens(userId, email, role, clientId, TokenType.User);
         }
 
         /// <summary>

@@ -8,6 +8,7 @@ using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
 using AuthService.Test.Helpers;
 using FluentAssertions;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using Moq;
 
 namespace AuthService.Test.Unit.Application;
@@ -37,7 +38,7 @@ public class LoginCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidCredentials_ReturnsTokenResult()
+    public async Task Handle_ValidCredentials_ReturnsTokenResultDto()
     {
         // Arrange
         var command = new LoginCommand("test@example.com", "password123");
@@ -51,18 +52,18 @@ public class LoginCommandHandlerTests
             .Setup(h => h.Verify(fakeUser.Password.Value, command.Password))
             .Returns(true);
 
-        var expectedTokens = new TokenResult
-        {
-            AccessToken = "access_token",
-            RefreshToken = "refresh_token",
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-            Role = "user",
-            ClientId = null
-        };
+        var expectedTokens = new TokenResultDto(
+            "access_token",
+            "refresh_token",
+            DateTime.UtcNow.AddMinutes(30),
+            "user",
+            null,
+            Array.Empty<string>()
+        );
 
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(It.IsAny<string>(), command.Email, It.IsAny<string>(), null, TokenType.User))
-            .Returns(expectedTokens);
+            .Setup(s => s.GenerateTokensAsync(It.IsAny<string>(), command.Email, It.IsAny<string>(), null, TokenType.User))
+            .ReturnsAsync(expectedTokens);
 
         // Act
         var result = await _sut.Handle(command, CancellationToken.None);
@@ -118,7 +119,7 @@ public class ClientCredentialsCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidClient_ReturnsTokenResult()
+    public async Task Handle_ValidClient_ReturnsTokenResultDto()
     {
         // Arrange
         var command = new ClientCredentialsCommand("test-client", "test-secret");
@@ -132,14 +133,14 @@ public class ClientCredentialsCommandHandlerTests
             .Setup(h => h.Verify(command.ClientSecret, fakeApp.Secret.Value))
             .Returns(true);
 
-        var expectedTokens = new TokenResult
-        {
-            AccessToken = "client_access_token",
-            RefreshToken = "refresh_token",
-            ExpiresAt = DateTime.UtcNow.AddMinutes(60),
-            Role = "client",
-            ClientId = command.ClientId
-        };
+        var expectedTokens = new TokenResultDto(
+            "client_access_token",
+            "refresh_token",
+            DateTime.UtcNow.AddMinutes(60),
+            "client",
+            command.ClientId,
+            Array.Empty<string>()
+        );
 
         // Mock the permission repository to return some test permissions
         var fakePermissions = new[] {
@@ -227,18 +228,18 @@ public class RefreshTokenCommandHandlerTests
             .Setup(r => r.FindByIdAsync(fakeUser.RoleId!))
             .ReturnsAsync(fakeRole);
 
-        var expectedTokens = new TokenResult
-        {
-            AccessToken = "new_access_token",
-            RefreshToken = "new_refresh_token",
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-            Role = "role_user", // Now uses role code instead of RoleId
-            ClientId = command.ClientId
-        };
+        var expectedTokens = new TokenResultDto(
+            "new_access_token",
+            "new_refresh_token",
+            DateTime.UtcNow.AddMinutes(30),
+            "role_user", // Now uses role code instead of RoleId
+            command.ClientId,
+            Array.Empty<string>()
+        );
 
         _tokenServiceMock
-            .Setup(s => s.GenerateTokens(fakeUser.Id, fakeUser.Email.Value, "role_user", command.ClientId, It.IsAny<TokenType>()))
-            .Returns(expectedTokens);
+            .Setup(s => s.GenerateTokensAsync(fakeUser.Id, fakeUser.Email.Value, "role_user", command.ClientId, It.IsAny<TokenType>()))
+            .ReturnsAsync(expectedTokens);
 
         // Act
         var result = await _sut.Handle(command, CancellationToken.None);

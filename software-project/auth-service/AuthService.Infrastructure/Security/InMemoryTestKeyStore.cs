@@ -48,15 +48,4 @@ public class InMemoryTestKeyStore : IKeyStore
         _keyPairsById.TryGetValue(keyId, out var keyPair);
         return keyPair;
     }
-
-    // Legacy methods for backward compatibility
-    public string GetPrivateKey()
-    {
-        return GetKeyPair(TokenType.User).PrivateKey;
-    }
-
-    public string GetPublicKey()
-    {
-        return GetKeyPair(TokenType.User).PublicKey;
-    }
 }

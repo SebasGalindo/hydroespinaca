@@ -1,11 +1,12 @@
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
 
 namespace AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 
-public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentialsCommand, TokenResult>
+public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentialsCommand, TokenResultDto>
 {
     private readonly IClientAppRepository _clientAppRepository;
     private readonly IPasswordHasher _passwordHasher;
@@ -24,7 +25,7 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
         _permissionRepository = permissionRepository;
     }
 
-    public async Task<TokenResult> Handle(ClientCredentialsCommand request, CancellationToken cancellationToken)
+    public async Task<TokenResultDto> Handle(ClientCredentialsCommand request, CancellationToken cancellationToken)
     {
         var clientApp = await _clientAppRepository.FindByClientIdAsync(request.ClientId);
         if (clientApp == null)
@@ -32,7 +33,7 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             throw new InvalidClientCredentialsException();
         }
 
-        var isValidSecret = _passwordHasher.Verify(request.ClientSecret, clientApp.Secret.Value);
+        var isValidSecret = _passwordHasher.Verify(clientApp.Secret.Value, request.ClientSecret);
         if (!isValidSecret)
         {
             throw new InvalidClientCredentialsException();
@@ -51,6 +52,13 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             TokenType.MachineToMachine,
             scopes);  // ✅ Pass actual scopes from database
 
-        return tokens;
+        return new TokenResultDto(
+            tokens.AccessToken,
+            tokens.RefreshToken,
+            tokens.ExpiresAt,
+            tokens.Role,
+            tokens.ClientId,
+            tokens.Scopes
+        );
     }
 }

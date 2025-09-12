@@ -1,12 +1,13 @@
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
 using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
-public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
+public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
@@ -28,7 +29,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
         _refreshTokenRepository = refreshTokenRepository;
     }
 
-    public async Task<TokenResult> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<TokenResultDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var user = await _userRepository.FindByEmailAsync(request.Email);
         if (user == null)
@@ -68,6 +69,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResult>
 
         await _refreshTokenRepository.AddAsync(refreshToken);
 
-        return tokens;
+        return new TokenResultDto(
+            tokens.AccessToken,
+            tokens.RefreshToken,
+            tokens.ExpiresAt,
+            tokens.Role,
+            tokens.ClientId,
+            tokens.Scopes
+        );
     }
 }
