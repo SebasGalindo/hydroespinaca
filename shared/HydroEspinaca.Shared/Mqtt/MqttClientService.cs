@@ -19,6 +19,7 @@ public class MqttClientService : IMqttClientService
     private readonly ILogger<MqttClientService> _logger;
     private readonly string _instanceId = Guid.NewGuid().ToString("N");
     private readonly ConcurrentDictionary<string, byte> _subscribedTopics = new();
+    private readonly ConcurrentDictionary<string, Func<string, byte[], Task>> _topicHandlers = new();
 
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
@@ -87,6 +88,9 @@ public class MqttClientService : IMqttClientService
     {
         await ConnectAsync();
 
+        // Store the topic-specific handler
+        _topicHandlers.TryAdd(topic, handler);
+
         // Protege el registro del handler contra race conditions
         lock (_handlerLock)
         {
@@ -94,27 +98,44 @@ public class MqttClientService : IMqttClientService
             {
                 _client.ApplicationMessageReceivedAsync += async e =>
                 {
-                    ReadOnlySequence<byte> sequence = e.ApplicationMessage.Payload;
+                    var sequence = e.ApplicationMessage.Payload;
                     byte[] array = BuffersExtensions.ToArray(in sequence);
                     string topicReceived = e.ApplicationMessage.Topic;
-                    _logger.LogInformation("[{Instance}] MQTT message received. Topic: {Topic}, Payload: {Payload}", _instanceId, topicReceived, Encoding.UTF8.GetString(array));
-                    try
+                    _logger.LogInformation("[{Instance}] MQTT message received. Topic: {Topic}, Payload: {Payload}",
+                        _instanceId, topicReceived, Encoding.UTF8.GetString(array));
+
+                    bool handlerFound = false;
+
+                    foreach (var kvp in _topicHandlers)
                     {
-                        await handler(topicReceived, array).ConfigureAwait(false);
+                        // Fix: kvp.Key es el filtro (sensor/+/status), topicReceived es el topic real (sensor/esp32-001/status)
+                        if (MqttTopicFilterComparer.Compare(topicReceived, kvp.Key) == MqttTopicFilterCompareResult.IsMatch)
+                        {
+                            try
+                            {
+                                await kvp.Value(topicReceived, array).ConfigureAwait(false);
+                                handlerFound = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "[{Instance}] Error in message handler for subscribed pattern: {Pattern}", _instanceId, kvp.Key);
+                            }
+                        }
                     }
-                    catch (Exception ex)
+
+                    if (!handlerFound)
                     {
-                        _logger.LogError(ex, "[{Instance}] Error in message handler", _instanceId);
-                        // no rethrow: evita que excepciones asincrónicas rompan el loop del cliente
+                        _logger.LogWarning("[{Instance}] No handler found for topic: {Topic}", _instanceId, topicReceived);
                     }
                 };
+
 
                 _isHandlerRegistered = true;
                 _logger.LogInformation("[{Instance}] Registered ApplicationMessageReceived handler.", _instanceId);
             }
             else
             {
-                _logger.LogDebug("[{Instance}] Handler already registered - skipping.", _instanceId);
+                _logger.LogDebug("[{Instance}] Handler already registered - using topic-based routing.", _instanceId);
             }
         }
 
@@ -158,8 +179,8 @@ public class MqttClientService : IMqttClientService
         MqttApplicationMessage applicationMessage = new MqttApplicationMessageBuilder()
             .WithTopic(topic)
             .WithPayload(payload)
-            .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.ExactlyOnce)
-            .WithRetainFlag()
+            .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithRetainFlag(false)
             .Build();
         await _client.PublishAsync(applicationMessage);
     }

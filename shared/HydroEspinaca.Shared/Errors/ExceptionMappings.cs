@@ -27,6 +27,12 @@ public static class ExceptionMappings
         // Conflict
         { typeof(ConflictException), 409 },
         
+        // Unprocessable entity
+        { typeof(UnprocessableEntityException), 422 },
+        
+        // Service unavailable
+        { typeof(ServiceUnavailableException), 502 },
+        
         // Argument exceptions
         { typeof(ArgumentException), 400 },
         { typeof(ArgumentNullException), 400 },
@@ -45,6 +51,8 @@ public static class ExceptionMappings
         { typeof(ValidationException), "https://tools.ietf.org/html/rfc9110#section-15.5.1" },
         { typeof(NotFoundException), "https://tools.ietf.org/html/rfc9110#section-15.5.5" },
         { typeof(ConflictException), "https://tools.ietf.org/html/rfc9110#section-15.5.8" },
+        { typeof(UnprocessableEntityException), "https://tools.ietf.org/html/rfc9110#section-15.5.9" },
+        { typeof(ServiceUnavailableException), "https://tools.ietf.org/html/rfc9110#section-15.6.3" },
         { typeof(ArgumentException), "https://tools.ietf.org/html/rfc9110#section-15.5.1" },
         { typeof(ArgumentNullException), "https://tools.ietf.org/html/rfc9110#section-15.5.1" },
         { typeof(Exception), "https://tools.ietf.org/html/rfc9110#section-15.6.1" }
@@ -60,6 +68,8 @@ public static class ExceptionMappings
         { typeof(ValidationException), "Validation Error" },
         { typeof(NotFoundException), "Resource Not Found" },
         { typeof(ConflictException), "Conflict" },
+        { typeof(UnprocessableEntityException), "Unprocessable Entity" },
+        { typeof(ServiceUnavailableException), "Service Unavailable" },
         { typeof(ArgumentException), "Invalid Parameter" },
         { typeof(ArgumentNullException), "Invalid Parameter" },
         { typeof(Exception), "Internal Server Error" }
