@@ -35,5 +35,9 @@ public class SensorAlertDocument : IIdentifiableMutable
 
     [BsonElement("acknowledged")]
     public bool Acknowledged { get; set; } = false;
+
+    [BsonElement("resolvedAt")]
+    public DateTime? ResolvedAt { get; set; }
+
     public void SetId(string id) => Id = id;
 }

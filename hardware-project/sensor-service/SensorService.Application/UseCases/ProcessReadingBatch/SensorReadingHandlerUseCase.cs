@@ -1,4 +1,5 @@
-﻿using HydroEspinaca.Shared.DTOs.Mqtt;
+﻿using HydroEspinaca.Shared.Constants;
+using HydroEspinaca.Shared.DTOs.Mqtt;
 using Microsoft.Extensions.Logging;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Interfaces;
@@ -22,10 +23,7 @@ public class MqttMessageHandler : IMqttMessageHandler
         if (!topic.EndsWith("/readings")) return;
 
         var json = Encoding.UTF8.GetString(payload);
-        var dto = JsonSerializer.Deserialize<ReadingBatchDto>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
+        var dto = JsonSerializer.Deserialize<ReadingBatchDto>(json, JsonConstants.SerializerOptions.CaseInsensitive);
 
         if (dto is null)
         {
