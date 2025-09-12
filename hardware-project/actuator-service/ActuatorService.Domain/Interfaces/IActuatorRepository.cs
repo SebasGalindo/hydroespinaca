@@ -5,7 +5,6 @@ namespace ActuatorService.Domain.Interfaces;
 public interface IActuatorRepository
 {
     Task<Actuator?> GetByIdAsync(string id);
-    Task<List<Actuator>> GetByIdsAsync(List<string> ids);
     Task<List<Actuator>> GetAllAsync();
     Task<List<Actuator>> GetByEsp32IdAsync(string esp32Id);
     Task AddAsync(Actuator actuator);

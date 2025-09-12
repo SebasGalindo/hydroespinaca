@@ -13,9 +13,7 @@ public class Esp32NodeMapper : IEntityMapper<Esp32Node, Esp32NodeDocument>
             Name = doc.Name,
             Location = doc.Location,
             LastSeen = doc.LastSeen,
-            Status = doc.Status,
-            Uptime = doc.Uptime,
-            FreeHeap = doc.FreeHeap
+            Status = doc.Status
         };
         entity.SetId(doc.Id);
         return entity;
@@ -28,9 +26,7 @@ public class Esp32NodeMapper : IEntityMapper<Esp32Node, Esp32NodeDocument>
             Name = entity.Name,
             Location = entity.Location,
             LastSeen = entity.LastSeen,
-            Status = entity.Status,
-            Uptime = entity.Uptime,
-            FreeHeap = entity.FreeHeap
+            Status = entity.Status
         };
         document.SetId(entity.Id);
         return document;

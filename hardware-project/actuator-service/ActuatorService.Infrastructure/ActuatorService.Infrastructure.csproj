@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.7" />
     <PackageReference Include="MongoDB.Driver" Version="3.4.1" />
@@ -6,7 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ActuatorService.Domain\ActuatorService.Domain.csproj" />
-	<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250906180832" />
+	<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250814160421" />
     <ProjectReference Include="..\ActuatorService.Application\ActuatorService.Application.csproj" />
   </ItemGroup>
 

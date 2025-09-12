@@ -1,5 +1,4 @@
-﻿using HydroEspinaca.Shared.Constants;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SensorService.Application.Interfaces.UseCases.AggregateWorker;
@@ -10,7 +9,7 @@ public class AggregateWorker : BackgroundService
 {
     private readonly ILogger<AggregateWorker> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(AggregationConstants.WorkerIntervalMinutes);
+    private readonly TimeSpan _interval = TimeSpan.FromMinutes(10);
 
     public AggregateWorker(
         ILogger<AggregateWorker> logger,
@@ -46,13 +45,7 @@ public class AggregateWorker : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var useCase = scope.ServiceProvider.GetRequiredService<IProcessAggregatesUseCase>();
 
-        // Use the last completed aggregation window to ensure consistency
-        var now = DateTime.UtcNow;
-        var referenceTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, 
-            (now.Minute / AggregationConstants.AggregationWindowMinutes) * AggregationConstants.AggregationWindowMinutes, 
-            0, DateTimeKind.Utc);
-        
-        var result = await useCase.ExecuteAsync(referenceTime);
+        var result = await useCase.ExecuteAsync(DateTime.UtcNow);
 
         _logger.LogDebug(
             "Aggregation cycle completed: {ProcessedCount} processed, {SkippedCount} skipped, {DeletedCount} deleted",

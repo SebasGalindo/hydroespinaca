@@ -1,10 +1,7 @@
-# ESP32 devices
+# ESP32 devices (one per line)
 user esp32-001
-topic write sensor/readings
-topic read actuator/job/schedule
-topic write actuator/routine/completions
-topic write actuator/routine/notifications
-topic write sensor/esp32-001/status
+topic write sensor/esp32-001/readings
+topic read  actuator/esp32-001/#
 
 # SensorService backend
 user sensor-apiuser
@@ -13,4 +10,3 @@ topic read sensor/#
 # Actuator Service
 user actuator-apiuser
 topic write actuator/#
-topic read actuator/#

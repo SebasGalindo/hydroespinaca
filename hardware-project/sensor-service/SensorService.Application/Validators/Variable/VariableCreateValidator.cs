@@ -20,27 +20,13 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
             .NotEmpty().WithMessage("La descripción es obligatoria.")
             .MaximumLength(200);
 
-        // Validaciones para rangos físicos
-        RuleFor(x => x.PhysicalMin)
-            .LessThan(x => x.PhysicalMax)
-            .WithMessage("El valor físico mínimo debe ser menor que el valor físico máximo.");
+        RuleFor(x => x.MinValue)
+            .LessThan(x => x.MaxValue)
+            .WithMessage("El valor mínimo debe ser menor que el valor máximo.");
 
-        RuleFor(x => x.PhysicalMax)
-            .GreaterThan(x => x.PhysicalMin)
-            .WithMessage("El valor físico máximo debe ser mayor que el valor físico mínimo.");
-
-        // Validaciones para rangos óptimos
-        RuleFor(x => x.OptimalMin)
-            .LessThan(x => x.OptimalMax)
-            .WithMessage("El valor óptimo mínimo debe ser menor que el valor óptimo máximo.")
-            .GreaterThanOrEqualTo(x => x.PhysicalMin)
-            .WithMessage("El valor óptimo mínimo no puede ser menor que el valor físico mínimo.");
-
-        RuleFor(x => x.OptimalMax)
-            .GreaterThan(x => x.OptimalMin)
-            .WithMessage("El valor óptimo máximo debe ser mayor que el valor óptimo mínimo.")
-            .LessThanOrEqualTo(x => x.PhysicalMax)
-            .WithMessage("El valor óptimo máximo no puede ser mayor que el valor físico máximo.");
+        RuleFor(x => x.MaxValue)
+            .GreaterThan(x => x.MinValue)
+            .WithMessage("El valor máximo debe ser mayor que el valor mínimo.");
 
         RuleFor(x => x.Type)
           .NotEmpty()

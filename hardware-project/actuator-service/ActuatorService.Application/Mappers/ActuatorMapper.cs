@@ -10,15 +10,11 @@ public static class ActuatorMapper
         if (!Enum.TryParse<ActuatorType>(dto.Type, true, out var actuatorType))
             throw new ArgumentException($"Invalid actuator type: '{dto.Type}'.");
 
-        if (!Enum.TryParse<ActuatorMode>(dto.Mode, true, out var actuatorMode))
-            throw new ArgumentException($"Invalid actuator mode: '{dto.Mode}'.");
-
         return new Actuator
         {
             Esp32Id = dto.Esp32Id,
-            Code = dto.Code,
+            Name = dto.Name,
             Type = actuatorType,
-            Mode = actuatorMode,
             PhysicalId = dto.PhysicalId,
             Pin = dto.Pin,
             Location = dto.Location,
@@ -32,11 +28,7 @@ public static class ActuatorMapper
         if (!Enum.TryParse<ActuatorStatus>(dto.Status, true, out var status))
             throw new ArgumentException($"Invalid actuator status: '{dto.Status}'.");
 
-        if (!Enum.TryParse<ActuatorMode>(dto.Mode, true, out var mode))
-            throw new ArgumentException($"Invalid actuator mode: '{dto.Mode}'.");
-
-        entity.Code = dto.Code;
-        entity.Mode = mode;
+        entity.Name = dto.Name;
         entity.Location = dto.Location;
         entity.Pin = dto.Pin;
         entity.Status = status;
@@ -46,9 +38,8 @@ public static class ActuatorMapper
     {
         Id = x.Id,
         Esp32Id = x.Esp32Id,
-        Code = x.Code,
+        Name = x.Name,
         Type = x.Type.ToString(),
-        Mode = x.Mode.ToString(),
         PhysicalId = x.PhysicalId,
         Pin = x.Pin,
         Location = x.Location,

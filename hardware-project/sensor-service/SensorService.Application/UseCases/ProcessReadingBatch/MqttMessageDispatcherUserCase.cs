@@ -9,19 +9,22 @@ public class MqttMessageDispatcher
     {
         _handlers = new Dictionary<string, IMqttMessageHandler>
         {
-            { "sensor/readings", handlers.OfType<MqttMessageHandler>().First() }
+            { "sensor/", handlers.OfType<MqttMessageHandler>().First() }
         };
     }
 
     public async Task DispatchAsync(string topic, byte[] payload, CancellationToken cancellationToken)
     {
-        if (_handlers.TryGetValue(topic, out var handler))
+        foreach (var (prefix, handler) in _handlers)
         {
-            await handler.HandleAsync(topic, payload, cancellationToken);
-            return;
+            if (topic.StartsWith(prefix))
+            {
+                await handler.HandleAsync(topic, payload, cancellationToken);
+                return;
+            }
         }
 
-        // No handler found for this topic
+        // No handler found
         Console.WriteLine($"⚠️ No handler para topic: {topic}");
     }
 }

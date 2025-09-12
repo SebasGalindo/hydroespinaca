@@ -15,6 +15,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
     private readonly IMatchReadingsWithSensorsUseCase _matchReadingsUseCase;
     private readonly IGenerateAlertsUseCase _generateAlertsUseCase;
     private readonly IGenerateInactiveSensorAlertsUseCase _generateInactiveAlertsUseCase;
+    private readonly IEsp32StatusService _esp32StatusService;
     private readonly IUpdateEsp32LastSeenUseCase _updateEsp32LastSeenUseCase;
 
     public ProcessReadingBatchUseCase(
@@ -24,6 +25,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         IMatchReadingsWithSensorsUseCase matchReadingsUseCase,
         IGenerateAlertsUseCase generateAlertsUseCase,
         IGenerateInactiveSensorAlertsUseCase generateInactiveAlertsUseCase,
+        IEsp32StatusService esp32StatusService,
         IUpdateEsp32LastSeenUseCase updateEsp32LastSeenUseCase
         )
     {
@@ -33,6 +35,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         _matchReadingsUseCase = matchReadingsUseCase;
         _generateAlertsUseCase = generateAlertsUseCase;
         _generateInactiveAlertsUseCase = generateInactiveAlertsUseCase;
+        _esp32StatusService = esp32StatusService;
         _updateEsp32LastSeenUseCase = updateEsp32LastSeenUseCase;
     }
 
@@ -47,9 +50,8 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
 
         try
         {
-            // Nota: Con MQTT LWT el sistema maneja automáticamente el estado online/offline
-            // No es necesario resolver manualmente las alertas offline aquí
-            
+            await _esp32StatusService.AcknowledgeOfflineAlertAsync(dto.Esp32Id);
+
             var matchedReadings = (await _matchReadingsUseCase.ExecuteAsync(dto)).ToList();
 
             if (matchedReadings.Any())

@@ -1,6 +1,7 @@
-﻿using HydroEspinaca.Shared.Authentication.Interfaces;
+﻿using FluentValidation;
+using HydroEspinaca.Shared.Errors;
+using Microsoft.AspNetCore.Mvc;
 using System.Net.Mime;
-
 
 namespace ActuatorService.Api.Middleware;
 
@@ -23,37 +24,51 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning("⚠️ Validation failed. Error count: {ErrorCount}", ex.Errors?.Count() ?? 0);
+
+            if (ex.Errors != null)
+            {
+                foreach (var error in ex.Errors)
+                {
+                    _logger.LogWarning("Validation error - Property: {Property}, Error: {Error}",
+                        error.PropertyName ?? "Unknown", error.ErrorMessage);
+                }
+            }
+
+            var problemDetails = new ProblemDetails
+            {
+                Title = "Validation Failed",
+                Status = StatusCodes.Status400BadRequest,
+                Detail = "One or more validation errors occurred.",
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+            };
+            
+            problemDetails.Extensions["errors"] = ex.Errors?.Select(e => new { property = e.PropertyName, message = e.ErrorMessage }).ToArray() ?? Array.Empty<object>();
+
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(problemDetails);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Unhandled exception");
+            _logger.LogError(ex, "❌ Unhandled exception occurred");
 
-            var exceptionMapper = context.RequestServices.GetService<IExceptionToProblemDetailsMapper>();
-            
-            if (exceptionMapper != null && exceptionMapper.CanHandle(ex))
+            var problem = new ProblemDetails
             {
-                var statusCode = exceptionMapper.GetStatusCode(ex);
-                var problemDetails = exceptionMapper.MapToProblemDetails(ex, context.Request.Path, _env.IsDevelopment());
+                Title = "An error occurred",
+                Detail = _env.IsDevelopment() ? ex.Message : "An internal server error occurred",
+                Status = StatusCodes.Status500InternalServerError,
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+            };
 
-                context.Response.StatusCode = statusCode;
-                context.Response.ContentType = MediaTypeNames.Application.Json;
+            if (_env.IsDevelopment())
+                problem.Extensions["stackTrace"] = ex.StackTrace;
 
-                await context.Response.WriteAsJsonAsync(problemDetails);
-            }
-            else
-            {
-                // Fallback to default error response
-                context.Response.StatusCode = 500;
-                context.Response.ContentType = MediaTypeNames.Application.Json;
-                
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
-                    title = "Internal Server Error",
-                    status = 500,
-                    detail = _env.IsDevelopment() ? ex.Message : "An error occurred",
-                    instance = context.Request.Path.ToString()
-                });
-            }
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(problem);
         }
     }
 }

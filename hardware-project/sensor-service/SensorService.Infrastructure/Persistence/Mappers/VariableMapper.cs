@@ -12,10 +12,8 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
             Name = doc.Name,
             Unit = doc.Unit,
             Description = doc.Description,
-            PhysicalMin = doc.PhysicalMin,
-            PhysicalMax = doc.PhysicalMax,
-            OptimalMin = doc.OptimalMin,
-            OptimalMax = doc.OptimalMax,
+            MinValue = doc.MinValue,
+            MaxValue = doc.MaxValue,
             Type = doc.Type,
             LastModified = doc.LastModified
         };
@@ -30,10 +28,8 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
             Name = entity.Name,
             Unit = entity.Unit,
             Description = entity.Description,
-            PhysicalMin = entity.PhysicalMin,
-            PhysicalMax = entity.PhysicalMax,
-            OptimalMin = entity.OptimalMin,
-            OptimalMax = entity.OptimalMax,
+            MinValue = entity.MinValue,
+            MaxValue = entity.MaxValue,
             Type = entity.Type,
             LastModified = entity.LastModified
         };

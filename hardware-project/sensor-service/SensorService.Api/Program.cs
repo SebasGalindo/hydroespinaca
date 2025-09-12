@@ -9,16 +9,6 @@ using HydroEspinaca.Shared.Errors;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure logging
-builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole(options =>
-{
-    options.IncludeScopes = false;
-    options.SingleLine = true;
-    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
-});
-
-
 // ✅ Configure Clean Architecture layers
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationServices();
@@ -34,7 +24,7 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, SensorServiceExc
 
 var app = builder.Build();
 
-// Configure middleware based on environment
+// ✅ Standard pipeline with shared middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -42,11 +32,6 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sensor Service API v1")
     );
 }
-
-// if (app.Environment.IsProduction())
-// {
-//     app.UseHsts();
-// }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();

@@ -20,17 +20,11 @@ public class VariableDocument : IIdentifiableMutable
     [BsonElement("description")]
     public string Description { get; set; } = default!;
 
-    [BsonElement("physicalMin")]
-    public double PhysicalMin { get; set; }
+    [BsonElement("minValue")]
+    public double MinValue { get; set; }
 
-    [BsonElement("physicalMax")]
-    public double PhysicalMax { get; set; }
-
-    [BsonElement("optimalMin")]
-    public double OptimalMin { get; set; }
-
-    [BsonElement("optimalMax")]
-    public double OptimalMax { get; set; }
+    [BsonElement("maxValue")]
+    public double MaxValue { get; set; }
 
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]

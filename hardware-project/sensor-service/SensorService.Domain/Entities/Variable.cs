@@ -7,15 +7,8 @@ public class Variable : IIdentifiableMutable
     public string Name { get; set; } = default!;
     public string Unit { get; set; } = default!;
     public string Description { get; set; } = default!;
-    
-    // Rangos físicos - valores técnicamente posibles para el sensor
-    public double PhysicalMin { get; set; }
-    public double PhysicalMax { get; set; }
-    
-    // Rangos óptimos - valores ideales para el crecimiento de espinaca
-    public double OptimalMin { get; set; }
-    public double OptimalMax { get; set; }
-    
+    public double MinValue { get; set; }
+    public double MaxValue { get; set; }
     public VariableTypes Type { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 

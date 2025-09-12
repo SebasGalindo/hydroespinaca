@@ -32,7 +32,7 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             throw new InvalidClientCredentialsException();
         }
 
-        var isValidSecret = _passwordHasher.Verify(clientApp.Secret.Value, request.ClientSecret);
+        var isValidSecret = _passwordHasher.Verify(request.ClientSecret, clientApp.Secret.Value);
         if (!isValidSecret)
         {
             throw new InvalidClientCredentialsException();

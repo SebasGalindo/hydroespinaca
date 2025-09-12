@@ -10,16 +10,6 @@ using HydroEspinaca.Shared.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure logging
-builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole(options =>
-{
-    options.IncludeScopes = false;
-    options.SingleLine = true;
-    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
-});
-
-
 // Configura settings y capas...
 builder.Services.Configure<AuthService.Infrastructure.Security.JwtSettings>(
     builder.Configuration.GetSection("Jwt")
@@ -38,7 +28,7 @@ builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, AuthServiceExcep
 
 var app = builder.Build();
 
-// Configure middleware based on environment
+// Middleware
 if (app.Environment.IsDevelopment())
 {
     builder.Host.UseDefaultServiceProvider(options =>
@@ -47,24 +37,21 @@ if (app.Environment.IsDevelopment())
         options.ValidateOnBuild = true;
     });
 
+
     app.UseSwagger();
     app.UseSwaggerUI(c =>
        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Auth Service API v1")
     );
 
-    // Run data seeding only in development
+
+    // Run data seeding
     using (var scope = app.Services.CreateScope())
     {
      var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
      await seedingService.SeedInitialDataAsync();
     }
+
 }
-
-// if (app.Environment.IsProduction())
-// {
-//     app.UseHsts();
-// }
-
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseAuthentication();

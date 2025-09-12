@@ -8,7 +8,6 @@ using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Mappers;
 using SensorService.Infrastructure.Persistence.Models;
 using SensorService.Infrastructure.Persistence.Repositories;
-using SensorService.Infrastructure.Services;
 
 namespace SensorService.Infrastructure;
 
@@ -41,7 +40,6 @@ public static class ServiceCollectionInfrastructureExtensions
 
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
-        services.AddScoped<IVariableMigrationService, VariableMigrationService>();
      
         return services;
     }

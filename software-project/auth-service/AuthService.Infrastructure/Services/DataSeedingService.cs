@@ -391,7 +391,7 @@ public class DataSeedingService
             new {
                 Code = "sensor-service-client",           // Código interno único
                 ClientId = "sensor-service-m2m",         // ID para protocolo OAuth2
-                ClientSecret = "sFv6IkmZX2V98",
+                ClientSecret = "sk_sensor_2024_HydroPonic_M2M_Secret_Key_v1",
                 Scopes = new[]
                 {
                     // Comunicación con actuator-service para comandos automáticos
@@ -407,10 +407,16 @@ public class DataSeedingService
             new {
                 Code = "actuator-service-client",         // Código interno único
                 ClientId = "actuator-service-m2m",       // ID para protocolo OAuth2
-                ClientSecret = "lMag54vgU56x",
+                ClientSecret = "sk_actuator_2024_HydroPonic_M2M_Secret_Key_v1",
                 Scopes = new[]
                 {
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read,
+                    // Comunicación con sensor-service para leer datos
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.AggregateRead,
+                    // Puede necesitar enviar alertas y notificaciones
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite,
+                    // HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend
                 }
             }
         };

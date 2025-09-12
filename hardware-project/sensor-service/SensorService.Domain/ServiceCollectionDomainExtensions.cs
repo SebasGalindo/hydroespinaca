@@ -10,6 +10,7 @@ public static class ServiceCollectionDomainExtensions
     {
         services.AddScoped<IAlertCalculationService, AlertCalculationService>();
         services.AddScoped<IAggregationService, AggregationService>();
+        services.AddScoped<IEsp32StatusService, Esp32StatusService>();
 
         return services;
     }

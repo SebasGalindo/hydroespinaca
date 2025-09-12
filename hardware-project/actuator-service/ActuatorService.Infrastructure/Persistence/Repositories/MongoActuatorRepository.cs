@@ -21,12 +21,6 @@ public class MongoActuatorRepository : IActuatorRepository
     public Task<Actuator?> GetByIdAsync(string id)
         => _baseRepo.GetByIdAsync(id);
 
-    public async Task<List<Actuator>> GetByIdsAsync(List<string> ids)
-    {
-        var filter = Builders<ActuatorDocument>.Filter.In(x => x.Id, ids);
-        return await _baseRepo.FindManyAsync(filter);
-    }
-
     public Task<List<Actuator>> GetAllAsync()
         => _baseRepo.GetAllAsync();
 

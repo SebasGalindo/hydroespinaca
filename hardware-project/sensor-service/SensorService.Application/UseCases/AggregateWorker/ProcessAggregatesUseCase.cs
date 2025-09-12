@@ -1,5 +1,4 @@
-﻿using HydroEspinaca.Shared.Constants;
-using HydroEspinaca.Shared.Enums;
+﻿using HydroEspinaca.Shared.Enums;
 using Microsoft.Extensions.Logging;
 using SensorService.Application.DTOs.Aggregate;
 using SensorService.Application.Interfaces.UseCases.AggregateWorker;
@@ -32,7 +31,7 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
 
     public async Task<ProcessAggregatesResult> ExecuteAsync(DateTime referenceTime)
     {
-        var window = TimeWindow.CreateAggregationWindow(referenceTime);
+        var window = TimeWindow.CreateTenMinuteWindow(referenceTime);
         var sensors = await _sensorRepository.GetAllAsync();
 
         var expectedSensors = sensors
@@ -99,7 +98,7 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
 
     private async Task<int> CleanupOldReadingsAsync()
     {
-        var cutoffTime = DateTime.UtcNow.AddHours(-AggregationConstants.ReadingRetentionHours);
+        var cutoffTime = DateTime.UtcNow.AddHours(-24);
         return await _readingRepository.DeleteOlderThanAsync(cutoffTime);
     }
 }
