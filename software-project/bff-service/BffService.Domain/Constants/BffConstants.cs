@@ -38,12 +38,20 @@ public static class BffConstants
             { "/auth", Services.AuthService }
         };
 
-        // Public routes that don't require authentication
+        // API prefixes for each service (added to target URLs)
+        public static readonly Dictionary<string, string> ServiceApiPrefixes = new()
+        {
+            { Services.AuthService, "/api/auth" },
+            { Services.SensorService, "/api" },
+            { Services.ActuatorService, "/api" }
+        };
+
+        // Public routes that don't require authentication (simplified paths)
         public static readonly HashSet<string> PublicRoutes = new(StringComparer.OrdinalIgnoreCase)
         {
-            "/proxy/auth/api/auth/keys/public",
-            "/proxy/auth/api/auth/login",
-            "/proxy/auth/api/auth/token"
+            "/proxy/auth/keys/public",
+            "/proxy/auth/login",
+            "/proxy/auth/token"
         };
     }
 

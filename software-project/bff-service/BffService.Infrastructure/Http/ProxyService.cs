@@ -46,7 +46,9 @@ public class ProxyService : IProxyService
             _logger.LogInformation("Forwarding {Method} request to {Service}: {Path}", 
                 request.Method, targetService, request.Path);
 
-            var requestUri = $"{serviceUrl}{request.Path}";
+            // Add API prefix for the target service
+            var apiPrefix = BffConstants.Proxy.ServiceApiPrefixes.GetValueOrDefault(targetService, "");
+            var requestUri = $"{serviceUrl}{apiPrefix}{request.Path}";
             using var httpRequestMessage = new HttpRequestMessage(new HttpMethod(request.Method), requestUri);
 
             // Add authorization header if access token is provided
