@@ -4,49 +4,84 @@ This engine encapsulates the fuzzy logic evaluation independent from infrastruct
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..Entities.fuzzy_evaluation import FuzzyEvaluation, InputValue, OutputValue
-from ..ValueObjects import FuzzySystemId
-from ..Enums import DefuzzificationMethod
+from ..Entities.fuzzy_variable import FuzzyVariable
+from ..Entities.fuzzy_term import FuzzyTerm
+from ..Entities.fuzzy_rule import FuzzyRule
+from ..Entities.fuzzy_system import FuzzySystem
+
+# Import types from Infrastructure for results
+try:
+    from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzificationTypes import FuzzificationResult
+    from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.RuleEvaluationEngine import BatchRuleEvaluationResult
+except ImportError:
+    # Fallback types if infrastructure not available
+    FuzzificationResult = Any
+    BatchRuleEvaluationResult = Any
 
 
 class IFuzzyEngine(ABC):
-    """Domain service responsible for evaluating a fuzzy system with given inputs."""
+    """Domain service responsible for fuzzy logic operations.
+    
+    This interface defines the contract for fuzzy engines that can:
+    - Fuzzify sensor readings into membership degrees
+    - Evaluate fuzzy rules and calculate firing strengths
+    - Perform complete fuzzy inference workflows
+    """
 
     @abstractmethod
-    async def evaluate(self, system_id: FuzzySystemId, inputs: List[InputValue], *,
-                       at: Optional[datetime] = None,
-                       defuzz_method: Optional[DefuzzificationMethod] = None) -> FuzzyEvaluation:
-        """Evaluates the fuzzy system for the provided inputs and returns an evaluation record.
-        
-        The engine should:
-        - Load the system, variables, terms, and rules from repositories (through application layer orchestration)
-        - Fuzzify inputs, apply rule base, aggregate outputs, and defuzzify according to the configured method
-        - Produce OutputValues for actuators and include rule activations with firing strengths
+    async def fuzzify_sensor_readings(
+        self, 
+        variables: List[FuzzyVariable], 
+        terms: List[FuzzyTerm], 
+        sensor_readings: Dict[str, float]
+    ) -> List[FuzzificationResult]:
+        """Realiza la fuzzificación de las lecturas de sensores.
         
         Args:
-            system_id: Target fuzzy system identifier
-            inputs: List of crisp inputs with sensor identifiers
-            at: Optional evaluation time (defaults to now UTC)
-            defuzz_method: Optional override for the defuzzification method
-        
+            variables: Lista de variables fuzzy del sistema
+            terms: Lista de términos fuzzy asociados a las variables
+            sensor_readings: Diccionario {sensor_id: valor_crisp}
+            
         Returns:
-            A FuzzyEvaluation domain entity capturing the evaluation outcome
-        
+            Lista de resultados de fuzzificación por variable
+            
         Raises:
-            EntityNotFoundError: If the system does not exist
-            ValidationError: If inputs are invalid or incomplete for the system
+            ValidationError: Si hay problemas con los datos de entrada
         """
         pass
 
-    @abstractmethod
-    async def supported_defuzz_methods(self) -> List[DefuzzificationMethod]:
-        """Returns the list of supported defuzzification methods by the engine implementation."""
-        pass
+
 
     @abstractmethod
-    async def warm_up(self) -> None:
-        """Prepares internal caches or precomputations if the engine supports it."""
+    async def complete_fuzzy_evaluation(
+        self,
+        system: FuzzySystem,
+        variables: List[FuzzyVariable],
+        terms: List[FuzzyTerm],
+        rules: List[FuzzyRule],
+        sensor_readings: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """Realiza una evaluación fuzzy completa del sistema.
+        
+        Este método orquesta todo el flujo:
+        1. Fuzzificación de entradas
+        2. Evaluación de reglas
+        3. Defuzzificación de salidas
+        
+        Args:
+            system: Sistema fuzzy a evaluar
+            variables: Variables del sistema (entrada y salida)
+            terms: Términos fuzzy de todas las variables
+            rules: Reglas del sistema
+            sensor_readings: Lecturas de sensores {sensor_id: value}
+            
+        Returns:
+            Diccionario con resultados completos de la evaluación
+            
+        Raises:
+            ValidationError: Si hay problemas en cualquier paso
+        """
         pass

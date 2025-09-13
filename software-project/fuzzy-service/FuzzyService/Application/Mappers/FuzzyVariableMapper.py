@@ -4,97 +4,103 @@ from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable as DomainF
 from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm as DomainFuzzyTerm
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzyVariableId, FuzzySystemId, FuzzyTermId
 from FuzzyService.Domain.ValueObjects.MembershipFunction import MembershipFunction
-from FuzzyService.Domain.Enums import MembershipFunctionType
-
-from FuzzyService.Infrastructure.FuzzyEngine.FuzzificationEngine import (
-    FuzzyVariable as InfraFuzzyVariable,
-    FuzzyTerm as InfraFuzzyTerm
-)
 
 
 class FuzzyVariableMapper:
-    """Mapper específico para conversiones entre FuzzyVariable de dominio e infraestructura."""
+    """Mapper específico para conversiones entre FuzzyVariable de dominio y una representación infra serializable (dict).
+    Se eliminan dependencias de clases de infraestructura duplicadas.
+    """
     
     @staticmethod
-    def to_infra(domain_variable: DomainFuzzyVariable) -> InfraFuzzyVariable:
-        """Convierte una FuzzyVariable del dominio a InfraFuzzyVariable."""
-        # Convertir términos
-        infra_terms = []
-        for domain_term in domain_variable.terms:
-            infra_term = InfraFuzzyTerm(
-                name=domain_term.name,
-                membership_function=domain_term.membership_function.to_dict(),
-                universe_range=(domain_variable.min_value, domain_variable.max_value)
-            )
-            infra_terms.append(infra_term)
+    def to_infra(domain_variable: DomainFuzzyVariable) -> Dict[str, Any]:
+        """Convierte una FuzzyVariable del dominio a un dict serializable para infraestructura.
         
-        return InfraFuzzyVariable(
-            name=domain_variable.name,
-            universe_range=(domain_variable.min_value, domain_variable.max_value),
-            terms=infra_terms,
-            description=domain_variable.description
-        )
+        Nota: El cálculo del universo se realiza posteriormente en el proceso de evaluación fuzzy
+        cuando se tienen acceso a los términos completos, ya que domain_variable.terms solo
+        contiene IDs de términos, no los objetos completos.
+        """
+        return {
+            "name": domain_variable.name,
+            "terms": [str(term_id) for term_id in domain_variable.terms],  # Solo IDs
+            "description": domain_variable.description,
+            "variable_type": domain_variable.variable_type,
+            "device_id": domain_variable.device_id,
+        }
     
     @staticmethod
-    def to_domain(infra_variable: InfraFuzzyVariable, system_id: str, variable_id: str = None) -> DomainFuzzyVariable:
-        """Convierte una InfraFuzzyVariable a FuzzyVariable del dominio."""
-        # Convertir términos
-        domain_terms = []
-        for infra_term in infra_variable.terms:
-            # Crear función de membresía desde el diccionario
-            membership_function = MembershipFunction.from_dict(infra_term.membership_function)
-            
-            domain_term = DomainFuzzyTerm(
-                id=FuzzyTermId.generate(),
-                variable_id=FuzzyVariableId(variable_id) if variable_id else FuzzyVariableId.generate(),
-                name=infra_term.name,
-                membership_function=membership_function
-            )
-            domain_terms.append(domain_term)
+    def _get_attr(obj: Any, key: str, default: Any = None) -> Any:
+        """Obtiene un atributo compatible con dict u objeto."""
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
+    @staticmethod
+    def to_domain(infra_variable: Any, system_id: str, variable_id: Optional[str] = None) -> DomainFuzzyVariable:
+        """Convierte una variable infra (dict u objeto con atributos) a FuzzyVariable del dominio.
+        
+        Nota: Los términos se manejan por separado ya que requieren acceso a objetos completos
+        que no están disponibles en esta conversión básica.
+        """
+        name = FuzzyVariableMapper._get_attr(infra_variable, "name", "")
+        description = FuzzyVariableMapper._get_attr(infra_variable, "description", "")
+        variable_type = FuzzyVariableMapper._get_attr(infra_variable, "variable_type", "input")
+        device_id = FuzzyVariableMapper._get_attr(infra_variable, "device_id", None)
+        terms = FuzzyVariableMapper._get_attr(infra_variable, "terms", [])
+        
+        # Convertir términos de strings a FuzzyTermId si es necesario
+        term_ids = []
+        for term in terms:
+            if isinstance(term, str):
+                term_ids.append(FuzzyTermId(term))
+            else:
+                # Si es un objeto complejo, extraer solo el ID
+                term_id = FuzzyVariableMapper._get_attr(term, "id", None)
+                if term_id:
+                    term_ids.append(FuzzyTermId(term_id))
         
         return DomainFuzzyVariable(
             id=FuzzyVariableId(variable_id) if variable_id else FuzzyVariableId.generate(),
-            system_id=FuzzySystemId(system_id),
-            name=infra_variable.name,
-            description=getattr(infra_variable, 'description', ''),
-            min_value=infra_variable.universe_range[0],
-            max_value=infra_variable.universe_range[1],
-            terms=domain_terms
+            name=name,
+            description=description or "",
+            variable_type=variable_type,
+            device_id=device_id,
+            terms=term_ids,
         )
     
     @staticmethod
-    def update_domain_with_infra_terms(domain_variable: DomainFuzzyVariable, infra_variable: InfraFuzzyVariable) -> DomainFuzzyVariable:
-        """Actualiza una variable de dominio con términos de infraestructura."""
-        # Convertir términos de infraestructura a dominio
-        domain_terms = []
-        for infra_term in infra_variable.terms:
-            # Buscar si el término ya existe en el dominio
-            existing_term = next(
-                (term for term in domain_variable.terms if term.name == infra_term.name),
-                None
-            )
-            
-            if existing_term:
-                # Mantener el término existente
-                domain_terms.append(existing_term)
-            else:
-                # Crear nuevo término
-                membership_function = MembershipFunction.from_dict(infra_term.membership_function)
-                new_term = DomainFuzzyTerm(
-                    id=FuzzyTermId.generate(),
-                    variable_id=domain_variable.id,
-                    name=infra_term.name,
-                    membership_function=membership_function
-                )
-                domain_terms.append(new_term)
+    def update_domain_with_infra_terms(domain_variable: DomainFuzzyVariable, infra_variable: Any) -> DomainFuzzyVariable:
+        """Actualiza una variable de dominio con información provenientes de infraestructura.
         
-        # Crear nueva instancia de variable con términos actualizados
+        Nota: Solo actualiza campos básicos. Los términos se manejan por separado ya que
+        requieren acceso a objetos completos que no están disponibles aquí.
+        """
+        # Actualizar campos básicos desde infraestructura
+        name = FuzzyVariableMapper._get_attr(infra_variable, "name", domain_variable.name)
+        description = FuzzyVariableMapper._get_attr(infra_variable, "description", domain_variable.description)
+        variable_type = FuzzyVariableMapper._get_attr(infra_variable, "variable_type", domain_variable.variable_type)
+        device_id = FuzzyVariableMapper._get_attr(infra_variable, "device_id", domain_variable.device_id)
+        terms = FuzzyVariableMapper._get_attr(infra_variable, "terms", [])
+        
+        # Convertir términos a IDs si es necesario
+        term_ids = []
+        for term in terms:
+            if isinstance(term, str):
+                term_ids.append(FuzzyTermId(term))
+            else:
+                # Si es un objeto complejo, extraer solo el ID
+                term_id = FuzzyVariableMapper._get_attr(term, "id", None)
+                if term_id:
+                    term_ids.append(FuzzyTermId(term_id))
+        
+        # Usar términos actualizados si se proporcionaron, sino mantener los existentes
+        final_terms = term_ids if term_ids else domain_variable.terms
+        
+        # Crear nueva instancia de variable con información actualizada
         return DomainFuzzyVariable(
             id=domain_variable.id,
-            system_id=domain_variable.system_id,
-            name=domain_variable.name,
-            description=domain_variable.description,
-            min_value=domain_variable.min_value,
-            max_value=domain_variable.max_value,
-            terms=domain_terms
+            name=name,
+            description=description,
+            variable_type=variable_type,
+            device_id=device_id,
+            terms=final_terms,
         )

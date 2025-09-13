@@ -1,4 +1,4 @@
-import os
+﻿import os
 import importlib
 import sys
 from uuid import uuid4
@@ -25,7 +25,7 @@ def cleanup_test_data(conn_str: str, db_name: str):
     client.close()
 
 def setup_test_environment(db_name: str):
-    """Configura el entorno de prueba con una base de datos única."""
+    """Configura el entorno de prueba con una base de datos Ãºnica."""
     conn_str = os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
     
     # Set environment variables
@@ -61,7 +61,7 @@ def setup_test_environment(db_name: str):
 
 
 def test_fuzzy_routines_basic_crud():
-    """Test de integración API-MongoDB para FuzzyRoutines CRUD."""
+    """Test de integraciÃ³n API-MongoDB para FuzzyRoutines CRUD."""
     # Setup test environment with unique database
     db_name = f"fuzzy_test_{uuid4().hex[:8]}"
     app = setup_test_environment(db_name)
@@ -74,14 +74,14 @@ def test_fuzzy_routines_basic_crud():
                 {
                     "step_id": 1,
                     "condition": "temperature > 25",
-                    "power_tag_id": "507f1f77bcf86cd799439011",
-                    "duration_tag_id": "507f1f77bcf86cd799439012"
+                    "power_term_id": "507f1f77bcf86cd799439011",
+                    "duration_term_id": "507f1f77bcf86cd799439012"
                 },
                 {
                     "step_id": 2,
                     "condition": "humidity < 60",
-                    "power_tag_id": "507f1f77bcf86cd799439013",
-                    "duration_tag_id": "507f1f77bcf86cd799439014"
+                    "power_term_id": "507f1f77bcf86cd799439013",
+                    "duration_term_id": "507f1f77bcf86cd799439014"
                 }
             ]
         })
@@ -108,8 +108,8 @@ def test_fuzzy_routines_basic_crud():
                 {
                     "step_id": 1,
                     "condition": "temperature > 30",
-                    "power_tag_id": "507f1f77bcf86cd799439015",
-                    "duration_tag_id": "507f1f77bcf86cd799439016"
+                    "power_term_id": "507f1f77bcf86cd799439015",
+                    "duration_term_id": "507f1f77bcf86cd799439016"
                 }
             ]
         })
@@ -143,7 +143,7 @@ def test_fuzzy_routines_basic_crud():
         get_deleted_resp = client.get(f"/api/fuzzy-routines/{routine_id}")
         assert get_deleted_resp.status_code == 404
 
-        print("✅ FuzzyRoutines basic CRUD test completed successfully")
+        print("âœ… FuzzyRoutines basic CRUD test completed successfully")
 
 
 def test_fuzzy_routines_step_management():
@@ -160,8 +160,8 @@ def test_fuzzy_routines_step_management():
                 {
                     "step_id": 1,
                     "condition": "initial_condition",
-                    "power_tag_id": "507f1f77bcf86cd799439017",
-                    "duration_tag_id": "507f1f77bcf86cd799439018"
+                    "power_term_id": "507f1f77bcf86cd799439017",
+                    "duration_term_id": "507f1f77bcf86cd799439018"
                 }
             ]
         })
@@ -172,8 +172,8 @@ def test_fuzzy_routines_step_management():
         add_step_resp = client.post(f"/api/fuzzy-routines/{routine_id}/steps", json={
             "step_id": 2,
             "condition": "new_step_condition",
-            "power_tag_id": "507f1f77bcf86cd799439019",
-            "duration_tag_id": "507f1f77bcf86cd799439020"
+            "power_term_id": "507f1f77bcf86cd799439019",
+            "duration_term_id": "507f1f77bcf86cd799439020"
         })
         assert add_step_resp.status_code == 200
         add_step_data = add_step_resp.json()
@@ -184,14 +184,14 @@ def test_fuzzy_routines_step_management():
         update_step_resp = client.put(f"/api/fuzzy-routines/{routine_id}/steps/2", json={
             "step_id": 2,
             "condition": "updated_step_condition",
-            "power_tag_id": "507f1f77bcf86cd799439021"
+            "power_term_id": "507f1f77bcf86cd799439021"
         })
         assert update_step_resp.status_code == 200
         update_step_data = update_step_resp.json()
         assert update_step_data["steps"][1]["condition"] == "updated_step_condition"
-        assert update_step_data["steps"][1]["power_tag_id"] == "507f1f77bcf86cd799439021"
-        # duration_tag_id should remain unchanged
-        assert update_step_data["steps"][1]["duration_tag_id"] == "507f1f77bcf86cd799439020"
+        assert update_step_data["steps"][1]["power_term_id"] == "507f1f77bcf86cd799439021"
+        # duration_term_id should remain unchanged
+        assert update_step_data["steps"][1]["duration_term_id"] == "507f1f77bcf86cd799439020"
 
         # Delete step from routine (step_id = 1, the first step)
         delete_step_resp = client.delete(f"/api/fuzzy-routines/{routine_id}/steps/1")
@@ -203,7 +203,7 @@ def test_fuzzy_routines_step_management():
         # Clean up
         client.delete(f"/api/fuzzy-routines/{routine_id}")
 
-        print("✅ FuzzyRoutines step management test completed successfully")
+        print("âœ… FuzzyRoutines step management test completed successfully")
 
 
 def test_fuzzy_routines_validation_errors():
@@ -222,8 +222,8 @@ def test_fuzzy_routines_validation_errors():
         add_step_invalid_resp = client.post(f"/api/fuzzy-routines/{invalid_id}/steps", json={
             "step_id": 1,
             "condition": "test",
-            "power_tag_id": "507f1f77bcf86cd799439022",
-            "duration_tag_id": "507f1f77bcf86cd799439023"
+            "power_term_id": "507f1f77bcf86cd799439022",
+            "duration_term_id": "507f1f77bcf86cd799439023"
         })
         assert add_step_invalid_resp.status_code == 422  # Validation error
 
@@ -232,12 +232,12 @@ def test_fuzzy_routines_validation_errors():
         add_step_not_found_resp = client.post(f"/api/fuzzy-routines/{non_existent_id}/steps", json={
             "step_id": 1,
             "condition": "test",
-            "power_tag_id": "507f1f77bcf86cd799439024",
-            "duration_tag_id": "507f1f77bcf86cd799439025"
+            "power_term_id": "507f1f77bcf86cd799439024",
+            "duration_term_id": "507f1f77bcf86cd799439025"
         })
         assert add_step_not_found_resp.status_code == 404
 
-        print("✅ FuzzyRoutines validation test completed successfully")
+        print("âœ… FuzzyRoutines validation test completed successfully")
 
 
 def test_fuzzy_routines_duplicate_name():
@@ -256,8 +256,8 @@ def test_fuzzy_routines_duplicate_name():
                 {
                     "step_id": 1,
                     "condition": "test_condition",
-                    "power_tag_id": "507f1f77bcf86cd799439026",
-                    "duration_tag_id": "507f1f77bcf86cd799439027"
+                    "power_term_id": "507f1f77bcf86cd799439026",
+                    "duration_term_id": "507f1f77bcf86cd799439027"
                 }
             ]
         })
@@ -274,8 +274,8 @@ def test_fuzzy_routines_duplicate_name():
                 {
                     "step_id": 1,
                     "condition": "another_condition",
-                    "power_tag_id": "507f1f77bcf86cd799439028",
-                    "duration_tag_id": "507f1f77bcf86cd799439029"
+                    "power_term_id": "507f1f77bcf86cd799439028",
+                    "duration_term_id": "507f1f77bcf86cd799439029"
                 }
             ]
         })
@@ -284,4 +284,5 @@ def test_fuzzy_routines_duplicate_name():
         # Clean up
         client.delete(f"/api/fuzzy-routines/{first_id}")
 
-        print("✅ FuzzyRoutines duplicate name test completed successfully")
+        print("âœ… FuzzyRoutines duplicate name test completed successfully")
+

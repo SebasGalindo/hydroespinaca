@@ -56,8 +56,8 @@ class FuzzyRoutineRepository(IFuzzyRoutineRepository):
             {
                 "step_id": int(s.step_id),
                 "condition": s.condition,
-                "power_tag_id": str(s.power_tag_id),
-                "duration_tag_id": str(s.duration_tag_id),
+                "power_term_id": str(s.power_term_id),
+                "duration_term_id": str(s.duration_term_id),
             }
             for s in (r.steps or [])
         ]
@@ -75,8 +75,8 @@ class FuzzyRoutineRepository(IFuzzyRoutineRepository):
             RoutineStep(
                 step_id=int(s.get("step_id", 0)),
                 condition=str(s.get("condition", "")),
-                power_tag_id=str(s.get("power_tag_id", "")),
-                duration_tag_id=str(s.get("duration_tag_id", "")),
+                power_term_id=str(s.get("power_term_id", "")),
+                duration_term_id=str(s.get("duration_term_id", "")),
             )
             for s in steps_raw
         ]
@@ -103,6 +103,12 @@ class FuzzyRoutineRepository(IFuzzyRoutineRepository):
     async def get_by_id(self, routine_id: FuzzyRoutineId) -> Optional[FuzzyRoutine]:
         key = self._to_object_id(routine_id)
         doc = await self._coll.find_one({"_id": key})
+        return self._doc_to_entity(doc) if doc else None
+
+    async def get_by_name(self, name: str) -> Optional[FuzzyRoutine]:
+        doc = await self._coll.find_one({
+            "routine_name": name
+        }, projection={"_id": 1, "routine_name": 1, "created_at": 1, "steps": 1})
         return self._doc_to_entity(doc) if doc else None
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[FuzzyRoutine]:
@@ -187,3 +193,4 @@ class FuzzyRoutineRepository(IFuzzyRoutineRepository):
         query = {"created_at": {"$gte": start_date, "$lte": end_date}}
         cursor = self._coll.find(query, projection={"_id": 1, "routine_name": 1, "created_at": 1, "steps": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
+

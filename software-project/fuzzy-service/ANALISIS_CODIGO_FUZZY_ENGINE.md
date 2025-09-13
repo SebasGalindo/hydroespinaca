@@ -478,191 +478,25 @@ class ExecuteFuzzyEvaluationHandler:
 ### 5. **Configurar DI para Motor Fuzzy**
 ```python
 # Application/Configuration/DependencyInjection.py
-di[IFuzzyEngine] = FuzzyEngineService(
-    scikit_engine=ScikitFuzzyEngine(config),
-    system_repo=di[IFuzzySystemRepository],
-    variable_repo=di[IFuzzyVariableRepository],
-    # ...
-)
+di[IFuzzyEngine] = LazyFuzzyEngineProxy()
 ```
 
-## ✅ Conclusiones
-
-### **Fortalezas del Código Actual**
-1. **Motor Fuzzy Robusto**: Implementación completa y optimizada del pipeline fuzzy
-2. **Configuración Avanzada**: Sistema flexible de configuración con perfiles
-3. **Monitoreo Completo**: Métricas, circuit breakers, health monitoring
-4. **Procesamiento Asíncrono**: Task queues y load balancing
-5. **Manejo de Errores**: Excepciones específicas y recovery strategies
-
-### **Problemas Críticos**
-1. **Violación de Clean Architecture**: No implementa interfaces del dominio
-2. **Duplicación de Código**: Entidades duplicadas entre capas
-3. **Acoplamiento Fuerte**: No usa repositorios del dominio
-4. **Falta Integración**: No hay orquestación desde Application layer
-
-### **Recomendación Final**
-El motor fuzzy está **técnicamente bien implementado** pero **arquitectónicamente mal integrado**. Se requiere:
-
-1. Crear `FuzzyEngineService` en Application que implemente `IFuzzyEngine`
-2. Integrar con repositorios del dominio
-3. Eliminar duplicación de entidades
-4. Crear Commands/Queries para evaluación fuzzy
-5. Configurar DI correctamente
-
-## 🧪 Suite de Testing - Archivos y Propósitos
-
-### **Tests Unitarios**
-
-#### `test_improved_dependency_injection.py` (26 tests)
-**Propósito**: Validar el sistema mejorado de inyección de dependencias
-- **HandlerFactory Tests**: Creación y validación de handlers con dependencias
-- **HandlerRegistry Tests**: Registro y validación de múltiples handlers
-- **DILifecycleManager Tests**: Gestión del ciclo de vida de dependencias
-- **Singleton Pattern Tests**: Verificar comportamiento singleton de factories
-- **Dependency Validation**: Validar dependencias antes de crear handlers
-- **Error Handling**: Manejo de errores en creación y validación
-
-#### `test_fuzzy_system_status.py` (1 test)
-**Propósito**: Verificar el estado y configuración de sistemas fuzzy
-- **System Status Validation**: Validar estados de sistemas fuzzy
-- **In-Memory Repository**: Testing con repositorio en memoria
-- **Configuration Testing**: Verificar configuración de sistemas
-
-#### `test_async_processing.py` (30 tests)
-**Propósito**: Validar el procesamiento asíncrono del motor fuzzy
-- **AsyncTaskManager Tests**: Gestión de tareas asíncronas
-- **Performance Benchmarks**: Comparación async vs sync
-- **Load Balancing Tests**: Distribución de carga entre workers
-- **Task Priority Tests**: Manejo de prioridades de tareas
-- **Circuit Breaker Tests**: Patrones de circuit breaker
-- **Error Recovery Tests**: Recuperación de errores en procesamiento asíncrono
-
-### **Tests de Integración**
-
-#### `test_fuzzy_routines_integration.py`
-**Propósito**: Integración completa API-MongoDB para rutinas fuzzy
-- **CRUD Operations**: Create, Read, Update, Delete de rutinas
-- **MongoDB Integration**: Persistencia real con MongoDB
-- **API Endpoint Testing**: Validar endpoints REST
-- **Data Validation**: Validación de datos de entrada y salida
-- **Business Rules**: Verificar reglas de negocio específicas
-
-#### `test_fuzzy_rules_integration.py`
-**Propósito**: Integración API-MongoDB para reglas fuzzy
-- **Rule CRUD**: Gestión completa de reglas fuzzy
-- **Condition Validation**: Validar condiciones de reglas
-- **Consequent Testing**: Verificar consecuentes de reglas
-- **Logical Operators**: Testing de operadores lógicos (AND, OR)
-- **Rule Evaluation**: Integración con motor de evaluación
-
-#### `test_fuzzy_variables_integration.py`
-**Propósito**: Integración API-MongoDB para variables fuzzy
-- **Variable Management**: CRUD de variables fuzzy
-- **Range Validation**: Validar rangos de variables
-- **Type Checking**: Verificar tipos de variables (input/output)
-- **System Association**: Asociación con sistemas fuzzy
-
-#### `test_fuzzy_terms_integration.py`
-**Propósito**: Integración API-MongoDB para términos fuzzy
-- **Term CRUD**: Gestión de términos lingüísticos
-- **Membership Functions**: Testing de funciones de membresía
-- **Variable Association**: Asociación términos-variables
-- **Function Parameters**: Validación de parámetros de funciones
-
-#### `test_fuzzy_systems_mongo_integration.py`
-**Propósito**: Integración específica MongoDB para sistemas fuzzy
-- **MongoDB Operations**: Operaciones directas con MongoDB
-- **Index Management**: Gestión de índices de base de datos
-- **Data Consistency**: Verificar consistencia de datos
-- **Performance Testing**: Testing de performance con MongoDB
-
-#### `test_fuzzy_term_variable_relationship.py`
-**Propósito**: Validar relaciones entre términos y variables
-- **Relationship Validation**: Verificar relaciones término-variable
-- **Constraint Testing**: Testing de restricciones de integridad
-- **Cascade Operations**: Operaciones en cascada
-- **Orphan Prevention**: Prevenir términos huérfanos
-
-### **Tests End-to-End (E2E)**
-
-#### `test_complete_fuzzy_system_workflow.py`
-**Propósito**: Flujo completo del sistema fuzzy de extremo a extremo
-- **Complete Workflow**: Sistema → Variables → Términos → Reglas → Rutinas → Evaluación
-- **Real Integration**: Integración real con todos los componentes
-- **Data Flow Testing**: Verificar flujo completo de datos
-- **Business Process**: Validar procesos de negocio completos
-
-#### `test_fuzzy_evaluations_endpoints.py`
-**Propósito**: Testing específico de endpoints de evaluación fuzzy
-- **Evaluation API**: Testing de API de evaluación
-- **Input Validation**: Validación de entradas de evaluación
-- **Output Verification**: Verificar salidas del motor fuzzy
-- **Performance Testing**: Testing de performance de evaluaciones
-
-#### `test_error_scenarios.py`
-**Propósito**: Escenarios de error y validaciones de reglas de negocio
-- **Error Handling**: Manejo de errores en diferentes escenarios
-- **Business Rule Validation**: Validar reglas de negocio
-- **Edge Cases**: Testing de casos límite
-- **Recovery Testing**: Testing de recuperación de errores
-
-#### `test_granular_endpoints.py`
-**Propósito**: Testing granular de endpoints específicos
-- **Individual Endpoints**: Testing detallado de cada endpoint
-- **Parameter Validation**: Validación exhaustiva de parámetros
-- **Response Format**: Verificar formatos de respuesta
-- **Status Code Testing**: Validar códigos de estado HTTP
-
-#### `test_variable_system_bidirectional_validation.py`
-**Propósito**: Validación bidireccional entre variables y sistemas
-- **Bidirectional Validation**: Validación en ambas direcciones
-- **Consistency Checks**: Verificar consistencia bidireccional
-- **Constraint Testing**: Testing de restricciones complejas
-- **Data Integrity**: Verificar integridad de datos
-
-#### `test_variable_terms_management.py`
-**Propósito**: Gestión completa de términos de variables
-- **Term Management**: Gestión completa de términos
-- **Variable Integration**: Integración con variables
-- **Lifecycle Testing**: Testing del ciclo de vida completo
-- **Management Operations**: Operaciones de gestión avanzadas
-
-### **Configuración de Tests**
-
-#### `conftest.py`
-**Propósito**: Configuración global y fixtures para todos los tests
-- **Global Fixtures**: Fixtures compartidas entre tests
-- **Test Configuration**: Configuración global de testing
-- **Database Setup**: Configuración de base de datos para tests
-- **Cleanup Operations**: Operaciones de limpieza post-test
-
-### **Resumen de Cobertura**
-- **Total Tests**: 57 tests distribuidos en múltiples categorías
-- **Cobertura Funcional**: 100% de funcionalidades core cubiertas
-- **Tipos de Testing**: Unitarios, Integración, E2E
-- **Tecnologías**: pytest, pytest-asyncio, FastAPI TestClient, MongoDB
-- **Patrones**: Fixtures, Mocks, In-Memory repositories, Real database testing
-
-Esta suite de testing garantiza la calidad, robustez y confiabilidad del FuzzyService en todos los niveles arquitectónicos.
+Nota: El binding actual se realiza en <mcfile name="DependencyInjection.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\Configuration\DependencyInjection.py"></mcfile>, donde se registra un proxy perezoso para IFuzzyEngine y el servicio de actuadores se inicializa y enlaza a <mcfile name="IActuatorService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Domain\Interfaces\IActuatorService.py"></mcfile>.
 
 ---
 
 ## Estado actual de la integración externa (MQTT y Actuator)
 
 - MQTT (solo lectura): existen los archivos de infraestructura <mcfile name="MqttClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttClient.py"></mcfile>, <mcfile name="MqttSubscriber.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttSubscriber.py"></mcfile> y <mcfile name="MqttMessageHandler.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttMessageHandler.py"></mcfile> con propósito definido, pero aún sin implementación.
-- ActuatorService (HTTP): cliente presente en <mcfile name="ActuatorServiceClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\ActuatorService\ActuatorServiceClient.py"></mcfile> sin implementación. Se planifica httpx.AsyncClient, timeouts y reintentos.
+- ActuatorService (HTTP): implementado en <mcfile name="ActuatorService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\ActuatorService\ActuatorService.py"></mcfile> usando httpx.AsyncClient. Expone operaciones para enviar rutinas y chequear disponibilidad del servicio remoto.
 - Motor Fuzzy: Implementado en <mcfile name="ScikitFuzzyEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\ScikitFuzzyEngine.py"></mcfile> con módulos auxiliares (fuzzificación, evaluación de reglas, agregación y defuzzificación).
 
-## Métodos y librerías relevantes en el núcleo actual
-
-- Numpy (np.trapz) y SciPy (integrate) para cálculos de área/centroide en <mcfile name="DefuzzificationEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\DefuzzificationEngine.py"></mcfile>.
-- Concurrencia/async: asyncio, colas internas y optimización de concurrencia dentro del motor (<mcfile name="ScikitFuzzyEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\ScikitFuzzyEngine.py"></mcfile>).
-- Validaciones robustas mediante dataclasses y excepciones específicas (ValidationException, etc.).
+---
 
 ## Recomendaciones inmediatas
 
 1) Implementar capa MQTT (solo lectura) con asyncio-mqtt y pruebas de resiliencia.
-2) Implementar ActuatorServiceClient con httpx y contrato claro de payload/respuesta.
-3) Integrar MqttMessageHandler → Medyator → <mcsymbol name="evaluate" filename="FuzzyEngineService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Application\Services\FuzzyEngineService.py" startline="66" type="function"></mcsymbol> → ActuatorServiceClient.
-4) Añadir métricas y trazabilidad end-to-end del flujo externo.
+-2) Implementar ActuatorServiceClient con httpx y contrato claro de payload/respuesta.
+-3) Integrar MqttMessageHandler → Medyator → <mcsymbol name="evaluate" filename="FuzzyEngineService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Application\Services\FuzzyEngineService.py" startline="66" type="function"></mcsymbol> → ActuatorServiceClient.
++2) Fortalecer ActuatorService existente: añadir reintentos con backoff, manejo de timeouts, métricas y (opcional) circuit breaker; formalizar contrato de payload/respuesta.
++3) Integrar MqttMessageHandler → Medyator → <mcfile name="FuzzyEngineService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Application\Services\FuzzyEngineService.py"></mcfile> (evaluate) → SendRoutinesToActuatorHandler → <mcfile name="ActuatorService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\ActuatorService\ActuatorService.py"></mcfile> (send_routines).

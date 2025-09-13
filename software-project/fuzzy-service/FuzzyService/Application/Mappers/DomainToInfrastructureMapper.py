@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from dataclasses import dataclass
 
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule as DomainFuzzyRule
 from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable as DomainFuzzyVariable
@@ -7,16 +8,64 @@ from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm as DomainFuzzyTerm
 from FuzzyService.Domain.ValueObjects.RuleCondition import RuleCondition as DomainRuleCondition
 from FuzzyService.Domain.Enums import LogicalOperator as DomainLogicalOperator
 
-from FuzzyService.Infrastructure.FuzzyEngine.RuleEvaluationEngine import (
-    InfraFuzzyRule,
-    RuleCondition as InfraRuleCondition,
-    RuleConsequent as InfraRuleConsequent,
-    LogicalOperator as InfraLogicalOperator
-)
-from FuzzyService.Infrastructure.FuzzyEngine.FuzzificationEngine import (
-    FuzzyVariable as InfraFuzzyVariable,
-    FuzzyTerm as InfraFuzzyTerm
-)
+
+# Intentar importar tipos de infraestructura; si no existen, usar placeholders compatibles
+try:
+    from FuzzyService.Infrastructure.FuzzyEngine.RuleEvaluationEngine import (
+        InfraFuzzyRule,
+        RuleCondition as InfraRuleCondition,
+        RuleConsequent as InfraRuleConsequent,
+        LogicalOperator as InfraLogicalOperator,
+        )
+    from FuzzyService.Infrastructure.FuzzyEngine.FuzzificationEngine import (
+       FuzzyVariable as InfraFuzzyVariable,
+       FuzzyTerm as InfraFuzzyTerm,
+    )
+    INFRA_AVAILABLE = True
+except Exception:
+   INFRA_AVAILABLE = False
+
+@dataclass
+class InfraRuleCondition:  # type: ignore
+    sensor_id: str
+    variable_name: str
+    term_name: str
+
+@dataclass
+class InfraRuleConsequent:  # type: ignore
+    variable_name: str
+    term_name: str
+    routine_id: str
+    step_number: int = 1
+
+class InfraLogicalOperator:  # type: ignore
+    AND = "AND"
+    OR = "OR"
+    def __init__(self, value: str = "AND") -> None:
+        self.value = value
+
+@dataclass
+class InfraFuzzyRule:  # type: ignore
+    rule_id: str
+    conditions: List[InfraRuleCondition]
+    consequents: List[InfraRuleConsequent]
+    logical_operator: Any | None = None
+    description: str | None = None
+
+@dataclass
+class InfraFuzzyTerm:  # type: ignore
+    term_id: str
+    name: str
+    function_type: str
+    parameters: Dict[str, Any] | List[float] | None = None
+
+@dataclass
+class InfraFuzzyVariable:  # type: ignore
+    variable_id: str
+    name: str
+    universe_range: tuple[float, float] | None = None
+    terms: Dict[str, InfraFuzzyTerm] = None  # type: ignore
+    sensor_mapping: Optional[str] = None
 
 
 class DomainToInfrastructureMapper:
@@ -51,12 +100,12 @@ class DomainToInfrastructureMapper:
             infra_consequents.append(infra_consequent)
         
         # Mapear operador lógico
-        logical_op = InfraLogicalOperator.AND  # Default
+        logical_op = getattr(InfraLogicalOperator, 'AND', "AND")  # Default
         if hasattr(domain_rule, 'logical_operator') and domain_rule.logical_operator:
             try:
                 logical_op = InfraLogicalOperator(domain_rule.logical_operator.value)
-            except (ValueError, AttributeError):
-                logical_op = InfraLogicalOperator.AND
+            except Exception:
+                logical_op = getattr(InfraLogicalOperator, 'AND', "AND")
         
         return InfraFuzzyRule(
             rule_id=str(domain_rule.id) if domain_rule.id else "",
@@ -129,8 +178,8 @@ class DomainToInfrastructureMapper:
         """Convierte un LogicalOperator del dominio a InfraLogicalOperator."""
         try:
             return InfraLogicalOperator(domain_operator.value)
-        except (ValueError, AttributeError):
-            return InfraLogicalOperator.AND  # Default fallback
+        except Exception:
+            return getattr(InfraLogicalOperator, 'AND', "AND")  # Default fallback
     
     @staticmethod
     def map_rules_batch(domain_rules: List[DomainFuzzyRule]) -> List[InfraFuzzyRule]:

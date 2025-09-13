@@ -1,4 +1,4 @@
-Arquitectura del Sistema de Control con Lógica Difusa
+﻿Arquitectura del Sistema de Control con LÃ³gica Difusa
 
 Equipo de Desarrollo
 
@@ -6,52 +6,52 @@ Equipo de Desarrollo
 
 ---
 
-## 1. Introducción
+## 1. IntroducciÃ³n
 
-Este documento detalla la arquitectura y el flujo de control del sistema de lógica difusa, un motor que combina la flexibilidad del razonamiento fuzzy con mecanismos de seguridad y una ejecución determinista. El sistema está diseñado para operar en ciclos de un minuto, coordinando tres componentes principales: el **fuzzy-service**, el **actuator-service**, y el **firmware en el ESP32**.
+Este documento detalla la arquitectura y el flujo de control del sistema de lÃ³gica difusa, un motor que combina la flexibilidad del razonamiento fuzzy con mecanismos de seguridad y una ejecuciÃ³n determinista. El sistema estÃ¡ diseÃ±ado para operar en ciclos de un minuto, coordinando tres componentes principales: el **fuzzy-service**, el **actuator-service**, y el **firmware en el ESP32**.
 
-El objetivo principal es asegurar un control flexible, seguro y determinista, donde el fuzzy-service actúa como el cerebro interpretativo, el actuator-service garantiza la correcta ejecución y secuencialidad de los comandos, y las reglas de control directas funcionan como un cinturón de seguridad.
+El objetivo principal es asegurar un control flexible, seguro y determinista, donde el fuzzy-service actÃºa como el cerebro interpretativo, el actuator-service garantiza la correcta ejecuciÃ³n y secuencialidad de los comandos, y las reglas de control directas funcionan como un cinturÃ³n de seguridad.
 
 ---
 
-## 2. Flujo de Operación General
+## 2. Flujo de OperaciÃ³n General
 
-El sistema de control basado en lógica difusa (Mamdani puro) funciona en ciclos de un minuto. En cada ciclo, se recogen y validan los datos de los sensores. Con esos valores, el fuzzy-service evalúa el conjunto de reglas difusas. Cada regla tiene como antecedente una combinación de condiciones sobre variables de entrada y como consecuente una rutina, es decir, un conjunto de acciones sobre uno o varios actuadores.
+El sistema de control basado en lÃ³gica difusa (Mamdani puro) funciona en ciclos de un minuto. En cada ciclo, se recogen y validan los datos de los sensores. Con esos valores, el fuzzy-service evalÃºa el conjunto de reglas difusas. Cada regla tiene como antecedente una combinaciÃ³n de condiciones sobre variables de entrada y como consecuente una rutina, es decir, un conjunto de acciones sobre uno o varios actuadores.
 
-Estas acciones llegan resueltas con parámetros concretos: **pin físico, potencia (ON/OFF o PWM)** y un **tiempo de expiración absoluto** en lugar de una duración relativa.
+Estas acciones llegan resueltas con parÃ¡metros concretos: **pin fÃ­sico, potencia (ON/OFF o PWM)** y un **tiempo de expiraciÃ³n absoluto** en lugar de una duraciÃ³n relativa.
 
-Ejemplo: Un comando se interpreta como *“mantener ON hasta T = now + X”* y no como *“mantener ON durante X”*.
+Ejemplo: Un comando se interpreta como *â€œmantener ON hasta T = now + Xâ€* y no como *â€œmantener ON durante Xâ€*.
 
 ### 2.1. Mecanismos de Control y Prioridad
 
-* **Motor Difuso:** El fuzzy-service registra en su log qué reglas se dispararon, qué valores de sensores se usaron y qué acciones se derivaron. Luego envía al actuator-service un payload con dichas acciones.
+* **Motor Difuso:** El fuzzy-service registra en su log quÃ© reglas se dispararon, quÃ© valores de sensores se usaron y quÃ© acciones se derivaron. Luego envÃ­a al actuator-service un payload con dichas acciones.
 * **Reglas de Seguridad:** Estas tienen prioridad absoluta sobre cualquier rutina fuzzy. Ejemplos:
 
-  * Si TemperaturaAgua > 30°C → Apagar el calefactor de agua.
-  * Si HumedadRelativa > 90% → Apagar el humidificador.
-  * Si NivelAgua < MínimoSeguro → Apagar la motobomba.
-* **Manejo de Actuadores:** El actuator-service mantiene una cola por actuador. Un comando nuevo reemplaza al anterior si aún no se ejecuta, o ajusta la potencia/expiración si ya está en curso.
+  * Si TemperaturaAgua > 30Â°C â†’ Apagar el calefactor de agua.
+  * Si HumedadRelativa > 90% â†’ Apagar el humidificador.
+  * Si NivelAgua < MÃ­nimoSeguro â†’ Apagar la motobomba.
+* **Manejo de Actuadores:** El actuator-service mantiene una cola por actuador. Un comando nuevo reemplaza al anterior si aÃºn no se ejecuta, o ajusta la potencia/expiraciÃ³n si ya estÃ¡ en curso.
 
-### 2.2. Coordinación de Rutinas
+### 2.2. CoordinaciÃ³n de Rutinas
 
-* **Extensión de Rutinas:** Si una rutina activa tiene varios pasos y el primero sigue activo, puede extenderse si es del mismo tipo.
-* **Gestión de Recursos:** Una rutina que requiere un actuador ocupado debe esperar en la cola.
-* **Condiciones de Activación:** Si un sensor está desactivado, las reglas asociadas se suspenden. La iluminación artificial se activa tras varias lecturas consecutivas y se apaga forzosamente a las 20:00 h.
+* **ExtensiÃ³n de Rutinas:** Si una rutina activa tiene varios pasos y el primero sigue activo, puede extenderse si es del mismo tipo.
+* **GestiÃ³n de Recursos:** Una rutina que requiere un actuador ocupado debe esperar en la cola.
+* **Condiciones de ActivaciÃ³n:** Si un sensor estÃ¡ desactivado, las reglas asociadas se suspenden. La iluminaciÃ³n artificial se activa tras varias lecturas consecutivas y se apaga forzosamente a las 20:00 h.
 
 ---
 
 ## 3. Ciclo de Vida de una Rutina
 
-### 3.1. Evaluación Fuzzy
+### 3.1. EvaluaciÃ³n Fuzzy
 
-Cada minuto, el fuzzy-service evalúa sensores y dispara reglas, generando rutinas completas. Estas se envían al actuator-service vía POST.
+Cada minuto, el fuzzy-service evalÃºa sensores y dispara reglas, generando rutinas completas. Estas se envÃ­an al actuator-service vÃ­a POST.
 
 ### 3.2. Registro de un sistema fuzzy
 
 ```json
 {
   "_id": "fuzzy_1",
-  "name": "Vegetativo Día",
+  "name": "Vegetativo DÃ­a",
   "status": "in_use",
   "operators": { "and": "min", "or": "max", "not": "complement" },
   "defuzzMethod": "centroid",
@@ -93,11 +93,11 @@ Cada minuto, el fuzzy-service evalúa sensores y dispara reglas, generando rutin
 
 El actuator-service consulta detalles de cada actuador, valida coherencia y crea un registro inicial en *scheduled*.
 
-### 3.6. Ejecución en Firmware (ESP32)
+### 3.6. EjecuciÃ³n en Firmware (ESP32)
 
-El firmware gestiona conflictos y extensiones de rutinas. Si una rutina es modificada, actualiza temporizadores y parámetros.
+El firmware gestiona conflictos y extensiones de rutinas. Si una rutina es modificada, actualiza temporizadores y parÃ¡metros.
 
-### 3.7. Finalización de la Rutina
+### 3.7. FinalizaciÃ³n de la Rutina
 
 ```json
 {
@@ -110,12 +110,12 @@ El firmware gestiona conflictos y extensiones de rutinas. Si una rutina es modif
   ],
   "logs": [
     "Se extendio el tiempo del paso 2 a 15:02 por rutina X",
-    "Se cancelo paso 3 porque rutina Y lo sobrescribió"
+    "Se cancelo paso 3 porque rutina Y lo sobrescribiÃ³"
   ]
 }
 ```
 
-### 3.8. Actualización del Log
+### 3.8. ActualizaciÃ³n del Log
 
 El actuator-service actualiza el estado final y logs de la rutina, cerrando el ciclo.
 
@@ -147,7 +147,7 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
   "ruleId": "aofiualekfj",
   "name": "low_ec",
   "systemId": "fuzzy_1",
-  "description": "Si EC es baja, activar recirculación de agua",
+  "description": "Si EC es baja, activar recirculaciÃ³n de agua",
   "conditions": [
     { "sensor": "EC", "operator": "IS", "value": "Baja" },
     { "sensor": "NivelAgua", "operator": "NOT", "value": "Bajo" }
@@ -167,8 +167,8 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
   "steps": [
     {
       "actuator": "68ab8bb77b05e378b3731341",
-      "power_tag_id": "askfjalkrjesf34",
-      "duration_tag_id": "askfjalkrjesf34"
+      "power_term_id": "askfjalkrjesf34",
+      "duration_term_id": "askfjalkrjesf34"
     }
   ]
 }
@@ -227,7 +227,7 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
   "finishedAt": "2025-08-25T15:01:30Z",
   "results": [
     { "pin": 12, "status": "ok" },
-    { "pin": 27, "status": "cancelled", "executionLog": "Rutina de control 'apagar-bomba' interrumpió a los 12s" }
+    { "pin": 27, "status": "cancelled", "executionLog": "Rutina de control 'apagar-bomba' interrumpiÃ³ a los 12s" }
   ]
 }
 ```
@@ -252,7 +252,7 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
 }
 ```
 
-### 4.8. Confirmación del Firmware
+### 4.8. ConfirmaciÃ³n del Firmware
 
 ```json
 {
@@ -260,7 +260,7 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
   "commandId": "recirc-20250828T150000",
   "steps": [
     { "pin": 16, "status": "ok" },
-    { "pin": 25, "status": "cancelled", "executionLog": "Rutina 'apagar-bomba' interrumpió a los 12s" }
+    { "pin": 25, "status": "cancelled", "executionLog": "Rutina 'apagar-bomba' interrumpiÃ³ a los 12s" }
   ]
 }
 ```
@@ -271,47 +271,48 @@ El actuator-service actualiza el estado final y logs de la rutina, cerrando el c
 
 La arquitectura propuesta separa claramente las responsabilidades:
 
-* El **fuzzy-service** define la lógica de alto nivel.
+* El **fuzzy-service** define la lÃ³gica de alto nivel.
 * El **actuator-service** orquesta y registra las rutinas.
 * El **firmware en ESP32** ejecuta en tiempo real.
 
-Este diseño modular garantiza **flexibilidad, seguridad y trazabilidad completa**, mejorando la solidez del sistema mediante comunicación enriquecida entre servicios.
+Este diseÃ±o modular garantiza **flexibilidad, seguridad y trazabilidad completa**, mejorando la solidez del sistema mediante comunicaciÃ³n enriquecida entre servicios.
 
 ---
 
-## 5. Flujo técnico MQTT → FuzzyEngine → Actuator (mapa de código)
+## 5. Flujo tÃ©cnico MQTT â†’ FuzzyEngine â†’ Actuator (mapa de cÃ³digo)
 
-- PASO 1: Establecer conexión MQTT (solo lectura) — ver <mcfile name="MqttClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttClient.py"></mcfile>
-- PASO 2: Suscribirse y recibir lecturas/batches — ver <mcfile name="MqttSubscriber.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttSubscriber.py"></mcfile>
-- PASO 3: Manejar mensajes y disparar evaluación — ver <mcfile name="MqttMessageHandler.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttMessageHandler.py"></mcfile>
-- PASO 4: Evaluar reglas y obtener salidas — servicio de aplicación <mcsymbol name="evaluate" filename="FuzzyEngineService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Application\Services\FuzzyEngineService.py" startline="66" type="function"></mcsymbol> (ver análisis en <mcfile name="ANALISIS_CODIGO_FUZZY_ENGINE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\ANALISIS_CODIGO_FUZZY_ENGINE.md"></mcfile>)
-- PASO 5: Transformar salidas a rutinas/actuadores y enviar — ver <mcfile name="ActuatorServiceClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\ActuatorService\ActuatorServiceClient.py"></mcfile>
+- PASO 1: Establecer conexiÃ³n MQTT (solo lectura) â€” ver <mcfile name="MqttClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttClient.py"></mcfile>
+- PASO 2: Suscribirse y recibir lecturas/batches â€” ver <mcfile name="MqttSubscriber.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttSubscriber.py"></mcfile>
+- PASO 3: Manejar mensajes y disparar evaluaciÃ³n â€” ver <mcfile name="MqttMessageHandler.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\MqttService\MqttMessageHandler.py"></mcfile>
+- PASO 4: Evaluar reglas y obtener salidas â€” servicio de aplicaciÃ³n <mcsymbol name="evaluate" filename="FuzzyEngineService.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Application\Services\FuzzyEngineService.py" startline="66" type="function"></mcsymbol> (ver anÃ¡lisis en <mcfile name="ANALISIS_CODIGO_FUZZY_ENGINE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\ANALISIS_CODIGO_FUZZY_ENGINE.md"></mcfile>)
+- PASO 5: Transformar salidas a rutinas/actuadores y enviar â€” ver <mcfile name="ActuatorServiceClient.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\ExternalServices\ActuatorService\ActuatorServiceClient.py"></mcfile>
 
 Estado actual:
-- MQTT (cliente/suscriptor/handler): archivos presentes pero con implementación pendiente (solo lectura; sin publish).
-- Motor Fuzzy: Implementado y funcional en <mcfile name="ScikitFuzzyEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\ScikitFuzzyEngine.py"></mcfile> y motores auxiliares (fuzzificación, evaluación de reglas, agregación, defuzzificación).
-- Cliente de Actuadores: presente pero sin implementación (HTTP via httpx planeado).
+- MQTT (cliente/suscriptor/handler): archivos presentes pero con implementaciÃ³n pendiente (solo lectura; sin publish).
+- Motor Fuzzy: Implementado y funcional en <mcfile name="ScikitFuzzyEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\ScikitFuzzyEngine.py"></mcfile> y motores auxiliares (fuzzificaciÃ³n, evaluaciÃ³n de reglas, agregaciÃ³n, defuzzificaciÃ³n).
+- Cliente de Actuadores: presente pero sin implementaciÃ³n (HTTP via httpx planeado).
 
-## 6. Librerías y métodos utilizados (núcleo actual)
+## 6. LibrerÃ­as y mÃ©todos utilizados (nÃºcleo actual)
 
-- Numpy/SciPy: usados en defuzzificación para integrar y calcular centroides (por ejemplo, numpy.trapz en <mcfile name="DefuzzificationEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\DefuzzificationEngine.py"></mcfile>).
-- asyncio-mqtt/paho-mqtt: declaradas en requirements; se planifica usar asyncio-mqtt para suscripción asíncrona (no hay código activo aún).
-- httpx: cliente HTTP asíncrono planeado para actuator-service (aún sin código activo).
-- FastAPI/Medyator/Kink: capa API y orquestación CQRS/DI ya presentes; el disparo de evaluaciones desde MQTT se integrará con Medyator.
+- Numpy/SciPy: usados en defuzzificaciÃ³n para integrar y calcular centroides (por ejemplo, numpy.trapz en <mcfile name="DefuzzificationEngine.py" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\FuzzyService\Infrastructure\FuzzyEngine\DefuzzificationEngine.py"></mcfile>).
+- asyncio-mqtt/paho-mqtt: declaradas en requirements; se planifica usar asyncio-mqtt para suscripciÃ³n asÃ­ncrona (no hay cÃ³digo activo aÃºn).
+- httpx: cliente HTTP asÃ­ncrono planeado para actuator-service (aÃºn sin cÃ³digo activo).
+- FastAPI/Medyator/Kink: capa API y orquestaciÃ³n CQRS/DI ya presentes; el disparo de evaluaciones desde MQTT se integrarÃ¡ con Medyator.
 
 Referencias:
 - Estructura/estado del proyecto: <mcfile name="PLAN_IMPLEMENTACION_FUZZY_SERVICE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\PLAN_IMPLEMENTACION_FUZZY_SERVICE.md"></mcfile>
-- Análisis del motor: <mcfile name="ANALISIS_CODIGO_FUZZY_ENGINE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\ANALISIS_CODIGO_FUZZY_ENGINE.md"></mcfile>
+- AnÃ¡lisis del motor: <mcfile name="ANALISIS_CODIGO_FUZZY_ENGINE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\ANALISIS_CODIGO_FUZZY_ENGINE.md"></mcfile>
 
-## 7. Crítica y mejoras sugeridas
+## 7. CrÃ­tica y mejoras sugeridas
 
-- Completar la integración MQTT (solo lectura): implementar conexión resiliente, suscripción con QoS 1, validación de payloads y enrutamiento al handler. Añadir tests de integración con un broker de prueba.
+- Completar la integraciÃ³n MQTT (solo lectura): implementar conexiÃ³n resiliente, suscripciÃ³n con QoS 1, validaciÃ³n de payloads y enrutamiento al handler. AÃ±adir tests de integraciÃ³n con un broker de prueba.
 - Implementar ActuatorServiceClient con httpx, reintentos y circuit breaker. Acordar contrato final de payload y estados devueltos.
-- Definir idempotencia de mensajes (messageId/ts) y agrupación por ventanas para evitar evaluaciones redundantes.
-- Añadir métricas y trazas: latencia de evaluación, tasa de reglas disparadas, errores por sensor.
-- Revisar consistencia: el motor actual es robusto; documentar claramente que no usa directamente skfuzzy sino una implementación propia optimizada con Numpy/SciPy.
+- Definir idempotencia de mensajes (messageId/ts) y agrupaciÃ³n por ventanas para evitar evaluaciones redundantes.
+- AÃ±adir mÃ©tricas y trazas: latencia de evaluaciÃ³n, tasa de reglas disparadas, errores por sensor.
+- Revisar consistencia: el motor actual es robusto; documentar claramente que no usa directamente skfuzzy sino una implementaciÃ³n propia optimizada con Numpy/SciPy.
 
-## 8. Dónde leer más
+## 8. DÃ³nde leer mÃ¡s
 
 - Flujo detallado del motor y pipeline: <mcfile name="ANALISIS_CODIGO_FUZZY_ENGINE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\ANALISIS_CODIGO_FUZZY_ENGINE.md"></mcfile>
 - Estructura de carpetas y endpoints: <mcfile name="PLAN_IMPLEMENTACION_FUZZY_SERVICE.md" path="C:\Proyectos\hydroespinaca\software-project\fuzzy-service\PLAN_IMPLEMENTACION_FUZZY_SERVICE.md"></mcfile>
+

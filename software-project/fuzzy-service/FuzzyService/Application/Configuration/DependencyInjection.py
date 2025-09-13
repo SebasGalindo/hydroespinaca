@@ -212,54 +212,33 @@ def configure_application_di() -> None:
     di[GetFuzzyEvaluationByIdQuery] = GetFuzzyEvaluationByIdHandler()
     di[GetFuzzyEvaluationsBySystemQuery] = GetFuzzyEvaluationsBySystemHandler()
 
+    # MQTT Sensor Processing handlers
+    from FuzzyService.Application.Features.SensorProcessing.Commands.ProcessSensorReadingsCommand import ProcessSensorReadingsCommand
+    from FuzzyService.Application.Features.SensorProcessing.Handlers.ProcessSensorReadingsHandler import ProcessSensorReadingsHandler
+    
+    di[ProcessSensorReadingsCommand] = ProcessSensorReadingsHandler()
+
+    # Actuator Integration handlers
+    from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendRoutinesToActuatorCommand import SendRoutinesToActuatorCommand
+    from FuzzyService.Application.Features.ActuatorIntegration.Handlers.SendRoutinesToActuatorHandler import SendRoutinesToActuatorHandler
+    
+    di[SendRoutinesToActuatorCommand] = SendRoutinesToActuatorHandler()
+
     # FuzzyEngine Service - Domain service implementation
     from FuzzyService.Domain.Interfaces.IFuzzyEngine import IFuzzyEngine
-    from FuzzyService.Application.Services.FuzzyEngineService import FuzzyEngineService
-    from FuzzyService.Infrastructure.FuzzyEngine.ScikitFuzzyEngine import ScikitFuzzyEngine
-    from FuzzyService.Infrastructure.FuzzyEngine.FuzzyEngineConfiguration import FuzzyEngineConfiguration
+    from FuzzyService.Application.Services.NullFuzzyEngine import NullFuzzyEngine
 
-    class LazyFuzzyEngineProxy(IFuzzyEngine):
-        def __init__(self) -> None:
-            self._real: IFuzzyEngine | None = None
-
-        def _ensure(self) -> IFuzzyEngine:
-            if self._real is None:
-                # Import repository interfaces here to avoid NameError at module import
-                from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRepository
-                from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
-                from FuzzyService.Domain.Interfaces.IFuzzyTermRepository import IFuzzyTermRepository
-                from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleRepository
-                from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
-                from FuzzyService.Domain.Interfaces.IFuzzyEvaluationRepository import IFuzzyEvaluationRepository
-                cfg = FuzzyEngineConfiguration()
-                engine_impl = ScikitFuzzyEngine(cfg)
-                # Resolve repos lazily now that infrastructure/startup likely populated DI
-                real = FuzzyEngineService(
-                    scikit_engine=engine_impl,
-                    system_repo=di[IFuzzySystemRepository],
-                    variable_repo=di[IFuzzyVariableRepository],
-                    term_repo=di[IFuzzyTermRepository],
-                    rule_repo=di[IFuzzyRuleRepository],
-                    routine_repo=di[IFuzzyRoutineRepository],
-                    evaluation_repo=di[IFuzzyEvaluationRepository],
-                )
-                self._real = real
-            return self._real
-
-        async def evaluate(self, request):  # type: ignore[override]
-            real = self._ensure()
-            return await real.evaluate(request)
-
-        def supported_defuzz_methods(self):  # type: ignore[override]
-            real = self._ensure()
-            return real.supported_defuzz_methods()
-
-        async def warm_up(self):  # type: ignore[override]
-            real = self._ensure()
-            return await real.warm_up()
-
-    # Register lazy proxy to avoid resolving repositories too early
-    di[IFuzzyEngine] = LazyFuzzyEngineProxy()
+    # Binding perezoso mediante factory para permitir reemplazo en infraestructura/configuración
+    # Solo enlazar NullFuzzyEngine si no existe ya un binding previo (hecho por Infrastructure)
+    try:
+        existing_engine = di[IFuzzyEngine]
+    except Exception:
+        existing_engine = None
+    if existing_engine is None:
+        di[IFuzzyEngine] = lambda di: NullFuzzyEngine()
+        _logger.info("Application DI: IFuzzyEngine no estaba configurado, enlazado a NullFuzzyEngine (fallback).")
+    else:
+        _logger.info("Application DI: IFuzzyEngine ya estaba configurado por otra capa; se respeta el binding existente.")
 
     # Exponer también acceso directo al mediador
     di["mediator"] = di[Medyator]

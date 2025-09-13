@@ -209,108 +209,80 @@ class FuzzyRule(DomainBaseModel):
             raise IndexError("Índice de conector fuera de rango")
         conn_enum = connector if isinstance(connector, RuleConnector) else RuleConnector(connector)
         self.connectors[index] = conn_enum
-        # validar consistencia
-        expected = max(0, len(self.conditions) - 1)
-        if len(self.connectors) != expected:
-            raise ValueError(
-                f"Número de conectores inválido: se esperaban {expected} y se recibieron {len(self.connectors)}"
-            )
 
     def set_connectors(self, connectors: List[RuleConnector | str]):
-        """Reemplaza la lista completa de conectores. Debe cumplir la cardinalidad N-1 respecto a condiciones."""
-        # normalizar
-        new_connectors: List[RuleConnector] = []
-        for i, c in enumerate(connectors):
-            if isinstance(c, RuleConnector):
-                new_connectors.append(c)
-            else:
-                try:
-                    new_connectors.append(RuleConnector(c))
-                except Exception:
-                    raise ValueError(f"Conector en posición {i} inválido; debe ser AND u OR")
-        self.connectors = new_connectors
-        # validar consistencia
+        """Reemplaza todos los conectores, validando cardinalidad (N condiciones => N-1 conectores)."""
+        coerced: List[RuleConnector] = []
+        for i, c in enumerate(connectors or []):
+            coerced.append(c if isinstance(c, RuleConnector) else RuleConnector(c))
         expected = max(0, len(self.conditions) - 1)
-        if len(self.connectors) != expected:
-            raise ValueError(
-                f"Número de conectores inválido: se esperaban {expected} y se recibieron {len(self.connectors)}"
-            )
+        if len(coerced) != expected:
+            raise ValueError(f"Número de conectores inválido: se esperaban {expected} y se recibieron {len(coerced)}")
+        self.connectors = coerced
 
     def update_consequent(self, routine_id: FuzzyRoutineId | str):
-        """Actualiza el consecuente (ID de rutina)."""
-        self.consequent = routine_id if isinstance(routine_id, FuzzyRoutineId) else FuzzyRoutineId(routine_id)
+        if isinstance(routine_id, str):
+            self.consequent = FuzzyRoutineId(routine_id)
+        else:
+            self.consequent = routine_id
 
     def update_description(self, description: Optional[str]):
-        """Actualiza la descripción de la regla."""
-        if description and len(description) > 500:
-            raise ValueError("La descripción no puede exceder 500 caracteres")
         self.description = description
 
-    # Métodos de consulta
     def get_condition_count(self) -> int:
-        """Retorna el número de condiciones."""
         return len(self.conditions)
 
     def has_condition_for_variable(self, variable_id: FuzzyVariableId | str) -> bool:
-        """Verifica si la regla tiene una condición para una variable específica."""
         var_id = variable_id if isinstance(variable_id, FuzzyVariableId) else FuzzyVariableId(variable_id)
         return any(c.get("variableId") == var_id for c in self.conditions)
 
     def get_condition_by_variable(self, variable_id: FuzzyVariableId | str) -> Optional[Dict[str, Any]]:
-        """Obtiene la condición para una variable específica."""
         var_id = variable_id if isinstance(variable_id, FuzzyVariableId) else FuzzyVariableId(variable_id)
-        for condition in self.conditions:
-            if condition.get("variableId") == var_id:
-                return condition
+        for c in self.conditions:
+            if c.get("variableId") == var_id:
+                return c
         return None
 
     def get_variables_used(self) -> List[FuzzyVariableId]:
-        """Retorna la lista de variables utilizadas en las condiciones."""
         return [c.get("variableId") for c in self.conditions]
 
     def get_rule_text(self) -> str:
-        """Genera una representación textual de la regla intercalando conectores."""
-        if not self.conditions:
-            return f"IF <no conditions> THEN {self.consequent}"
-        # construir piezas: cond0, conn0, cond1, conn1, ...
         parts: List[str] = []
-        for i, condition in enumerate(self.conditions):
-            variable = str(condition.get("variableId", ""))
-            operator = condition.get("operator").value if isinstance(condition.get("operator"), LogicalOperator) else str(condition.get("operator", ""))
-            value = condition.get("value", "")
-            parts.append(f"{variable} {operator} {value}")
-            if i < len(self.connectors):
-                # Handle both RuleConnector objects and strings
-                connector = self.connectors[i]
-                connector_value = connector.value if hasattr(connector, 'value') else str(connector)
-                parts.append(connector_value)
-        return f"IF {' '.join(parts)} THEN {self.consequent}"
+        for idx, c in enumerate(self.conditions):
+            var = c.get("variableId")
+            op = c.get("operator")
+            val = c.get("value")
+            parts.append(f"{var} {op.value if hasattr(op, 'value') else op} {val}")
+            if idx < len(self.connectors):
+                connector = self.connectors[idx]
+                # Handle both enum and string connectors
+                if hasattr(connector, 'value'):
+                    parts.append(connector.value)
+                else:
+                    parts.append(str(connector))
+        return " ".join(parts)
 
-    # Métodos utilitarios
     def to_dict(self) -> Dict[str, Any]:
-        """Convierte la entidad a diccionario para serialización (formato MongoDB)."""
         return {
-            "_id": str(self.id) if self.id else None,
+            "id": {"$oid": str(self.id)} if self.id else None,
             "name": self.name,
-            "systemId": str(self.system_id) if self.system_id else None,
+            "systemId": {"$oid": str(self.system_id)} if self.system_id else None,
             "description": self.description,
             "conditions": [
                 {
-                    "variableId": str(c["variableId"]) if isinstance(c.get("variableId"), FuzzyVariableId) else str(c.get("variableId")),
-                    "operator": c["operator"].value if isinstance(c.get("operator"), LogicalOperator) else str(c.get("operator")),
-                    "value": c.get("value")
+                    "variableId": {"$oid": str(c.get("variableId"))} if isinstance(c.get("variableId"), FuzzyVariableId) else c.get("variableId"),
+                    "operator": c.get("operator").value if hasattr(c.get("operator"), "value") else str(c.get("operator")),
+                    "value": c.get("value"),
                 }
                 for c in self.conditions
             ],
-            "connectors": [c.value for c in self.connectors],
-            "consequent": str(self.consequent) if self.consequent else None,
-            "createdAt": self.created_at.isoformat() if self.created_at else None
+            "connectors": [c.value if hasattr(c, "value") else str(c) for c in self.connectors],
+            "consequent": {"$oid": str(self.consequent)} if self.consequent else None,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
     def __str__(self) -> str:
-        condition_count = len(self.conditions)
-        return f"FuzzyRule({self.name}, {condition_count} conditions)"
+        return f"FuzzyRule(id={self.id}, name={self.name})"
 
     def __repr__(self) -> str:
-        return (f"FuzzyRule(id={self.id}, name='{self.name}', "
-                f"conditions={len(self.conditions)}, connectors={len(self.connectors)})")
+        return self.__str__()

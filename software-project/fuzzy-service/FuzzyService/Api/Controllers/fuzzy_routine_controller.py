@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import List, Optional
 
@@ -25,7 +25,7 @@ async def list_fuzzy_routines(
     skip: int = 0,
     limit: int = 50,
 ) -> List[FuzzyRoutineDto]:
-    """Obtiene todas las rutinas difusas con paginación."""
+    """Obtiene todas las rutinas difusas con paginaciÃ³n."""
     mediator: Medyator = di[Medyator]
     
     query = GetAllFuzzyRoutinesQuery(
@@ -115,7 +115,7 @@ async def update_step_in_routine(
     step_id: int,
     step_data: UpdateRoutineStepDto
 ) -> FuzzyRoutineDto:
-    """Actualiza un paso específico en una rutina difusa."""
+    """Actualiza un paso especÃ­fico en una rutina difusa."""
     mediator: Medyator = di[Medyator]
     
     try:
@@ -123,8 +123,8 @@ async def update_step_in_routine(
             routine_id=routine_id,
             step_id=step_id,
             condition=step_data.condition,
-            power_tag_id=step_data.power_tag_id,
-            duration_tag_id=step_data.duration_tag_id
+            power_term_id=step_data.power_term_id,
+            duration_term_id=step_data.duration_term_id
         )
         await mediator.send(command)
         return command._result
@@ -136,7 +136,7 @@ async def update_step_in_routine(
 
 @router.delete("/{routine_id}/steps/{step_id}", response_model=FuzzyRoutineDto)
 async def delete_step_from_routine(routine_id: str, step_id: int) -> FuzzyRoutineDto:
-    """Elimina un paso específico de una rutina difusa."""
+    """Elimina un paso especÃ­fico de una rutina difusa."""
     mediator: Medyator = di[Medyator]
     
     try:
@@ -145,3 +145,4 @@ async def delete_step_from_routine(routine_id: str, step_id: int) -> FuzzyRoutin
         return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+

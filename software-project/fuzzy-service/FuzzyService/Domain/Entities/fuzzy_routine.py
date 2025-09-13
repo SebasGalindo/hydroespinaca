@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 from pydantic import Field, field_validator, model_validator
@@ -14,8 +14,8 @@ from ..Utils import extract_oid, parse_timestamp_utc
 class RoutineStep(DomainBaseModel):
     step_id: int
     condition: str
-    power_tag_id: DomainId
-    duration_tag_id: DomainId
+    power_term_id: DomainId
+    duration_term_id: DomainId
 
     @field_validator("step_id")
     @classmethod
@@ -28,10 +28,10 @@ class RoutineStep(DomainBaseModel):
     @classmethod
     def _validate_condition(cls, v: str) -> str:
         if not isinstance(v, str) or not v.strip():
-            raise ValueError("condition debe ser un string no vacío")
+            raise ValueError("condition debe ser un string no vacÃ­o")
         return v.strip()
 
-    @field_validator("power_tag_id", "duration_tag_id", mode="before")
+    @field_validator("power_term_id", "duration_term_id", mode="before")
     @classmethod
     def _coerce_domain_id(cls, v: Any):
         # Aceptar DomainId directo, string plano o dict estilo Mongo
@@ -39,22 +39,22 @@ class RoutineStep(DomainBaseModel):
             return v
         if isinstance(v, dict):
             return extract_oid(v)
-        return v  # Pydantic intentará convertir str -> DomainId
+        return v  # Pydantic intentarÃ¡ convertir str -> DomainId
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "stepId": self.step_id,
             "condition": self.condition,
-            "power_tag_id": str(self.power_tag_id),
-            "duration_tag_id": str(self.duration_tag_id),
+            "power_term_id": str(self.power_term_id),
+            "duration_term_id": str(self.duration_term_id),
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "RoutineStep":
         sid = data.get("stepId")
         cond = data.get("condition")
-        ptag_raw = data.get("power_tag_id")
-        dtag_raw = data.get("duration_tag_id")
+        ptag_raw = data.get("power_term_id")
+        dtag_raw = data.get("duration_term_id")
 
         ptag = extract_oid(ptag_raw) if not isinstance(ptag_raw, str) else ptag_raw
         dtag = extract_oid(dtag_raw) if not isinstance(dtag_raw, str) else dtag_raw
@@ -62,8 +62,8 @@ class RoutineStep(DomainBaseModel):
         return cls(
             step_id=int(sid) if sid is not None else -1,
             condition=str(cond) if cond is not None else "",
-            power_tag_id=ptag or "",
-            duration_tag_id=dtag or "",
+            power_term_id=ptag or "",
+            duration_term_id=dtag or "",
         )
 
 
@@ -91,7 +91,7 @@ class FuzzyRoutine(DomainBaseModel):
             raise ValueError("stepId repetido en steps")
         return self
 
-    # Métodos de negocio
+    # MÃ©todos de negocio
     def add_step(self, step: RoutineStep):
         if any(s.step_id == step.step_id for s in self.steps):
             raise ValueError(f"Ya existe un step con stepId={step.step_id}")
@@ -118,7 +118,7 @@ class FuzzyRoutine(DomainBaseModel):
         rid = extract_oid(rid_raw) if not isinstance(rid_raw, str) else rid_raw
         steps = [RoutineStep.from_dict(s) for s in steps_raw]
 
-        # Validación de unicidad de stepId
+        # ValidaciÃ³n de unicidad de stepId
         step_ids = [s.step_id for s in steps]
         if len(step_ids) != len(set(step_ids)):
             raise ValueError("Duplicated stepId en steps de FuzzyRoutine.from_dict")
@@ -129,3 +129,4 @@ class FuzzyRoutine(DomainBaseModel):
             created_at=parse_timestamp_utc(cat),
             steps=steps,
         )
+

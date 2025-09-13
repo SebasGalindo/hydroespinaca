@@ -15,8 +15,8 @@ from FuzzyService.Domain.Errors.DomainErrors import ValidationError
 class SendRoutinesToActuatorHandler(CommandHandler[SendRoutinesToActuatorCommand]):
     """Handler para enviar rutinas defuzzificadas al actuator-service.
     
-    Este handler asume que el payload ya viene con la forma exacta que
-    requiere el actuator-service (routineId y steps con actuator/power/duration).
+    Este handler construye directamente el payload HTTP a partir del comando,
+    evitando duplicar modelos con un DTO adicional.
     """
 
     async def __call__(self, request: SendRoutinesToActuatorCommand) -> None:
@@ -38,7 +38,21 @@ class SendRoutinesToActuatorHandler(CommandHandler[SendRoutinesToActuatorCommand
 
         # Enviar las rutinas al actuator service
         try:
-            payload: List[Dict[str, Any]] = [r.model_dump(exclude_none=True) for r in request.routines]
+            # Construir payload HTTP directamente desde el comando
+            payload: List[Dict[str, Any]] = [
+                {
+                    "routineId": r.routineId,
+                    "steps": [
+                        {
+                            "actuator": s.actuator,
+                            "power": s.power,
+                            "duration": s.duration,
+                        }
+                        for s in r.steps
+                    ],
+                }
+                for r in request.routines
+            ]
 
             if not payload:
                 raise ValidationError("El payload de rutinas está vacío")

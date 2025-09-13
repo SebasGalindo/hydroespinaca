@@ -20,7 +20,7 @@ class DurationRange(Enum):
     """
     Rango configurado para duración (segundos). Por defecto 5-60.
     """
-    SECONDS_5_60 = (5.0, 60.0)
+    SECONDS_5_60 = (5.0, 600.0)
 
     @property
     def min(self) -> float:

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from medyator import CommandHandler
 import kink
@@ -11,10 +11,10 @@ from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, Busines
 
 
 class UpdateStepInRoutineHandler(CommandHandler[UpdateStepInRoutineCommand]):
-    """Handler para actualizar un paso específico en una rutina difusa."""
+    """Handler para actualizar un paso especÃ­fico en una rutina difusa."""
 
     async def __call__(self, request: UpdateStepInRoutineCommand) -> None:
-        """Actualiza un paso específico en una rutina difusa."""
+        """Actualiza un paso especÃ­fico en una rutina difusa."""
         
         # Obtener repositorio
         routine_repository = kink.di[IFuzzyRoutineRepository]
@@ -40,14 +40,15 @@ class UpdateStepInRoutineHandler(CommandHandler[UpdateStepInRoutineCommand]):
         if request.condition is not None:
             step_to_update.condition = request.condition
         
-        if request.power_tag_id is not None:
-            step_to_update.power_tag_id = request.power_tag_id
+        if request.power_term_id is not None:
+            step_to_update.power_term_id = request.power_term_id
         
-        if request.duration_tag_id is not None:
-            step_to_update.duration_tag_id = request.duration_tag_id
+        if request.duration_term_id is not None:
+            step_to_update.duration_term_id = request.duration_term_id
         
         # Guardar la rutina actualizada
         updated_routine = await routine_repository.update(existing_routine)
         
         # Asignar resultado
         request._result = FuzzyRoutineDto.from_entity(updated_routine)
+

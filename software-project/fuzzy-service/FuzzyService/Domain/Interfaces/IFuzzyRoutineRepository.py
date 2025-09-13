@@ -93,6 +93,18 @@ class IFuzzyRoutineRepository(ABC):
         """
         pass
 
+    @abstractmethod
+    async def get_by_name(self, name: str) -> Optional[FuzzyRoutine]:
+        """Gets a routine by its exact name.
+        
+        Args:
+            name: Routine name (exact match)
+            
+        Returns:
+            The routine if found, None otherwise
+        """
+        pass
+
     # Search and filtering
     @abstractmethod
     async def search_by_name(self, name_pattern: str, skip: int = 0, limit: int = 100) -> List[FuzzyRoutine]:

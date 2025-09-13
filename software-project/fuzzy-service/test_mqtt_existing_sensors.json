@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-01-09T15:30:00.000Z",
+  "readings": {
+    "sensor_soil_moisture_1": 0,
+    "sensor_temperature_1": 25,
+    "sensor_light_1": 1
+  }
+}

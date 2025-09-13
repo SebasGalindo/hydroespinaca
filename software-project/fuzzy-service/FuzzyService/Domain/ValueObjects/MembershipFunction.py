@@ -1,4 +1,5 @@
 from typing import List
+from pydantic import field_validator
 from ..Enums import MembershipFunctionType
 from ..Common import DomainBaseModel
 
@@ -13,6 +14,17 @@ class MembershipFunction(DomainBaseModel):
     parameters: List[float]
     universe_min: float
     universe_max: float
+    
+    @field_validator('function_type', mode='after')
+    @classmethod
+    def validate_function_type(cls, v):
+        """Asegurar que function_type sea un enum MembershipFunctionType."""
+        if isinstance(v, str):
+            return MembershipFunctionType(v)
+        elif isinstance(v, MembershipFunctionType):
+            return v
+        else:
+            raise ValueError(f"function_type debe ser string o MembershipFunctionType, recibido: {type(v)}")
 
     def _validate_parameters(self):
         if not self.parameters:
@@ -83,11 +95,15 @@ class MembershipFunction(DomainBaseModel):
 
     @classmethod
     def from_dict(cls, data: dict) -> "MembershipFunction":
+        """Crea una instancia desde un diccionario."""
+        function_type_raw = data["function_type"]
+        function_type = MembershipFunctionType(function_type_raw)
+        
         return cls(
-            function_type=MembershipFunctionType(data["function_type"]),
+            function_type=function_type,
             parameters=data["parameters"],
             universe_min=data["universe_min"],
-            universe_max=data["universe_max"],
+            universe_max=data["universe_max"]
         )
 
     def __str__(self) -> str:

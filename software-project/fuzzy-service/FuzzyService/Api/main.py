@@ -19,7 +19,20 @@ from FuzzyService.Api.Controllers import fuzzy_rule_controller
 from FuzzyService.Api.Controllers import fuzzy_routine_controller
 from FuzzyService.Api.Controllers import fuzzy_evaluation_controller
 
-logging.basicConfig(level=logging.INFO)
+# Configuración granular de logging
+logging.basicConfig(level=logging.INFO)  # Nivel base INFO para evitar spam
+
+# Configurar loggers específicos para debug
+logging.getLogger("fuzzy-service").setLevel(logging.DEBUG)
+logging.getLogger("FuzzyService").setLevel(logging.DEBUG)
+logging.getLogger("ActuatorService").setLevel(logging.DEBUG)
+
+# Silenciar loggers ruidosos
+logging.getLogger("pymongo").setLevel(logging.WARNING)
+logging.getLogger("motor").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 _logger = logging.getLogger("fuzzy-service")
 
 
@@ -39,10 +52,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 configure_api(app)
 
-# Configure infrastructure DI
+# Configure infrastructure DI first (provides concrete implementations)
 infra_di.configure_infrastructure_di()
 
-# Configure application DI
+# Configure application DI second (uses infrastructure implementations)
 app_di.configure_application_di()
 
 # Middleware

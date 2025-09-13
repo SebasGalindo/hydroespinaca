@@ -1,30 +1,21 @@
-"""Mappers para conversiones entre entidades de dominio e infraestructura.
+"""Application Mappers Package
 
-Este módulo contiene mappers específicos para cada entidad, siguiendo el patrón
-de clases con métodos estáticos to_infra y to_domain.
+Contiene mapeadores entre entidades de dominio y estructuras utilizadas por servicios.
+
+Nota:
+- Evitar importar mappers que dependan de Infrastructure.* para no forzar dicha dependencia.
+- Los mappers deprecados que dependían del motor de infraestructura han sido mantenidos en sus archivos
+  para referencia histórica pero no se exponen en __all__.
 """
 
-from .FuzzyRuleMapper import FuzzyRuleMapper
-from .FuzzyVariableMapper import FuzzyVariableMapper
-from .FuzzyTermMapper import FuzzyTermMapper
-from .FuzzySystemMapper import FuzzySystemMapper
 from .FuzzyEvaluationMapper import FuzzyEvaluationMapper
-from .FuzzyRoutineMapper import FuzzyRoutineMapper
-
-# Mantener compatibilidad con mappers antiguos (deprecados)
-from .DomainToInfrastructureMapper import DomainToInfrastructureMapper
-from .InfrastructureToDomainMapper import InfrastructureToDomainMapper
+from .FuzzyVariableMapper import FuzzyVariableMapper
+from .FuzzySystemMapper import FuzzySystemMapper
+from .FuzzyRuleMapper import FuzzyRuleMapper
 
 __all__ = [
-    # Nuevos mappers específicos
-    "FuzzyRuleMapper",
-    "FuzzyVariableMapper", 
-    "FuzzyTermMapper",
-    "FuzzySystemMapper",
     "FuzzyEvaluationMapper",
-    "FuzzyRoutineMapper",
-    
-    # Mappers antiguos (deprecados)
-    "DomainToInfrastructureMapper",
-    "InfrastructureToDomainMapper"
+    "FuzzyVariableMapper",
+    "FuzzySystemMapper",
+    "FuzzyRuleMapper",
 ]
