@@ -25,8 +25,12 @@ public static class ServiceCollectionWebExtensions
         // Add authentication without FallbackPolicy
         services.AddHydroEspinacaAuthWithoutFallback(configuration, "bff-service");
         
-        // Add Swagger documentation
-        services.AddHydroEspinacaSwagger("BFF Service API");
+        // Add Swagger documentation with custom headers
+        services.AddHydroEspinacaSwagger("BFF Service API", c =>
+        {
+            // Add custom header parameters for BFF session management
+            c.OperationFilter<SessionHeadersOperationFilter>();
+        });
         
         // Add FluentValidation
         services.AddValidatorsFromAssembly(typeof(LogoutRequestValidator).Assembly);

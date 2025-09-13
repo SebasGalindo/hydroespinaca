@@ -133,10 +133,6 @@ public class ProxyService : IProxyService
         return matchedRoute.Value;
     }
 
-    public bool IsPublicRoute(string path)
-    {
-        return BffConstants.Proxy.PublicRoutes.Contains(path);
-    }
 
     private static bool IsAllowedHeader(string headerName)
     {

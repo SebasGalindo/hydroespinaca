@@ -45,14 +45,6 @@ public static class BffConstants
             { Services.SensorService, "/api" },
             { Services.ActuatorService, "/api" }
         };
-
-        // Public routes that don't require authentication (simplified paths)
-        public static readonly HashSet<string> PublicRoutes = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "/proxy/auth/keys/public",
-            "/proxy/auth/login",
-            "/proxy/auth/token"
-        };
     }
 
     public static class Headers

@@ -66,8 +66,11 @@ public class ProxyController : ControllerBase
 
     private async Task<ActionResult> ForwardRequest(string method, string path, CancellationToken cancellationToken)
     {
+        // URL decode the path to handle encoded slashes from Swagger UI
+        var decodedPath = Uri.UnescapeDataString(path);
+        
         // Construct full path for proxy (add /proxy prefix since route captures everything after proxy/)
-        var fullPath = $"/proxy/{path}";
+        var fullPath = $"/proxy/{decodedPath}";
         
         if (!_proxyService.IsValidProxyPath(fullPath))
         {
@@ -75,7 +78,6 @@ public class ProxyController : ControllerBase
         }
 
         var targetService = _proxyService.GetTargetService(fullPath);
-        var isPublicRoute = _proxyService.IsPublicRoute(fullPath);
 
         // Read request body if present
         string? requestBody = null;
@@ -99,18 +101,12 @@ public class ProxyController : ControllerBase
 
         string? accessToken = null;
 
-        // Handle authentication for non-public routes
-        if (!isPublicRoute)
+        // Try to get access token from session if available
+        var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+        var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
+
+        if (Request.Headers.TryGetValue(sessionIdHeader, out var sessionIdValues) && sessionIdValues.Any())
         {
-            var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-            var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
-
-            if (!Request.Headers.TryGetValue(sessionIdHeader, out var sessionIdValues) ||
-                !sessionIdValues.Any())
-            {
-                return Unauthorized(new { message = "Session ID required" });
-            }
-
             var sessionId = sessionIdValues.First()!;
             
             // Validate CSRF token for state-changing operations
@@ -123,24 +119,27 @@ public class ProxyController : ControllerBase
                 }
             }
 
-            // Get session info and validate
+            // Try to get session info
             var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
-            if (sessionInfo == null || !sessionInfo.IsValid)
+            if (sessionInfo != null && sessionInfo.IsValid)
             {
-                return Unauthorized(new { message = "Invalid or expired session" });
+                // Get the session with tokens
+                try
+                {
+                    var session = await GetSessionWithTokens(sessionId, cancellationToken);
+                    if (session != null)
+                    {
+                        accessToken = session.AccessToken;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get session tokens for session {SessionId}, continuing without token", sessionId);
+                }
             }
-
-            // Get the session with tokens
-            var session = await GetSessionWithTokens(sessionId, cancellationToken);
-            if (session == null)
-            {
-                return Unauthorized(new { message = "Session not found" });
-            }
-
-            accessToken = session.AccessToken;
         }
 
-        // Forward request
+        // Forward request - let target service decide if authentication is required
         var proxyResponse = await _proxyService.ForwardRequestAsync(
             proxyRequest,
             accessToken,
