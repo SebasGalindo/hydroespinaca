@@ -71,7 +71,7 @@ Thumbs.db
 **/TestResults/
 .nuget/packages/
 **/nupkg/
-deploy-artifacts/nuget/*
+
 
 # ===============================
 # PlatformIO / ESP32 Firmware

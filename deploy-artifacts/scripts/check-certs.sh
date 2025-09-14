@@ -95,8 +95,11 @@ main() {
         exit 0
     fi
     
-    # Ensure webroot directory exists
-    mkdir -p "$WEBROOT"
+    # Ensure webroot directory exists with proper structure
+    mkdir -p "$WEBROOT/.well-known/acme-challenge"
+    chmod -R 755 "$WEBROOT"
+    
+    log "Created webroot directory structure: $WEBROOT/.well-known/acme-challenge"
     
     # Check and generate certificate for API domain
     if ! check_cert "$API_DOMAIN"; then

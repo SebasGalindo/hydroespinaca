@@ -116,15 +116,13 @@ start_production() {
 stop_services() {
     log "Stopping all HydroEspinaca services..."
 
-    # Detener todos los contenedores del perfil actual, eliminar redes, volúmenes e imágenes asociadas
-    COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" down --rmi all --volumes --remove-orphans
+    COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" down --rmi all --remove-orphans
 
-    # Limpieza extra por si hay contenedores colgados
     docker ps -aq | xargs -r docker rm -f
-    docker volume ls -q | xargs -r docker volume rm -f
 
-    log "All services and related resources stopped"
+    log "All services stopped. Certificate volumes (certbot_certs, certbot_www, nginx_logs) were preserved."
 }
+
 
 
 # Function to show status
