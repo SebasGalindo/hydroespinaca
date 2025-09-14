@@ -1,5 +1,67 @@
 services:
   # -----------------------------
+  # Reverse Proxy (recibe tráfico de Cloudflare)
+  # -----------------------------
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"   # HTTP from Cloudflare
+      - "443:443" # HTTPS for Full Strict TLS
+    volumes:
+      - ./deploy-artifacts/nginx/nginx.conf.tpl:/etc/nginx/templates/nginx.conf.tpl:ro
+      - ./deploy-artifacts/scripts:/scripts:ro
+      - ./.env:/.env:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot
+      - nginx_logs:/var/log/nginx
+    environment:
+      - USE_TLS=${USE_TLS:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-Development}
+      - DOMAIN=${DOMAIN}
+      - API_SUBDOMAIN=${API_SUBDOMAIN:-api}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+    command: sh -c "apk add --no-cache gettext && /scripts/generate-nginx-config.sh && nginx -g 'daemon off;'"
+    # nginx starts independently and proxies to bff-service when ready
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
+
+  # -----------------------------
+  # Certbot para MQTT TLS únicamente
+  # -----------------------------
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+      - ./deploy-artifacts/scripts:/scripts:ro
+      - ./.env:/app/.env:ro
+    entrypoint: "/scripts/check-certs.sh"
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+
+  # Certificate renewal service (runs every 12h with proper hooks)
+  certbot-renew:
+    image: certbot/certbot
+    container_name: certbot-renew
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+      - ./deploy-artifacts/scripts:/scripts:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --quiet --pre-hook '/scripts/certbot-hooks.sh pre' --deploy-hook '/scripts/certbot-hooks.sh deploy' --post-hook '/scripts/certbot-hooks.sh post'; done"
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+  # -----------------------------
   # Proyecto 1: Hardware
   # -----------------------------
   mqtt:
@@ -7,24 +69,48 @@ services:
     container_name: mqtt
     restart: unless-stopped
     ports:
-      - "1883:1883"
-      - "9001:9001" # WebSocket (opcional, útil para frontends JS)
+      # Production TLS ports (always exposed)
+      - "8883:8883"   # External MQTT with TLS
+      - "9002:9002"   # WebSocket with TLS
+    expose:
+      # Internal development ports (Docker network only)
+      - "1883"        # Internal MQTT (no encryption)
+      - "9001"        # WebSocket (no TLS)
     volumes:
       - ./deploy-artifacts/mosquitto/config:/mosquitto/config
+      - ./deploy-artifacts/scripts:/scripts:ro
       - mqtt_data:/mosquitto/data
       - mqtt_log:/mosquitto/log
+      - certbot_certs:/etc/letsencrypt:ro
+    environment:
+      - USE_TLS=${USE_TLS:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-Development}
+      - DOMAIN=${DOMAIN}
+      - MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
+      - COMPOSE_PROFILE=${COMPOSE_PROFILE:-development}
+    entrypoint: sh -c "apk add --no-cache gettext netcat-openbsd && /scripts/startup-mosquitto.sh"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo 'health check' | timeout 5 nc localhost 1883 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - espinaca-net
+    profiles:
+      - production
+      - development
 
   sensor-service:
     build:
       context: .
       dockerfile: hardware-project/sensor-service/Dockerfile
     container_name: sensor-service
-    ports:
-      - "5001:8080"
+    expose:
+      - "8080"
     depends_on:
-      - mqtt
+      mqtt:
+        condition: service_healthy
     environment:
       - JWT__Issuer=${Jwt_Issuer}
       - JWT__Audience=${Jwt_Audience}
@@ -43,16 +129,20 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
+    profiles:
+      - production
+      - development
 
   actuator-service:
     build:
       context: .
       dockerfile: hardware-project/actuator-service/Dockerfile
     container_name: actuator-service
-    ports:
-      - "5002:8080"
+    expose:
+      - "8080"
     depends_on:
-      - mqtt
+      mqtt:
+        condition: service_healthy
     environment:
       - JWT__Issuer=${Jwt_Issuer}
       - JWT__Audience=${Jwt_Audience}
@@ -72,6 +162,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
+    profiles:
+      - production
+      - development
  
 
   # # -----------------------------
@@ -83,8 +176,8 @@ services:
       context: .
       dockerfile: software-project/auth-service/Dockerfile
     container_name: auth-service
-    ports:
-      - "6001:8080"
+    expose:
+      - "8080"
     volumes:
       - ./software-project/auth-service/Keys:/app/Keys
     environment:
@@ -97,24 +190,18 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net
+    profiles:
+      - production
+      - development
 
-      
-  # api-gateway:
-  #   build: ./software-project/api-gateway
-  #   container_name: api-gateway
-  #   env_file: ./software-project/api-gateway/.env
-  #   depends_on:
-  #     - auth-service
-  #   ports:
-  #     - "80:80"
 
   bff-service:
     build:
       context: .
       dockerfile: software-project/bff-service/Dockerfile
     container_name: bff-service
-    ports:
-      - "6002:8080"
+    expose:
+      - "8080"
     depends_on:
       - auth-service
       - sensor-service
@@ -135,8 +222,12 @@ services:
       - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
       - Services__AuthService__Url=${AUTH_SERVICE_URL}
       - ASPNETCORE_ENVIRONMENT=Development
+      - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
       - espinaca-net
+    profiles:
+      - production
+      - development
 
   # fuzzy-service:
   #   build: ./software-project/fuzzy-service
@@ -175,6 +266,9 @@ services:
 volumes:
   mqtt_data: 
   mqtt_log:
+  certbot_certs:
+  certbot_www:
+  nginx_logs:
 
 networks:
   espinaca-net:

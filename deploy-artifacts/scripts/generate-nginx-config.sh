@@ -1,0 +1,132 @@
+#!/bin/sh
+
+# =================================================
+# Nginx Configuration Generator
+# Generates nginx.conf from template based on environment
+# =================================================
+
+set -e
+
+# Load environment variables
+if [ -f "/app/.env" ]; then
+    source /app/.env
+elif [ -f "/.env" ]; then
+    source /.env
+fi
+
+# Set defaults
+USE_TLS=${USE_TLS:-false}
+ENVIRONMENT=${ENVIRONMENT:-Development}
+DOMAIN=${DOMAIN:-hydroespinaca.online}
+API_SUBDOMAIN=${API_SUBDOMAIN:-api}
+ADMIN_EMAIL=${ADMIN_EMAIL:-admin@hydroespinaca.online}
+
+# Derived variables
+export API_DOMAIN="${API_SUBDOMAIN}.${DOMAIN}"
+
+echo "[INFO] Generating Nginx config for $ENVIRONMENT environment (TLS: $USE_TLS)"
+
+# Configure behavior based on environment
+if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
+    echo "[INFO] Configuring for Production with TLS"
+    
+    # HTTP config: empty (will redirect)
+    export NGINX_HTTP_CONFIG=""
+    
+    # Redirect config
+    export NGINX_REDIRECT_CONFIG="return 301 https://\$server_name\$request_uri;"
+    
+    # HTTPS server block
+    export NGINX_HTTPS_SERVER="
+    # HTTPS Server (Production)
+    server {
+        listen 443 ssl http2;
+        server_name ${API_DOMAIN};
+        
+        # SSL Configuration
+        ssl_certificate /etc/letsencrypt/live/${API_DOMAIN}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${API_DOMAIN}/privkey.pem;
+        
+        # SSL Security
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        
+        # HSTS
+        add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;
+        
+        # Rate limiting
+        limit_req zone=api_limit burst=20 nodelay;
+        
+        # Proxy to BFF Service
+        location / {
+            proxy_pass http://bff_backend;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Host \$host;
+            
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \"upgrade\";
+            
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+        
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 \"healthy\\n\";
+            add_header Content-Type text/plain;
+        }
+    }"
+    
+else
+    echo "[INFO] Configuring for Development (HTTP only)"
+    
+    # HTTP config: proxy directly
+    export NGINX_HTTP_CONFIG="
+            proxy_pass http://bff_backend;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \"upgrade\";
+            
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;"
+    
+    # Redirect config: empty (no redirect)
+    export NGINX_REDIRECT_CONFIG=""
+    
+    # HTTPS server: empty (no HTTPS)
+    export NGINX_HTTPS_SERVER=""
+fi
+
+# Generate the final nginx.conf
+envsubst '${API_DOMAIN} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
+    < /etc/nginx/templates/nginx.conf.tpl > /etc/nginx/nginx.conf
+
+echo "[INFO] Nginx configuration generated successfully"
+echo "[INFO] Configuration preview:"
+echo "=========================="
+head -20 /etc/nginx/nginx.conf
+echo "=========================="
+
+# Test nginx configuration
+nginx -t
+
+echo "[INFO] Nginx configuration is valid"
