@@ -11,6 +11,7 @@ services:
       - "443:443" # HTTPS for Full Strict TLS
     volumes:
       - ./deploy-artifacts/nginx/nginx.conf.tpl:/etc/nginx/templates/nginx.conf.tpl:ro
+      - ./deploy-artifacts/nginx/nginx-certbot.conf.tpl:/etc/nginx/templates/nginx-certbot.conf.tpl:ro
       - ./deploy-artifacts/scripts:/scripts:ro
       - ./.env:/.env:ro
       - certbot_certs:/etc/letsencrypt:ro

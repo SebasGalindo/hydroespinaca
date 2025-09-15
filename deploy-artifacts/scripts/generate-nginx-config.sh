@@ -33,19 +33,22 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     
     # Check if this is certificate-only mode (no backend services)
     if [ "${CERTBOT_ONLY:-false}" = "true" ]; then
-        echo "[INFO] Certificate-only mode: minimal nginx config"
+        echo "[INFO] Certificate-only mode: using minimal nginx config"
         
-        export NGINX_UPSTREAMS=""
+        # Use completely separate template for certbot
+        envsubst '${API_DOMAIN}' \
+            < /etc/nginx/templates/nginx-certbot.conf.tpl > /etc/nginx/nginx.conf
         
-        export NGINX_HTTP_CONFIG="
-            # Minimal config for certificate generation
-            location / {
-                return 200 'Certbot challenge server - nginx is ready';
-                add_header Content-Type text/plain;
-            }"
-
-        export NGINX_REDIRECT_CONFIG=""
-        export NGINX_HTTPS_SERVER=""
+        echo "[INFO] Minimal nginx configuration generated for certificate validation"
+        echo "[INFO] Configuration preview:"
+        echo "=========================="
+        head -30 /etc/nginx/nginx.conf
+        echo "=========================="
+        
+        # Test nginx configuration
+        nginx -t
+        echo "[INFO] Minimal nginx configuration is valid"
+        exit 0
     else
         echo "[INFO] Full production mode: complete nginx config"
         
