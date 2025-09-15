@@ -30,6 +30,59 @@ info() {
     echo -e "${BLUE}[$(date)] INFO: $1${NC}"
 }
 
+# Function to run basic diagnostics before certificate generation
+run_certbot_diagnostics() {
+    log "=== PRE-CERTIFICATE DIAGNOSTICS ==="
+    
+    log "1. Checking nginx-proxy container status:"
+    docker ps | grep nginx-proxy || warn "nginx-proxy container not found"
+    
+    log "2. Checking if ports are exposed:"
+    netstat -tlnp | grep ":80\|:443" || warn "Ports 80/443 not found in netstat"
+    
+    log "3. Testing local HTTP access:"
+    if curl -I -m 5 http://localhost:80 >/dev/null 2>&1; then
+        log "✅ Local HTTP access working"
+    else
+        warn "❌ Local HTTP access failed"
+    fi
+    
+    log "4. Testing domain HTTP access locally:"
+    if curl -I -m 5 -H "Host: ${API_DOMAIN}" http://localhost:80 >/dev/null 2>&1; then
+        log "✅ Domain HTTP access working locally"
+    else
+        warn "❌ Domain HTTP access failed locally"
+    fi
+    
+    log "=== END PRE-CERTIFICATE DIAGNOSTICS ==="
+}
+
+# Function to run detailed diagnostics when certificate generation fails
+run_detailed_diagnostics() {
+    error "=== DETAILED CERTIFICATE FAILURE DIAGNOSTICS ==="
+    
+    error "1. nginx-proxy logs (last 20 lines):"
+    docker logs nginx-proxy | tail -20 || error "Could not get nginx logs"
+    
+    error "2. nginx configuration:"
+    docker exec nginx-proxy head -100 /etc/nginx/nginx.conf | tail -30 || error "Could not get nginx config"
+    
+    error "3. Certbot webroot directory:"
+    docker run --rm -v hydroespinaca_certbot_www:/check alpine ls -la /check || error "Could not check certbot volume"
+    
+    error "4. Testing challenge path from nginx container:"
+    docker exec nginx-proxy ls -la /var/www/certbot/.well-known/acme-challenge/ || error "Challenge directory not accessible"
+    
+    error "5. Network connectivity test:"
+    docker exec nginx-proxy wget -O- --timeout=5 http://localhost/.well-known/acme-challenge/test 2>&1 | head -5 || error "Network test failed"
+    
+    error "=== END DETAILED DIAGNOSTICS ==="
+    error "Please check the above output for issues and ensure:"
+    error "  - Oracle Cloud Security Groups allow inbound traffic on port 80"
+    error "  - Cloudflare DNS is set to 'DNS only' (not proxied)"
+    error "  - Domain ${API_DOMAIN} points to this server's public IP"
+}
+
 # Load environment variables
 if [ -f ".env" ]; then
     source .env
@@ -40,6 +93,7 @@ fi
 
 ENVIRONMENT=${ENVIRONMENT:-Development}
 USE_TLS=${USE_TLS:-false}
+API_DOMAIN="${API_SUBDOMAIN:-api}.${DOMAIN}"
 
 info "Starting HydroEspinaca in $ENVIRONMENT mode with TLS=$USE_TLS"
 
@@ -118,9 +172,17 @@ start_production() {
         sleep 15
     fi
     
+    # Run diagnostic before attempting certificate generation
+    log "Running pre-certificate diagnostics..."
+    run_certbot_diagnostics
+    
     # Generate initial certificates if needed
     log "Checking and generating certificates..."
-    COMPOSE_FILE=docker-compose.yml docker compose --profile production run --rm certbot
+    if ! COMPOSE_FILE=docker-compose.yml docker compose --profile production run --rm certbot; then
+        error "Certificate generation failed. Running detailed diagnostics..."
+        run_detailed_diagnostics
+        exit 1
+    fi
     
     # Start all remaining production services
     COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d
