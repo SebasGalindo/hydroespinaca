@@ -25,6 +25,7 @@ ADMIN_EMAIL=${ADMIN_EMAIL:-admin@hydroespinaca.online}
 export API_DOMAIN="${API_SUBDOMAIN}.${DOMAIN}"
 
 echo "[INFO] Generating Nginx config for $ENVIRONMENT environment (TLS: $USE_TLS)"
+echo "[DEBUG] CERTBOT_ONLY variable: '${CERTBOT_ONLY:-NOT_SET}'"
 
 # Configure behavior based on environment
 if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then

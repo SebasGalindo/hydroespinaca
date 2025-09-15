@@ -161,7 +161,8 @@ start_production() {
     # Start nginx-proxy in certificate-only mode first (no backend dependencies)
     log "Starting nginx-proxy in certificate-only mode..."
     export CERTBOT_ONLY=true
-    COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d nginx-proxy
+    log "DEBUG: CERTBOT_ONLY is set to: $CERTBOT_ONLY"
+    COMPOSE_FILE=docker-compose.yml CERTBOT_ONLY=true docker compose --profile production up -d nginx-proxy
     
     # Wait for nginx-proxy to be ready
     log "Waiting for nginx-proxy to be ready..."
