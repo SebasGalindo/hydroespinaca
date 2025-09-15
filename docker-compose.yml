@@ -291,6 +291,7 @@ services:
       - VITE_API_URL=/api
     profiles:
       - production
+    command: sh -c "cp -r dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"
 
 volumes:
   mqtt_data: 

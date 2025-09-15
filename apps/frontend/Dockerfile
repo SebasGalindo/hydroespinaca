@@ -57,8 +57,8 @@ WORKDIR /workspace/apps/frontend
 # Build for production
 RUN pnpm run build
 
-# Command to copy built files to the shared volume location
-CMD ["sh", "-c", "cp -r dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"]
+# Default command - the script will override this
+CMD ["echo", "Frontend build completed"]
 
 # Production stage with nginx
 FROM nginx:1.25-alpine as production
