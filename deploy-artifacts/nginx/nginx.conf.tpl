@@ -60,9 +60,10 @@ http {
         listen 80;
         server_name ${API_DOMAIN};
         
-        # Certbot challenge location (always available)
-        location /.well-known/acme-challenge/ {
+        # Certbot challenge location (always available) - exact match takes precedence
+        location ^~ /.well-known/acme-challenge/ {
             root /var/www/certbot;
+            try_files $uri =404;
         }
         
         # Main location blocks - behavior depends on environment
