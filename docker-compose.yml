@@ -23,6 +23,7 @@ services:
       - DOMAIN=${DOMAIN}
       - API_SUBDOMAIN=${API_SUBDOMAIN:-api}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - CERTBOT_ONLY=${CERTBOT_ONLY:-false}
     command: sh -c "apk add --no-cache gettext && mkdir -p /var/www/certbot/.well-known/acme-challenge && chmod -R 755 /var/www/certbot && /scripts/generate-nginx-config.sh && nginx -g 'daemon off;'"
     # nginx starts independently and proxies to bff-service when ready
     networks:
