@@ -226,19 +226,14 @@ def configure_application_di() -> None:
 
     # FuzzyEngine Service - Domain service implementation
     from FuzzyService.Domain.Interfaces.IFuzzyEngine import IFuzzyEngine
-    from FuzzyService.Application.Services.NullFuzzyEngine import NullFuzzyEngine
 
-    # Binding perezoso mediante factory para permitir reemplazo en infraestructura/configuración
-    # Solo enlazar NullFuzzyEngine si no existe ya un binding previo (hecho por Infrastructure)
+    # Verificar que IFuzzyEngine esté configurado por la capa de Infrastructure
     try:
-        existing_engine = di[IFuzzyEngine]
-    except Exception:
-        existing_engine = None
-    if existing_engine is None:
-        di[IFuzzyEngine] = lambda di: NullFuzzyEngine()
-        _logger.info("Application DI: IFuzzyEngine no estaba configurado, enlazado a NullFuzzyEngine (fallback).")
-    else:
+        di[IFuzzyEngine]  # Solo verificamos que existe
         _logger.info("Application DI: IFuzzyEngine ya estaba configurado por otra capa; se respeta el binding existente.")
+    except Exception:
+        _logger.error("Application DI: IFuzzyEngine no está configurado. Debe ser configurado por la capa de Infrastructure.")
+        raise ValueError("IFuzzyEngine must be configured by Infrastructure layer")
 
     # Exponer también acceso directo al mediador
     di["mediator"] = di[Medyator]

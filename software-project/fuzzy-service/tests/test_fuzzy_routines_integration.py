@@ -1,4 +1,4 @@
-﻿import os
+import os
 import importlib
 import sys
 from uuid import uuid4
@@ -7,7 +7,8 @@ from pymongo import MongoClient
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# Cargar variables desde .env.test para tests de integración
+load_dotenv(dotenv_path=".env.test")
 
 def cleanup_test_data(conn_str: str, db_name: str):
     """Limpia los datos de prueba de la base de datos."""
@@ -20,19 +21,26 @@ def cleanup_test_data(conn_str: str, db_name: str):
     except Exception:
         pass  # Ignore if collection doesn't exist
     
-    # Drop the entire test database to ensure complete cleanup
-    client.drop_database(db_name)
+    # Delete all documents from collections instead of dropping database
+    try:
+        collections = db.list_collection_names()
+        for collection_name in collections:
+            db[collection_name].delete_many({})
+    except Exception as e:
+        print(f"Warning: Could not clean collection {collection_name}: {e}")
+    
     client.close()
 
-def setup_test_environment(db_name: str):
-    """Configura el entorno de prueba con una base de datos Ãºnica."""
-    conn_str = os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
+def setup_test_environment():
+    """Configura el entorno de prueba usando la configuración de .env.test."""
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
     
-    # Set environment variables
-    os.environ["MONGO_CONNECTION_STRING"] = conn_str
-    os.environ["MONGO_DATABASE_NAME"] = db_name
-    os.environ["MONGO_PING_ON_STARTUP"] = "false"
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    print(f"Using test database: {db_name}")
+    
+    conn_str = os.getenv("MONGO_CONNECTION_STRING") or os.getenv("FUZZY_MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
     
     # Cleanup any existing data first
     cleanup_test_data(conn_str, db_name)
@@ -61,10 +69,9 @@ def setup_test_environment(db_name: str):
 
 
 def test_fuzzy_routines_basic_crud():
-    """Test de integraciÃ³n API-MongoDB para FuzzyRoutines CRUD."""
-    # Setup test environment with unique database
-    db_name = f"fuzzy_test_{uuid4().hex[:8]}"
-    app = setup_test_environment(db_name)
+    """Test de integración API-MongoDB para FuzzyRoutines CRUD."""
+    # Setup test environment using .env.test configuration
+    app = setup_test_environment()
     
     with TestClient(app) as client:
         # Create routine
@@ -148,9 +155,8 @@ def test_fuzzy_routines_basic_crud():
 
 def test_fuzzy_routines_step_management():
     """Test step management operations for FuzzyRoutines."""
-    # Setup test environment with unique database
-    db_name = f"fuzzy_test_{uuid4().hex[:8]}"
-    app = setup_test_environment(db_name)
+    # Setup test environment
+    app = setup_test_environment()
     
     with TestClient(app) as client:
         # Create routine with initial steps
@@ -208,9 +214,8 @@ def test_fuzzy_routines_step_management():
 
 def test_fuzzy_routines_validation_errors():
     """Test validation errors for FuzzyRoutines."""
-    # Setup test environment with unique database
-    db_name = f"fuzzy_test_{uuid4().hex[:8]}"
-    app = setup_test_environment(db_name)
+    # Setup test environment
+    app = setup_test_environment()
     
     with TestClient(app) as client:
         # Test missing required fields
@@ -242,9 +247,8 @@ def test_fuzzy_routines_validation_errors():
 
 def test_fuzzy_routines_duplicate_name():
     """Test duplicate name handling for FuzzyRoutines."""
-    # Setup test environment with unique database
-    db_name = f"fuzzy_test_{uuid4().hex[:8]}"
-    app = setup_test_environment(db_name)
+    # Setup test environment
+    app = setup_test_environment()
     
     with TestClient(app) as client:
         routine_name = f"DuplicateTestRoutine{uuid4().hex[:8]}"

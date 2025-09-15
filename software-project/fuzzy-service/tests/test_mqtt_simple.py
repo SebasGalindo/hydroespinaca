@@ -4,6 +4,7 @@ import json
 import sys
 import pathlib
 from unittest.mock import AsyncMock
+import pytest
 
 # Agregar el directorio raíz al path
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -17,6 +18,7 @@ from FuzzyService.Application.Features.SensorProcessing.Commands.ProcessSensorRe
 )
 
 
+@pytest.mark.asyncio
 async def test_mqtt_message_handler_basic():
     """Prueba básica del MqttMessageHandler."""
     # Arrange
@@ -60,6 +62,7 @@ async def test_mqtt_message_handler_basic():
     print("✅ test_mqtt_message_handler_basic PASSED")
 
 
+@pytest.mark.asyncio
 async def test_mqtt_message_handler_multiple_readings():
     """Prueba el MqttMessageHandler con múltiples lecturas."""
     # Arrange
@@ -107,6 +110,7 @@ async def test_mqtt_message_handler_multiple_readings():
     print("✅ test_mqtt_message_handler_multiple_readings PASSED")
 
 
+@pytest.mark.asyncio
 async def test_mqtt_message_handler_invalid_values():
     """Prueba el MqttMessageHandler con valores inválidos."""
     # Arrange

@@ -5,7 +5,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# Cargar variables desde .env.test para tests de integración
+load_dotenv(dotenv_path=".env.test")
 
 
 def test_fuzzy_terms_basic_crud():

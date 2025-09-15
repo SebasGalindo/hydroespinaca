@@ -2,6 +2,7 @@
 import asyncio
 import sys
 import pathlib
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 import pytest
@@ -29,6 +30,7 @@ async def test_process_sensor_readings_handler_basic(mock_di):
     mock_fuzzy_rule_repo = AsyncMock()
     mock_fuzzy_term_repo = AsyncMock()
     mock_fuzzy_engine = AsyncMock()
+    mock_fuzzy_evaluation_repo = AsyncMock()
     
     # Configurar el mock del contenedor DI
     def di_getitem(interface):
@@ -42,6 +44,8 @@ async def test_process_sensor_readings_handler_basic(mock_di):
             return mock_fuzzy_term_repo
         elif 'IFuzzyEngine' in str(interface):
             return mock_fuzzy_engine
+        elif 'IFuzzyEvaluationRepository' in str(interface):
+            return mock_fuzzy_evaluation_repo
         return MagicMock()
     
     mock_di.__getitem__.side_effect = di_getitem
@@ -49,15 +53,17 @@ async def test_process_sensor_readings_handler_basic(mock_di):
     handler = ProcessSensorReadingsHandler()
     
     # Mock del sistema fuzzy activo
+    system_id = str(uuid.uuid4())
     mock_system = MagicMock()
-    mock_system.id = "test_system_id"
+    mock_system.id = system_id
     mock_system.name = "Test System"
     mock_system.status = FuzzySystemStatus.ACTIVE
     mock_fuzzy_system_repo.get_by_status.return_value = [mock_system]
     
     # Mock de variables
+    variable_id = str(uuid.uuid4())
     mock_variable = MagicMock()
-    mock_variable.id = "var_id_1"
+    mock_variable.id = variable_id
     mock_variable.name = "Soil Moisture"
     mock_variable.device_id = "sensor_soil_moisture_1"
     mock_fuzzy_variable_repo.get_by_system_id.return_value = [mock_variable]
@@ -66,8 +72,9 @@ async def test_process_sensor_readings_handler_basic(mock_di):
     mock_fuzzy_rule_repo.get_by_system_id.return_value = []
     
     # Mock de términos fuzzy
+    term_id = str(uuid.uuid4())
     mock_term = MagicMock()
-    mock_term.id = "term_id_1"
+    mock_term.id = term_id
     mock_term.label = "medium"
     mock_fuzzy_term_repo.get_by_variable_id.return_value = [mock_term]
     
@@ -77,6 +84,20 @@ async def test_process_sensor_readings_handler_basic(mock_di):
         "rule_evaluation_results": [],
         "defuzzification_results": {}
     }
+    
+    # Mock del repositorio de evaluación fuzzy
+    mock_evaluation = MagicMock()
+    evaluation_id = str(uuid.uuid4())
+    mock_evaluation.id = evaluation_id
+    mock_evaluation.model_dump.return_value = {
+        "id": evaluation_id,
+        "system_id": system_id,
+        "timestamp": "2024-01-15T10:30:00Z",
+        "input_values": [],
+        "output_values": [],
+        "rule_activations": []
+    }
+    mock_fuzzy_evaluation_repo.create.return_value = mock_evaluation
     
     # Crear comando
     sensor_reading = SensorReading(
@@ -97,16 +118,18 @@ async def test_process_sensor_readings_handler_basic(mock_di):
     
     # Assert
     assert command.result is not None
-    assert "active_system" in command.result
-    assert command.result["active_system"]["name"] == "Test System"
-    assert "active_variables" in command.result
-    assert len(command.result["active_variables"]) == 1
-    assert command.result["active_variables"][0]["name"] == "Soil Moisture"
+    assert "id" in command.result
+    assert "system_id" in command.result
+    assert command.result["system_id"] == system_id
+    assert "timestamp" in command.result
+    assert "input_values" in command.result
+    assert "output_values" in command.result
+    assert "rule_activations" in command.result
     
     # Verificar que se llamaron los métodos correctos
     mock_fuzzy_system_repo.get_by_status.assert_called_once_with(FuzzySystemStatus.ACTIVE)
-    mock_fuzzy_variable_repo.get_by_system_id.assert_called_once_with("test_system_id")
-    mock_fuzzy_rule_repo.get_by_system_id.assert_called_once_with("test_system_id")
+    mock_fuzzy_variable_repo.get_by_system_id.assert_called_once_with(system_id)
+    mock_fuzzy_rule_repo.get_by_system_id.assert_called_once_with(system_id)
     
     print("✅ test_process_sensor_readings_handler_basic PASSED")
 

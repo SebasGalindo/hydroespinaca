@@ -23,7 +23,7 @@ from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleReposi
 from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
 from FuzzyService.Domain.Interfaces.IFuzzyEvaluationRepository import IFuzzyEvaluationRepository
 
-from FuzzyService.Application.Services.NullFuzzyEngine import NullFuzzyEngine
+
 
 _logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def configure_infrastructure_di() -> None:
     # Bind IFuzzyEngine directly with ScikitFuzzyEngine
     try:
         from FuzzyService.Domain.Interfaces.IFuzzyEngine import IFuzzyEngine
-        from FuzzyService.Application.Services.NullFuzzyEngine import NullFuzzyEngine
+        
         from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.ScikitFuzzyEngine import ScikitFuzzyEngine
         from medyator import Medyator
 
@@ -73,13 +73,8 @@ def configure_infrastructure_di() -> None:
         
         _logger.info("IFuzzyEngine bound to ScikitFuzzyEngine instance with mediator.")
     except Exception:
-        _logger.exception("Failed to bind IFuzzyEngine; fallback to NullFuzzyEngine.")
-        try:
-            from FuzzyService.Domain.Interfaces.IFuzzyEngine import IFuzzyEngine
-            from FuzzyService.Application.Services.NullFuzzyEngine import NullFuzzyEngine
-            di[IFuzzyEngine] = NullFuzzyEngine()
-        except Exception:
-            _logger.exception("Also failed to bind NullFuzzyEngine.")
+        _logger.exception("Failed to bind IFuzzyEngine to ScikitFuzzyEngine.")
+        raise  # Re-raise the exception since NullFuzzyEngine is no longer available
 
     _logger.info("Infrastructure DI configured: mongo settings, MQTT settings, IFuzzyEngine and factories registered.")
 
@@ -226,306 +221,9 @@ async def _seed_initial_data(di):
         return
 
     try:
-        # Resolve repos
-        from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRepository
-        from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
-        from FuzzyService.Domain.Interfaces.IFuzzyTermRepository import IFuzzyTermRepository
-        from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
-        from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleRepository
-
-        repo_fs = di[IFuzzySystemRepository]
-        repo_var = di[IFuzzyVariableRepository]
-        repo_term = di[IFuzzyTermRepository]
-        repo_routine = di[IFuzzyRoutineRepository]
-        repo_rule = di[IFuzzyRuleRepository]
-
-        # System
-        from FuzzyService.Domain.Entities.fuzzy_system import FuzzySystem
-        from FuzzyService.Domain.Enums import DefuzzificationMethod
-        from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyVariableId, FuzzyTermId, FuzzyRoutineId
-        from FuzzyService.Domain.ValueObjects.MembershipFunction import MembershipFunction
-        from FuzzyService.Domain.Enums import MembershipFunctionType
-        from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm
-        from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable
-
-        system_name = os.getenv("FUZZY_SEED_SYSTEM_NAME", "Irrigation Control System")
-        system = await repo_fs.get_by_name(system_name)
-        if not system:
-            system = FuzzySystem(name=system_name, defuzzification_method=DefuzzificationMethod.CENTROID)
-            system = await repo_fs.create(system)
-            _logger.info("Seed: created system '%s' (id=%s)", system_name, str(system.id))
-        else:
-            _logger.info("Seed: system '%s' already exists (id=%s)", system_name, str(system.id))
-
-        # Helpers
-        def tri(a: float, b: float, c: float, umin: float = 0.0, umax: float = 100.0) -> MembershipFunction:
-            return MembershipFunction(
-                function_type=MembershipFunctionType.TRIANGULAR,
-                parameters=[float(a), float(b), float(c)],
-                universe_min=float(umin),
-                universe_max=float(umax),
-            )
-
-        async def ensure_variable_with_terms(name: str, var_type: str, device_id: str | None, terms_def: list[tuple[str, MembershipFunction]]):
-            var = await repo_var.get_by_name(name)
-            if not var:
-                var = await repo_var.create(FuzzyVariable(name=name, variable_type=var_type, device_id=device_id or None))
-                _logger.info("Seed: created variable '%s' (type=%s, id=%s)", name, var_type, str(var.id))
-            term_ids: list[FuzzyTermId] = []
-            for label, mf in terms_def:
-                existing_term = await repo_term.get_by_label(FuzzyVariableId(str(var.id)), label)
-                if existing_term:
-                    term = existing_term
-                    _logger.info("Seed: term '%s' already exists for variable '%s'", label, name)
-                else:
-                    term = await repo_term.create(
-                        FuzzyTerm(
-                            variable_id=FuzzyVariableId(str(var.id)),
-                            label=label,
-                            membership_function=mf,
-                        )
-                    )
-                    _logger.info("Seed: created term '%s' for variable '%s' (id=%s)", label, name, str(term.id))
-                term_ids.append(FuzzyTermId(str(term.id)))
-            # Update variable terms if changed
-            if set(map(str, var.terms)) != set(map(str, term_ids)):
-                var.terms = term_ids
-                var = await repo_var.update(var)
-                _logger.info("Seed: updated terms for variable '%s'", name)
-            return var, term_ids
-
-        # Output variables and terms
-        power_var, power_terms = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_POWER_VAR_NAME", "Irrigation Power"),
-            "output",
-            os.getenv("FUZZY_SEED_POWER_DEVICE", "actuator_pump_1"),
-            [("low", tri(0, 0, 40)), ("medium", tri(30, 50, 70)), ("high", tri(60, 100, 100))],
-        )
-        duration_var, duration_terms = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_DURATION_VAR_NAME", "Irrigation Duration"),
-            "output",
-            os.getenv("FUZZY_SEED_DURATION_DEVICE", "actuator_pump_1"),
-            [("short", tri(0, 0, 30)), ("medium", tri(20, 50, 80)), ("long", tri(70, 100, 100))],
-        )
-        # Additional output variable for broader coverage of consequents
-        frequency_var, frequency_terms = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_FREQUENCY_VAR_NAME", "Irrigation Frequency"),
-            "output",
-            os.getenv("FUZZY_SEED_FREQUENCY_DEVICE", "actuator_pump_1"),
-            [("rare", tri(0, 0, 30)), ("normal", tri(30, 50, 70)), ("frequent", tri(70, 100, 100))],
-        )
-
-        # Input variable for rule condition
-        input_var, input_terms = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_INPUT_VAR_NAME", "Soil Moisture"),
-            "input",
-            os.getenv("FUZZY_SEED_INPUT_DEVICE", "sensor_soil_moisture_1"),
-            [("low", tri(0, 0, 40)), ("medium", tri(30, 50, 70)), ("high", tri(60, 100, 100))],
-        )
-        # Additional input variables (ensure at least 3 inputs with 3 labels each)
-        input_var2, input_terms2 = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_INPUT2_VAR_NAME", "Ambient Temperature"),
-            "input",
-            os.getenv("FUZZY_SEED_INPUT2_DEVICE", "sensor_temperature_1"),
-            [("low", tri(0, 0, 20)), ("medium", tri(18, 25, 32)), ("high", tri(30, 50, 50))],
-        )
-        input_var3, input_terms3 = await ensure_variable_with_terms(
-            os.getenv("FUZZY_SEED_INPUT3_VAR_NAME", "Light Intensity"),
-            "input",
-            os.getenv("FUZZY_SEED_INPUT3_DEVICE", "sensor_light_1"),
-            [("low", tri(0, 0, 30)), ("medium", tri(25, 45, 70)), ("high", tri(60, 100, 100))],
-        )
-
-        # Routine
-        routine = None
-        if repo_routine:
-            routine_name = os.getenv("FUZZY_SEED_ROUTINE_NAME", "Default Irrigation Routine")
-            routine = await repo_routine.get_by_name(routine_name)  # type: ignore[attr-defined]
-            if not routine:
-                # pick power 'high' and duration 'long'
-                label_index = {"low": 0, "medium": 1, "high": 2}
-                # Fallback to last element if not found
-                power_high_id = power_terms[label_index.get("high", len(power_terms) - 1)] if power_terms else None
-                duration_long_id = duration_terms[label_index.get("long", len(duration_terms) - 1)] if duration_terms else None
-                if power_high_id and duration_long_id:
-                    from FuzzyService.Domain.Entities.fuzzy_routine import FuzzyRoutine, RoutineStep
-                    step = RoutineStep(step_id=1, condition="default", power_term_id=power_high_id, duration_term_id=duration_long_id)
-                    routine = await repo_routine.create(FuzzyRoutine(routine_name=routine_name, steps=[step]))  # type: ignore[attr-defined]
-                    _logger.info("Seed: created routine '%s' (id=%s)", routine_name, str(routine.id))
-            else:
-                _logger.info("Seed: routine '%s' already exists (id=%s)", routine_name, str(routine.id))
-
-            # Additional routines with multiple steps
-            try:
-                from FuzzyService.Domain.Entities.fuzzy_routine import FuzzyRoutine, RoutineStep
-                label_index = {"low": 0, "medium": 1, "high": 2}
-                dur_index = {"short": 0, "medium": 1, "long": 2}
-
-                moderate_name = os.getenv("FUZZY_SEED_ROUTINE_MODERATE_NAME", "Moderate Irrigation Routine")
-                routine_moderate = await repo_routine.get_by_name(moderate_name)  # type: ignore[attr-defined]
-                if not routine_moderate and power_terms and duration_terms:
-                    steps_mod = [
-                        RoutineStep(step_id=1, condition="if moisture=medium AND temp=high", power_term_id=power_terms[label_index["medium"]], duration_term_id=duration_terms[dur_index["medium"]]),
-                        RoutineStep(step_id=2, condition="fallback", power_term_id=power_terms[label_index["low"]], duration_term_id=duration_terms[dur_index["short"]]),
-                    ]
-                    routine_moderate = await repo_routine.create(FuzzyRoutine(routine_name=moderate_name, steps=steps_mod))  # type: ignore[attr-defined]
-                    _logger.info("Seed: created routine '%s' (id=%s)", moderate_name, str(routine_moderate.id))
-
-                pulse_name = os.getenv("FUZZY_SEED_ROUTINE_PULSE_NAME", "Pulse Irrigation Routine")
-                routine_pulse = await repo_routine.get_by_name(pulse_name)  # type: ignore[attr-defined]
-                if not routine_pulse and power_terms and duration_terms:
-                    steps_pulse = [
-                        RoutineStep(step_id=1, condition="pulse-1", power_term_id=power_terms[label_index["medium"]], duration_term_id=duration_terms[dur_index["short"]]),
-                        RoutineStep(step_id=2, condition="pulse-2", power_term_id=power_terms[label_index["high"]], duration_term_id=duration_terms[dur_index["short"]]),
-                        RoutineStep(step_id=3, condition="pulse-3", power_term_id=power_terms[label_index["low"]], duration_term_id=duration_terms[dur_index["short"]]),
-                    ]
-                    routine_pulse = await repo_routine.create(FuzzyRoutine(routine_name=pulse_name, steps=steps_pulse))  # type: ignore[attr-defined]
-                    _logger.info("Seed: created routine '%s' (id=%s)", pulse_name, str(routine_pulse.id))
-            except Exception:
-                _logger.exception("Seed: failed creating additional routines")
-        else:
-            _logger.info("Seed: routine repository not available; skipping routine creation.")
-
-        # Rule
-        rule = None
-        created_rules = []
-        if repo_rule and routine:
-            rule_name = os.getenv("FUZZY_SEED_RULE_NAME", "Low moisture => irrigate")
-            existing_rule = await repo_rule.get_by_name(FuzzySystemId(str(system.id)), rule_name)  # type: ignore[attr-defined]
-            if not existing_rule:
-                from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
-                condition = {"variableId": FuzzyVariableId(str(input_var.id)), "operator": "IS", "value": "low"}
-                rule = await repo_rule.create(  # type: ignore[attr-defined]
-                    FuzzyRule(
-                        name=rule_name,
-                        system_id=FuzzySystemId(str(system.id)),
-                        description="Seed rule: if soil moisture is low, run default irrigation routine",
-                        conditions=[condition],
-                        connectors=[],
-                        consequent=FuzzyRoutineId(str(routine.id)),
-                    )
-                )
-                _logger.info("Seed: created rule '%s' (id=%s)", rule_name, str(rule.id))
-            else:
-                rule = existing_rule
-                _logger.info("Seed: rule '%s' already exists (id=%s)", rule_name, str(rule.id))
-            if rule:
-                created_rules.append(rule)
-
-            # Additional rules using multiple conditions and connectors
-            # Rule 2: moisture=medium AND temp=high => Moderate routine
-            moderate_name = os.getenv("FUZZY_SEED_ROUTINE_MODERATE_NAME", "Moderate Irrigation Routine")
-            routine_moderate = await repo_routine.get_by_name(moderate_name)  # type: ignore[attr-defined]
-            rule_name2 = os.getenv("FUZZY_SEED_RULE2_NAME", "Moisture medium AND Temp high => Moderate")
-            existing_rule2 = await repo_rule.get_by_name(FuzzySystemId(str(system.id)), rule_name2)  # type: ignore[attr-defined]
-            if not existing_rule2 and routine_moderate:
-                from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
-                conditions2 = [
-                    {"variableId": FuzzyVariableId(str(input_var.id)), "operator": "IS", "value": "medium"},
-                    {"variableId": FuzzyVariableId(str(input_var2.id)), "operator": "IS", "value": "high"},
-                ]
-                rule2 = await repo_rule.create(  # type: ignore[attr-defined]
-                    FuzzyRule(
-                        name=rule_name2,
-                        system_id=FuzzySystemId(str(system.id)),
-                        description="Seed rule: medium moisture AND high temperature",
-                        conditions=conditions2,
-                        connectors=["AND"],
-                        consequent=FuzzyRoutineId(str(routine_moderate.id)),
-                    )
-                )
-                created_rules.append(rule2)
-                _logger.info("Seed: created rule '%s' (id=%s)", rule_name2, str(rule2.id))
-
-            # Rule 3: moisture=low AND light=high => Pulse routine
-            pulse_name = os.getenv("FUZZY_SEED_ROUTINE_PULSE_NAME", "Pulse Irrigation Routine")
-            routine_pulse = await repo_routine.get_by_name(pulse_name)  # type: ignore[attr-defined]
-            rule_name3 = os.getenv("FUZZY_SEED_RULE3_NAME", "Low moisture AND Light high => Pulse")
-            existing_rule3 = await repo_rule.get_by_name(FuzzySystemId(str(system.id)), rule_name3)  # type: ignore[attr-defined]
-            if not existing_rule3 and routine_pulse:
-                from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
-                conditions3 = [
-                    {"variableId": FuzzyVariableId(str(input_var.id)), "operator": "IS", "value": "low"},
-                    {"variableId": FuzzyVariableId(str(input_var3.id)), "operator": "IS", "value": "high"},
-                ]
-                rule3 = await repo_rule.create(  # type: ignore[attr-defined]
-                    FuzzyRule(
-                        name=rule_name3,
-                        system_id=FuzzySystemId(str(system.id)),
-                        description="Seed rule: low moisture AND high light => pulse irrigation",
-                        conditions=conditions3,
-                        connectors=["AND"],
-                        consequent=FuzzyRoutineId(str(routine_pulse.id)),
-                    )
-                )
-                created_rules.append(rule3)
-                _logger.info("Seed: created rule '%s' (id=%s)", rule_name3, str(rule3.id))
-
-            # Rule 4: temp=low OR moisture=high => Moderate routine
-            rule_name4 = os.getenv("FUZZY_SEED_RULE4_NAME", "Temp low OR Moisture high => Moderate")
-            existing_rule4 = await repo_rule.get_by_name(FuzzySystemId(str(system.id)), rule_name4)  # type: ignore[attr-defined]
-            if not existing_rule4 and routine_moderate:
-                from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
-                conditions4 = [
-                    {"variableId": FuzzyVariableId(str(input_var2.id)), "operator": "IS", "value": "low"},
-                    {"variableId": FuzzyVariableId(str(input_var.id)), "operator": "IS", "value": "high"},
-                ]
-                rule4 = await repo_rule.create(  # type: ignore[attr-defined]
-                    FuzzyRule(
-                        name=rule_name4,
-                        system_id=FuzzySystemId(str(system.id)),
-                        description="Seed rule: low temperature OR high moisture",
-                        conditions=conditions4,
-                        connectors=["OR"],
-                        consequent=FuzzyRoutineId(str(routine_moderate.id)),
-                    )
-                )
-                created_rules.append(rule4)
-                _logger.info("Seed: created rule '%s' (id=%s)", rule_name4, str(rule4.id))
-        elif not repo_rule:
-            _logger.info("Seed: rule repository not available; skipping rule creation.")
-
-        # Update system relationships and status
-        changed = False
-        current_inputs = [str(v) for v in system.input_variable_ids]
-        current_outputs = [str(v) for v in system.output_variable_ids]
-        current_rules = [str(r) for r in system.rule_ids]
-
-        for iv in [input_var, input_var2, input_var3]:
-            if str(iv.id) not in current_inputs:
-                system.input_variable_ids.append(FuzzyVariableId(str(iv.id)))
-                changed = True
-        for v in (power_var, duration_var, frequency_var):
-            if str(v.id) not in current_outputs:
-                system.output_variable_ids.append(FuzzyVariableId(str(v.id)))
-                changed = True
-        for r in created_rules:
-            if str(r.id) not in current_rules:
-                system.rule_ids.append(r.id)
-                changed = True
-
-        # Try to set target status
-        target_status = (os.getenv("FUZZY_SEED_SYSTEM_STATUS", "ACTIVE") or "").upper()
-        if target_status == "ACTIVE":
-            try:
-                system.activate()
-                changed = True
-            except Exception as ex:
-                _logger.warning("Seed: cannot activate system yet: %s", ex)
-        elif target_status == "TESTING":
-            try:
-                system.set_testing_mode()
-                changed = True
-            except Exception as ex:
-                _logger.warning("Seed: cannot set system TESTING: %s", ex)
-
-        if changed:
-            await repo_fs.update(system)
-            _logger.info("Seed: system updated (relationships/status)")
-        else:
-            _logger.info("Seed: system already up to date")
-
-        _logger.info("Seeding completed for system '%s'", system_name)
+        # Import and use the external seed data module
+        from .SeedData import seed_fuzzy_system_data
+        await seed_fuzzy_system_data(di)
     except Exception:
         _logger.exception("Error during seeding initial data")
 

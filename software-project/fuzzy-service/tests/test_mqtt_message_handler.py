@@ -36,6 +36,10 @@ class TestMqttMessageHandler:
         return {
             "timestamp": "2024-01-15T10:30:00Z",
             "esp32_id": "esp32_001",
+            "_metadata": {
+                "esp32_id": "esp32_001",
+                "received_at": "2024-01-15T10:30:01Z"
+            },
             "readings": [
                 {
                     "device_id": "sensor_soil_moisture_1",
@@ -67,7 +71,7 @@ class TestMqttMessageHandler:
         mock_mediator.send.side_effect = mock_send
         
         # Act
-        await mqtt_handler.handle_message(topic, payload)
+        await mqtt_handler.handle(valid_mqtt_message)
         
         # Assert
         mock_mediator.send.assert_called_once()
@@ -75,7 +79,7 @@ class TestMqttMessageHandler:
         
         assert isinstance(call_args, ProcessSensorReadingsCommand)
         assert call_args.esp32_id == "esp32_001"
-        assert len(call_args.sensor_readings) == 2
-        assert call_args.sensor_readings[0].device_id == "sensor_soil_moisture_1"
-        assert call_args.sensor_readings[0].value == 45.2
+        assert len(call_args.readings) == 2
+        assert call_args.readings[0].sensor_id == "sensor_soil_moisture_1"
+        assert call_args.readings[0].value == 45.2
         assert mqtt_handler._readings_processed == 2

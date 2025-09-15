@@ -5,15 +5,18 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# Cargar variables desde .env.test para tests de integración
+load_dotenv(dotenv_path=".env.test")
 
 
 def test_fuzzy_variables_basic_crud():
     """Test de integración API-MongoDB para FuzzyVariables CRUD."""
-    # Setup MongoDB test environment
-    os.environ["MONGO_CONNECTION_STRING"] = "mongodb://localhost:27017"
-    os.environ["MONGO_DATABASE_NAME"] = "fuzzy_test_db"
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
+    
+    print(f"Using test database: {db_name}")
 
     # Reload configuration
     import FuzzyService.Infrastructure.Configuration.DatabaseConfiguration as db

@@ -36,6 +36,8 @@ class MqttClient:
     def __init__(self, settings: Optional[MqttSettings] = None):
         self._settings = settings or get_mqtt_settings()
         self._reconnect_attempts = 0
+        self._client: Optional[Client] = None
+        self._is_connected = False
         
     def _create_tls_context(self) -> Optional[ssl.SSLContext]:
         """Crea el contexto TLS si está habilitado."""
@@ -131,6 +133,18 @@ class MqttClient:
         
         _logger.error(f"Se agotaron los {self._settings.max_reconnect_attempts} intentos de reconexión")
         return False
+    
+    async def disconnect(self) -> None:
+        """Desconecta el cliente MQTT de forma segura."""
+        try:
+            # Simplemente marcar como desconectado
+            # El context manager de aiomqtt se encarga de la limpieza
+            self._is_connected = False
+            _logger.info("Cliente MQTT desconectado")
+        except Exception as e:
+            _logger.warning(f"Error al desconectar cliente MQTT: {e}")
+        finally:
+            self._client = None
     
     @property
     def is_connected(self) -> bool:

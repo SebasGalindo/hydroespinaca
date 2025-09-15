@@ -9,7 +9,7 @@ from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.RuleEvaluationEngi
     RuleActivationResult,
     BatchRuleEvaluationResult
 )
-from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzificationTypes import FuzzificationResult
+from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzyResultTypes import FuzzificationResult
 from FuzzyService.Domain.Entities.fuzzy_system import FuzzySystem
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyRuleId

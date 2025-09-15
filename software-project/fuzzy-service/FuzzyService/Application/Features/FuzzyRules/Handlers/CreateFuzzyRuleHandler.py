@@ -79,5 +79,9 @@ class CreateFuzzyRuleHandler(CommandHandler[CreateFuzzyRuleCommand]):
         # 5. Guardar en el repositorio
         saved_rule = await rule_repo.create(rule)
         
-        # 6. Asignar resultado al comando
+        # 6. Agregar la regla al sistema fuzzy
+        system.add_rule(saved_rule.id)
+        await system_repo.update(system)
+        
+        # 7. Asignar resultado al comando
         request._result = FuzzyRuleDto.from_entity(saved_rule)

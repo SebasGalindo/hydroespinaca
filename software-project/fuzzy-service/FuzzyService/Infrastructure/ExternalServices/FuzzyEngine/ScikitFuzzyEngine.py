@@ -33,7 +33,7 @@ from medyator import Medyator
 from kink import inject, di
 
 
-# FuzzificationResult ahora se importa desde FuzzificationTypes
+# FuzzificationResult ahora se importa desde FuzzyResultTypes
 
 
 class ScikitFuzzyEngine(IFuzzyEngine):

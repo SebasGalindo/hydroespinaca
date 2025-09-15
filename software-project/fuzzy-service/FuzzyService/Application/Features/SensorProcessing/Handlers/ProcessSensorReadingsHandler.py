@@ -25,7 +25,7 @@ from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendRoutines
     SendRoutinesToActuatorCommand, RoutinePayload, StepPayload
 )
 from medyator import Medyator
-from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyVariableId
+from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyVariableId, FuzzyRuleId
 from FuzzyService.Domain.Enums.EntityStatus import FuzzySystemStatus
 from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, BusinessRuleViolationError
 
@@ -406,10 +406,23 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         """
         try:
             routines = []
+            rule_repo: IFuzzyRuleRepository = di[IFuzzyRuleRepository]
             
             # Convertir cada regla activada en una rutina para el actuator service
             for rule_activation in fuzzy_evaluation.activated_rules:
                 steps = []
+                
+                # Obtener la regla completa para acceder a su consequent (routine_id)
+                try:
+                    rule = await rule_repo.get_by_id(FuzzyRuleId(str(rule_activation.rule_id)))
+                    if not rule or not rule.consequent:
+                        _logger.warning(f"Regla {rule_activation.rule_id} no encontrada o sin consequent")
+                        continue
+                    
+                    routine_id = str(rule.consequent)
+                except Exception as e:
+                    _logger.error(f"Error obteniendo regla {rule_activation.rule_id}: {e}")
+                    continue
                 
                 # Convertir cada output_value en un step
                 for output_value in rule_activation.output_values:
@@ -423,7 +436,7 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                 # Crear la rutina si tiene steps
                 if steps:
                     routine = RoutinePayload(
-                        routineId=rule_activation.rule_id,
+                        routineId=routine_id,  # Usar el routine_id del consequent, no el rule_id
                         steps=steps
                     )
                     routines.append(routine)

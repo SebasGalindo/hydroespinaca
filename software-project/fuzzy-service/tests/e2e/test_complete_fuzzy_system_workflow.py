@@ -4,8 +4,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-# Cargar variables desde .env antes de leer FUZZY_* o MONGO_*
-load_dotenv()
+# Cargar variables desde .env.test para tests E2E
+load_dotenv(dotenv_path=".env.test")
 
 
 def test_complete_fuzzy_system_workflow():
@@ -19,17 +19,12 @@ def test_complete_fuzzy_system_workflow():
     6. Realizar evaluación fuzzy
     7. Verificar resultados y limpieza
     """
-    # Configuración de conexión a MongoDB
-    conn_str = os.getenv("MONGO_CONNECTION_STRING") or os.getenv("FUZZY_MONGO_CONNECTION_STRING")
-    if not conn_str:
-        conn_str = "mongodb://localhost:27017"
-    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE") or "fuzzy_test"
-
-    # Configurar variables de entorno
-    os.environ["MONGO_CONNECTION_STRING"] = conn_str
-    os.environ["MONGO_DATABASE_NAME"] = db_name
-    os.environ["MONGO_PING_ON_STARTUP"] = os.getenv("MONGO_PING_ON_STARTUP", "true")
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
+    
+    print(f"Using test database: {db_name}")
 
     # Recargar configuración de base de datos
     import FuzzyService.Infrastructure.Configuration.DatabaseConfiguration as db
@@ -40,7 +35,7 @@ def test_complete_fuzzy_system_workflow():
     importlib.reload(main)
     app = main.app
 
-    # Nombres únicos para evitar colisiones
+    # Nombres únicos para evitar colisiones en tests
     unique_suffix = uuid4().hex[:8]
     system_name = f"Sistema Hidroponico E2E {unique_suffix}"
     

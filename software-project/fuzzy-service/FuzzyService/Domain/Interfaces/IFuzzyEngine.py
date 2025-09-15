@@ -14,7 +14,7 @@ from ..Entities.fuzzy_system import FuzzySystem
 
 # Import types from Infrastructure for results
 try:
-    from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzificationTypes import FuzzificationResult
+    from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzyResultTypes import FuzzificationResult
     from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.RuleEvaluationEngine import BatchRuleEvaluationResult
 except ImportError:
     # Fallback types if infrastructure not available

@@ -31,6 +31,7 @@ async def test_fuzzification_integration_flow(mock_di):
     mock_fuzzy_variable_repo = AsyncMock()
     mock_fuzzy_rule_repo = AsyncMock()
     mock_fuzzy_term_repo = AsyncMock()
+    mock_fuzzy_evaluation_repo = AsyncMock()
     mock_fuzzy_engine = AsyncMock()
     
     def di_getitem(interface):
@@ -42,6 +43,8 @@ async def test_fuzzification_integration_flow(mock_di):
             return mock_fuzzy_rule_repo
         elif 'IFuzzyTermRepository' in str(interface):
             return mock_fuzzy_term_repo
+        elif 'IFuzzyEvaluationRepository' in str(interface):
+            return mock_fuzzy_evaluation_repo
         elif 'IFuzzyEngine' in str(interface):
             return mock_fuzzy_engine
         return MagicMock()
@@ -50,7 +53,7 @@ async def test_fuzzification_integration_flow(mock_di):
     
     # Mock del sistema fuzzy activo
     mock_system = MagicMock()
-    mock_system.id = "test_system_id"
+    mock_system.id = "507f1f77bcf86cd799439011"  # ObjectId válido
     mock_system.name = "Test Hydroponic System"
     mock_system.status = FuzzySystemStatus.ACTIVE
     mock_fuzzy_system_repo.get_by_status.return_value = [mock_system]
@@ -139,6 +142,33 @@ async def test_fuzzification_integration_flow(mock_di):
         "defuzzification_results": {}
     }
     
+    # Configurar mock del repositorio de evaluaciones fuzzy
+    mock_fuzzy_evaluation = MagicMock()
+    mock_fuzzy_evaluation.id = "507f1f77bcf86cd799439012"
+    mock_fuzzy_evaluation.model_dump.return_value = {
+        "id": "507f1f77bcf86cd799439012",
+        "system_id": "507f1f77bcf86cd799439011",
+        "fuzzy_evaluation_results": {
+            "fuzzification_results": [
+                {
+                    "variable_name": "temperature",
+                    "sensor_id": "temp_sensor_01",
+                    "value": 22.5,
+                    "term_activations": {"low": 0.5, "medium": 0.8}
+                },
+                {
+                    "variable_name": "humidity",
+                    "sensor_id": "humidity_sensor_01",
+                    "value": 45.0,
+                    "term_activations": {"low": 0.9}
+                }
+            ],
+            "rule_evaluation_results": [],
+            "defuzzification_results": {}
+        }
+    }
+    mock_fuzzy_evaluation_repo.create.return_value = mock_fuzzy_evaluation
+    
     # Crear handler y comando
     handler = ProcessSensorReadingsHandler()
     
@@ -168,8 +198,8 @@ async def test_fuzzification_integration_flow(mock_di):
     
     # Assert - Verificar que se llamaron los métodos correctos
     mock_fuzzy_system_repo.get_by_status.assert_called_once_with(FuzzySystemStatus.ACTIVE)
-    mock_fuzzy_variable_repo.get_by_system_id.assert_called_once_with("test_system_id")
-    mock_fuzzy_rule_repo.get_by_system_id.assert_called_once_with("test_system_id")
+    mock_fuzzy_variable_repo.get_by_system_id.assert_called_once_with("507f1f77bcf86cd799439011")
+    mock_fuzzy_rule_repo.get_by_system_id.assert_called_once_with("507f1f77bcf86cd799439011")
     
     # Verificar que se cargaron términos para ambas variables
     assert mock_fuzzy_term_repo.get_by_variable_id.call_count == 2

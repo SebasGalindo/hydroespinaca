@@ -93,7 +93,7 @@ class MqttMessageHandler:
     
     async def _transform_readings(
         self,
-        readings: Dict[str, Any],
+        readings,
         timestamp: str,
         esp32_id: str,
         received_at: str
@@ -101,7 +101,7 @@ class MqttMessageHandler:
         """Transforma las lecturas del payload en objetos SensorReading.
         
         Args:
-            readings: Diccionario con sensor_id -> valor
+            readings: Diccionario con sensor_id -> valor o lista de objetos con device_id y value
             timestamp: Timestamp del batch
             esp32_id: ID del ESP32 que envió las lecturas
             received_at: Timestamp de cuando se recibió el mensaje
@@ -111,53 +111,65 @@ class MqttMessageHandler:
         """
         sensor_readings = []
         
-        for sensor_id, value in readings.items():
-            try:
-                # Validar sensor_id
-                if not isinstance(sensor_id, str) or not sensor_id.strip():
-                    _logger.warning(f"Sensor ID inválido: {sensor_id}")
-                    self._validation_errors += 1
-                    continue
-                
-                # Validar y convertir valor
-                if not isinstance(value, (int, float)):
-                    try:
-                        value = float(value)
-                    except (ValueError, TypeError):
-                        _logger.warning(f"Valor inválido para sensor {sensor_id}: {value}")
-                        self._validation_errors += 1
-                        continue
-                
-                # Validar que el valor sea finito
-                if not (isinstance(value, (int, float)) and 
-                       not (value != value or value == float('inf') or value == float('-inf'))):
-                    _logger.warning(f"Valor no finito para sensor {sensor_id}: {value}")
-                    self._validation_errors += 1
-                    continue
-                
-                # Crear objeto SensorReading
-                sensor_reading = SensorReading(
-                    sensor_id=sensor_id.strip(),
-                    value=float(value),
-                    timestamp=timestamp,
-                    metadata={
-                        'esp32_id': esp32_id,
-                        'received_at': received_at,
-                        'processed_at': datetime.now(timezone.utc)
-                    }
-                )
-                
-                sensor_readings.append(sensor_reading)
-                
-                _logger.debug(f"Lectura transformada: {sensor_id} = {value}")
-                
-            except Exception as e:
-                _logger.error(f"Error al transformar lectura del sensor {sensor_id}: {e}")
-                self._validation_errors += 1
-                continue
+        # Manejar tanto formato de lista como diccionario
+        if isinstance(readings, list):
+            # Formato lista: [{'device_id': 'sensor1', 'value': 123, ...}, ...]
+            for reading_obj in readings:
+                sensor_id = reading_obj.get('device_id')
+                value = reading_obj.get('value')
+                self._process_single_reading(sensor_readings, sensor_id, value, timestamp, esp32_id, received_at)
+        else:
+            # Formato diccionario: {'sensor1': 123, 'sensor2': 456}
+            for sensor_id, value in readings.items():
+                self._process_single_reading(sensor_readings, sensor_id, value, timestamp, esp32_id, received_at)
         
         _logger.info(f"Transformadas {len(sensor_readings)} lecturas válidas de {len(readings)} totales")
         return sensor_readings
+    
+    def _process_single_reading(self, sensor_readings, sensor_id, value, timestamp, esp32_id, received_at):
+         """Procesa una sola lectura de sensor."""
+         try:
+             # Validar sensor_id
+             if not isinstance(sensor_id, str) or not sensor_id.strip():
+                 _logger.warning(f"Sensor ID inválido: {sensor_id}")
+                 self._validation_errors += 1
+                 return
+             
+             # Validar y convertir valor
+             if not isinstance(value, (int, float)):
+                 try:
+                     value = float(value)
+                 except (ValueError, TypeError):
+                     _logger.warning(f"Valor inválido para sensor {sensor_id}: {value}")
+                     self._validation_errors += 1
+                     return
+             
+             # Validar que el valor sea finito
+             if not (isinstance(value, (int, float)) and 
+                    not (value != value or value == float('inf') or value == float('-inf'))):
+                 _logger.warning(f"Valor no finito para sensor {sensor_id}: {value}")
+                 self._validation_errors += 1
+                 return
+             
+             # Crear objeto SensorReading
+             sensor_reading = SensorReading(
+                 sensor_id=sensor_id.strip(),
+                 value=float(value),
+                 timestamp=timestamp,
+                 metadata={
+                     'esp32_id': esp32_id,
+                     'received_at': received_at,
+                     'processed_at': datetime.now(timezone.utc)
+                 }
+             )
+             
+             sensor_readings.append(sensor_reading)
+             
+             _logger.debug(f"Lectura transformada: {sensor_id} = {value}")
+             
+         except Exception as e:
+             _logger.error(f"Error al transformar lectura del sensor {sensor_id}: {e}")
+             self._validation_errors += 1
     
     @property
     def metrics(self) -> Dict[str, int]:

@@ -5,8 +5,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-# Cargar variables desde .env antes de leer FUZZY_* o MONGO_*
-load_dotenv()
+# Cargar variables desde .env.test para tests de integración
+load_dotenv(dotenv_path=".env.test")
 
 
 def test_api_mongo_e2e_create_patch_get_delete():
@@ -16,17 +16,12 @@ def test_api_mongo_e2e_create_patch_get_delete():
     otherwise falls back to mongodb://localhost:27017 with database 'fuzzy_test'.
     Verifies create, patch status, get by id, duplicate handling and delete.
     """
-    conn_str = os.getenv("MONGO_CONNECTION_STRING") or os.getenv("FUZZY_MONGO_CONNECTION_STRING")
-    if not conn_str:
-        conn_str = "mongodb://localhost:27017"
-    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE") or "fuzzy_test"
-
-    # Ensure env BEFORE importing the app so settings are loaded
-    os.environ["MONGO_CONNECTION_STRING"] = conn_str
-    os.environ["MONGO_DATABASE_NAME"] = db_name
-    os.environ["MONGO_PING_ON_STARTUP"] = os.getenv("MONGO_PING_ON_STARTUP", "true")
-    # Forzar ensure_indexes para garantizar unicidad por nombre durante la prueba
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
+    
+    print(f"Using test database: {db_name}")
 
     # Reload DatabaseConfiguration to clear cached settings/client in case other tests imported it
     import FuzzyService.Infrastructure.Configuration.DatabaseConfiguration as db

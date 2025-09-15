@@ -5,19 +5,18 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 
-load_dotenv()
+# Cargar variables desde .env.test para tests de integración
+load_dotenv(dotenv_path=".env.test")
 
 
 def test_fuzzy_rules_basic_crud():
     """Test de integración API-MongoDB para FuzzyRules CRUD."""
-    # Setup MongoDB test environment
-    conn_str = os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
-    db_name = os.getenv("MONGO_DATABASE_NAME") or "fuzzy_test"
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
     
-    os.environ["MONGO_CONNECTION_STRING"] = conn_str
-    os.environ["MONGO_DATABASE_NAME"] = db_name
-    os.environ["MONGO_PING_ON_STARTUP"] = "false"
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    print(f"Using test database: {db_name}")
 
     # Reload configuration
     import FuzzyService.Infrastructure.Configuration.DatabaseConfiguration as db
@@ -170,14 +169,12 @@ def test_fuzzy_rules_basic_crud():
 
 def test_fuzzy_rules_validation_errors():
     """Test validation errors for FuzzyRules."""
-    # Setup environment
-    conn_str = os.getenv("MONGO_CONNECTION_STRING") or "mongodb://localhost:27017"
-    db_name = os.getenv("MONGO_DATABASE_NAME") or "fuzzy_test"
+    # La configuración de MongoDB ya está cargada desde .env.test
+    # Verificar que estamos usando la base de datos de test
+    db_name = os.getenv("MONGO_DATABASE_NAME") or os.getenv("FUZZY_MONGO_DATABASE")
+    assert db_name == "HydroEspinacaTest", f"Expected test database 'HydroEspinacaTest', got '{db_name}'"
     
-    os.environ["MONGO_CONNECTION_STRING"] = conn_str
-    os.environ["MONGO_DATABASE_NAME"] = db_name
-    os.environ["MONGO_PING_ON_STARTUP"] = "false"
-    os.environ["FUZZY_ENSURE_INDEXES_ON_STARTUP"] = "true"
+    print(f"Using test database: {db_name}")
 
     # Reload configuration
     import FuzzyService.Infrastructure.Configuration.DatabaseConfiguration as db
