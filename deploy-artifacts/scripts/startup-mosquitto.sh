@@ -128,7 +128,7 @@ fi
 # Validate configuration syntax if possible
 if command -v mosquitto >/dev/null 2>&1; then
     info "Validating configuration syntax..."
-    if mosquitto -t 2>/dev/null < /mosquitto/config/mosquitto.conf; then
+    if mosquitto -c /mosquitto/config/mosquitto.conf -t 2>/dev/null; then
         log "Configuration syntax validation passed"
     else
         warn "Configuration syntax validation failed, but continuing..."
