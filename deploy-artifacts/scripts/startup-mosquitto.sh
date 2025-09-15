@@ -128,9 +128,8 @@ fi
 # Validate configuration syntax if possible
 if command -v mosquitto >/dev/null 2>&1; then
     info "Validating configuration syntax..."
-    if mosquitto -c /mosquitto/config/mosquitto.conf -v -d; then
+    if mosquitto -c /mosquitto/config/mosquitto.conf -v -p 0 >/dev/null 2>&1; then
         log "Configuration syntax validation passed"
-        pkill mosquitto || true
     else
         error "Configuration validation failed!"
         exit 1
@@ -139,6 +138,6 @@ else
     info "Mosquitto not available for validation, continuing..."
 fi
 
-# Start Mosquitto
+# Start Mosquitto (PID 1)
 log "Starting Mosquitto daemon..."
 exec mosquitto -c /mosquitto/config/mosquitto.conf -v
