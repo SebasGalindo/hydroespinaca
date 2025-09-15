@@ -95,11 +95,25 @@ start_production() {
     # Export profile for container environment
     export COMPOSE_PROFILE=production
     
+    # Start nginx-proxy first to handle Let's Encrypt challenges
+    log "Starting nginx-proxy..."
+    COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d nginx-proxy
+    
+    # Wait for nginx-proxy to be ready
+    log "Waiting for nginx-proxy to be ready..."
+    sleep 10
+    
+    # Verify nginx is responding on port 80
+    if ! curl -f -s http://localhost:80 >/dev/null 2>&1; then
+        warn "nginx-proxy may not be ready yet, waiting additional time..."
+        sleep 15
+    fi
+    
     # Generate initial certificates if needed
     log "Checking and generating certificates..."
     COMPOSE_FILE=docker-compose.yml docker compose --profile production run --rm certbot
     
-    # Start all production services
+    # Start all remaining production services
     COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d
     
     # Show status
