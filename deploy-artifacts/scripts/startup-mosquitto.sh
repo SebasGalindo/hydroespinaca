@@ -61,14 +61,14 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
 listener 8883 0.0.0.0
 protocol mqtt
 cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
+certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
 keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem
 
 # WebSocket TLS listener (production - with TLS)
 listener 9002 0.0.0.0
 protocol websockets
 cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
+certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
 keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem"
 
 elif [ "$COMPOSE_PROFILE" = "development" ]; then
@@ -128,7 +128,7 @@ fi
 # Validate configuration syntax if possible
 if command -v mosquitto >/dev/null 2>&1; then
     info "Validating configuration syntax..."
-    if mosquitto -c /mosquitto/config/mosquitto.conf -v -p 0 >/dev/null 2>&1; then
+    if mosquitto -c /mosquitto/config/mosquitto.conf -t >/dev/null 2>&1; then
         log "Configuration syntax validation passed"
     else
         error "Configuration validation failed!"
