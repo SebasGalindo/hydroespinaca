@@ -158,8 +158,9 @@ start_production() {
     log "Building frontend for production..."
     COMPOSE_FILE=docker-compose.yml docker compose --profile production run --rm frontend-build
     
-    # Start nginx-proxy first to handle Let's Encrypt challenges
-    log "Starting nginx-proxy..."
+    # Start nginx-proxy in certificate-only mode first (no backend dependencies)
+    log "Starting nginx-proxy in certificate-only mode..."
+    export CERTBOT_ONLY=true
     COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d nginx-proxy
     
     # Wait for nginx-proxy to be ready
@@ -183,6 +184,16 @@ start_production() {
         run_detailed_diagnostics
         exit 1
     fi
+    
+    # Certificates generated successfully - now restart nginx with full configuration
+    log "Certificates ready. Restarting nginx-proxy with full configuration..."
+    export CERTBOT_ONLY=false
+    docker stop nginx-proxy
+    sleep 2
+    COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d nginx-proxy
+    
+    # Wait for nginx to be ready with full config
+    sleep 5
     
     # Start all remaining production services
     COMPOSE_FILE=docker-compose.yml docker compose --profile production up -d

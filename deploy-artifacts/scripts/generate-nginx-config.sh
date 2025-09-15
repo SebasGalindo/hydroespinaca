@@ -30,39 +30,78 @@ echo "[INFO] Generating Nginx config for $ENVIRONMENT environment (TLS: $USE_TLS
 if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     echo "[INFO] Configuring for Production with TLS"
     
-    # HTTP config: serve frontend files and API in HTTP for challenges and fallback
-    export NGINX_HTTP_CONFIG="
-        # API routes to BFF Service (fallback HTTP)
-        location /api/ {
-            proxy_pass http://bff_backend/;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            
-            # WebSocket support
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection \"upgrade\";
-            
-            # Timeouts
-            proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;
-        }
+    # Check if this is certificate-only mode (no backend services)
+    if [ "${CERTBOT_ONLY:-false}" = "true" ]; then
+        echo "[INFO] Certificate-only mode: minimal nginx config"
         
-        # Frontend routes - serve static files for production
-        location / {
-            root /var/www/frontend;
-            index index.html;
-            try_files \$uri \$uri/ /index.html;
-            
-            # Cache static assets
-            location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                expires 1y;
-                add_header Cache-Control \"public, immutable\";
+        # Upstreams: none needed for certificate generation
+        export NGINX_UPSTREAMS=""
+        
+        # HTTP config: minimal - only frontend static files for certificates
+        export NGINX_HTTP_CONFIG="
+            # Frontend routes - serve static files for production
+            location / {
+                root /var/www/frontend;
+                index index.html;
+                try_files \$uri \$uri/ /index.html;
+                
+                # Cache static assets
+                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+                    expires 1y;
+                    add_header Cache-Control \"public, immutable\";
+                }
+            }"
+    else
+        echo "[INFO] Full production mode: complete nginx config"
+        
+        # Upstreams: include all backend services
+        export NGINX_UPSTREAMS="
+            # Upstream for BFF Service
+            upstream bff_backend {
+                server bff-service:8080;
+                keepalive 32;
             }
-        }"
+            
+            # Upstream for Frontend Service (development only)
+            upstream frontend_backend {
+                server frontend:3000;
+                keepalive 32;
+            }"
+        
+        # HTTP config: serve frontend files and API in HTTP for challenges and fallback
+        export NGINX_HTTP_CONFIG="
+            # API routes to BFF Service (fallback HTTP)
+            location /api/ {
+                proxy_pass http://bff_backend/;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+                
+                # WebSocket support
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+                
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+            
+            # Frontend routes - serve static files for production
+            location / {
+                root /var/www/frontend;
+                index index.html;
+                try_files \$uri \$uri/ /index.html;
+                
+                # Cache static assets
+                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+                    expires 1y;
+                    add_header Cache-Control \"public, immutable\";
+                }
+            }"
+    fi
     
     # Redirect config: empty - no redirect, allow HTTP access for challenges
     export NGINX_REDIRECT_CONFIG=""
@@ -135,6 +174,20 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
 else
     echo "[INFO] Configuring for Development (HTTP only)"
     
+    # Upstreams: include all services for development
+    export NGINX_UPSTREAMS="
+        # Upstream for BFF Service
+        upstream bff_backend {
+            server bff-service:8080;
+            keepalive 32;
+        }
+        
+        # Upstream for Frontend Service (development only)
+        upstream frontend_backend {
+            server frontend:3000;
+            keepalive 32;
+        }"
+    
     # HTTP config: proxy directly
     export NGINX_HTTP_CONFIG="
             # API routes to BFF Service
@@ -183,7 +236,7 @@ else
 fi
 
 # Generate the final nginx.conf
-envsubst '${API_DOMAIN} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
+envsubst '${API_DOMAIN} ${NGINX_UPSTREAMS} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
     < /etc/nginx/templates/nginx.conf.tpl > /etc/nginx/nginx.conf
 
 echo "[INFO] Nginx configuration generated successfully"

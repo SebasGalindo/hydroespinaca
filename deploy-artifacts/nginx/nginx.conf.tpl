@@ -43,17 +43,8 @@ http {
     # Rate limiting
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
     
-    # Upstream for BFF Service
-    upstream bff_backend {
-        server bff-service:8080;
-        keepalive 32;
-    }
-    
-    # Upstream for Frontend Service (development only)
-    upstream frontend_backend {
-        server frontend:3000;
-        keepalive 32;
-    }
+    # Upstreams (conditionally included)
+    ${NGINX_UPSTREAMS}
     
     # HTTP Server
     server {
