@@ -34,7 +34,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     export NGINX_HTTP_CONFIG=""
     
     # Redirect config
-    export NGINX_REDIRECT_CONFIG="return 301 https://\$server_name\$request_uri;"
+    export NGINX_REDIRECT_CONFIG="
+        location / {
+            return 301 https://\$server_name\$request_uri;
+        }"
     
     # HTTPS server block
     export NGINX_HTTPS_SERVER="
@@ -60,9 +63,9 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         # Rate limiting
         limit_req zone=api_limit burst=20 nodelay;
         
-        # Proxy to BFF Service
-        location / {
-            proxy_pass http://bff_backend;
+        # API routes to BFF Service
+        location /api/ {
+            proxy_pass http://bff_backend/;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -70,6 +73,26 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
             proxy_set_header X-Forwarded-Host \$host;
             
             # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \"upgrade\";
+            
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+        
+        # Frontend routes
+        location / {
+            proxy_pass http://frontend_backend;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Host \$host;
+            
+            # WebSocket support for HMR
             proxy_http_version 1.1;
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection \"upgrade\";
@@ -93,21 +116,43 @@ else
     
     # HTTP config: proxy directly
     export NGINX_HTTP_CONFIG="
-            proxy_pass http://bff_backend;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
+            # API routes to BFF Service
+            location /api/ {
+                proxy_pass http://bff_backend/;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+                
+                # WebSocket support
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+                
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
             
-            # WebSocket support
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection \"upgrade\";
-            
-            # Timeouts
-            proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;"
+            # Frontend routes
+            location / {
+                proxy_pass http://frontend_backend;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+                
+                # WebSocket support for HMR
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+                
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }"
     
     # Redirect config: empty (no redirect)
     export NGINX_REDIRECT_CONFIG=""

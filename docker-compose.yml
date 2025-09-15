@@ -36,6 +36,8 @@ services:
   certbot:
     image: certbot/certbot
     container_name: certbot
+    depends_on:
+      - nginx-proxy
     volumes:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -254,14 +256,23 @@ services:
   # Frontend
   # -----------------------------
 
-  # frontend:
-  #   build: ./frontend
-  #   container_name: frontend
-  #   env_file: ./frontend/.env
-  #   depends_on:
-  #     - bff-service
-  #   ports:
-  #     - "3000:3000"
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+    container_name: frontend
+    depends_on:
+      - nginx-proxy
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=/api
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
 
 volumes:
   mqtt_data: 

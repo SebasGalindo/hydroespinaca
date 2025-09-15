@@ -5,7 +5,11 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
- resolve: {
+  server: {
+    host: '0.0.0.0',
+    port: 3000
+  },
+  resolve: {
     alias: {
       '@shared-ui': path.resolve(__dirname, '../../packages/shared-ui/src'),
     },

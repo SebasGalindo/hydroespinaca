@@ -49,6 +49,12 @@ http {
         keepalive 32;
     }
     
+    # Upstream for Frontend Service
+    upstream frontend_backend {
+        server frontend:3000;
+        keepalive 32;
+    }
+    
     # HTTP Server
     server {
         listen 80;
@@ -59,14 +65,11 @@ http {
             root /var/www/certbot;
         }
         
-        # Main location block - behavior depends on environment
-        location / {
-            # Development mode: serve directly via HTTP
-            ${NGINX_HTTP_CONFIG}
-            
-            # Production mode: redirect to HTTPS  
-            ${NGINX_REDIRECT_CONFIG}
-        }
+        # Main location blocks - behavior depends on environment
+        ${NGINX_HTTP_CONFIG}
+        
+        # Production mode: redirect to HTTPS  
+        ${NGINX_REDIRECT_CONFIG}
     }
     
     # HTTPS Server (Production only)
