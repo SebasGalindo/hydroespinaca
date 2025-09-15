@@ -128,10 +128,12 @@ fi
 # Validate configuration syntax if possible
 if command -v mosquitto >/dev/null 2>&1; then
     info "Validating configuration syntax..."
-    if mosquitto -c /mosquitto/config/mosquitto.conf -t 2>/dev/null; then
+    if mosquitto -c /mosquitto/config/mosquitto.conf -v -d; then
         log "Configuration syntax validation passed"
+        pkill mosquitto || true
     else
-        warn "Configuration syntax validation failed, but continuing..."
+        error "Configuration validation failed!"
+        exit 1
     fi
 else
     info "Mosquitto not available for validation, continuing..."
