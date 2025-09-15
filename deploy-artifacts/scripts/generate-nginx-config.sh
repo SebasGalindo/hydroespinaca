@@ -35,23 +35,17 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     if [ "${CERTBOT_ONLY:-false}" = "true" ]; then
         echo "[INFO] Certificate-only mode: minimal nginx config"
         
-        # Upstreams: none needed for certificate generation
         export NGINX_UPSTREAMS=""
         
-        # HTTP config: minimal - only frontend static files for certificates
         export NGINX_HTTP_CONFIG="
-            # Frontend routes - serve static files for production
+            # Minimal config for certificate generation
             location / {
-                root /var/www/frontend;
-                index index.html;
-                try_files \$uri \$uri/ /index.html;
-                
-                # Cache static assets
-                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                    expires 1y;
-                    add_header Cache-Control \"public, immutable\";
-                }
+                return 200 'Certbot challenge server - nginx is ready';
+                add_header Content-Type text/plain;
             }"
+
+        export NGINX_REDIRECT_CONFIG=""
+        export NGINX_HTTPS_SERVER=""
     else
         echo "[INFO] Full production mode: complete nginx config"
         
@@ -111,7 +105,8 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     export NGINX_HTTPS_SERVER="
     # HTTPS Server (Production)
     server {
-        listen 443 ssl http2;
+        listen 443 ssl;
+        http2 on;
         server_name ${API_DOMAIN};
         
         # SSL Configuration
