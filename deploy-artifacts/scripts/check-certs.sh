@@ -43,7 +43,7 @@ error() {
 # Check if certificate exists and is valid
 check_cert() {
     local domain=$1
-    local cert_path="$CERTS_DIR/$domain/cert.pem"
+    local cert_path="$CERTS_DIR/$domain/fullchain.pem"
     
     if [ ! -f "$cert_path" ]; then
         warn "Certificate for $domain does not exist"

@@ -48,9 +48,9 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
     info "Production profile detected - full TLS configuration"
     
     # Ensure certificates exist for production
-    if [ "$USE_TLS" = "true" ] && [ ! -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem" ]; then
+    if [ "$USE_TLS" = "true" ] && [ ! -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" ]; then
         error "Production mode requires TLS certificates but they don't exist"
-        error "Certificate path: /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem"
+        error "Certificate path: /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem"
         exit 1
     fi
     
@@ -60,15 +60,15 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
 # External MQTT listener with TLS (for ESP32 nodes)
 listener 8883 0.0.0.0
 protocol mqtt
-cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/chain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
+cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
+certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
 keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem
 
 # WebSocket TLS listener (production - with TLS)
 listener 9002 0.0.0.0
 protocol websockets
-cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/chain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
+cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
+certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
 keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem"
 
 elif [ "$COMPOSE_PROFILE" = "development" ]; then
