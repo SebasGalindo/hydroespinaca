@@ -63,6 +63,8 @@ start_development() {
     # Export profile for container environment
     export COMPOSE_PROFILE=development
     
+    # Use legacy Docker builder to avoid buildx issues
+    export DOCKER_BUILDKIT=0
     COMPOSE_FILE=docker-compose.yml docker compose --profile development up -d
     
     log "Development environment started successfully!"
@@ -94,6 +96,13 @@ start_production() {
     
     # Export profile for container environment
     export COMPOSE_PROFILE=production
+    
+    # Use legacy Docker builder to avoid buildx issues
+    export DOCKER_BUILDKIT=0
+    
+    # Build frontend static files first
+    log "Building frontend for production..."
+    COMPOSE_FILE=docker-compose.yml docker compose --profile production run --rm frontend-build
     
     # Start nginx-proxy first to handle Let's Encrypt challenges
     log "Starting nginx-proxy..."

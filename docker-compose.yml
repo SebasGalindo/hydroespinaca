@@ -16,6 +16,7 @@ services:
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot
       - nginx_logs:/var/log/nginx
+      - frontend_build:/var/www/frontend:ro  # Mount built frontend files
     environment:
       - USE_TLS=${USE_TLS:-false}
       - ENVIRONMENT=${ENVIRONMENT:-Development}
@@ -256,10 +257,12 @@ services:
   # Frontend
   # -----------------------------
 
-  frontend:
+  # Frontend for development (Vite dev server)
+  frontend-dev:
     build:
       context: .
       dockerfile: ./apps/frontend/Dockerfile
+      target: development
     container_name: frontend
     depends_on:
       - nginx-proxy
@@ -268,11 +271,26 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_URL=/api
+      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-}
     networks:
       - espinaca-net
     profiles:
-      - production
       - development
+
+  # Frontend for production (build static files)
+  frontend-build:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+      target: build
+    container_name: frontend-build
+    volumes:
+      - frontend_build:/workspace/apps/frontend/dist
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=/api
+    profiles:
+      - production
 
 volumes:
   mqtt_data: 
@@ -280,6 +298,7 @@ volumes:
   certbot_certs:
   certbot_www:
   nginx_logs:
+  frontend_build:
 
 networks:
   espinaca-net:

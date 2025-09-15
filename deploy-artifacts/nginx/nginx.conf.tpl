@@ -49,7 +49,7 @@ http {
         keepalive 32;
     }
     
-    # Upstream for Frontend Service
+    # Upstream for Frontend Service (development only)
     upstream frontend_backend {
         server frontend:3000;
         keepalive 32;
