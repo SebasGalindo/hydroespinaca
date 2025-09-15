@@ -285,7 +285,7 @@ services:
       target: build
     container_name: frontend-build
     volumes:
-      - frontend_build:/workspace/apps/frontend/dist
+      - frontend_build:/var/www/frontend
     environment:
       - NODE_ENV=production
       - VITE_API_URL=/api

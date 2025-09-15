@@ -54,11 +54,11 @@ COPY apps/frontend/ ./apps/frontend/
 # Set working directory to frontend app
 WORKDIR /workspace/apps/frontend
 
-# Build for production and copy to shared volume
+# Build for production
 RUN pnpm run build
 
-# Command to copy built files to volume
-CMD ["sh", "-c", "cp -r dist/* /workspace/apps/frontend/dist/ && echo 'Frontend build completed and copied to volume'"]
+# Command to copy built files to the shared volume location
+CMD ["sh", "-c", "cp -r dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"]
 
 # Production stage with nginx
 FROM nginx:1.25-alpine as production
