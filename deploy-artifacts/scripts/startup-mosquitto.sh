@@ -85,16 +85,16 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
 # External MQTT listener with TLS (for ESP32 nodes)
 listener 8883 0.0.0.0
 protocol mqtt
-cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
-keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem
+cafile /mosquitto/certs/fullchain.pem
+certfile /mosquitto/certs/cert.pem
+keyfile /mosquitto/certs/privkey.pem
 
 # WebSocket TLS listener (production - with TLS)
 listener 9002 0.0.0.0
 protocol websockets
-cafile /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem
-certfile /etc/letsencrypt/live/${MQTT_DOMAIN}/cert.pem
-keyfile /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem"
+cafile /mosquitto/certs/fullchain.pem
+certfile /mosquitto/certs/cert.pem
+keyfile /mosquitto/certs/privkey.pem"
 
 elif [ "$COMPOSE_PROFILE" = "development" ]; then
     info "Development profile detected - minimal configuration (no TLS)"
