@@ -50,17 +50,16 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
     # Ensure certificates exist for production
     if [ "$USE_TLS" = "true" ]; then
         info "Checking TLS certificates for production mode..."
-        info "Expected certificate path: /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem"
+        info "Expected certificate path: /etc/mosquitto/certs/fullchain.pem"
         
-        # Debug: List volume mount points
-        info "Volume mount debugging:"
-        ls -la /etc/letsencrypt/ || warn "/etc/letsencrypt directory not found"
-        ls -la /etc/letsencrypt/live/ || warn "/etc/letsencrypt/live directory not found"
-        ls -la /etc/letsencrypt/live/${MQTT_DOMAIN}/ || warn "Certificate directory for ${MQTT_DOMAIN} not found"
+        # Debug: List certificate mount point
+        info "Certificate mount debugging:"
+        ls -la /etc/mosquitto/ || warn "/etc/mosquitto directory not found"
+        ls -la /etc/mosquitto/certs/ || warn "/etc/mosquitto/certs directory not found"
         
         # Check each required certificate file
-        for cert_file in fullchain.pem cert.pem privkey.pem; do
-            cert_path="/etc/letsencrypt/live/${MQTT_DOMAIN}/${cert_file}"
+        for cert_file in fullchain.pem privkey.pem; do
+            cert_path="/etc/mosquitto/certs/${cert_file}"
             if [ -f "$cert_path" ]; then
                 info "✓ Found: $cert_path"
                 ls -la "$cert_path"
@@ -70,10 +69,10 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
         done
         
         # If any certificate is missing, use fallback or exit
-        if [ ! -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" ]; then
+        if [ ! -f "/etc/mosquitto/certs/fullchain.pem" ] || [ ! -f "/etc/mosquitto/certs/privkey.pem" ]; then
             error "Production mode requires TLS certificates but they don't exist"
-            error "Available directories in /etc/letsencrypt/live/:"
-            ls -la /etc/letsencrypt/live/ || error "Cannot list /etc/letsencrypt/live/"
+            error "Available files in /etc/mosquitto/certs/:"
+            ls -la /etc/mosquitto/certs/ || error "Cannot list /etc/mosquitto/certs/"
             warn "Falling back to development mode for this startup..."
             export COMPOSE_PROFILE="development"
         fi
@@ -85,14 +84,14 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
 # External MQTT listener with TLS (for ESP32 nodes)
 listener 8883 0.0.0.0
 protocol mqtt
-certfile /mosquitto/certs/fullchain.pem
-keyfile /mosquitto/certs/privkey.pem
+certfile /etc/mosquitto/certs/fullchain.pem
+keyfile /etc/mosquitto/certs/privkey.pem
 
 # WebSocket TLS listener (production - with TLS)
 listener 9002 0.0.0.0
 protocol websockets
-certfile /mosquitto/certs/fullchain.pem
-keyfile /mosquitto/certs/privkey.pem"
+certfile /etc/mosquitto/certs/fullchain.pem
+keyfile /etc/mosquitto/certs/privkey.pem"
 
 elif [ "$COMPOSE_PROFILE" = "development" ]; then
     info "Development profile detected - minimal configuration (no TLS)"
@@ -157,11 +156,11 @@ log "Current UID: $(id)"
 
 # Test certificate access first
 log "Testing certificate access..."
-if [ -r "/etc/letsencrypt/live/mqtt.hydroespinaca.online/privkey.pem" ]; then
+if [ -r "/etc/mosquitto/certs/privkey.pem" ]; then
     log "✓ Can read privkey.pem"
 else
     error "✗ Cannot read privkey.pem"
-    ls -la /etc/letsencrypt/archive/mqtt.hydroespinaca.online/
+    ls -la /etc/mosquitto/certs/
 fi
 
 log "Starting mosquitto with detailed error output..."
