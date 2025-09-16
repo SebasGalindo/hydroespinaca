@@ -150,18 +150,7 @@ if [ "$ENVIRONMENT" = "Development" ]; then
     echo "=========================="
 fi
 
-# Validate configuration syntax if possible
-if command -v mosquitto >/dev/null 2>&1; then
-    info "Validating configuration syntax..."
-    if mosquitto -c /mosquitto/config/mosquitto.conf -t >/dev/null 2>&1; then
-        log "Configuration syntax validation passed"
-    else
-        error "Configuration validation failed!"
-        exit 1
-    fi
-else
-    info "Mosquitto not available for validation, continuing..."
-fi
+info "Skipping pre-validation - mosquitto will validate on startup"
 
 # Start Mosquitto (PID 1)
 log "Starting Mosquitto daemon..."
@@ -178,4 +167,13 @@ else
 fi
 
 log "Starting mosquitto with detailed error output..."
-exec mosquitto -c /mosquitto/config/mosquitto.conf -v
+mosquitto -c /mosquitto/config/mosquitto.conf -v 2>&1 || {
+    error "Mosquitto failed with exit code $?"
+    error "Last 10 lines of mosquitto log:"
+    tail -10 /mosquitto/log/mosquitto.log 2>/dev/null || error "No mosquitto.log found"
+    error "Checking write permissions on log directory:"
+    ls -la /mosquitto/log/ || error "Cannot access log directory"
+    ls -la /mosquitto/data/ || error "Cannot access data directory"
+    sleep 30  # Prevent rapid restart
+    exit 1
+}
