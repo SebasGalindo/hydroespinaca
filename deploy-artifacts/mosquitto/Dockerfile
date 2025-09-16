@@ -1,4 +1,4 @@
-FROM eclipse-mosquitto:2.0
+FROM eclipse-mosquitto:latest
 
 # Install dependencies for configuration generation and health checks
 RUN apk add --no-cache gettext netcat-openbsd bash

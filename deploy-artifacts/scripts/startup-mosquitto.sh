@@ -48,10 +48,35 @@ if [ "$COMPOSE_PROFILE" = "production" ]; then
     info "Production profile detected - full TLS configuration"
     
     # Ensure certificates exist for production
-    if [ "$USE_TLS" = "true" ] && [ ! -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" ]; then
-        error "Production mode requires TLS certificates but they don't exist"
-        error "Certificate path: /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem"
-        exit 1
+    if [ "$USE_TLS" = "true" ]; then
+        info "Checking TLS certificates for production mode..."
+        info "Expected certificate path: /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem"
+        
+        # Debug: List volume mount points
+        info "Volume mount debugging:"
+        ls -la /etc/letsencrypt/ || warn "/etc/letsencrypt directory not found"
+        ls -la /etc/letsencrypt/live/ || warn "/etc/letsencrypt/live directory not found"
+        ls -la /etc/letsencrypt/live/${MQTT_DOMAIN}/ || warn "Certificate directory for ${MQTT_DOMAIN} not found"
+        
+        # Check each required certificate file
+        for cert_file in fullchain.pem cert.pem privkey.pem; do
+            cert_path="/etc/letsencrypt/live/${MQTT_DOMAIN}/${cert_file}"
+            if [ -f "$cert_path" ]; then
+                info "✓ Found: $cert_path"
+                ls -la "$cert_path"
+            else
+                error "✗ Missing: $cert_path"
+            fi
+        done
+        
+        # If any certificate is missing, use fallback or exit
+        if [ ! -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" ]; then
+            error "Production mode requires TLS certificates but they don't exist"
+            error "Available directories in /etc/letsencrypt/live/:"
+            ls -la /etc/letsencrypt/live/ || error "Cannot list /etc/letsencrypt/live/"
+            warn "Falling back to development mode for this startup..."
+            export COMPOSE_PROFILE="development"
+        fi
     fi
     
     # Production: Use dynamic template with TLS
