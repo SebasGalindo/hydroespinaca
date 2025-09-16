@@ -165,4 +165,17 @@ fi
 
 # Start Mosquitto (PID 1)
 log "Starting Mosquitto daemon..."
+log "Current user: $(whoami)"
+log "Current UID: $(id)"
+
+# Test certificate access first
+log "Testing certificate access..."
+if [ -r "/etc/letsencrypt/live/mqtt.hydroespinaca.online/privkey.pem" ]; then
+    log "✓ Can read privkey.pem"
+else
+    error "✗ Cannot read privkey.pem"
+    ls -la /etc/letsencrypt/archive/mqtt.hydroespinaca.online/
+fi
+
+log "Starting mosquitto with detailed error output..."
 exec mosquitto -c /mosquitto/config/mosquitto.conf -v
