@@ -227,12 +227,15 @@ show_status() {
     log "HydroEspinaca Services Status:"
     COMPOSE_FILE=docker-compose.yml docker compose ps
     echo
-    
+
     if [ "$USE_TLS" = "true" ]; then
-        log "Certificate Status:"
-        docker run --rm -v certbot_certs:/etc/letsencrypt certbot/certbot certificates
+        log "Certificate Status (mounted in Mosquitto):"
+        # Muestra los certificados que realmente usa Mosquitto
+        docker run --rm -v mqtt_certs:/etc/mosquitto/certs busybox \
+            sh -c "ls -la /etc/mosquitto/certs"
     fi
 }
+
 
 # Function to update certificates
 renew_certificates() {

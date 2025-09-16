@@ -52,17 +52,11 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     else
         echo "[INFO] Full production mode: complete nginx config"
         
-        # Upstreams: include all backend services
+        # Upstreams: only backend services for production
         export NGINX_UPSTREAMS="
             # Upstream for BFF Service
             upstream bff_backend {
                 server bff-service:8080;
-                keepalive 32;
-            }
-            
-            # Upstream for Frontend Service (development only)
-            upstream frontend_backend {
-                server frontend:3000;
                 keepalive 32;
             }"
         
