@@ -26,12 +26,9 @@ acl_file /mosquitto/config/acl
 listener 1883 0.0.0.0
 protocol mqtt
 
+${MQTT_WEBSOCKET_DEV}
 
-# WebSocket listener (development - no TLS)
-listener 9001 0.0.0.0
-protocol websockets
-
-
+${MQTT_TLS_LISTENERS}
 
 # =================================================
 # SECURITY SETTINGS
