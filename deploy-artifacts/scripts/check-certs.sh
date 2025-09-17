@@ -15,8 +15,14 @@ elif [ -f "/.env" ]; then
 fi
 
 DOMAIN=${DOMAIN:-hydroespinaca.online}
-API_DOMAIN="${API_SUBDOMAIN:-api}.${DOMAIN}"
-MQTT_DOMAIN="${MQTT_SUBDOMAIN:-mqtt}.${DOMAIN}"
+API_SUBDOMAIN=${API_SUBDOMAIN:-api}
+MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
+FRONTEND_SUBDOMAIN=${FRONTEND_SUBDOMAIN:-www}
+
+# Derived domains
+API_DOMAIN="${API_SUBDOMAIN}.${DOMAIN}"
+MQTT_DOMAIN="${MQTT_SUBDOMAIN}.${DOMAIN}"
+FRONTEND_DOMAIN="${FRONTEND_SUBDOMAIN}.${DOMAIN}"
 EMAIL=${ADMIN_EMAIL:-admin@hydroespinaca.online}
 
 CERTS_DIR="/etc/letsencrypt/live"
@@ -101,12 +107,22 @@ main() {
     
     log "Created webroot directory structure: $WEBROOT/.well-known/acme-challenge"
     
-    # Check and generate certificate for API domain
+    # Check and generate certificate for main domain (hydroespinaca.online)
+    if ! check_cert "$DOMAIN"; then
+        generate_cert "$DOMAIN"
+    fi
+    
+    # Check and generate certificate for frontend domain (www.hydroespinaca.online)
+    if ! check_cert "$FRONTEND_DOMAIN"; then
+        generate_cert "$FRONTEND_DOMAIN"
+    fi
+    
+    # Check and generate certificate for API domain (api.hydroespinaca.online)
     if ! check_cert "$API_DOMAIN"; then
         generate_cert "$API_DOMAIN"
     fi
     
-    # Check and generate certificate for MQTT domain
+    # Check and generate certificate for MQTT domain (mqtt.hydroespinaca.online)
     if ! check_cert "$MQTT_DOMAIN"; then
         generate_cert "$MQTT_DOMAIN"
     fi

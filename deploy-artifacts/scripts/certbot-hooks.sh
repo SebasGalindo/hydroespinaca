@@ -46,7 +46,45 @@ deploy_hook() {
     
     # Update MQTT broker if certificates were renewed for MQTT domain
     if echo "$RENEWED_DOMAINS" | grep -q "mqtt\."; then
-        log "MQTT certificates renewed, restarting MQTT broker..."
+        log "MQTT certificates renewed, copying to MQTT volume..."
+        
+        # Load environment variables for domains
+        DOMAIN=${DOMAIN:-hydroespinaca.online}
+        MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
+        MQTT_DOMAIN="${MQTT_SUBDOMAIN}.${DOMAIN}"
+        TARGET_DIR="/srv/mqtt/certs"
+        MOSQUITTO_UID=1883
+        MOSQUITTO_GID=1883
+        
+        # Create target directory
+        mkdir -p "${TARGET_DIR}"
+        
+        # Copy certificates with proper permissions for Mosquitto
+        if [ -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" ]; then
+            cp "/etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem" "${TARGET_DIR}/"
+            log "Copied fullchain.pem to MQTT volume"
+        else
+            error "fullchain.pem not found for ${MQTT_DOMAIN}"
+            return 1
+        fi
+        
+        if [ -f "/etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem" ]; then
+            cp "/etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem" "${TARGET_DIR}/"
+            log "Copied privkey.pem to MQTT volume"
+        else
+            error "privkey.pem not found for ${MQTT_DOMAIN}"
+            return 1
+        fi
+        
+        # Set proper ownership and permissions for Mosquitto
+        chown ${MOSQUITTO_UID}:${MOSQUITTO_GID} "${TARGET_DIR}"/*.pem
+        chmod 644 "${TARGET_DIR}/fullchain.pem"
+        chmod 600 "${TARGET_DIR}/privkey.pem"
+        
+        log "Set proper permissions for Mosquitto certificates"
+        
+        # Restart MQTT broker to load new certificates
+        log "Restarting MQTT broker to load new certificates..."
         if docker restart mqtt 2>/dev/null; then
             log "MQTT broker restarted successfully"
         else

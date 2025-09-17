@@ -27,10 +27,10 @@ http {
     types_hash_max_size 2048;
     client_max_body_size 16M;
     
-    # HTTP Server - minimal for certificate validation
+    # HTTP Server - minimal for certificate validation (all domains)
     server {
         listen 80;
-        server_name ${API_DOMAIN};
+        server_name ${DOMAIN} ${FRONTEND_DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN};
         
         # Certbot challenge location
         location ^~ /.well-known/acme-challenge/ {

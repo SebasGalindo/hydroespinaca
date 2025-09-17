@@ -231,8 +231,11 @@ show_status() {
     if [ "$USE_TLS" = "true" ]; then
         log "Certificate Status (mounted in Mosquitto):"
         # Muestra los certificados que realmente usa Mosquitto
-        docker run --rm -v mqtt_certs:/etc/mosquitto/certs busybox \
-            sh -c "ls -la /etc/mosquitto/certs"
+        if [ -d "/srv/mqtt/certs" ]; then
+            ls -la /srv/mqtt/certs
+        else
+            warn "MQTT certificates directory not found at /srv/mqtt/certs"
+        fi
     fi
 }
 
