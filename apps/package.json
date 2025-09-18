@@ -1,0 +1,31 @@
+{
+  "name": "hydroespinaca-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HydroEspinaca Frontend Monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "pnpm --parallel --recursive dev",
+    "build": "pnpm --recursive build",
+    "clean": "pnpm --recursive clean",
+    "type-check": "pnpm --recursive type-check",
+    "lint": "pnpm --recursive lint",
+    "test": "pnpm --recursive test",
+    "web:dev": "pnpm --filter @hydroespinaca/web dev",
+    "mobile:dev": "pnpm --filter @hydroespinaca/mobile dev",
+    "mobile:ios": "pnpm --filter @hydroespinaca/mobile ios",
+    "mobile:android": "pnpm --filter @hydroespinaca/mobile android"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
