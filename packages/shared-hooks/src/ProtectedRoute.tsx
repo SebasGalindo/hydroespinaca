@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useWebAuth } from './useWebAuth';
 
 export interface ProtectedRouteProps {
   children: ReactNode;
@@ -12,7 +12,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   fallback,
   redirectTo = '/login'
 }) => {
-  const { isAuthenticated, isLoading } = useAuth({ platform: 'web' });
+  const { isAuthenticated, isLoading } = useWebAuth();
 
   if (isLoading) {
     return <div className="loading">Cargando...</div>;
@@ -23,11 +23,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return <>{fallback}</>;
     }
     
-    // Redirect to login - this should be handled by the router
+    // For web, we'll handle redirect in the Router component
+    // For now, just show redirect message
     if (typeof window !== 'undefined') {
       window.location.href = redirectTo;
     }
-    
     return <div>Redirigiendo al login...</div>;
   }
 

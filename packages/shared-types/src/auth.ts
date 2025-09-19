@@ -1,30 +1,29 @@
+// Authentication Types
 export interface LoginRequest {
   Email: string;
   Password: string;
 }
 
 export interface MobileLoginResponse {
-  SessionId: string;
-  CsrfToken: string;
-  Message?: string;
+  sessionId: string;
+  csrfToken: string;
+  message?: string;
 }
 
 export interface WebLoginResponse {
-  Message?: string;
-  SessionId?: string;
-  CsrfToken?: string;
+  message?: string;
+}
+
+export interface UserSession {
+  userId: string;
+  userRole: string;
 }
 
 export interface Session {
   sessionId: string | null; // null para web (HttpOnly cookie), string para mobile
-  csrfToken: string;
+  csrfToken: string | null; // null para web (cookie), string para mobile
   userId?: string; // User ID from backend
-  role?: string; // User role from backend
-}
-
-export interface SessionInfo {
-  user?: any; // User data from backend
-  isValid: boolean;
+  userRole?: string; // User role from backend
 }
 
 export interface AuthState {

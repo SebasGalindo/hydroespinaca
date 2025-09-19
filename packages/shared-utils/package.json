@@ -1,8 +1,8 @@
 {
-  "name": "@hydroespinaca/shared-ui",
+  "name": "@hydroespinaca/shared-utils",
   "version": "1.0.0",
   "private": true,
-  "description": "Shared UI components for HydroEspinaca",
+  "description": "Shared utilities for HydroEspinaca",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -10,26 +10,25 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./navigation": {
+      "types": "./dist/navigation.d.ts",
+      "import": "./dist/navigation.mjs",
+      "require": "./dist/navigation.js"
     }
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "^19.0.0"
+    "@hydroespinaca/shared-types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/react": "^19.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
-  },
-  "peerDependencies": {
-    "react": ">=18.0.0"
   }
 }
