@@ -1,14 +1,37 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '../context/AuthProvider';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  const handleLogout = () => {
-    // TODO: Implementar logout real
-    navigation.navigate('Public');
+  const { logout, isLoading } = useAuth();
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro de que quieres cerrar sesión?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar Sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // Navigation will be handled automatically by AppNavigator
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo cerrar sesión correctamente');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -16,8 +39,14 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Panel de Control</Text>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+          <TouchableOpacity 
+            style={[styles.logoutButton, isLoading && styles.logoutButtonDisabled]} 
+            onPress={handleLogout}
+            disabled={isLoading}
+          >
+            <Text style={styles.logoutButtonText}>
+              {isLoading ? 'Cerrando...' : 'Cerrar Sesión'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -113,6 +142,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
+  },
+  logoutButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   logoutButtonText: {
     color: '#fff',

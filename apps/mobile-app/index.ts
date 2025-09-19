@@ -1,3 +1,7 @@
+// Polyfills para React Native
+import './src/polyfills';
+import 'react-native-polyfill-globals/src/fetch';
+import 'react-native-polyfill-globals/src/url';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

@@ -1,48 +1,35 @@
-import React, { useEffect, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoginForm } from '@hydroespinaca/shared-ui';
-import { useNativeAuth } from '@hydroespinaca/shared-hooks';
-import { createMobileNavigationService } from '@hydroespinaca/shared-utils';
+import { useAuth } from '../context/AuthProvider';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { login, isLoading, error, clearError, isAuthenticated } = useNativeAuth();
-  const navigationService = createMobileNavigationService(navigation);
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      navigation.navigate('Home');
-    }
-  }, [isAuthenticated, isLoading, navigation]);
+  const { login, isLoading, error, clearError } = useAuth();
 
   const handleLogin = useCallback(async (email: string, password: string) => {
     try {
       await login(email, password);
-      // Redirect will happen via useEffect when isAuthenticated becomes true
+      // Navigation will be handled automatically by AppNavigator when auth state changes
     } catch (err) {
       // Error is already handled by the hook
-      console.error('Login failed:', err);
     }
   }, [login]);
 
-  // Don't render anything while checking authentication or redirecting
-  if (isAuthenticated && !isLoading) {
-    return null;
-  }
-
   return (
-    <View style={styles.container}>
-      <LoginForm
-        onSubmit={handleLogin}
-        isLoading={isLoading}
-        error={error}
-        onClearError={clearError}
-      />
-    </View>
+    <ScrollView style={styles.container}>
+      <View style={styles.loginContainer}>
+        <LoginForm
+          onSubmit={handleLogin}
+          isLoading={isLoading}
+          error={error}
+          onClearError={clearError}
+        />
+      </View>
+    </ScrollView>
   );
 };
 
@@ -50,7 +37,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
   },
   loginContainer: {
     margin: 20,

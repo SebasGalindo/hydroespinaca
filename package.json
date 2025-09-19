@@ -10,12 +10,29 @@
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "type-check": "turbo run type-check"
+    "type-check": "turbo run type-check",
+    "clean": "pnpm exec find . -name 'dist' -type d -exec rm -rf {} + && pnpm exec find . -name '.turbo' -type d -exec rm -rf {} +",
+    "clean:deep": "./clean-rebuild.sh",
+    "clean:cache": "pnpm store prune && rm -rf .turbo",
+    "clean:node-modules": "pnpm exec find . -name 'node_modules' -type d -exec rm -rf {} +",
+    "mobile:start": "cd apps/mobile-app && npm start",
+    "mobile:reset": "cd apps/mobile-app && npx expo start --clear",
+    "verify": "pnpm run type-check && pnpm run lint",
+    "audit:security": "node scripts/audit-secure-storage.js",
+    "fix-corruption": "./clean-rebuild.sh && echo 'Corruption fixed! Run pnpm mobile:start to test.'"
   },
   "keywords": ["hydroponics", "react", "react-native", "monorepo"],
   "author": "HydroEspinaca Team",
   "license": "ISC",
   "packageManager": "pnpm@10.16.1",
+  "pnpm": {
+    "overrides": {
+      "react": "19.1.0",
+      "react-dom": "19.1.0",
+      "@types/react": "19.1.0",
+      "@types/react-dom": "19.1.0"
+    }
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",

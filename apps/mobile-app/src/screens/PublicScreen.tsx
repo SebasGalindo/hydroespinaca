@@ -9,7 +9,7 @@ export const PublicScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Bienvenido a HydroEspinaca</Text>
+        <Text style={styles.title}>Bienvenido a HydroEspinaca V2</Text>
         <Text style={styles.subtitle}>Sistema de Control Hidropónico</Text>
         
         <View style={styles.featuresContainer}>
