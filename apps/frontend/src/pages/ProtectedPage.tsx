@@ -1,20 +1,21 @@
-import React, { useMemo } from 'react';
-import { useAuth } from '@hydroespinaca/shared-ui';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useWebAuth } from '@hydroespinaca/shared-hooks';
+import { createWebNavigationService, WEB_ROUTES } from '@hydroespinaca/shared-utils';
 
 export const ProtectedPage: React.FC = () => {
-  // Memoize the config object to prevent useAuth from re-running on every render
-  const authConfig = useMemo(() => ({ platform: 'web' as const }), []);
-  const { session, logout, isLoading } = useAuth(authConfig);
-
+  const navigate = useNavigate();
+  const { session, logout, isLoading } = useWebAuth();
+  const navigationService = createWebNavigationService(navigate);
 
   const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = '/';
+      navigationService.navigate(WEB_ROUTES.PUBLIC);
     } catch (error) {
       console.error('Logout failed:', error);
       // Even if logout fails, redirect to public page
-      window.location.href = '/';
+      navigationService.navigate(WEB_ROUTES.PUBLIC);
     }
   };
 

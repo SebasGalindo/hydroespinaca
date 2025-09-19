@@ -10,8 +10,12 @@
   },
   "dependencies": {
     "@hydroespinaca/shared-ui": "workspace:*",
+    "@hydroespinaca/shared-hooks": "workspace:*",
+    "@hydroespinaca/shared-utils": "workspace:*",
+    "@hydroespinaca/shared-types": "workspace:*",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "react-router-dom": "^6.28.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

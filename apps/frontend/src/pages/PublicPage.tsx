@@ -1,20 +1,20 @@
-import React, { useMemo, useEffect } from 'react';
-import { useAuth } from '@hydroespinaca/shared-ui';
+import React, { useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useWebAuth } from '@hydroespinaca/shared-hooks';
+import { createWebNavigationService, WEB_ROUTES } from '@hydroespinaca/shared-utils';
 
 export const PublicPage: React.FC = () => {
-  // Memoize the config object to prevent useAuth from re-running on every render
-  const authConfig = useMemo(() => ({ platform: 'web' as const }), []);
-  const { isAuthenticated, isLoading } = useAuth(authConfig);
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useWebAuth();
+  const navigationService = createWebNavigationService(navigate);
 
   // Auto-redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
       console.log('PublicPage: User is authenticated, redirecting to dashboard');
-      if (typeof window !== 'undefined' && (window as any).__navigate) {
-        (window as any).__navigate('/dashboard');
-      }
+      navigationService.navigate(WEB_ROUTES.DASHBOARD);
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, navigationService]);
 
   // Show loading while checking auth status
   if (isLoading) {
@@ -48,16 +48,16 @@ export const PublicPage: React.FC = () => {
         {isAuthenticated ? (
           <div>
             <p>Ya tienes una sesión activa.</p>
-            <a href="/dashboard" className="btn btn-primary">
+            <Link to={WEB_ROUTES.DASHBOARD} className="btn btn-primary">
               Ir al Panel de Control
-            </a>
+            </Link>
           </div>
         ) : (
           <div>
             <p>Para acceder al sistema completo, inicia sesión:</p>
-            <a href="/login" className="btn btn-primary">
+            <Link to={WEB_ROUTES.LOGIN} className="btn btn-primary">
               Iniciar Sesión
-            </a>
+            </Link>
           </div>
         )}
       </div>

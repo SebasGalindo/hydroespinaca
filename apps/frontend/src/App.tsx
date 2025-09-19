@@ -1,9 +1,9 @@
 import React from 'react';
-import { Router } from './components/Router';
+import { AppRouter } from './components/AppRouter';
 import './App.css';
 
 function App() {
-  return <Router />;
+  return <AppRouter />;
 }
 
 export default App;

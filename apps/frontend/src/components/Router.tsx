@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProtectedRoute } from '@hydroespinaca/shared-ui';
+import { ProtectedRoute } from '@hydroespinaca/shared-hooks';
 import { PublicPage } from '../pages/PublicPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ProtectedPage } from '../pages/ProtectedPage';

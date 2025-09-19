@@ -1,20 +1,20 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
-import { LoginForm, useAuth } from '@hydroespinaca/shared-ui';
+import React, { useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LoginForm } from '@hydroespinaca/shared-ui';
+import { useWebAuth } from '@hydroespinaca/shared-hooks';
+import { createWebNavigationService, WEB_ROUTES } from '@hydroespinaca/shared-utils';
 
 export const LoginPage: React.FC = () => {
-  // Memoize the config object to prevent useAuth from re-running on every render
-  const authConfig = useMemo(() => ({ platform: 'web' as const }), []);
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuth(authConfig);
+  const navigate = useNavigate();
+  const { login, isLoading, error, clearError, isAuthenticated } = useWebAuth();
+  const navigationService = createWebNavigationService(navigate);
 
-  // Redirect if already authenticated using the navigate function
+  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      // Use SPA navigation
-      if (typeof window !== 'undefined' && (window as any).__navigate) {
-        (window as any).__navigate('/dashboard');
-      }
+      navigationService.navigate(WEB_ROUTES.DASHBOARD);
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, navigationService]);
 
   const handleLogin = useCallback(async (email: string, password: string) => {
     try {
@@ -44,7 +44,6 @@ export const LoginPage: React.FC = () => {
           isLoading={isLoading}
           error={error}
           onClearError={clearError}
-          style="web"
         />
       </div>
     </div>
