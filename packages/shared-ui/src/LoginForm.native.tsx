@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -10,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import type { LoginFormProps } from './LoginForm';
+import { Input } from './Input.native';
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onSubmit,
@@ -57,38 +57,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[
-                styles.input,
-                isLoading && styles.inputDisabled
-              ]}
+            <Input
+              label="Email"
               value={email}
               onChangeText={setEmail}
               placeholder="tu@email.com"
-              placeholderTextColor="#999"
               keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
               autoComplete="email"
-              editable={!isLoading}
+              disabled={isLoading}
+              fullWidth
             />
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Contraseña</Text>
-            <TextInput
-              style={[
-                styles.input,
-                isLoading && styles.inputDisabled
-              ]}
+            <Input
+              label="Contraseña"
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor="#999"
               secureTextEntry
               autoComplete="current-password"
-              editable={!isLoading}
+              disabled={isLoading}
+              fullWidth
             />
           </View>
           

@@ -5,11 +5,13 @@
   "description": "Shared UI components for HydroEspinaca",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "react-native": "src/index.native.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "require": "./dist/index.js",
+      "react-native": "./src/index.native.ts"
     }
   },
   "scripts": {

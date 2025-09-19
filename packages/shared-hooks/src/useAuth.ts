@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { AuthState, UseAuthReturn, AuthConfig, Session } from '@hydroespinaca/shared-types';
-import { AuthApiService, ApiError } from '@hydroespinaca/shared-utils';
+import { AuthApiService, ApiError, SessionStorage } from '@hydroespinaca/shared-utils';
 
 // Core auth hook - platform agnostic logic
 export function useAuth(config?: AuthConfig): UseAuthReturn {
@@ -21,9 +21,12 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         
         // Para web, los tokens están en cookies HttpOnly, no los tenemos en JS
         // Para mobile, necesitamos recuperar los tokens del secure storage
+        const sessionId = platform === 'mobile' ? await SessionStorage.getSessionId() : null;
+        const csrfToken = platform === 'mobile' ? await SessionStorage.getCsrfToken() : null;
+        
         const session: Session = {
-          sessionId: platform === 'mobile' ? getStoredSessionId() : null,
-          csrfToken: platform === 'mobile' ? getStoredCsrfToken() : null,
+          sessionId,
+          csrfToken,
           userId: userSession.userId,
           userRole: userSession.userRole,
         };
@@ -80,7 +83,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         const mobileResponse = await apiService.loginMobile(credentials);
         
         // Almacenar tokens en secure storage
-        storeSession(mobileResponse.sessionId, mobileResponse.csrfToken);
+        await SessionStorage.storeSession(mobileResponse.sessionId, mobileResponse.csrfToken);
         
         // Obtener información de la sesión
         const userSession = await apiService.getCurrentSession('mobile');
@@ -131,7 +134,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
       
       // Limpiar storage local para mobile
       if (platform === 'mobile') {
-        clearStoredSession();
+        await SessionStorage.clearSession();
       }
       
       setState({
@@ -142,7 +145,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
     } catch (error) {
       // Incluso si el logout falla en el servidor, limpiamos la sesión local
       if (platform === 'mobile') {
-        clearStoredSession();
+        await SessionStorage.clearSession();
       }
       
       setState({
@@ -150,8 +153,6 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         isLoading: false,
         error: null,
       });
-      
-      console.error('Logout error:', error);
     }
   }, [platform, state.session?.sessionId, apiService]);
 
@@ -159,63 +160,6 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
-  // Helper functions para storage multiplataforma
-  const getFromStorage = (key: string): string | null => {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return localStorage.getItem(key);
-      }
-      
-      // React Native - para funcionar ahora, retornamos null
-      // En el futuro esto debería usar AsyncStorage/SecureStore
-      return null;
-    } catch (error) {
-      console.warn(`Error accessing storage for key ${key}:`, error);
-      return null;
-    }
-  };
-
-  const setInStorage = (key: string, value: string): void => {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(key, value);
-        return;
-      }
-      
-      // React Native - log para debugging
-      console.log(`Would store ${key} in React Native storage:`, value);
-    } catch (error) {
-      console.warn(`Error storing ${key}:`, error);
-    }
-  };
-
-  const removeFromStorage = (key: string): void => {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem(key);
-        return;
-      }
-      
-      // React Native - log para debugging
-      console.log(`Would remove ${key} from React Native storage`);
-    } catch (error) {
-      console.warn(`Error removing ${key}:`, error);
-    }
-  };
-
-  const getStoredSessionId = (): string | null => getFromStorage('sessionId');
-  const getStoredCsrfToken = (): string | null => getFromStorage('csrfToken');
-  const storeSession = (sessionId: string, csrfToken: string): void => {
-    setInStorage('sessionId', sessionId);
-    setInStorage('csrfToken', csrfToken);
-  };
-  const clearStoredSession = (): void => {
-    removeFromStorage('sessionId');
-    removeFromStorage('csrfToken');
-  };
 
   return {
     session: state.session,

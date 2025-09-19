@@ -1,5 +1,6 @@
 // API Service for authentication
 import { getApiUrl } from './config';
+import { SessionStorage } from './secureStorage';
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -51,8 +52,8 @@ export class AuthApiService {
 
     // Para mobile, agregar headers de sesión si existen
     if (platform === 'mobile') {
-      const sessionId = this.getStoredSessionId();
-      const csrfToken = this.getStoredCsrfToken();
+      const sessionId = await SessionStorage.getSessionId();
+      const csrfToken = await SessionStorage.getCsrfToken();
       
       if (sessionId) {
         defaultHeaders['X-Session-Id'] = sessionId;
@@ -107,7 +108,15 @@ export class AuthApiService {
       body: JSON.stringify(credentials),
     }, 'mobile');
 
-    return response.data!;
+    if (!response.data) {
+      throw new Error('No data in mobile login response');
+    }
+
+    if (!response.data.sessionId || !response.data.csrfToken) {
+      throw new Error('Missing sessionId or csrfToken in mobile login response');
+    }
+
+    return response.data;
   }
 
   // Obtener sesión actual
@@ -133,73 +142,12 @@ export class AuthApiService {
     await this.request('/auth/logout', options, platform);
   }
 
-  // Métodos para manejar storage de forma multiplataforma
-  private getStoredSessionId(): string | null {
-    return this.getFromStorage('sessionId');
+  // Métodos públicos para storage usando secure storage
+  async storeSession(sessionId: string, csrfToken: string): Promise<void> {
+    await SessionStorage.storeSession(sessionId, csrfToken);
   }
 
-  private getStoredCsrfToken(): string | null {
-    return this.getFromStorage('csrfToken');
-  }
-
-  // Métodos de storage multiplataforma
-  private getFromStorage(key: string): string | null {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return localStorage.getItem(key);
-      }
-      
-      // React Native - usar AsyncStorage (básico, debería mejorarse con SecureStore)
-      // Nota: En una implementación real de RN, aquí usaríamos AsyncStorage
-      // Por ahora, returnamos null para React Native
-      return null;
-    } catch (error) {
-      console.warn(`Error accessing storage for key ${key}:`, error);
-      return null;
-    }
-  }
-
-  private setInStorage(key: string, value: string): void {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(key, value);
-        return;
-      }
-      
-      // React Native - AsyncStorage/SecureStore
-      // En una implementación real, aquí usaríamos AsyncStorage.setItem()
-      console.log(`Would store ${key} in React Native storage:`, value);
-    } catch (error) {
-      console.warn(`Error storing ${key}:`, error);
-    }
-  }
-
-  private removeFromStorage(key: string): void {
-    try {
-      // Web - usar localStorage
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem(key);
-        return;
-      }
-      
-      // React Native - AsyncStorage/SecureStore
-      // En una implementación real, aquí usaríamos AsyncStorage.removeItem()
-      console.log(`Would remove ${key} from React Native storage`);
-    } catch (error) {
-      console.warn(`Error removing ${key}:`, error);
-    }
-  }
-
-  // Métodos públicos para storage
-  storeSession(sessionId: string, csrfToken: string): void {
-    this.setInStorage('sessionId', sessionId);
-    this.setInStorage('csrfToken', csrfToken);
-  }
-
-  clearSession(): void {
-    this.removeFromStorage('sessionId');
-    this.removeFromStorage('csrfToken');
+  async clearSession(): Promise<void> {
+    await SessionStorage.clearSession();
   }
 }

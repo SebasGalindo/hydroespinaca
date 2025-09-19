@@ -5,9 +5,11 @@
   "description": "Shared React hooks for HydroEspinaca",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "react-native": "src/index.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./src/index.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }

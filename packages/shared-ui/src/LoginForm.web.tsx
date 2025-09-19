@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { LoginFormProps } from './LoginForm';
-import { Button } from './Button';
-import { Input } from './Input';
+import { Button } from './Button.web';
+import { Input } from './Input.web';
 import { theme } from './theme';
 
 const styles = {
