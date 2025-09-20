@@ -82,6 +82,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
                 
                 # Handle preflight requests
                 if (\$request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                    add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+                    add_header 'Access-Control-Allow-Credentials' 'true' always;
                     add_header 'Access-Control-Max-Age' 1728000;
                     add_header 'Content-Type' 'text/plain; charset=utf-8';
                     add_header 'Content-Length' 0;
@@ -238,6 +242,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
             
             # Handle preflight requests
             if (\$request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
                 add_header 'Access-Control-Max-Age' 1728000;
                 add_header 'Content-Type' 'text/plain; charset=utf-8';
                 add_header 'Content-Length' 0;
@@ -344,6 +352,10 @@ else
                 
                 # Handle preflight requests
                 if (\$request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Allow-Origin' 'http://localhost' always;
+                    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                    add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+                    add_header 'Access-Control-Allow-Credentials' 'true' always;
                     add_header 'Access-Control-Max-Age' 1728000;
                     add_header 'Content-Type' 'text/plain; charset=utf-8';
                     add_header 'Content-Length' 0;
