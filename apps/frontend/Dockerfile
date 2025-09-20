@@ -3,7 +3,7 @@
 FROM node:20-alpine as development
 
 # Install pnpm
-RUN npm install -g pnpm@10.12.1
+RUN npm install -g pnpm@10.16.1
 
 # Set working directory to the root of the monorepo
 WORKDIR /workspace
@@ -32,7 +32,7 @@ CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM node:20-alpine as build
 
 # Install pnpm
-RUN npm install -g pnpm@10.12.1
+RUN npm install -g pnpm@10.16.1
 
 # Set working directory to the root of the monorepo
 WORKDIR /workspace
