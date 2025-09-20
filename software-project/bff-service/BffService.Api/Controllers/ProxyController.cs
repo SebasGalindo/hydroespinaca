@@ -6,6 +6,7 @@ using BffService.Domain.ValueObjects;
 using BffService.Domain.Constants;
 using BffService.Domain.Exceptions;
 using Microsoft.Extensions.Configuration;
+using BffService.Application.Services;
 
 namespace BffService.Api.Controllers;
 
@@ -18,6 +19,7 @@ public class ProxyController : ControllerBase
     private readonly IProxyService _proxyService;
     private readonly IAuthService _authService;
     private readonly IConfiguration _configuration;
+    private readonly ICsrfValidationService _csrfValidationService;
     private readonly ILogger<ProxyController> _logger;
 
     public ProxyController(
@@ -25,12 +27,14 @@ public class ProxyController : ControllerBase
         IProxyService proxyService,
         IAuthService authService,
         IConfiguration configuration,
+        ICsrfValidationService csrfValidationService,
         ILogger<ProxyController> logger)
     {
         _sessionService = sessionService;
         _proxyService = proxyService;
         _authService = authService;
         _configuration = configuration;
+        _csrfValidationService = csrfValidationService;
         _logger = logger;
     }
 
@@ -103,19 +107,17 @@ public class ProxyController : ControllerBase
 
         // Try to get access token from session if available
         var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-        var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
 
         if (Request.Headers.TryGetValue(sessionIdHeader, out var sessionIdValues) && sessionIdValues.Any())
         {
             var sessionId = sessionIdValues.First()!;
             
             // Validate CSRF token for state-changing operations
-            if (IsStateChangingOperation(method))
+            if (_csrfValidationService.IsStateChangingOperation(method))
             {
-                if (!Request.Headers.TryGetValue(csrfTokenHeader, out var csrfValues) ||
-                    !csrfValues.Any())
+                if (!_csrfValidationService.ValidateCsrfToken(HttpContext))
                 {
-                    return BadRequest(new { message = "CSRF token required" });
+                    return BadRequest(new { message = "CSRF validation failed" });
                 }
             }
 
@@ -160,10 +162,6 @@ public class ProxyController : ControllerBase
         };
     }
 
-    private static bool IsStateChangingOperation(string method)
-    {
-        return method.ToUpperInvariant() is "POST" or "PUT" or "DELETE" or "PATCH";
-    }
 
     private static bool IsSystemHeader(string headerName)
     {
