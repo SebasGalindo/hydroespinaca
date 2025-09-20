@@ -134,6 +134,9 @@ services:
       - Services__SensorService__Url=${SENSOR_SERVICE_URL}
       - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
       - Services__AuthService__Url=${AUTH_SERVICE_URL}
+      - Cookies__Secure=${BFF_COOKIE_SECURE}
+      - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
+      - Cookies__Domain=${BFF_COOKIE_DOMAIN}
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - espinaca-net

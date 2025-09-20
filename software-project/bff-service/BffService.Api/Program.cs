@@ -21,7 +21,7 @@ builder.Logging.AddSimpleConsole(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddDomainServices();
-builder.Services.AddBffServiceApi(builder.Configuration);
+builder.Services.AddBffServiceApi(builder.Configuration, builder.Environment);
 
 // ✅ CRITICAL: Register the shared and specific exception mappers
 builder.Services.AddSingleton<HydroEspinaca.Shared.Errors.ProblemDetailsFactory>();
@@ -39,6 +39,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<BffService.Api.Middleware.GlobalExceptionMiddleware>();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

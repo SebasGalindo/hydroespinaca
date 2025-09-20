@@ -13,7 +13,8 @@ public static class ServiceCollectionWebExtensions
 {
     public static IServiceCollection AddBffServiceApi(
         this IServiceCollection services, 
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
         // ❌ Don't use standard microservice configuration due to FallbackPolicy 
         // Instead, configure manually without global auth requirement
@@ -21,6 +22,28 @@ public static class ServiceCollectionWebExtensions
         // Add standard web API services
         services.AddControllers();
         services.AddHealthChecks();
+        
+        // Add CORS policy for frontend
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                if (environment.IsDevelopment())
+                {
+                    policy.WithOrigins("http://localhost", "http://localhost:3000", "http://localhost:80")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                }
+                else
+                {
+                    policy.WithOrigins("https://hydroespinaca.online", "https://www.hydroespinaca.online")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                }
+            });
+        });
         
         // Add authentication without FallbackPolicy
         services.AddHydroEspinacaAuthWithoutFallback(configuration, "bff-service");
