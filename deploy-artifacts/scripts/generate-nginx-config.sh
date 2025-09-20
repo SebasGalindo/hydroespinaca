@@ -74,6 +74,20 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         export NGINX_HTTP_CONFIG="
             # API routes to BFF Service (fallback HTTP)
             location /api/ {
+                # CORS headers
+                add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                
+                # Handle preflight requests
+                if (\$request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Max-Age' 1728000;
+                    add_header 'Content-Type' 'text/plain; charset=utf-8';
+                    add_header 'Content-Length' 0;
+                    return 204;
+                }
+                
                 proxy_pass http://bff_backend/;
                 proxy_set_header Host \$host;
                 proxy_set_header X-Real-IP \$remote_addr;
@@ -216,6 +230,20 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         
         # API routes to BFF Service
         location /api/ {
+            # CORS headers
+            add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            
+            # Handle preflight requests
+            if (\$request_method = 'OPTIONS') {
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+            
             proxy_pass http://bff_backend/;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -308,6 +336,20 @@ else
     export NGINX_HTTP_CONFIG="
             # API routes to BFF Service
             location /api/ {
+                # CORS headers for development
+                add_header 'Access-Control-Allow-Origin' 'http://localhost' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                
+                # Handle preflight requests
+                if (\$request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Max-Age' 1728000;
+                    add_header 'Content-Type' 'text/plain; charset=utf-8';
+                    add_header 'Content-Length' 0;
+                    return 204;
+                }
+                
                 proxy_pass http://bff_backend/;
                 proxy_set_header Host \$host;
                 proxy_set_header X-Real-IP \$remote_addr;

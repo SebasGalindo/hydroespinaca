@@ -39,6 +39,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<BffService.Api.Middleware.GlobalExceptionMiddleware>();
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
