@@ -4,11 +4,12 @@ using BffService.Domain.Constants;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using BffService.Application.DTOs;
 
 namespace BffService.Api.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("auth")]
 public class AuthController : ControllerBase
 {
     private readonly ISessionService _sessionService;
@@ -23,7 +24,65 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("login/web")]   
+    public async Task<ActionResult<WebLoginResponseDto>> LoginWeb([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await _sessionService.LoginAsync(request, cancellationToken);
+
+        // Configure cookie options from appsettings
+        var sessionCookieOptions = new CookieOptions
+        {
+            HttpOnly = true, // SessionId should be HttpOnly for security
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+        };
+
+        var csrfCookieOptions = new CookieOptions
+        {
+            HttpOnly = false, // CSRF token needs to be accessible by JavaScript
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+        };
+
+        // Only set domain if configured
+        var domain = _configuration.GetValue<string>("Cookies:Domain");
+        if (!string.IsNullOrEmpty(domain))
+        {
+            sessionCookieOptions.Domain = domain;
+            csrfCookieOptions.Domain = domain;
+        }
+
+        // Set secure cookies with different HttpOnly settings
+        Response.Cookies.Append("SessionId", result.SessionId, sessionCookieOptions);
+        Response.Cookies.Append("CsrfToken", result.CsrfToken, csrfCookieOptions);
+
+        return Ok(); // sin body - solo cookies
+    }
+
+    [AllowAnonymous]
+    [HttpPost("login/mobile")]   
+    public async Task<ActionResult<MobileLoginResponseDto>> LoginMobile([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await _sessionService.LoginAsync(request, cancellationToken);
+
+        // Set headers for mobile clients
+        var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+        var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
+
+        Response.Headers[sessionIdHeader] = result.SessionId;
+        Response.Headers[csrfTokenHeader] = result.CsrfToken;
+
+        // Return session data in response body for mobile secure storage
+        return Ok(new MobileLoginResponseDto(result.SessionId, result.CsrfToken));
+    }
+
+    [AllowAnonymous]
     [HttpPost("login")]   
+    [Obsolete("Use /login/web or /login/mobile instead")]
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
         var result = await _sessionService.LoginAsync(request, cancellationToken);
@@ -39,9 +98,52 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("logout")]
-    public async Task<ActionResult> Logout([FromBody] LogoutRequestDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult> Logout(CancellationToken cancellationToken)
     {
-        await _sessionService.LogoutAsync(request, cancellationToken);
+        string? sessionId = null;
+
+        // For web: try to read SessionId from HttpOnly cookie first
+        if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
+        {
+            sessionId = cookieSessionId;
+        }
+        // For mobile: try to read from request body if no cookie
+        else
+        {
+            try
+            {
+                using var reader = new StreamReader(Request.Body);
+                var body = await reader.ReadToEndAsync();
+                if (!string.IsNullOrEmpty(body) && body != "{}")
+                {
+                    var requestData = System.Text.Json.JsonSerializer.Deserialize<LogoutRequestDto>(body);
+                    sessionId = requestData?.SessionId;
+                }
+            }
+            catch
+            {
+                // Ignore JSON parsing errors for empty/invalid bodies
+            }
+        }
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return BadRequest(new { message = "No active session to logout" });
+        }
+
+        var logoutRequest = new LogoutRequestDto(sessionId);
+        await _sessionService.LogoutAsync(logoutRequest, cancellationToken);
+
+        // Clear cookies for web clients
+        if (Request.Cookies.ContainsKey("SessionId"))
+        {
+            Response.Cookies.Delete("SessionId");
+        }
+        if (Request.Cookies.ContainsKey("CsrfToken"))
+        {
+            Response.Cookies.Delete("CsrfToken");
+        }
+
         return Ok(new { message = "Logged out successfully" });
     }
 
@@ -56,6 +158,42 @@ public class AuthController : ControllerBase
         }
         
         return Unauthorized(new { message = "Unable to refresh token" });
+    }
+
+    [HttpGet("session")]
+    public async Task<ActionResult<UserSessionDto>> GetCurrentSession(CancellationToken cancellationToken)
+    {
+        string? sessionId = null;
+        
+        // For web: try to read SessionId from HttpOnly cookie first
+        if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
+        {
+            sessionId = cookieSessionId;
+        }
+        // For mobile: try to read from headers
+        else
+        {
+            var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+            if (Request.Headers.TryGetValue(sessionIdHeader, out var headerSessionId))
+            {
+                sessionId = headerSessionId.FirstOrDefault();
+            }
+        }
+        
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return Unauthorized(new { message = "No active session" });
+        }
+
+        var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
+        
+        if (sessionInfo == null || !sessionInfo.IsValid)
+        {
+            return Unauthorized(new { message = "Invalid or expired session" });
+        }
+        
+        // Return only essential user information
+        return Ok(new UserSessionDto(sessionInfo.UserId, sessionInfo.UserRole));
     }
 
     [HttpGet("session/{sessionId}")]

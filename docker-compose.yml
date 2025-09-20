@@ -264,7 +264,7 @@ services:
   # Frontend
   # -----------------------------
 
-  # Frontend for development (Vite dev server)
+  # Frontend for development (Vite dev server) - New Monorepo Web App
   frontend-dev:
     build:
       context: .
@@ -279,12 +279,18 @@ services:
       - NODE_ENV=development
       - VITE_API_URL=/api
       - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-}
+    volumes:
+      # Mount source code for hot reload in development
+      - .:/workspace:cached
+      - /workspace/node_modules
+      - /workspace/apps/frontend/node_modules
+      - /workspace/packages/shared-ui/node_modules
     networks:
       - espinaca-net
     profiles:
       - development
 
-  # Frontend for production (build static files)
+  # Frontend for production (build static files) - New Monorepo Web App
   frontend-build:
     build:
       context: .
@@ -298,7 +304,7 @@ services:
       - VITE_API_URL=/api
     profiles:
       - production
-    command: sh -c "cp -r dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"
+    command: sh -c "cp -r /workspace/apps/frontend/dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"
 
 volumes:
   mqtt_data: 

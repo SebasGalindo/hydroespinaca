@@ -1,12 +1,9 @@
-import './App.css'
+import React from 'react';
+import { AppRouter } from './components/AppRouter';
+import './App.css';
 
-// Update the import path below to the correct relative path where useAuth is located
-import { useAuth } from "@shared-ui/hooks/useAuth"
-
-
-export function App() {
-  const { user } = useAuth()
-  return <h1>Hello {user.name}</h1>
+function App() {
+  return <AppRouter />;
 }
 
-export default App
+export default App;
