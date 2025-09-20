@@ -21,10 +21,15 @@
     "audit:security": "node scripts/audit-secure-storage.js",
     "fix-corruption": "./clean-rebuild.sh && echo 'Corruption fixed! Run pnpm mobile:start to test.'"
   },
-  "keywords": ["hydroponics", "react", "react-native", "monorepo"],
+  "keywords": [
+    "hydroponics",
+    "react",
+    "react-native",
+    "monorepo"
+  ],
   "author": "HydroEspinaca Team",
   "license": "ISC",
-  "packageManager": "pnpm@10.16.1",
+  "packageManager": "pnpm@10.17.0",
   "pnpm": {
     "overrides": {
       "react": "19.1.0",
@@ -34,9 +39,9 @@
     }
   },
   "devDependencies": {
+    "@react-native-community/eslint-config": "^3.2.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@react-native-community/eslint-config": "^3.2.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
