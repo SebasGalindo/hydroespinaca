@@ -102,27 +102,34 @@ void setup() {
     
     printSystemInfo();
     
-    // Initialize components in order
+    // Initialize components in proper order (NTP first for TLS)
+    Serial.println("🔧 Iniciando sincronización NTP...");
+    timeClient.begin();
+    timeClient.forceUpdate();
+    
+    // Validate NTP is working before proceeding with TLS
+    if (timeClient.isTimeSet()) {
+        Serial.printf("📅 [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
+    } else {
+        Serial.println("⚠️ [NET] NTP no sincronizado - TLS puede fallar");
+    }
+    
     Serial.println("🔧 Inicializando sensores...");
     sensors.begin();
     
-    Serial.println("🔧 Inicializando JobScheduler...");
+    Serial.println("🔧 Inicializando JobScheduler (controlador genérico de pines)...");
     jobScheduler.begin();
     
-    Serial.println("🔧 Inicializando MQTT...");
+    Serial.println("🔧 Inicializando MQTT con TLS...");
     mqttHandler.begin();
     
     Serial.println("🔧 Vinculando JobScheduler con MQTT...");
     jobScheduler.setMQTTHandler(&mqttHandler);
     
-    Serial.println("🔧 Iniciando sincronización NTP...");
-    timeClient.begin();
-    timeClient.forceUpdate();
-    Serial.printf("📅 NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
-    
     Serial.println("🚀 Sistema iniciado correctamente!\n");
     Serial.println("📊 Publicando telemetría cada 2 minutos");
     Serial.println("📡 Escuchando job schedules en: " + String(TOPIC_JOB_SCHEDULE));
+    Serial.println("🎛️  Actuadores controlados dinámicamente por backend (pin, tipo, valor, duración)");
 }
 
 void loop() {

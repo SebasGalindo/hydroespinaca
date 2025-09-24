@@ -6,6 +6,12 @@
 #include <vector>
 #include "config.h"
 
+// ========================================
+// GENERIC PIN CONTROLLER
+// Backend specifies: pin, mode (digital/PWM), value, duration
+// No hardcoded actuator logic - fully dynamic
+// ========================================
+
 enum StepStatus {
     STEP_PENDING,
     STEP_IN_PROGRESS,
@@ -115,6 +121,7 @@ private:
     // Internal methods
     void cancelJobsOnPin(int pin, const String& reason);
     void executeStep(Step& step);
+    void runHumidifierRoutine(unsigned long durationMs);  // Specialized humidifier control
     
 public:
     JobScheduler();

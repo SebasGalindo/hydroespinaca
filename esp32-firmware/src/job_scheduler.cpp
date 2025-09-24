@@ -226,6 +226,23 @@ void JobScheduler::executeStep(Step& step) {
         return;
     }
     
+    // SPECIAL CASE: Humidifier control (PIN_HUMID_POWER = 14)
+    if (step.pin == PIN_HUMID_POWER) {
+        if (step.power == ON) {
+            Serial.printf("💨 HUMIDIFICADOR: Iniciando rutina especializada por %lu ms\n", step.duration);
+            runHumidifierRoutine(step.duration);
+            step.status = STEP_OK;
+            String logEntry = JobUtils::getCurrentTimestamp() + " - Rutina humidificador completada";
+            step.executionLog.push_back(logEntry);
+        } else {
+            Serial.println("💨 HUMIDIFICADOR: Comando OFF - asegurando apagado");
+            digitalWrite(PIN_HUMID_POWER, LOW);
+            digitalWrite(PIN_HUMID_RELAY, LOW);
+            step.status = STEP_OK;
+        }
+        return;
+    }
+    
     // Configure pin
     pinMode(step.pin, OUTPUT);
     
@@ -665,4 +682,62 @@ void JobScheduler::printStatus() {
         Serial.printf("  Canal %d: Running=%s, Queue=%d\n", 
                      i, isChannelBusy(i) ? "Sí" : "No", getQueueSize(i));
     }
+}
+
+// ========================================
+// HUMIDIFIER SPECIALIZED ROUTINE
+// ========================================
+void JobScheduler::runHumidifierRoutine(unsigned long durationMs) {
+    Serial.printf("💨 [HUMID] Iniciando rutina especializada por %lu ms\n", durationMs);
+    
+    unsigned long start = millis();
+    
+    // Configure pins
+    pinMode(PIN_HUMID_POWER, OUTPUT);
+    pinMode(PIN_HUMID_RELAY, OUTPUT);
+    
+    // Step 1: Turn on master relay (power)
+    Serial.println("💨 [HUMID] Encendiendo relé maestro (power)");
+    digitalWrite(PIN_HUMID_POWER, HIGH);
+    
+    // Step 2: Warmup delay
+    Serial.printf("💨 [HUMID] Warmup %d ms...\n", HUMID_WARMUP_TIME);
+    vTaskDelay(pdMS_TO_TICKS(HUMID_WARMUP_TIME));
+    
+    // Step 3: Generate pulses during the session duration
+    Serial.printf("💨 [HUMID] Comenzando ciclo de pulsos (%d ms ON, %d ms intervalo)\n", 
+                  HUMID_PULSE_ON_TIME, HUMID_PULSE_INTERVAL);
+    
+    unsigned long nextPulseTime = millis();
+    bool relayState = false;
+    
+    while (millis() - start < durationMs) {
+        unsigned long currentTime = millis();
+        
+        if (!relayState && currentTime >= nextPulseTime) {
+            // Start pulse
+            Serial.println("💨 [HUMID] Pulso ON (2s)");
+            digitalWrite(PIN_HUMID_RELAY, HIGH);
+            relayState = true;
+            nextPulseTime = currentTime + HUMID_PULSE_ON_TIME;
+            
+        } else if (relayState && currentTime >= nextPulseTime) {
+            // End pulse, start interval
+            Serial.println("💨 [HUMID] Pulso OFF - Intervalo (30s)");
+            digitalWrite(PIN_HUMID_RELAY, LOW);
+            relayState = false;
+            nextPulseTime = currentTime + HUMID_PULSE_INTERVAL;
+        }
+        
+        // Small delay to prevent CPU hogging
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    
+    // Step 4: Clean shutdown
+    Serial.println("💨 [HUMID] Finalizando rutina - apagando relés");
+    digitalWrite(PIN_HUMID_RELAY, LOW);   // Ensure pulse relay is off
+    digitalWrite(PIN_HUMID_POWER, LOW);   // Turn off master relay
+    
+    unsigned long totalTime = millis() - start;
+    Serial.printf("💨 [HUMID] Rutina completada en %lu ms\n", totalTime);
 }

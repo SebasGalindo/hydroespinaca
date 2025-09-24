@@ -5,6 +5,7 @@
 #define MQTT_MAX_PACKET_SIZE 1024
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <queue>
@@ -19,7 +20,7 @@ struct TelemetryBuffer {
 
 class MQTTHandler {
 private:
-    WiFiClient wifiClient;
+    WiFiClientSecure secureClient;
     PubSubClient mqttClient;
     JobScheduler* jobScheduler;
     
