@@ -1,0 +1,3 @@
+from .GetAllFuzzyVariablesQuery import GetAllFuzzyVariablesQuery
+from .GetFuzzyVariableByIdQuery import GetFuzzyVariableByIdQuery
+from .GetFuzzyVariablesBySystemQuery import GetFuzzyVariablesBySystemQuery

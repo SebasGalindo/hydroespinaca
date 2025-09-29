@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+from typing import List, Optional
+from datetime import datetime
+
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+from FuzzyService.Domain.ValueObjects import FuzzyVariableId, FuzzyTermId
+
+
+class FuzzyVariableDto(BaseModel):
+    """DTO para representar una variable difusa en la capa de aplicación/API."""
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+        populate_by_name=True,
+        use_enum_values=True,
+        arbitrary_types_allowed=True,
+        extra="forbid",
+    )
+
+    # Identificación
+    id: Optional[str] = Field(default=None, description="Identificador de la variable (ObjectId/UUID como string)")
+    name: str = Field(min_length=1, max_length=100, description="Nombre de la variable difusa")
+    description: Optional[str] = Field(default=None, description="Descripción de la variable difusa (opcional, hasta 500 caracteres)")
+
+    # Configuración de la variable
+    # Notar que en el dominio actual variable_type es un string "input" | "output"
+    variable_type: str = Field(default="input", description="Tipo de variable: 'input' o 'output'")
+
+    # Relaciones
+    device_id: Optional[str] = Field(default=None, description="ID del dispositivo asociado (sensor/actuador)")
+    terms: List[str] = Field(default_factory=list, description="IDs de términos lingüísticos asociados")
+
+    # Metadatos
+    created_at: Optional[datetime] = Field(default=None, description="Fecha de creación (UTC ISO8601)")
+    updated_at: Optional[datetime] = Field(default=None, description="Fecha de actualización (UTC ISO8601)")
+
+    # --------------------- Validaciones ---------------------
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("El nombre de la variable no puede estar vacío")
+        if len(v) > 100:
+            raise ValueError("El nombre de la variable no puede exceder 100 caracteres")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def _validate_description(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        if len(v) > 500:
+            raise ValueError("La descripción no puede exceder 500 caracteres")
+        return v
+
+    @field_validator("variable_type")
+    @classmethod
+    def _validate_variable_type(cls, v: str) -> str:
+        valid = {"input", "output"}
+        if v not in valid:
+            raise ValueError(f"variable_type inválido: {v}. Debe ser uno de: {sorted(valid)}")
+        return v
+
+    # --------------------- Conversión Entity ↔ DTO ---------------------
+    @classmethod
+    def from_entity(cls, entity: "FuzzyVariable") -> "FuzzyVariableDto":
+        from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable  # evitar ciclos
+        if not isinstance(entity, FuzzyVariable):
+            raise TypeError("entity debe ser FuzzyVariable")
+        return cls(
+            id=str(entity.id) if entity.id is not None else None,
+            name=entity.name,
+            description=entity.description,
+            variable_type=entity.variable_type,
+            device_id=entity.device_id,
+            terms=[str(t) for t in entity.terms],
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
+
+    def to_entity(self) -> "FuzzyVariable":
+        from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable  # evitar ciclos
+        return FuzzyVariable(
+            id=FuzzyVariableId(self.id) if self.id is not None else None,
+            name=self.name,
+            description=self.description or "",
+            variable_type=self.variable_type,
+            device_id=self.device_id,
+            terms=[FuzzyTermId(t) for t in self.terms],
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
