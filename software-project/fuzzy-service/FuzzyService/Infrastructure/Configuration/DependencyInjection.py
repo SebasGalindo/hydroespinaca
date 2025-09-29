@@ -214,10 +214,14 @@ async def on_startup() -> None:
 
 
 async def _seed_initial_data(di):
-    """Idempotent seeding of initial fuzzy system data, gated by FUZZY_SEED_ON_STARTUP env var."""
-    seed_env = os.getenv("FUZZY_SEED_ON_STARTUP", "true").strip().lower()
+    """Idempotent seeding of initial fuzzy system data, gated by environment and FUZZY_SEED_ON_STARTUP env var."""
+    # Similar to .NET services: no seed data in production by default
+    environment = os.getenv("ASPNETCORE_ENVIRONMENT", "Development")
+    default_seed = "true" if environment.lower() == "development" else "false"
+    
+    seed_env = os.getenv("FUZZY_SEED_ON_STARTUP", default_seed).strip().lower()
     if seed_env not in ("1", "true", "yes", "y", "on"):
-        _logger.info("Skipping seeding on startup (FUZZY_SEED_ON_STARTUP=%s)", seed_env)
+        _logger.info("Skipping seeding on startup (Environment=%s, FUZZY_SEED_ON_STARTUP=%s)", environment, seed_env)
         return
 
     try:

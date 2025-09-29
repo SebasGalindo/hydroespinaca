@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from kink import di
 
 from FuzzyService.Domain.Interfaces.IActuatorService import IActuatorService
+from FuzzyService.Infrastructure.Authentication.jwt_auth import get_current_user, require_scopes, Scopes, UserClaims
 
 
 router = APIRouter(
@@ -23,7 +24,9 @@ router = APIRouter(
     summary="Estado de comunicación con actuator-service",
     description="Verifica si el servicio de actuadores está disponible y funcionando",
 )
-async def get_actuator_status() -> JSONResponse:
+async def get_actuator_status(
+    user: UserClaims = Depends(require_scopes(Scopes.SYSTEM_HEALTH)),
+) -> JSONResponse:
     """Verifica el estado de comunicación con el actuator-service."""
     try:
         # Obtener el servicio desde el contenedor de dependencias

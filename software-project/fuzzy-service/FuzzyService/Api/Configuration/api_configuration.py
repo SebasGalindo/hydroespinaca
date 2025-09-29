@@ -20,19 +20,22 @@ def _parse_origins(env_value: str | None) -> List[str]:
 
 
 def setup_cors(app: FastAPI) -> None:
-    # Soportar tanto las variables nuevas como las existentes
-    origins = _parse_origins(os.getenv("API_CORS_ORIGINS") or os.getenv("CORS_ORIGINS"))
-    allow_credentials = (
-        os.getenv("API_CORS_ALLOW_CREDENTIALS") or 
-        os.getenv("CORS_ALLOW_CREDENTIALS", "false")
-    ).lower() in {"1", "true", "yes", "y"}
+    # Environment-based CORS configuration (similar to .NET services)
+    environment = os.getenv("ASPNETCORE_ENVIRONMENT", "Development")
+    is_development = environment.lower() == "development"
     
-    # Usar configuración específica o valores por defecto
-    allow_methods_str = os.getenv("CORS_ALLOW_METHODS", "*")
-    allow_methods = [m.strip() for m in allow_methods_str.split(",")] if allow_methods_str != "*" else ["*"]
-    
-    allow_headers_str = os.getenv("CORS_ALLOW_HEADERS", "*")
-    allow_headers = [h.strip() for h in allow_headers_str.split(",")] if allow_headers_str != "*" else ["*"]
+    # Development: permissive, Production: restrictive
+    if is_development:
+        origins = _parse_origins(os.getenv("CORS_ORIGINS", "*"))
+        allow_credentials = True
+        allow_methods = ["*"]
+        allow_headers = ["*"]
+    else:
+        # Production: only allow specific origins
+        origins = _parse_origins(os.getenv("CORS_ORIGINS", "https://hydroespinaca.online,https://www.hydroespinaca.online"))
+        allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() in {"1", "true", "yes", "y"}
+        allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        allow_headers = ["Authorization", "Content-Type", "X-Session-Id", "X-CSRF-Token"]
 
     app.add_middleware(
         CORSMiddleware,

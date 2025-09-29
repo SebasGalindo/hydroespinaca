@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-01-09T15:35:00.000Z",
-  "readings": {
-    "sensor_humidity_random_001": 68.3,
-    "sensor_pressure_xyz_789": 1013.25,
-    "sensor_ph_test_456": 6.8,
-    "sensor_unknown_abc_123": 42.0
-  }
-}

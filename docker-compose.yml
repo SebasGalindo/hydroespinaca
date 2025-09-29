@@ -290,12 +290,50 @@ services:
       - production
       - development
 
-  # fuzzy-service:
-  #   build: ./software-project/fuzzy-service
-  #   container_name: fuzzy-service
-  #   env_file: ./software-project/fuzzy-service/.env
-  #   ports:
-  #     - "6003:8000"
+  fuzzy-service:
+    build:
+      context: .
+      dockerfile: software-project/fuzzy-service/Dockerfile
+    container_name: fuzzy-service
+    expose:
+      - "8000"
+    ports:
+      - "6003:8000"  # Expose for testing purposes, can be removed in production
+    depends_on:
+      - auth-service
+      - mqtt
+    environment:
+      # JWT Configuration
+      - JWT_ISSUER=${Jwt_Issuer}
+      - JWT_AUDIENCE=${Jwt_Audience}
+      - JWT_PUBLIC_KEY_PATH=/app/Keys/public.pem
+      # MongoDB Configuration
+      - MONGO_CONNECTION_STRING=${FUZZY_MONGO_CONNECTION_STRING}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      # M2M Configuration
+      - M2M_CLIENT_ID=${FUZZY_SERVICE_CLIENT_ID}
+      - M2M_CLIENT_SECRET=${FUZZY_SERVICE_CLIENT_SECRET}
+      - M2M_AUTH_SERVICE_URL=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M_TOKEN_ENDPOINT=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M_TOKEN_CACHE_DURATION_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      # MQTT Configuration
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_PORT=${MQTT_PORT}
+      - MQTT_CLIENT_ID=${FUZZY_MQTT_CLIENT_ID}
+      - MQTT_USERNAME=${FUZZY_MQTT_USER}
+      - MQTT_PASSWORD=${FUZZY_MQTT_PASS}
+      # External Service URLs
+      - SENSOR_SERVICE_URL=${SENSOR_SERVICE_URL}
+      - ACTUATOR_SERVICE_URL=${ACTUATOR_SERVICE_URL}
+      # Python Environment
+      - PYTHONPATH=/app
+    volumes:
+      - ./software-project/auth-service/Keys:/app/Keys:ro
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
 
   # catalog-service:
   #   build: ./software-project/catalog-service

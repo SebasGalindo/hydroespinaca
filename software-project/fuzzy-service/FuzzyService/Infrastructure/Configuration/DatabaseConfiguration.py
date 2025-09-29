@@ -64,7 +64,8 @@ def get_settings() -> MongoSettings:
         or "mongodb://localhost:27017"
     )
     database = (
-        os.getenv("MONGO_DATABASE_NAME")
+        os.getenv("MONGO_DATABASE")
+        or os.getenv("MONGO_DATABASE_NAME")
         or os.getenv("FUZZY_MONGO_DATABASE")
         or "fuzzy_dev"
     )

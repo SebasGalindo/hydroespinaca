@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from kink import di
 from medyator import Medyator
+
+from FuzzyService.Infrastructure.Authentication.jwt_auth import get_current_user, require_scopes, Scopes, UserClaims
 
 from FuzzyService.Application.Features.FuzzySystems.DTOs.FuzzySystemDto import FuzzySystemDto
 from FuzzyService.Application.Features.FuzzySystems.Commands.CreateFuzzySystem.CreateFuzzySystemCommand import CreateFuzzySystemCommand
@@ -32,6 +34,7 @@ async def list_fuzzy_systems(
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
     order_by_created_at_desc: bool = True,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_READ)),
 ) -> List[FuzzySystemDto]:
     mediator: Medyator = di[Medyator]
     query = GetAllFuzzySystemsQuery(
@@ -48,7 +51,10 @@ async def list_fuzzy_systems(
 
 
 @router.get("/{id}", response_model=FuzzySystemDto)
-async def get_fuzzy_system_by_id(id: str) -> FuzzySystemDto:
+async def get_fuzzy_system_by_id(
+    id: str,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_READ)),
+) -> FuzzySystemDto:
     mediator: Medyator = di[Medyator]
     try:
         dto = await mediator.send(GetFuzzySystemByIdQuery(id=id))
@@ -58,7 +64,10 @@ async def get_fuzzy_system_by_id(id: str) -> FuzzySystemDto:
 
 
 @router.post("", response_model=FuzzySystemDto, status_code=201)
-async def create_fuzzy_system(command: CreateFuzzySystemCommand) -> FuzzySystemDto:
+async def create_fuzzy_system(
+    command: CreateFuzzySystemCommand,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_CREATE)),
+) -> FuzzySystemDto:
     mediator: Medyator = di[Medyator]
     try:
         await mediator.send(command)
@@ -68,7 +77,11 @@ async def create_fuzzy_system(command: CreateFuzzySystemCommand) -> FuzzySystemD
     
 
 @router.put("/{id}", response_model=FuzzySystemDto)
-async def update_fuzzy_system(id: str, command: UpdateFuzzySystemCommand) -> FuzzySystemDto:
+async def update_fuzzy_system(
+    id: str,
+    command: UpdateFuzzySystemCommand,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_UPDATE)),
+) -> FuzzySystemDto:
     mediator: Medyator = di[Medyator]
     try:
         # Asegurar que el ID del path coincida con el del command
@@ -82,7 +95,11 @@ async def update_fuzzy_system(id: str, command: UpdateFuzzySystemCommand) -> Fuz
 
 
 @router.patch("/{id}/status", response_model=FuzzySystemDto)
-async def update_fuzzy_system_status(id: str, command: UpdateFuzzySystemStatusCommand) -> FuzzySystemDto:
+async def update_fuzzy_system_status(
+    id: str,
+    command: UpdateFuzzySystemStatusCommand,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_UPDATE)),
+) -> FuzzySystemDto:
     mediator: Medyator = di[Medyator]
     try:
         # Asegurar que el ID del path coincida con el del command
@@ -94,7 +111,10 @@ async def update_fuzzy_system_status(id: str, command: UpdateFuzzySystemStatusCo
 
 
 @router.delete("/{id}", response_model=bool)
-async def delete_fuzzy_system(id: str) -> bool:
+async def delete_fuzzy_system(
+    id: str,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_DELETE)),
+) -> bool:
     mediator: Medyator = di[Medyator]
     try:
         command = DeleteFuzzySystemCommand(id=id)

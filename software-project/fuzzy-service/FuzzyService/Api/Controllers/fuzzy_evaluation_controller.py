@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, Path, Depends
 from fastapi.responses import JSONResponse
 
+from FuzzyService.Infrastructure.Authentication.jwt_auth import get_current_user, require_scopes, Scopes, UserClaims
+
 from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetAllFuzzyEvaluationsQuery import (
     GetAllFuzzyEvaluationsQuery,
     GetAllFuzzyEvaluationsResponse
@@ -46,7 +48,8 @@ router = APIRouter(
     description="Crea una nueva evaluación fuzzy con valores de entrada y reglas activadas"
 )
 async def create_evaluation(
-    command: CreateFuzzyEvaluationCommand
+    command: CreateFuzzyEvaluationCommand,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_CREATE)),
 ) -> FuzzyEvaluationDto:
     """
     Crea una nueva evaluación fuzzy.
@@ -92,7 +95,8 @@ async def get_all_evaluations(
     page: int = Query(1, ge=1, description="Número de página"),
     page_size: int = Query(20, ge=1, le=100, description="Tamaño de página"),
     sort_by: str = Query("timestamp", description="Campo de ordenamiento"),
-    sort_order: str = Query("desc", description="Orden (asc/desc)")
+    sort_order: str = Query("desc", description="Orden (asc/desc)"),
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
 ) -> GetAllFuzzyEvaluationsResponse:
     """Obtiene todas las evaluaciones fuzzy con filtros y paginación."""
     try:
@@ -127,7 +131,8 @@ async def get_recent_evaluations(
     hours: int = Query(24, ge=1, le=168, description="Horas hacia atrás (máximo 7 días)"),
     system_id: Optional[str] = Query(None, description="Filtrar por ID del sistema fuzzy"),
     page: int = Query(1, ge=1, description="Número de página"),
-    page_size: int = Query(20, ge=1, le=100, description="Tamaño de página")
+    page_size: int = Query(20, ge=1, le=100, description="Tamaño de página"),
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
 ) -> GetAllFuzzyEvaluationsResponse:
     """Obtiene evaluaciones fuzzy recientes."""
     try:
@@ -170,7 +175,8 @@ async def get_evaluations_by_system(
     end_date: Optional[datetime] = Query(None, description="Fecha de fin (ISO 8601)"),
     page: int = Query(1, ge=1, description="Número de página"),
     page_size: int = Query(20, ge=1, le=100, description="Tamaño de página"),
-    sort_order: str = Query("desc", description="Orden por timestamp (asc/desc)")
+    sort_order: str = Query("desc", description="Orden por timestamp (asc/desc)"),
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
 ) -> GetFuzzyEvaluationsBySystemResponse:
     """Obtiene evaluaciones fuzzy de un sistema específico."""
     try:
@@ -201,7 +207,8 @@ async def get_evaluations_by_system(
     description="Obtiene una evaluación fuzzy específica por su ID"
 )
 async def get_evaluation_by_id(
-    evaluation_id: str = Path(..., description="ID de la evaluación fuzzy")
+    evaluation_id: str = Path(..., description="ID de la evaluación fuzzy"),
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
 ) -> FuzzyEvaluationDto:
     """Obtiene una evaluación fuzzy por su ID."""
     try:
@@ -230,7 +237,8 @@ async def get_evaluation_by_id(
 )
 async def get_evaluation_stats(
     system_id: Optional[str] = Query(None, description="Filtrar por ID del sistema fuzzy"),
-    days: int = Query(7, ge=1, le=365, description="Días hacia atrás para las estadísticas")
+    days: int = Query(7, ge=1, le=365, description="Días hacia atrás para las estadísticas"),
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
 ) -> JSONResponse:
     """Obtiene estadísticas de evaluaciones fuzzy."""
     try:
