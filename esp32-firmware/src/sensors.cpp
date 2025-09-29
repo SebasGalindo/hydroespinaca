@@ -4,7 +4,8 @@
 
 SensorManager::SensorManager() : dht(PIN_DHT22, DHT_TYPE), tcs(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X), 
                                  dhtInitialized(false), tcsInitialized(false) {
-    // Initialize ADC for analog sensors
+    // Initialize ADC for analog sensors with improved precision
+    analogReadResolution(12);        // 0-4095 (12-bit resolution)
     analogSetAttenuation(ADC_11db);  // For 3.3V input range
 }
 
@@ -85,18 +86,64 @@ float SensorManager::readLightIndex() {
         return NAN;
     }
     
-    // Apply the proposed formula: LightIndex = (0.5 * (R / (R+B+G+C))) + (0.5 * (B / (R+B+G+C)))
-    float rNormalized = (float)r / total;
-    float bNormalized = (float)b / total;
-    float lightIndex = (0.5 * rNormalized) + (0.5 * bNormalized);
+    // FÓRMULA C ESPECTRAL PARA FOTOSÍNTESIS (VALIDADA EMPÍRICAMENTE)
+    // Fórmula C: (R+B)/RGB sin Clear - La mejor según análisis de test
+    // Luz natural promedio: 67.53% | Luz artificial promedio: 78.11%
+    // Umbral control: <67% enciende LED, >70% apaga LED
+    float totalRGB = r + g + b;  // Sin canal Clear
+    float lightIndex = 0.0;
+    if (totalRGB > 0) {
+        lightIndex = ((float)(r + b) / totalRGB) * 100.0;
+    }
     
-    // Convert to 0-100 scale
-    lightIndex *= 100.0;
-    
-    Serial.printf("[SENSOR] TCS34725: R=%d G=%d B=%d C=%d LightIndex=%.2f\n", 
+    Serial.printf("[SENSOR] TCS34725: R=%d G=%d B=%d C=%d LightIndex=%.2f%% (Fórmula C)\n", 
                   r, g, b, c, lightIndex);
     
     return lightIndex;
+}
+
+uint16_t SensorManager::readLightClearChannel() {
+    if (!tcsInitialized) return 0;
+    
+    uint16_t r, g, b, c;
+    
+    // Read raw RGBC values
+    tcs.getRawData(&r, &g, &b, &c);
+    
+    Serial.printf("[SENSOR] TCS34725 Clear Channel: C=%d\n", c);
+    
+    return c;  // Return raw Clear channel value
+}
+
+float SensorManager::calculateMedian(float values[], int size) {
+    if (size == 0) return NAN;
+    if (size == 1) return values[0];
+    
+    // Create a copy of the array for sorting (to avoid modifying original)
+    float sortedValues[size];
+    for (int i = 0; i < size; i++) {
+        sortedValues[i] = values[i];
+    }
+    
+    // Simple bubble sort for small arrays
+    for (int i = 0; i < size - 1; i++) {
+        for (int j = 0; j < size - i - 1; j++) {
+            if (sortedValues[j] > sortedValues[j + 1]) {
+                float temp = sortedValues[j];
+                sortedValues[j] = sortedValues[j + 1];
+                sortedValues[j + 1] = temp;
+            }
+        }
+    }
+    
+    // Return median
+    if (size % 2 == 0) {
+        // Even number of elements: average of two middle elements
+        return (sortedValues[size/2 - 1] + sortedValues[size/2]) / 2.0;
+    } else {
+        // Odd number of elements: middle element
+        return sortedValues[size/2];
+    }
 }
 
 String SensorManager::getCurrentTimestamp() {
@@ -169,13 +216,27 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         Serial.println("N/A (sensor falló) ❌");
     }
     
+    // Clear Channel - TCS34725 for darkness detection
+    Serial.print("💡 Clear Channel: ");
+    uint16_t clearChannel = readLightClearChannel();
+    if (clearChannel > 0) {  // 0 indica sensor no disponible
+        JsonObject clearReading = readings.createNestedObject();
+        clearReading["physicalId"] = "TCS34725-A1"; // TCS34725 Clear channel physical ID  
+        clearReading["variableId"] = "68d6dde25b8956ed967d6a8d"; // Clear Channel MongoDB ObjectId (temporal)
+        clearReading["value"] = clearChannel;
+        validReadings++;
+        Serial.printf("%d ✅\n", clearChannel);
+    } else {
+        Serial.println("N/A (sensor falló) ❌");
+    }
+    
     // pH Level - only add if sensor is working
     Serial.print("🧪 pH Level: ");
     float phValue = readPH();
     if (!isnan(phValue)) {
         JsonObject phReading = readings.createNestedObject();
         phReading["physicalId"] = "SEN0161-A1"; // pH sensor physical ID
-        phReading["variableId"] = "6872d26e4e4c4db795189cf8"; // pH MongoDB ObjectId
+        phReading["variableId"] = "688970a27f02137645d58396"; // pH MongoDB ObjectId
         phReading["value"] = phValue;
         validReadings++;
         Serial.printf("%.2f pH ✅\n", phValue);
@@ -189,7 +250,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(tdsValue)) {
         JsonObject tdsReading = readings.createNestedObject();
         tdsReading["physicalId"] = "TDS-A1"; // TDS sensor physical ID
-        tdsReading["variableId"] = "6872d2794e4c4db795189cf9"; // TDS MongoDB ObjectId
+        tdsReading["variableId"] = "688970a77f02137645d58397"; // TDS MongoDB ObjectId
         tdsReading["value"] = tdsValue;
         validReadings++;
         Serial.printf("%.1f ppm ✅\n", tdsValue);
@@ -203,7 +264,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(waterTempValue)) {
         JsonObject waterTempReading = readings.createNestedObject();
         waterTempReading["physicalId"] = "NTC-A1"; // NTC water sensor physical ID
-        waterTempReading["variableId"] = "68d1cf1407c249cda4c369ae"; // NTC MongoDB ObjectId
+        waterTempReading["variableId"] = "68bb4d8cbdcb66fc5738f9af"; // NTC MongoDB ObjectId
         waterTempReading["value"] = waterTempValue;
         validReadings++;
         Serial.printf("%.1f°C ✅\n", waterTempValue);
@@ -216,27 +277,26 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     float waterLevelValue = readWaterLevel();
     if (!isnan(waterLevelValue)) {
         JsonObject waterLevelReading = readings.createNestedObject();
-        waterLevelReading["physicalId"] = "HC_SR04-A1"; // HC-SR04 sensor physical ID
-        waterLevelReading["variableId"] = "68d1d11c07c249cda4c369b2"; // Water Level MongoDB ObjectId
+        waterLevelReading["physicalId"] = "WaterLevelModule-A1"; // Water Level Module sensor physical ID
+        waterLevelReading["variableId"] = "68d1d07307c249cda4c369b0"; // Water Level MongoDB ObjectId
         waterLevelReading["value"] = waterLevelValue;
         validReadings++;
-        Serial.printf("%.1f%% ✅\n", waterLevelValue);
+        Serial.printf("%.2f cm ✅\n", waterLevelValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
     
-    Serial.printf("📊 Total de lecturas válidas: %d/7\n", validReadings);
+    Serial.printf("📊 Total de lecturas válidas: %d/8\n", validReadings);
     
     // PhysicalId Mappings:
     // | Code        | physicalId    | Variable              | MongoDB ObjectId         | Status |
     // |-------------|---------------|-----------------------|--------------------------|--------|
-    // | tcs34725-01 | TCS34725-A1   | Light Index           | 688970837f02137645d58395 | Active |
-    // | dht22-001   | DHT22-A1      | Temperature/Humidity  | 688970ab7f02137645d58398 | Active |
-    // | dht22-001   | DHT22-A1      | Temperature/Humidity  | 688970af7f02137645d58399 | Active |
-    // | ph-001      | SEN0161-A1    | pH Level              | 6872d26e4e4c4db795189cf8 | Active |
-    // | tds-001     | TDS-A1        | Electrical Conduct.   | 6872d2794e4c4db795189cf9 | Active |
-    // | ntc-001     | NTC-A1        | Water Temperature     | 68d1cf1407c249cda4c369ae | Active |
-    // | hc_sr04-001 | HC_SR04-A1    | Water Level           | 68d1d11c07c249cda4c369b2 | Active |
+    // | tcs34725-01 | TCS34725-A1   | Light Index           | 68d40894da0854c0bc32cb2c | Active |
+    // | dht22-001   | DHT22-A1      | Temperature/Humidity  | 68d408e3da0854c0bc32cb2d | Active |
+    // | ph-001      | SEN0161-A1    | pH Level              | 68d40911da0854c0bc32cb2f | Active |
+    // | tds-001     | TDS-A1        | Electrical Conduct.   | 68d408feda0854c0bc32cb2e | Active |
+    // | ntc-001     | NTC-A1        | Water Temperature     | 68d4091eda0854c0bc32cb30 | Active |
+    // | waterlevel-module-01 | WaterLevelModule-A1 | Water Level           | 68d40931da0854c0bc32cb31 | Active |
     //
     // Note: All sensors now active and sending telemetry data
     // NTC Roots implementation removed as requested
@@ -250,22 +310,44 @@ float SensorManager::readADCVoltage(int pin) {
     return voltage;
 }
 
-// pH Sensor Reading
+// pH Sensor Reading (SEN0161 - Calibrated with median filtering)
 float SensorManager::readPH() {
-    float voltage = readADCVoltage(PIN_PH_ADC);
-    if (voltage < 0.1 || voltage > 3.2) {
-        Serial.println("[SENSOR] pH voltage out of range");
+    const int NUM_SAMPLES = 15;  // Reducido para el sistema inteligente (vs 60 del test)
+    const int SAMPLE_DELAY = 100;  // Reducido para el sistema inteligente (vs 500ms)
+    
+    // Constantes calibradas usando mediana de mediciones
+    const float PH_SLOPE = 21.96f;
+    const float PH_INTERCEPT = -16.08f;
+    // Usar constantes definidas en pins.h: ADC_VREF y ADC_RESOLUTION
+    
+    float voltages[NUM_SAMPLES];
+    
+    // Tomar muestras con delay
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+        int adcRaw = analogRead(PIN_PH_ADC);
+        float voltage = adcRaw * (ADC_VREF / 4095.0f);  // 12-bit ADC = 0-4095
+        voltages[i] = voltage;
+        delay(SAMPLE_DELAY);
+    }
+    
+    // Calcular mediana para filtrar ruido
+    float medianVoltage = calculateMedian(voltages, NUM_SAMPLES);
+    
+    // Validar voltaje funcional
+    if (medianVoltage < 0.05 || medianVoltage > 3.3) {
+        Serial.printf("[SENSOR] pH voltage fuera de rango funcional: %.4fV\n", medianVoltage);
         return NAN;
     }
     
-    // Convert voltage to pH using calibration
-    // pH = a * voltage + b (adjust calibration values as needed)
-    float phValue = phCalibration.a * voltage + phCalibration.b;
-    Serial.printf("[SENSOR] pH raw V=%.3f pH=%.2f\n", voltage, phValue);
+    // Calcular pH usando ecuación calibrada
+    float phValue = PH_SLOPE * medianVoltage + PH_INTERCEPT;
     
-    // Validate pH range
+    Serial.printf("[SENSOR] pH: %d muestras, mediana=%.4fV, pH=%.2f\n", 
+                  NUM_SAMPLES, medianVoltage, phValue);
+    
+    // Validar rango pH funcional
     if (phValue < 0.0 || phValue > 14.0) {
-        Serial.println("[SENSOR] pH value out of valid range");
+        Serial.printf("[SENSOR] pH fuera de rango válido: %.2f\n", phValue);
         return NAN;
     }
     
@@ -336,41 +418,71 @@ float SensorManager::readTankTemperature() {
 
 // Roots Temperature (NTC sensor) - REMOVED
 
-// Ultrasonic Water Level Sensor
-float SensorManager::readWaterLevel() {
-    // Send trigger pulse
+float SensorManager::measureUltrasonicDistance() {
+    // Send trigger pulse (standard HC-SR04 sequence)
     digitalWrite(PIN_ULTRA_TRIG, LOW);
     delayMicroseconds(2);
     digitalWrite(PIN_ULTRA_TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(PIN_ULTRA_TRIG, LOW);
     
-    // Read echo pulse with timeout (30ms = ~5m max distance)
+    // Timeout 30ms ≈ 5m (según código de referencia)
     unsigned long duration = pulseIn(PIN_ULTRA_ECHO, HIGH, 30000);
     
-    if (duration == 0) {
-        Serial.println("[SENSOR] Ultrasonic timeout - no echo received");
-        return NAN;
-    }
+    // Check for timeout
+    if (duration == 0) return -1;
     
     // Convert duration to distance in cm
-    // Speed of sound = 34300 cm/s, divide by 2 for round trip
-    float distance = (duration * 0.0343) / 2.0;
+    // Speed of sound = 0.034 cm/μs (según código de referencia), divide by 2 for round trip
+    float distance = duration * 0.017;  // (0.034 / 2)
     
-    // Validate distance is within tank limits
-    if (distance > TANK_MAX_DISTANCE_CM || distance < 0.5) {
-        Serial.printf("[SENSOR] Ultrasonic distance out of range: %.2f cm\n", distance);
+    return distance;
+}
+
+// Ultrasonic Water Level Sensor
+float SensorManager::readWaterLevel() {
+    const float TANK_HEIGHT_CM = 40.0f;           // Altura total del tanque
+    const int NUM_SAMPLES = 5;                    // Número de mediciones para promedio
+    
+    float suma = 0;
+    int validas = 0;
+    
+    // Tomar múltiples mediciones y promediar solo las válidas (como en código de referencia)
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+        float distance = measureUltrasonicDistance();
+        if (distance > 0) {
+            suma += distance;
+            validas++;
+        }
+        delay(50); // Delay entre mediciones (según código de referencia)
+    }
+    
+    // Si no hay mediciones válidas
+    if (validas == 0) {
+        Serial.println("💧 Water Level: [SENSOR] Sin lecturas válidas del ultrasónico ❌");
         return NAN;
     }
     
-    // Convert distance to water level percentage
-    // (tank full = min distance, tank empty = max distance)
-    float waterLevel = ((TANK_MAX_DISTANCE_CM - distance) / TANK_MAX_DISTANCE_CM) * 100.0;
-    if (waterLevel < 0) waterLevel = 0;
-    if (waterLevel > 100) waterLevel = 100;
+    // Calcular distancia promediada
+    float distance = suma / validas;
     
-    Serial.printf("[SENSOR] Ultrasonic: duration=%luμs distance=%.2fcm level=%.1f%%\n", 
-                  duration, distance, waterLevel);
+    // Additional validation: distance should be reasonable for tank
+    if (distance > TANK_HEIGHT_CM + 10.0f) { // 10cm margin for sensor mounting
+        Serial.printf("💧 Water Level: [SENSOR] Distancia promedio inválida (%.2fcm > altura tanque %.0fcm) ❌\n", 
+                     distance, TANK_HEIGHT_CM);
+        return NAN;
+    }
+    
+    // Calculate water level percentage
+    // If sensor is mounted at top: level = 100 * (tank_height - distance) / tank_height
+    float waterLevel = 100.0f * (TANK_HEIGHT_CM - distance) / TANK_HEIGHT_CM;
+    
+    // Ensure valid range (0-100%)
+    if (waterLevel < 0.0f) waterLevel = 0.0f;
+    if (waterLevel > 100.0f) waterLevel = 100.0f;
+    
+    Serial.printf("[SENSOR] Ultrasonic: %d muestras válidas, distancia promedio=%.2fcm, nivel=%.1f%%\n", 
+                  validas, distance, waterLevel);
     
     return waterLevel;
 }

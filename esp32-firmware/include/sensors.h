@@ -35,6 +35,12 @@ private:
     float convertToTemperature(float resistance, bool isTank = true);
     float steinhart(float resistance);
     
+    // Noise filtering for ADC sensors
+    float calculateMedian(float values[], int size);
+    
+    // Ultrasonic sensor helper
+    float measureUltrasonicDistance();
+    
 public:
     SensorManager();
     void begin();
@@ -43,6 +49,7 @@ public:
     float readTemperature();
     float readHumidity();
     float readLightIndex();  // TCS34725 color sensor (replaces BH1750)
+    uint16_t readLightClearChannel();  // TCS34725 Clear channel for darkness detection
     
     // New ADC sensors
     float readPH();

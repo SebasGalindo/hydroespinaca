@@ -57,19 +57,14 @@ public:
     static int getFanSpeed();
     
     // ========================================
-    // HUMIDIFICADOR (Control especializado)
+    // HUMIDIFICADOR (Control básico)
     // ========================================
     
-    // Control directo de relés
+    // Control directo de relés (usado por control.cpp)
     static void turnHumidifierMasterOn();
     static void turnHumidifierMasterOff();
     static void turnHumidifierRelayOn();
     static void turnHumidifierRelayOff();
-    
-    // Rutina completa del humidificador
-    static void runHumidifierRoutine(unsigned long durationMs);
-    static void initHumidifierSeries();
-    static void humidifierTask();
     
     // ========================================
     // UTILIDADES

@@ -12,7 +12,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC+0 (estándar), update every 60s
 
 // Global objects
-SensorManager sensors;
+SensorManager sensors(&timeClient);
 MQTTHandler mqttHandler;
 AutonomousController controller(&sensors, &timeClient);
 

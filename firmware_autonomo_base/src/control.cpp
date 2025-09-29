@@ -18,11 +18,26 @@ AutonomousController::AutonomousController(SensorManager* sensorManager, NTPClie
 void AutonomousController::begin() {
     Serial.println("🤖 [CTRL] Iniciando controlador autónomo para espinaca DWC");
     
+    // Inicializar configuraciones de variables de control
+    initializeVariableConfigs();
+    
     // Inicializar timestamps
     unsigned long now = millis();
     state.lastControlCycle = now;
-    state.lastPumpCycle = now;
-    state.lastAirStoneCycle = now;
+    
+    // NUEVA LÓGICA: Inicializar máquina de estados de bomba de aire
+    state.airStoneMode = AIR_MODE_AUTONOMOUS;
+    state.airLeadStartTime = 0;
+    state.airPostStartTime = 0;
+    state.airPeriodicStartTime = 0;
+    calculateNextAutonomousAirTime();
+    
+    // NUEVA LÓGICA: Inicializar máquina de estados de luz artificial
+    state.lightState = LIGHT_OFF;
+    state.lightStateStartTime = now;
+    state.lightOnStartTime = 0;
+    state.lightRestStartTime = 0;
+    state.lightQualityAtChange = 0.0f;
     
     // Asegurar que todos los actuadores empiecen apagados
     ActuatorController::emergencyStop();
@@ -36,7 +51,7 @@ void AutonomousController::begin() {
     Serial.printf("   🌡️  Temperatura agua: %.1f-%.1f°C (histeresis ±%.1f°C)\n", 
                   WATER_TEMP_MIN, WATER_TEMP_MAX, WATER_TEMP_HYSTERESIS);
     Serial.printf("   💡 Luz: %.1f-%.1f%% (horario %d:00-%d:00)\n", 
-                  LIGHT_MIN, LIGHT_MAX, LIGHT_START_HOUR, LIGHT_END_HOUR);
+                  LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD, LIGHT_START_HOUR, LIGHT_END_HOUR);
     Serial.printf("   🌊 Nivel agua mínimo: %.1f cm\n", WATER_LEVEL_MIN);
 }
 
@@ -70,7 +85,10 @@ void AutonomousController::loop() {
             controlWaterTemperature();
             controlHumidity();
             controlLight();
+            
+            // NUEVA LÓGICA: Coordinación mejorada de bombas
             runPeriodicRoutines();
+            handleAirStoneCoordination();
             
             // Aplicar cambios a actuadores
             applyActuatorStates();
@@ -97,20 +115,31 @@ void AutonomousController::updateSensorReadings() {
     reading.temperature = sensors->readTemperature();
     reading.humidity = sensors->readHumidity();
     reading.lightIndex = sensors->readLightIndex();
-    reading.waterLevel = sensors->readWaterLevel();
+    reading.clearChannel = sensors->readLightClearChannel();  // Nuevo canal Clear
+    // Convert distance (cm) to water level height (cm) for control logic
+    float distanceCm = sensors->readWaterLevel();
+    if (!isnan(distanceCm)) {
+        const float TANK_HEIGHT_CM = 40.0f;  // Same constant as in sensors.cpp
+        // Convert distance from sensor to actual water level height
+        reading.waterLevel = TANK_HEIGHT_CM - distanceCm;
+        if (reading.waterLevel < 0.0f) reading.waterLevel = 0.0f;
+        if (reading.waterLevel > TANK_HEIGHT_CM) reading.waterLevel = TANK_HEIGHT_CM;
+    } else {
+        reading.waterLevel = NAN;
+    }
     reading.waterTemp = sensors->readTankTemperature();
     reading.ph = sensors->readPH();
     reading.tds = sensors->readTDS();
     
     // Validar que las lecturas críticas sean válidas
+    // NOTA: lightIndex puede ser NAN en oscuridad (C < 3000), pero la lectura sigue siendo válida
     reading.valid = !isnan(reading.temperature) && 
                    !isnan(reading.humidity) && 
-                   !isnan(reading.lightIndex) && 
                    !isnan(reading.waterLevel);
     
-    Serial.printf("📊 [CTRL] Lectura %d: T=%.1f°C H=%.1f%% L=%.1f%% N=%.1fcm %s\n",
+    Serial.printf("📊 [CTRL] Lectura %d: T=%.1f°C H=%.1f%% L=%.1f%% C=%d N=%.1fcm %s\n",
                   state.readingIndex, reading.temperature, reading.humidity, 
-                  reading.lightIndex, reading.waterLevel,
+                  reading.lightIndex, reading.clearChannel, reading.waterLevel,
                   reading.valid ? "✅" : "❌");
     
     // Avanzar índice circular
@@ -129,7 +158,9 @@ void AutonomousController::calculateAverages() {
     // Inicializar acumuladores
     float tempSum = 0, humidSum = 0, lightSum = 0, levelSum = 0;
     float waterTempSum = 0, phSum = 0, tdsSum = 0;
+    float clearSum = 0;
     int validCount = 0;
+    int lightValidCount = 0;  // Contador específico para lightIndex (puede ser menor que validCount)
     
     // Calcular promedios solo de lecturas válidas
     for (int i = 0; i < state.readingCount; i++) {
@@ -137,7 +168,14 @@ void AutonomousController::calculateAverages() {
         if (reading.valid) {
             tempSum += reading.temperature;
             humidSum += reading.humidity;
-            lightSum += reading.lightIndex;
+            
+            // lightIndex puede ser NAN en oscuridad - manejar por separado
+            if (!isnan(reading.lightIndex)) {
+                lightSum += reading.lightIndex;
+                lightValidCount++;
+            }
+            
+            clearSum += reading.clearChannel;
             levelSum += reading.waterLevel;
             waterTempSum += reading.waterTemp;
             phSum += reading.ph;
@@ -149,7 +187,15 @@ void AutonomousController::calculateAverages() {
     if (validCount > 0) {
         state.averageReadings.temperature = tempSum / validCount;
         state.averageReadings.humidity = humidSum / validCount;
-        state.averageReadings.lightIndex = lightSum / validCount;
+        
+        // lightIndex promedio solo si hay lecturas válidas, sino NAN
+        if (lightValidCount > 0) {
+            state.averageReadings.lightIndex = lightSum / lightValidCount;
+        } else {
+            state.averageReadings.lightIndex = NAN;  // No hay lecturas de lightIndex válidas (oscuridad)
+        }
+        
+        state.averageReadings.clearChannel = (uint16_t)(clearSum / validCount);
         state.averageReadings.waterLevel = levelSum / validCount;
         state.averageReadings.waterTemp = waterTempSum / validCount;
         state.averageReadings.ph = phSum / validCount;
@@ -157,10 +203,11 @@ void AutonomousController::calculateAverages() {
         state.averageReadings.valid = true;
         state.averageReadings.timestamp = millis();
         
-        Serial.printf("📊 [CTRL] Promedios (%d lecturas): T=%.1f°C H=%.1f%% L=%.1f%% N=%.1fcm\n",
+        Serial.printf("📊 [CTRL] Promedios (%d lecturas): T=%.1f°C H=%.1f%% L=%s C=%d N=%.1fcm\n",
                       validCount, state.averageReadings.temperature, 
-                      state.averageReadings.humidity, state.averageReadings.lightIndex,
-                      state.averageReadings.waterLevel);
+                      state.averageReadings.humidity, 
+                      lightValidCount > 0 ? (String(state.averageReadings.lightIndex, 1) + "%").c_str() : "N/A",
+                      state.averageReadings.clearChannel, state.averageReadings.waterLevel);
     } else {
         state.averageReadings.valid = false;
         Serial.println("❌ [CTRL] No hay lecturas válidas para calcular promedios");
@@ -188,12 +235,23 @@ void AutonomousController::checkWaterLevelSafety() {
         return;
     }
     
+    float waterLevel = state.averageReadings.waterLevel;
     bool previousWaterOk = state.waterLevelOk;
-    state.waterLevelOk = state.averageReadings.waterLevel >= WATER_LEVEL_MIN;
+    
+    // NUEVA LÓGICA: Histéresis correcta para nivel de agua
+    if (state.waterLevelOk) {
+        // Bomba permitida: bloquear si nivel > 7cm (tanque vacío)
+        state.waterLevelOk = waterLevel <= WATER_LEVEL_MIN;
+    } else {
+        // Bomba bloqueada: permitir solo si nivel < 6cm (tanque lleno)
+        state.waterLevelOk = waterLevel < WATER_LEVEL_RECOVERY;
+    }
     
     if (!state.waterLevelOk) {
         if (previousWaterOk) {
-            logSafetyAction("Nivel agua crítico - bloqueando bomba y difusor");
+            logSafetyAction("Nivel agua ALTO - tanque vacío - bloqueando bomba y difusor");
+            Serial.printf("🚨 [NIVEL] %.1fcm > %.1fcm (límite) - BOMBA OFF por tanque vacío\n", 
+                         waterLevel, WATER_LEVEL_MIN);
         }
         
         // Forzar apagado de bomba y difusor
@@ -212,7 +270,9 @@ void AutonomousController::checkWaterLevelSafety() {
         ActuatorController::turnHumidifierMasterOff();
     } else {
         if (!previousWaterOk) {
-            logSafetyAction("Nivel agua recuperado - habilitando operación normal");
+            logSafetyAction("Nivel agua BAJO - tanque lleno - habilitando bomba");
+            Serial.printf("✅ [NIVEL] %.1fcm < %.1fcm (recuperación) - BOMBA habilitada, tanque lleno\n", 
+                         waterLevel, WATER_LEVEL_RECOVERY);
         }
         
         // Restaurar operación normal
@@ -226,64 +286,116 @@ void AutonomousController::controlTemperature() {
     if (!state.averageReadings.valid) return;
     
     float temp = state.averageReadings.temperature;
-    bool heaterShouldBeOn = false;
-    bool fanShouldBeOn = false;
     
-    // Lógica con histeresis
+    // CONTROL DIRECTO SIN DEBOUNCE DEFECTUOSO
+    // === CALEFACTOR AIRE ===
     if (state.heater.isOn) {
-        // Calefactor encendido: apagar si T > MIN + histeresis
-        heaterShouldBeOn = temp <= (TEMP_MIN + TEMP_HYSTERESIS);
+        // Calefactor encendido: apagar cuando alcance temperatura mínima + histéresis
+        if (temp >= TEMP_MIN + TEMP_HYSTERESIS) {
+            setActuatorState(state.heater, false, "calefactor_aire");
+            state.heater.lastRestTime = millis();
+            logControlDecision("Temperatura", temp, "calefactor aire OFF - temperatura recuperada");
+        }
     } else {
-        // Calefactor apagado: encender si T < MIN
-        heaterShouldBeOn = temp < TEMP_MIN;
-    }
-    
-    if (state.fan.isOn) {
-        // Ventilador encendido: apagar si T < MAX - histeresis
-        fanShouldBeOn = temp >= (TEMP_MAX - TEMP_HYSTERESIS);
-    } else {
-        // Ventilador apagado: encender si T > MAX
-        fanShouldBeOn = temp > TEMP_MAX;
-    }
-    
-    // Aplicar cambios respetando tiempos mínimos
-    if (heaterShouldBeOn != state.heater.isOn) {
-        if (hasMinimumTimePassed(state.heater, HEATER_MIN_ON_TIME)) {
-            setActuatorState(state.heater, heaterShouldBeOn, "calefactor");
-            logControlDecision("Temperatura", temp, heaterShouldBeOn ? "calefactor ON" : "calefactor OFF");
-        } else {
-            Serial.printf("⏳ [CTRL] Calefactor bloqueado por tiempo mínimo (%.1f°C < %.1f°C)\n", 
-                         temp, TEMP_MIN);
+        // Calefactor apagado: encender cuando esté por debajo del mínimo - histéresis
+        if (temp <= TEMP_MIN - TEMP_HYSTERESIS) {
+            if (canActivateAfterRest(state.heater, state.tempConfig.restTimeMs)) {
+                setActuatorState(state.heater, true, "calefactor_aire");
+                logControlDecision("Temperatura", temp, "calefactor aire ON - temperatura baja");
+            } else {
+                Serial.printf("⏳ [CTRL] Calefactor aire bloqueado por tiempo de reposo (%.1f°C ≤ %.1f°C)\n", 
+                             temp, TEMP_MIN - TEMP_HYSTERESIS);
+            }
         }
     }
     
-    if (fanShouldBeOn != state.fan.isOn) {
-        if (hasMinimumTimePassed(state.fan, FAN_MIN_ON_TIME)) {
-            setActuatorState(state.fan, fanShouldBeOn, "ventilador");
-            logControlDecision("Temperatura", temp, fanShouldBeOn ? "ventilador ON" : "ventilador OFF");
+    // === VENTILADOR ===
+    if (state.fan.isOn) {
+        // Ventilador encendido: apagar cuando baje de temperatura máxima - histéresis
+        if (temp <= TEMP_MAX - TEMP_HYSTERESIS) {
+            setActuatorState(state.fan, false, "ventilador");
+            state.fan.lastRestTime = millis();
+            logControlDecision("Temperatura", temp, "ventilador OFF - temperatura recuperada");
+        }
+    } else {
+        // Ventilador apagado: encender cuando supere el máximo + histéresis
+        if (temp >= TEMP_MAX + TEMP_HYSTERESIS) {
+            if (canActivateAfterRest(state.fan, state.tempConfig.restTimeMs)) {
+                setActuatorState(state.fan, true, "ventilador");
+                logControlDecision("Temperatura", temp, "ventilador ON - temperatura alta");
+            } else {
+                Serial.printf("⏳ [CTRL] Ventilador bloqueado por tiempo de reposo (%.1f°C ≥ %.1f°C)\n", 
+                             temp, TEMP_MAX + TEMP_HYSTERESIS);
+            }
         }
     }
 }
 
+// NUEVA LÓGICA: Control de humedad con debounce y reposo
 void AutonomousController::controlHumidity() {
     if (!state.averageReadings.valid) return;
     
     float humidity = state.averageReadings.humidity;
-    bool humidifierShouldBeOn = false;
+    unsigned long now = millis();
     
-    // Lógica con histeresis
-    if (state.humidifier.isOn) {
-        // Humidificador activo: parar si H > MAX - histeresis
-        humidifierShouldBeOn = humidity < (HUMIDITY_MAX - HUMIDITY_HYSTERESIS);
-    } else {
-        // Humidificador inactivo: activar si H < MIN
-        humidifierShouldBeOn = humidity < HUMIDITY_MIN;
+    // Verificar fail-safe por nivel de agua
+    if (!state.waterLevelOk && state.humidifierMasterActive) {
+        state.humidifierMasterActive = false;
+        ActuatorController::turnHumidifierMasterOff();
+        ActuatorController::turnHumidifierRelayOff();
+        logSafetyAction("Humidificador APAGADO por nivel agua alto (tanque vacío)");
+        return;
     }
     
-    if (humidifierShouldBeOn != state.humidifier.isOn) {
-        setActuatorState(state.humidifier, humidifierShouldBeOn, "humidificador");
-        logControlDecision("Humedad", humidity, 
-                          humidifierShouldBeOn ? "humidificador rutina ON" : "humidificador OFF");
+    // === ACTIVACIÓN DIRECTA SIN DEBOUNCE DEFECTUOSO ===
+    if (humidity <= HUMIDITY_MIN - HUMIDITY_HYSTERESIS && !state.humidifierMasterActive) {
+        // Verificar tiempo de reposo
+        if (!canActivateAfterRest(state.humidifier, state.humidityConfig.restTimeMs)) {
+            Serial.printf("⏳ [CTRL] Humidificador bloqueado por tiempo de reposo (H=%.1f%% ≤ %.1f%%)\n", 
+                         humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
+            return;
+        }
+        
+        Serial.printf("💨 [CTRL] Iniciando secuencia completa humidificador (H=%.1f%% ≤ %.1f%%)\n", 
+                     humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
+        
+        // Marcar como activo antes de comenzar la secuencia
+        state.humidifierMasterActive = true;
+        state.humidifierStartTime = now;
+        state.humidifier.isOn = true;
+        state.humidifier.lastChangeTime = now;
+        
+        // 1. Activar relé maestro (PIN 14)
+        ActuatorController::turnHumidifierMasterOn();
+        Serial.println("💨 [CTRL] Humidificador: relé maestro ON");
+        
+        // 2. Esperar delay de seguridad (2 segundos)
+        delay(2000);
+        
+        // 3. Pulso en relé de activación (1 segundo ON, luego OFF)
+        ActuatorController::turnHumidifierRelayOn();
+        Serial.println("💨 [CTRL] Humidificador: relé activación ON (pulso)");
+        delay(1000);
+        
+        ActuatorController::turnHumidifierRelayOff(); 
+        Serial.println("💨 [CTRL] Humidificador: relé activación OFF - secuencia completa ejecutada");
+        
+        logControlDecision("Humedad", humidity, "humidificador activado completamente");
+        return;
+    }
+    
+    // === DESACTIVACIÓN CON HISTÉRESIS ===
+    if (state.humidifierMasterActive && humidity >= HUMIDITY_MAX + HUMIDITY_HYSTERESIS) {
+        state.humidifierMasterActive = false;
+        state.humidifier.isOn = false;
+        state.humidifier.lastRestTime = now;  // Guardar tiempo para reposo
+        
+        ActuatorController::turnHumidifierMasterOff();
+        ActuatorController::turnHumidifierRelayOff(); // Asegurar relé de activación OFF
+        
+        Serial.printf("✅ [CTRL] Humidificador: desactivado completamente (H=%.1f%% ≥ %.1f%%)\n", 
+                     humidity, HUMIDITY_MAX + HUMIDITY_HYSTERESIS);
+        logControlDecision("Humedad", humidity, "humidificador desactivado");
     }
 }
 
@@ -291,14 +403,13 @@ void AutonomousController::controlWaterTemperature() {
     if (!state.averageReadings.valid) return;
     
     float waterTemp = state.averageReadings.waterTemp;
-    bool waterHeaterShouldBeOn = false;
-    bool pumpNeededForHeating = false;
     
     // Solo actuar si hay agua suficiente para evitar quemar la resistencia
     if (!state.waterLevelOk) {
         // Forzar apagado por seguridad
         if (state.waterHeater.isOn) {
-            setActuatorState(state.waterHeater, false, "calefactor agua");
+            setActuatorState(state.waterHeater, false, "calefactor_agua");
+            state.waterHeater.lastRestTime = millis();  // Tiempo de reposo
             logSafetyAction("Calefactor agua apagado - nivel agua insuficiente");
         }
         state.waterHeater.forceOff = true;
@@ -307,36 +418,46 @@ void AutonomousController::controlWaterTemperature() {
         state.waterHeater.forceOff = false;
     }
     
-    // Lógica con histeresis para calefactor agua
+    // LÓGICA CORREGIDA: Control directo con histéresis apropiada para calefactor
+    bool shouldActivate = false;
+    bool shouldDeactivate = false;
+    
     if (state.waterHeater.isOn) {
-        // Calefactor encendido: apagar si T > MAX - histeresis
-        waterHeaterShouldBeOn = waterTemp < (WATER_TEMP_MAX - WATER_TEMP_HYSTERESIS);
+        // CALEFACTOR ENCENDIDO: Apagar cuando alcance temperatura objetivo + histéresis
+        shouldDeactivate = (waterTemp >= WATER_TEMP_MAX);
+        Serial.printf("🌡️ [CTRL] Calefactor ON: %.1f°C (apagar si ≥%.1f°C)\n", 
+                     waterTemp, WATER_TEMP_MAX);
     } else {
-        // Calefactor apagado: encender si T < MIN
-        waterHeaterShouldBeOn = waterTemp < WATER_TEMP_MIN;
+        // CALEFACTOR APAGADO: Encender cuando esté por debajo del mínimo - histéresis
+        shouldActivate = (waterTemp <= WATER_TEMP_MIN - WATER_TEMP_HYSTERESIS);
+        Serial.printf("🌡️ [CTRL] Calefactor OFF: %.1f°C (encender si ≤%.1f°C)\n", 
+                     waterTemp, WATER_TEMP_MIN - WATER_TEMP_HYSTERESIS);
     }
     
-    // Aplicar cambios respetando tiempo mínimo
-    if (waterHeaterShouldBeOn != state.waterHeater.isOn) {
-        if (hasMinimumTimePassed(state.waterHeater, WATER_HEATER_MIN_ON_TIME)) {
-            setActuatorState(state.waterHeater, waterHeaterShouldBeOn, "calefactor agua");
-            logControlDecision("Temperatura agua", waterTemp, 
-                              waterHeaterShouldBeOn ? "calefactor agua ON" : "calefactor agua OFF");
-            
-            if (waterHeaterShouldBeOn) {
-                state.waterHeaterStartTime = millis();
-                state.pumpRunningForHeater = false;  // Resetear estado bomba
-            }
-        } else {
-            Serial.printf("⏳ [CTRL] Calefactor agua bloqueado por tiempo mínimo (%.1f°C < %.1f°C)\n", 
-                         waterTemp, WATER_TEMP_MIN);
+    // Activar calefactor
+    if (shouldActivate) {
+        // Verificar tiempo de reposo
+        if (!canActivateAfterRest(state.waterHeater, state.waterTempConfig.restTimeMs)) {
+            Serial.printf("⏳ [CTRL] Calefactor agua bloqueado por tiempo de reposo (%.1f°C ≤ %.1f°C)\n", 
+                         waterTemp, WATER_TEMP_MIN - WATER_TEMP_HYSTERESIS);
+            return;
         }
+        
+        setActuatorState(state.waterHeater, true, "calefactor_agua");
+        state.waterHeaterStartTime = millis();
+        state.pumpRunningForHeater = false;  // Resetear estado bomba
+        logControlDecision("Temperatura agua", waterTemp, "calefactor agua ON - temperatura baja");
+    }
+    
+    // Desactivar calefactor
+    if (shouldDeactivate) {
+        setActuatorState(state.waterHeater, false, "calefactor_agua");
+        state.waterHeater.lastRestTime = millis();  // Guardar tiempo para reposo
+        logControlDecision("Temperatura agua", waterTemp, "calefactor agua OFF - temperatura objetivo alcanzada");
     }
     
     // Coordinar bomba con calefactor para recirculación
     if (state.waterHeater.isOn) {
-        pumpNeededForHeating = true;
-        
         // Si bomba no está corriendo por calefactor, iniciarla
         if (!state.pumpRunningForHeater && !state.waterPump.isOn) {
             setActuatorState(state.waterPump, true, "bomba");
@@ -363,87 +484,329 @@ void AutonomousController::controlWaterTemperature() {
 }
 
 void AutonomousController::controlLight() {
-    if (!state.averageReadings.valid) return;
-    
-    float light = state.averageReadings.lightIndex;
-    bool lightShouldBeOn = false;
-    bool inSchedule = isLightScheduleActive();
-    
-    if (!inSchedule) {
-        // Fuera de horario: siempre OFF
-        lightShouldBeOn = false;
-    } else {
-        // Dentro de horario: aplicar control por luz
-        if (state.light.isOn) {
-            // Luz encendida: apagar si light > MAX - histeresis
-            lightShouldBeOn = light < (LIGHT_MAX - LIGHT_HYSTERESIS);
-        } else {
-            // Luz apagada: encender si light < MIN
-            lightShouldBeOn = light < LIGHT_MIN;
-        }
-    }
-    
-    if (lightShouldBeOn != state.light.isOn) {
-        if (hasMinimumTimePassed(state.light, LIGHT_MIN_TIME)) {
-            setActuatorState(state.light, lightShouldBeOn, "luz");
-            
-            if (!inSchedule) {
-                logControlDecision("Horario", 0, "luz OFF (fuera de horario)");
-            } else {
-                logControlDecision("Luz", light, lightShouldBeOn ? "luz ON" : "luz OFF");
-            }
-        }
-    }
+    // Usar la nueva máquina de estados para control de luz
+    handleLightStateMachine();
 }
 
+// NUEVA LÓGICA: Rutinas periódicas con horarios fijos (sin persistencia)
 void AutonomousController::runPeriodicRoutines() {
-    unsigned long now = millis();
-    
     // Solo ejecutar si nivel de agua OK
     if (!state.waterLevelOk) return;
     
-    // Rutina de bomba cada 4 horas
-    if (now - state.lastPumpCycle >= PUMP_CYCLE_TIME) {
-        if (!state.waterPump.isOn) {
-            setActuatorState(state.waterPump, true, "bomba");
-            state.pumpStartTime = now;
-            state.lastPumpCycle = now;
-            logRoutineAction("Bomba 4h", "ON por 2 minutos");
-        }
+    // El nuevo sistema no necesita calcular horarios - verifica tiempo absoluto directamente
+    
+    // Ejecutar rutinas según prioridades (orden de máxima a mínima prioridad)
+    handleThermalEmergency();  // PRIORIDAD MÁXIMA: Emergencia >25°C
+    handlePumpCycle();         // Prioridad 1: Recirculación cada 4h  
+    handleAirCycle();          // Prioridad 2: Aireación cada 30min
+}
+
+// Verificar horarios fijos absolutos (basado en tiempo real, no en ciclos)
+bool AutonomousController::isPumpScheduleTime() {
+    unsigned long currentMinutes = getCurrentMinutes();
+    unsigned long hoursSinceMidnight = currentMinutes / 60;
+    unsigned long minutesInCurrentHour = currentMinutes % 60;
+    
+    // Horarios fijos de recirculación: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00
+    bool isFixedHour = (hoursSinceMidnight % 4 == 0);
+    
+    // Ventana de tolerancia: 0-3 minutos (para ciclo de control de 4 min)
+    bool inToleranceWindow = (minutesInCurrentHour <= 3);
+    
+    return isFixedHour && inToleranceWindow;
+}
+
+bool AutonomousController::isAirScheduleTime() {
+    unsigned long currentMinutes = getCurrentMinutes();
+    unsigned long minutesInCurrentHour = currentMinutes % 60;
+    
+    // Horarios fijos de aireación: XX:00, XX:30 (cada 30 minutos exactos)
+    bool isFixedMinute = (minutesInCurrentHour == 0 || minutesInCurrentHour == 30);
+    
+    // Ventana de tolerancia: 0-3 minutos después del horario fijo
+    bool inToleranceWindow = (minutesInCurrentHour <= 3 || 
+                              (minutesInCurrentHour >= 30 && minutesInCurrentHour <= 33));
+    
+    return isFixedMinute || inToleranceWindow;
+}
+
+// Obtener minutos actuales desde 00:00 (usando NTP si disponible)
+unsigned long AutonomousController::getCurrentMinutes() {
+    if (!timeClient->isTimeSet()) {
+        // Fallback: usar millis() como aproximación (reinicia cada boot)
+        return (millis() / 1000) / 60;  // millis -> segundos -> minutos
     }
     
-    // Apagar bomba después de 2 minutos
-    if (state.waterPump.isOn && (now - state.pumpStartTime >= PUMP_ON_TIME)) {
+    // Usar hora real de NTP (Colombia UTC-5)
+    int hours = timeClient->getHours();
+    int minutes = timeClient->getMinutes();
+    
+    // Convertir a Colombia (UTC-5)
+    hours = (hours - 5 + 24) % 24;
+    
+    return (hours * 60) + minutes;
+}
+
+// Manejar ciclo de recirculación (prioridad 1) - HORARIOS FIJOS ABSOLUTOS
+void AutonomousController::handlePumpCycle() {
+    unsigned long now = millis();
+    
+    // Verificar si es exactamente hora de recirculación (cada 4h: 00:00, 04:00, 08:00, etc.)
+    if (isPumpScheduleTime() && !state.pumpCycleActive) {
+        state.pumpCycleActive = true;
+        state.pumpHasPriority = true;  // Cancelar aire periódico
+        
+        // LEAD: Activar aire 90s antes de motobomba
+        state.airLeadActive = true;
+        state.airLeadStartTime = now;  // Usar timestamp específico
+        setActuatorState(state.airStone, true, "difusor");
+        logRoutineAction("pump_will_activate", "aire lead 90s");
+        return;
+    }
+    
+    // Estado: LEAD activo (aire antes de motobomba)
+    if (state.airLeadActive && (now - state.airLeadStartTime >= AIR_LEAD_MS)) {
+        state.airLeadActive = false;
+        
+        // Activar motobomba por 8 minutos
+        state.pumpStartTime = now;
+        setActuatorState(state.waterPump, true, "bomba");
+        logRoutineAction("pump_activated", "motobomba 8min + aire continuo");
+        return;
+    }
+    
+    // Estado: Motobomba activa
+    if (state.waterPump.isOn && (now - state.pumpStartTime >= PUMP_DURATION_MS)) {
+        // Apagar motobomba, iniciar POST HOLD
         setActuatorState(state.waterPump, false, "bomba");
-        logRoutineAction("Bomba 4h", "OFF - ciclo completado");
+        state.airPostActive = true;
+        state.airPostStartTime = now;  // Usar timestamp específico para post
+        logRoutineAction("pump_finished", "aire post hold 45s");
+        return;
     }
     
-    // Rutina de difusor cada 1 hora
-    if (now - state.lastAirStoneCycle >= AIRSTONE_CYCLE_TIME) {
-        if (!state.airStone.isOn) {
-            setActuatorState(state.airStone, true, "difusor");
-            state.airStoneStartTime = now;
-            state.lastAirStoneCycle = now;
-            logRoutineAction("Difusor 1h", "ON por 3 minutos");
+    // Estado: POST HOLD activo (aire después de motobomba)
+    if (state.airPostActive && (now - state.airPostStartTime >= POST_AIR_HOLD_MS)) {
+        state.airPostActive = false;
+        state.pumpCycleActive = false;
+        state.pumpHasPriority = false;  // Liberar prioridad
+        
+        // IMPORTANTE: NO apagar aire aquí - la coordinación se encarga
+        // La función handleAirStoneCoordination() detectará el fin de recirculación
+        
+        logRoutineAction("pump_cycle_complete", "recirculación terminada - coordinación toma control de aire");
+        return;
+    }
+}
+
+// FUNCIÓN OBSOLETA: La coordinación ahora se maneja en handleAirStoneCoordination()
+void AutonomousController::handleAirCycle() {
+    // Esta función se mantiene por compatibilidad pero ya no se usa
+    // La lógica de aireación ahora está centralizada en handleAirStoneCoordination()
+    return;
+}
+
+// NUEVA REGLA: Emergencia térmica (>25°C) - PRIORIDAD MÁXIMA
+void AutonomousController::handleThermalEmergency() {
+    if (!state.averageReadings.valid) return;
+    
+    float temp = state.averageReadings.temperature;
+    unsigned long now = millis();
+    
+    // Verificar si se debe activar emergencia
+    if (temp > TEMP_EMERGENCY_THRESHOLD && !state.thermalEmergencyActive) {
+        // Verificar intervalo mínimo entre emergencias (evitar spam)
+        if (now - state.lastEmergencyTime < EMERGENCY_MIN_INTERVAL_MS) {
+            return;
         }
+        
+        // ACTIVAR EMERGENCIA TÉRMICA
+        state.thermalEmergencyActive = true;
+        state.emergencyStartTime = now;
+        state.lastEmergencyTime = now;
+        
+        // Cancelar todas las rutinas normales (máxima prioridad)
+        state.pumpCycleActive = false;
+        state.airPeriodicActive = false;
+        state.airLeadActive = false;
+        state.airPostActive = false;
+        state.pumpHasPriority = true;  // Bloquear rutinas normales
+        
+        // Activar recirculación de emergencia (aire + bomba inmediato)
+        setActuatorState(state.airStone, true, "difusor");
+        setActuatorState(state.waterPump, true, "bomba");
+        
+        Serial.printf("🚨 [EMERGENCIA] Temperatura crítica %.1f°C > %.1f°C - recirculación forzada\n", 
+                     temp, TEMP_EMERGENCY_THRESHOLD);
+        logRoutineAction("thermal_emergency", "recirculación 5min por temperatura crítica");
+        return;
     }
     
-    // Apagar difusor después de 3 minutos
-    if (state.airStone.isOn && (now - state.airStoneStartTime >= AIRSTONE_ON_TIME)) {
-        setActuatorState(state.airStone, false, "difusor");
-        logRoutineAction("Difusor 1h", "OFF - ciclo completado");
+    // Manejar emergencia activa
+    if (state.thermalEmergencyActive) {
+        // Verificar si debe terminar emergencia
+        if (now - state.emergencyStartTime >= EMERGENCY_PUMP_DURATION_MS) {
+            // Terminar emergencia
+            state.thermalEmergencyActive = false;
+            state.pumpHasPriority = false;  // Liberar bloqueo
+            
+            setActuatorState(state.waterPump, false, "bomba");
+            setActuatorState(state.airStone, false, "difusor");
+            
+            Serial.printf("✅ [EMERGENCIA] Emergencia térmica completada - temperatura actual: %.1f°C\n", temp);
+            logRoutineAction("thermal_emergency_complete", "recirculación de emergencia finalizada");
+            return;
+        }
+        
+        // Emergencia en progreso - mantener recirculación
+        Serial.printf("⚠️ [EMERGENCIA] En progreso - T:%.1f°C, tiempo restante: %lus\n", 
+                     temp, (EMERGENCY_PUMP_DURATION_MS - (now - state.emergencyStartTime)) / 1000);
+    }
+}
+
+// MÁQUINA DE ESTADOS PARA CONTROL DE LUZ ARTIFICIAL
+void AutonomousController::handleLightStateMachine() {
+    if (!state.averageReadings.valid) return;
+    
+    float lightIndex = state.averageReadings.lightIndex;
+    uint16_t clearChannel = state.averageReadings.clearChannel;
+    bool lightIndexValid = !isnan(lightIndex);  // lightIndex puede ser NAN en oscuridad
+    bool inSchedule = isLightScheduleActive();
+    unsigned long now = millis();
+    unsigned long stateTime = now - state.lightStateStartTime;
+    
+    // Si estamos fuera de horario, forzar estado OFF
+    if (!inSchedule) {
+        if (state.lightState != LIGHT_OFF) {
+            state.lightState = LIGHT_OFF;
+            state.lightStateStartTime = now;
+            setActuatorState(state.light, false, "luz");
+            Serial.printf("💡 [LUZ-SM] FUERA DE HORARIO → Estado: OFF\n");
+        }
+        return;
     }
     
-    // Difusor acompañando bomba (1 min antes, 2 min después)
-    bool pumpWillStart = (now - state.lastPumpCycle >= (PUMP_CYCLE_TIME - AIRSTONE_PUMP_LEAD));
-    bool pumpRecentlyFinished = state.waterPump.isOn || 
-                               (now - (state.pumpStartTime + PUMP_ON_TIME) <= AIRSTONE_PUMP_FOLLOW);
-    
-    if ((pumpWillStart || pumpRecentlyFinished) && !state.airStone.isOn) {
-        // Solo activar si no está ya en rutina de 1h
-        if (now - state.airStoneStartTime > AIRSTONE_ON_TIME) {
-            setActuatorState(state.airStone, true, "difusor");
-            logRoutineAction("Difusor bomba", "ON - acompañando bomba");
+    // Dentro de horario: ejecutar máquina de estados
+    switch (state.lightState) {
+        case LIGHT_OFF: {
+            // Estado OFF: La luz está apagada
+            // Condiciones para encender:
+            // 1. Oscuridad total (clearChannel < DARKNESS_THRESHOLD)
+            // 2. Calidad de luz insuficiente (lightIndex < LIGHT_ON_THRESHOLD)
+            
+            if (clearChannel < DARKNESS_THRESHOLD) {
+                // Oscuridad total → encender inmediatamente
+                state.lightState = LIGHT_ON;
+                state.lightStateStartTime = now;
+                state.lightOnStartTime = now;
+                state.lightQualityAtChange = lightIndex;
+                setActuatorState(state.light, true, "luz");
+                
+                Serial.printf("💡 [LUZ-SM] OFF→ON: Oscuridad total (Clear=%d < %d)\n", 
+                             clearChannel, DARKNESS_THRESHOLD);
+                             
+            } else if (lightIndexValid && lightIndex < LIGHT_ON_THRESHOLD) {
+                // Calidad insuficiente → encender para complementar
+                state.lightState = LIGHT_ON;
+                state.lightStateStartTime = now;
+                state.lightOnStartTime = now;
+                state.lightQualityAtChange = lightIndex;
+                setActuatorState(state.light, true, "luz");
+                
+                Serial.printf("💡 [LUZ-SM] OFF→ON: Calidad insuficiente (%.1f%% < %.1f%%)\n", 
+                             lightIndex, LIGHT_ON_THRESHOLD);
+            } else if (!lightIndexValid) {
+                // lightIndex no disponible (oscuridad intermedia) → mantener OFF
+                Serial.printf("💡 [LUZ-SM] OFF: LightIndex N/A (C=%d), mantener OFF\n", clearChannel);
+            }
+            break;
+        }
+            
+        case LIGHT_ON: {
+            // Estado ON: La luz está encendida
+            // Condiciones para apagar:
+            // 1. Tiempo mínimo cumplido Y calidad suficiente (lightIndex > LIGHT_OFF_THRESHOLD)
+            // 2. Tiempo máximo alcanzado (forzar descanso)
+            
+            unsigned long onTime = now - state.lightOnStartTime;
+            
+            if (onTime >= LIGHT_MAX_ON_MS) {
+                // Tiempo máximo alcanzado → forzar descanso
+                state.lightState = LIGHT_RESTING;
+                state.lightStateStartTime = now;
+                state.lightRestStartTime = now;
+                state.lightQualityAtChange = lightIndex;
+                setActuatorState(state.light, false, "luz");
+                
+                Serial.printf("💡 [LUZ-SM] ON→RESTING: Tiempo máximo (%lus) → descanso obligatorio\n", 
+                             onTime / 1000);
+                             
+            } else if (onTime >= LIGHT_MIN_ON_MS && lightIndexValid && lightIndex > LIGHT_OFF_THRESHOLD) {
+                // Tiempo mínimo cumplido y calidad suficiente → apagar
+                state.lightState = LIGHT_OFF;
+                state.lightStateStartTime = now;
+                state.lightQualityAtChange = lightIndex;
+                setActuatorState(state.light, false, "luz");
+                
+                Serial.printf("💡 [LUZ-SM] ON→OFF: Calidad suficiente (%.1f%% > %.1f%%) después de %lus\n", 
+                             lightIndex, LIGHT_OFF_THRESHOLD, onTime / 1000);
+                             
+            } else if (onTime < LIGHT_MIN_ON_MS) {
+                // Aún no cumple tiempo mínimo
+                Serial.printf("💡 [LUZ-SM] ON: Tiempo mínimo pendiente (%lus/%lus) - Calidad: %s\n", 
+                             onTime / 1000, LIGHT_MIN_ON_MS / 1000, 
+                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
+            } else {
+                // Tiempo mínimo cumplido pero lightIndex no válido o no suficiente calidad → continuar
+                Serial.printf("💡 [LUZ-SM] ON: Continuando - Tiempo: %lus, Calidad: %s\n", 
+                             onTime / 1000, 
+                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
+            }
+            break;
+        }
+            
+        case LIGHT_RESTING: {
+            // Estado RESTING: Luz en descanso obligatorio
+            // Solo puede salir después del tiempo de descanso
+            
+            unsigned long restTime = now - state.lightRestStartTime;
+            
+            if (restTime >= LIGHT_REST_MS) {
+                // Descanso completado → volver a evaluar condiciones
+                bool needsLight = clearChannel < DARKNESS_THRESHOLD || 
+                                (lightIndexValid && lightIndex < LIGHT_ON_THRESHOLD);
+                
+                if (needsLight) {
+                    // Aún necesita luz → volver a encender
+                    state.lightState = LIGHT_ON;
+                    state.lightStateStartTime = now;
+                    state.lightOnStartTime = now;
+                    state.lightQualityAtChange = lightIndexValid ? lightIndex : 0.0f;
+                    setActuatorState(state.light, true, "luz");
+                    
+                    if (clearChannel < DARKNESS_THRESHOLD) {
+                        Serial.printf("💡 [LUZ-SM] RESTING→ON: Descanso completado, oscuridad total (C=%d)\n", clearChannel);
+                    } else {
+                        Serial.printf("💡 [LUZ-SM] RESTING→ON: Descanso completado, calidad insuficiente (%.1f%% < %.1f%%)\n", 
+                                     lightIndex, LIGHT_ON_THRESHOLD);
+                    }
+                                 
+                } else {
+                    // Ya no necesita luz → permanecer apagada
+                    state.lightState = LIGHT_OFF;
+                    state.lightStateStartTime = now;
+                    state.lightQualityAtChange = lightIndexValid ? lightIndex : 0.0f;
+                    
+                    Serial.printf("💡 [LUZ-SM] RESTING→OFF: Descanso completado, luz suficiente (C=%d, Calidad: %s)\n", 
+                                 clearChannel, lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
+                }
+            } else {
+                // Aún en descanso
+                Serial.printf("💡 [LUZ-SM] RESTING: Descanso en progreso (%lus/%lus) - C=%d, Calidad: %s\n", 
+                             restTime / 1000, LIGHT_REST_MS / 1000, clearChannel,
+                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
+            }
+            break;
         }
     }
 }
@@ -454,7 +817,7 @@ void AutonomousController::runPeriodicRoutines() {
 
 bool AutonomousController::isLightScheduleActive() {
     if (!timeClient->isTimeSet()) {
-        // Modo seguro sin NTP: permitir control de luz basado solo en sensores
+        // Modo seguro sin NTP: permitir control basado en sensores únicamente
         static unsigned long lastNtpWarning = 0;
         if (millis() - lastNtpWarning > 300000) {  // Warn every 5 minutes
             Serial.println("⚠️ [CTRL] NTP no disponible - control de luz por sensores únicamente");
@@ -519,11 +882,7 @@ void AutonomousController::applyActuatorStates() {
         ActuatorController::turnLightOff();
     }
     
-    if (state.humidifier.isOn) {
-        // Ejecutar rutina completa del humidificador (2 relés)
-        ActuatorController::runHumidifierRoutine(60000);  // 1 minuto
-        state.humidifier.isOn = false;  // Se ejecuta una vez y termina
-    }
+    // Humidificador controlado por controlHumidity() - no usar ActuatorState
     
     if (state.waterPump.isOn) {
         ActuatorController::turnWaterPumpOn();
@@ -557,20 +916,21 @@ void AutonomousController::logRoutineAction(const char* routine, const char* act
 void AutonomousController::printSensorAverages() {
     if (state.averageReadings.valid) {
         Serial.printf("📊 [CTRL] Promedios sensores:\n");
-        Serial.printf("   🌡️  Temperatura aire: %.1f°C (umbral: <%.1f°C=ON, >%.1f°C=OFF)\n", 
-                     state.averageReadings.temperature, TEMP_MIN, TEMP_MIN + TEMP_HYSTERESIS);
+        Serial.printf("   🌡️  Temperatura aire: %.1f°C (óptimo: %.1f-%.1f°C, calefactor: <%.1f°C, ventilador: >%.1f°C)\n", 
+                     state.averageReadings.temperature, TEMP_MIN, TEMP_MAX, 
+                     TEMP_MIN - TEMP_HYSTERESIS, TEMP_MAX + TEMP_HYSTERESIS);
         Serial.printf("   💧 Humedad aire: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n", 
                      state.averageReadings.humidity, HUMIDITY_MIN, HUMIDITY_MAX);
         Serial.printf("   💡 Índice luz: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n", 
-                     state.averageReadings.lightIndex, LIGHT_MIN, LIGHT_MAX);
-        Serial.printf("   🌊 Nivel agua: %.1f cm (mínimo crítico: >%.1f cm)\n", 
-                     state.averageReadings.waterLevel, WATER_LEVEL_MIN);
+                     state.averageReadings.lightIndex, LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD);
+        Serial.printf("   🌊 Altura agua: %.1f cm (bomba OFF si >%.1f cm, ON si <%.1f cm)\n", 
+                     state.averageReadings.waterLevel, WATER_LEVEL_MIN, WATER_LEVEL_RECOVERY);
         Serial.printf("   🌡️  Temperatura agua: %.1f°C (umbral: <%.1f°C=ON, >%.1f°C=OFF)\n", 
                      state.averageReadings.waterTemp, WATER_TEMP_MIN, WATER_TEMP_MAX - WATER_TEMP_HYSTERESIS);
         Serial.printf("   🧪 pH: %.2f (óptimo: %.1f-%.1f)\n", 
                      state.averageReadings.ph, PH_MIN, PH_MAX);
-        Serial.printf("   ⚡ TDS: %.1f ppm (óptimo: %.0f-%.0f ppm)\n", 
-                     state.averageReadings.tds, TDS_MIN, TDS_MAX);
+        Serial.printf("   ⚡ EC: %.2f mS/cm (óptimo: %.1f-%.1f mS/cm)\n", 
+                     state.averageReadings.tds, EC_MIN, EC_MAX);
     }
 }
 
@@ -581,12 +941,32 @@ void AutonomousController::printActuatorStates() {
                   state.waterHeater.forceOff ? "(BLOQUEADO)" : "");
     Serial.printf("   🌪️  Ventilador: %s\n", state.fan.isOn ? "ON" : "OFF");
     Serial.printf("   💡 Luz: %s\n", state.light.isOn ? "ON" : "OFF");
-    Serial.printf("   💨 Humidificador: %s\n", state.humidifier.isOn ? "ACTIVO" : "OFF");
+    Serial.printf("   💨 Humidificador: maestro=%s\n", 
+                  state.humidifierMasterActive ? "ON" : "OFF");
     Serial.printf("   🌊 Bomba agua: %s %s %s\n", state.waterPump.isOn ? "ON" : "OFF",
                   state.waterPump.forceOff ? "(BLOQUEADA)" : "",
                   state.pumpRunningForHeater ? "(RECIRCULANDO)" : "");
-    Serial.printf("   💨 Difusor aire: %s %s\n", state.airStone.isOn ? "ON" : "OFF",
-                  state.airStone.forceOff ? "(BLOQUEADO)" : "");
+    
+    // NUEVA INFORMACIÓN: Estado de coordinación de bomba de aire
+    const char* airModeStr = (state.airStoneMode == AIR_MODE_AUTONOMOUS) ? "AUTONOMO" :
+                            (state.airStoneMode == AIR_MODE_RECIRCULATION) ? "RECIRCULACION" : "INACTIVO";
+    const char* airPhaseStr = "";
+    if (state.airLeadActive) airPhaseStr = " (LEAD)";
+    else if (state.airPostActive) airPhaseStr = " (POST)";
+    else if (state.airPeriodicActive) airPhaseStr = " (PERIODICO)";
+    
+    Serial.printf("   💨 Difusor aire: %s %s - Modo: %s%s\n", 
+                  state.airStone.isOn ? "ON" : "OFF",
+                  state.airStone.forceOff ? "(BLOQUEADO)" : "",
+                  airModeStr, airPhaseStr);
+    
+    if (state.airStoneMode != AIR_MODE_RECIRCULATION) {
+        unsigned long currentMinutes = getCurrentMinutes();
+        Serial.printf("       Próximo ciclo autónomo: minuto %lu (actual: %lu, en %lu min)\n", 
+                      state.nextAutonomousAirTime, currentMinutes, 
+                      (state.nextAutonomousAirTime > currentMinutes) ? 
+                      (state.nextAutonomousAirTime - currentMinutes) : 0);
+    }
 }
 
 void AutonomousController::printSystemStatus() {
@@ -601,4 +981,214 @@ void AutonomousController::printSystemStatus() {
                       hour, timeClient->getMinutes(),
                       isLightScheduleActive() ? "ON" : "OFF");
     }
+}
+
+// ========================================
+// FUNCIONES DE CONTROL SIMPLIFICADAS CON HISTÉRESIS Y REPOSO
+// ========================================
+
+void AutonomousController::initializeVariableConfigs() {
+    Serial.println("🔧 [CTRL] Inicializando configuraciones de variables de control");
+    
+    // Temperatura aire - Con actuadores (calefactor/ventilador)
+    state.tempConfig = {
+        .minValue = TEMP_MIN,
+        .maxValue = TEMP_MAX,
+        .hysteresis = TEMP_HYSTERESIS,
+        .restTimeMs = TEMP_REST_TIME_MS,
+        .hasActuator = true
+    };
+    
+    // Humedad aire - Con actuador (humidificador)
+    state.humidityConfig = {
+        .minValue = HUMIDITY_MIN,
+        .maxValue = HUMIDITY_MAX,
+        .hysteresis = HUMIDITY_HYSTERESIS,
+        .restTimeMs = HUMIDITY_REST_TIME_MS,
+        .hasActuator = true
+    };
+    
+    // Temperatura agua - Con actuador (calefactor agua)
+    state.waterTempConfig = {
+        .minValue = WATER_TEMP_MIN,
+        .maxValue = WATER_TEMP_MAX,
+        .hysteresis = WATER_TEMP_HYSTERESIS,
+        .restTimeMs = WATER_TEMP_REST_TIME_MS,
+        .hasActuator = true
+    };
+    
+    // pH - Solo monitoreo (sin actuadores)
+    state.phConfig = {
+        .minValue = PH_MIN,
+        .maxValue = PH_MAX,
+        .hysteresis = PH_HYSTERESIS,
+        .restTimeMs = 0,         // No tiene tiempo de reposo
+        .hasActuator = false
+    };
+    
+    // EC - Solo monitoreo (sin actuadores)
+    state.ecConfig = {
+        .minValue = EC_MIN,
+        .maxValue = EC_MAX,
+        .hysteresis = EC_HYSTERESIS,
+        .restTimeMs = 0,         // No tiene tiempo de reposo
+        .hasActuator = false
+    };
+    
+    // Nivel de agua - Fail-safe para proteger bomba
+    state.waterLevelConfig = {
+        .minValue = WATER_LEVEL_RECOVERY,  // Nivel para permitir bomba (< 6cm)
+        .maxValue = WATER_LEVEL_MIN,       // Nivel para apagar bomba (> 7cm)
+        .hysteresis = 0.5f,                // 0.5cm de histéresis
+        .restTimeMs = WATER_LEVEL_REST_TIME_MS,
+        .hasActuator = true
+    };
+    
+    Serial.println("✅ [CTRL] Configuraciones inicializadas - Control directo con histéresis y tiempo de reposo");
+}
+
+// FUNCIÓN ELIMINADA: evaluateDebounce()
+// Ya no se necesita - control directo con histéresis es más simple y efectivo
+
+bool AutonomousController::canActivateAfterRest(const ActuatorState& actuator, unsigned long restTime) {
+    if (restTime == 0) return true;  // Sin restricción de reposo
+    
+    unsigned long now = millis();
+    
+    // Si nunca se ha apagado, puede activarse
+    if (actuator.lastRestTime == 0) return true;
+    
+    // Verificar tiempo de reposo desde último apagado
+    return (now - actuator.lastRestTime) >= restTime;
+}
+
+// FUNCIÓN OBSOLETA: controlGenericVariable() 
+// Esta función fue reemplazada por lógica específica para cada actuador
+// porque el debounce genérico causaba problemas con calefactores y humidificadores
+bool AutonomousController::controlGenericVariable(float sensorValue, const VariableConfig& config, ActuatorState& actuator, const char* name) {
+    if (!config.hasActuator) {
+        // Solo monitoreo para pH/EC - esta parte sigue siendo útil
+        bool inRange = (sensorValue >= config.minValue && sensorValue <= config.maxValue);
+        logVariableStatus(name, sensorValue, config, inRange);
+        return true;
+    }
+    
+    Serial.printf("⚠️ [CTRL] ADVERTENCIA: controlGenericVariable() está obsoleta para %s\n", name);
+    Serial.printf("     Usar lógica específica en control[Variable]() en su lugar\n");
+    
+    // Solo permitir uso para monitoreo (pH/EC)
+    return false;
+}
+
+// FUNCIÓN ELIMINADA: checkWaterLevelFailSafe()
+// Toda la lógica de nivel de agua ahora está en checkWaterLevelSafety()
+
+void AutonomousController::logVariableStatus(const char* name, float value, const VariableConfig& config, bool inRange) {
+    const char* status = inRange ? "✅" : "⚠️";
+    Serial.printf("📊 [CTRL] %s: %.2f %s (rango óptimo: %.1f-%.1f)\n", 
+                  name, value, status, config.minValue, config.maxValue);
+}
+
+// ========================================
+// NUEVAS FUNCIONES DE COORDINACIÓN DE BOMBAS
+// ========================================
+
+void AutonomousController::setAirStoneMode(AirStoneMode newMode, const char* reason) {
+    if (state.airStoneMode != newMode) {
+        const char* oldMode = (state.airStoneMode == AIR_MODE_AUTONOMOUS) ? "AUTONOMO" :
+                             (state.airStoneMode == AIR_MODE_RECIRCULATION) ? "RECIRCULACION" : "INACTIVO";
+        const char* newModeStr = (newMode == AIR_MODE_AUTONOMOUS) ? "AUTONOMO" :
+                                (newMode == AIR_MODE_RECIRCULATION) ? "RECIRCULACION" : "INACTIVO";
+        
+        Serial.printf("🔄 [AIR-COORD] Cambio modo: %s → %s (%s)\n", oldMode, newModeStr, reason);
+        state.airStoneMode = newMode;
+        
+        // Reset de estados al cambiar modo
+        if (newMode == AIR_MODE_AUTONOMOUS) {
+            state.airPeriodicActive = false;
+            calculateNextAutonomousAirTime();
+        } else if (newMode == AIR_MODE_RECIRCULATION) {
+            state.airPeriodicActive = false;
+        }
+    }
+}
+
+void AutonomousController::calculateNextAutonomousAirTime() {
+    unsigned long currentMinutes = getCurrentMinutes();
+    unsigned long currentMinutesInHour = currentMinutes % 60;
+    
+    // Calcular próximo horario de 30 minutos: XX:00 o XX:30
+    unsigned long nextMinutesInHour;
+    if (currentMinutesInHour < 30) {
+        nextMinutesInHour = 30;
+    } else {
+        nextMinutesInHour = 60; // Siguiente hora XX:00
+    }
+    
+    // Calcular tiempo absoluto del próximo ciclo
+    unsigned long hoursSinceMidnight = currentMinutes / 60;
+    if (nextMinutesInHour == 60) {
+        hoursSinceMidnight++;
+        nextMinutesInHour = 0;
+    }
+    
+    state.nextAutonomousAirTime = (hoursSinceMidnight * 60) + nextMinutesInHour;
+    
+    Serial.printf("📅 [AIR-COORD] Próximo aire autónomo programado para minuto %lu (actual: %lu)\n", 
+                  state.nextAutonomousAirTime, currentMinutes);
+}
+
+bool AutonomousController::shouldActivateAutonomousAir() {
+    if (state.airStoneMode != AIR_MODE_AUTONOMOUS) return false;
+    
+    unsigned long currentMinutes = getCurrentMinutes();
+    
+    // Verificar si es hora exacta del ciclo autónomo programado
+    bool isTimeForAir = (currentMinutes >= state.nextAutonomousAirTime && 
+                        currentMinutes <= state.nextAutonomousAirTime + 3); // Ventana de 3 min
+    
+    return isTimeForAir && !state.airPeriodicActive;
+}
+
+void AutonomousController::handleAirStoneCoordination() {
+    unsigned long now = millis();
+    
+    // PRIORIDAD 1: Verificar si la recirculación debe tomar control
+    if (state.pumpCycleActive && state.airStoneMode != AIR_MODE_RECIRCULATION) {
+        setAirStoneMode(AIR_MODE_RECIRCULATION, "recirculación iniciada");
+        return;
+    }
+    
+    // PRIORIDAD 2: Liberar control cuando termine la recirculación
+    if (!state.pumpCycleActive && state.airStoneMode == AIR_MODE_RECIRCULATION) {
+        setAirStoneMode(AIR_MODE_IDLE, "recirculación completada");
+        // Calcular próximo horario autónomo considerando el tiempo que ya pasó
+        calculateNextAutonomousAirTime();
+        return;
+    }
+    
+    // MODO AUTÓNOMO: Verificar si debe activarse el ciclo periódico
+    if (state.airStoneMode == AIR_MODE_AUTONOMOUS || state.airStoneMode == AIR_MODE_IDLE) {
+        if (shouldActivateAutonomousAir()) {
+            setAirStoneMode(AIR_MODE_AUTONOMOUS, "horario ciclo autónomo");
+            state.airPeriodicActive = true;
+            state.airPeriodicStartTime = now;
+            setActuatorState(state.airStone, true, "difusor");
+            logAirStoneAction("ACTIVADO", "AUTONOMO", "ciclo periódico 5min");
+            return;
+        }
+        
+        // Desactivar aire autónomo después de 5 minutos
+        if (state.airPeriodicActive && (now - state.airPeriodicStartTime >= AIR_PERIODIC_ON_MS)) {
+            state.airPeriodicActive = false;
+            setActuatorState(state.airStone, false, "difusor");
+            logAirStoneAction("DESACTIVADO", "AUTONOMO", "ciclo periódico completado");
+            calculateNextAutonomousAirTime();
+            setAirStoneMode(AIR_MODE_IDLE, "esperando próximo ciclo");
+        }
+    }
+}
+
+void AutonomousController::logAirStoneAction(const char* action, const char* mode, const char* reason) {
+    Serial.printf("💨 [AIR-COORD] %s - Modo: %s - Razón: %s\n", action, mode, reason);
 }
