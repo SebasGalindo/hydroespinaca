@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.UseCases;
 using NotificationService.Domain.Interfaces;
 using NotificationService.Infrastructure.Transport;
+using HydroEspinaca.Shared.Extensions;
 
 namespace NotificationService.Api.Controllers;
 
@@ -10,8 +12,11 @@ namespace NotificationService.Api.Controllers;
 [Route("api/diagnostics")] 
 public class DiagnosticsController : ControllerBase
 {
-    // Endpoint de prueba para envío local rápido sin JWT.
+    /// <summary>
+    /// Test endpoint for quick email sending. Requires notification:diagnostics scope.
+    /// </summary>
     [HttpPost("send-test")] 
+    [Authorize(Policy = PolicyNames.NotificationDiagnostics)]
     [ProducesResponseType(typeof(SendEmailResponseDto), 202)]
     public async Task<IActionResult> SendTest([FromServices] SendEmailUseCase useCase, [FromQuery] string to, [FromQuery] string? template = null, CancellationToken ct = default)
     {
@@ -26,9 +31,12 @@ public class DiagnosticsController : ControllerBase
         return Accepted(res);
     }
 
-    // Endpoint de diagnóstico: envía directamente usando el proveedor solicitado
-    // provider: "smtp" | "resend" | "composite" (default)
+    /// <summary>
+    /// Direct send endpoint using specific email provider. Requires notification:diagnostics scope.
+    /// </summary>
+    /// <param name="provider">Email provider: "smtp" | "resend" | "composite" (default)</param>
     [HttpPost("send-direct")] 
+    [Authorize(Policy = PolicyNames.NotificationDiagnostics)]
     [ProducesResponseType(typeof(object), 200)]
     public async Task<IActionResult> SendDirect(
         [FromServices] ResendEmailSender resend,

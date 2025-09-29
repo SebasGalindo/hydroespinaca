@@ -7,16 +7,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
-	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
-	  <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-	  <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
-	</ItemGroup>
+		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
 
-	<ItemGroup>
 		<ProjectReference Include="..\NotificationService.Application\NotificationService.Application.csproj" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20250928234337" />
 		<ProjectReference Include="..\NotificationService.Infrastructure\NotificationService.Infrastructure.csproj" />
 	</ItemGroup>
-
-
 </Project>

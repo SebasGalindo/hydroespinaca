@@ -8,4 +8,5 @@ public class SensorCreateDto
     public string Esp32Id { get; set; } = default!;
     public int SamplingFrequency { get; set; }
     public List<string> Variables { get; set; } = new();
+    public bool AllowMissing { get; set; } = false;
 }

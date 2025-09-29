@@ -70,6 +70,12 @@ public static class AuthorizationScopes
     public const string AlertWrite = "alert:write";
     public const string AlertManage = "alert:manage";
     
+    // Notification management scopes
+    public const string NotificationSend = "notification:send";
+    public const string NotificationRead = "notification:read";
+    public const string NotificationManage = "notification:manage";
+    public const string NotificationDiagnostics = "notification:diagnostics";
+    
     // System-level scopes
     public const string SystemAdmin = "system:admin";
     public const string SystemHealth = "system:health";
@@ -115,6 +121,14 @@ public static class AuthorizationScopes
     };
     
     /// <summary>
+    /// Gets all notification-related scopes
+    /// </summary>
+    public static readonly string[] NotificationScopes = 
+    {
+        NotificationSend, NotificationRead, NotificationManage, NotificationDiagnostics
+    };
+    
+    /// <summary>
     /// Gets all monitoring and data management scopes
     /// </summary>
     public static readonly string[] MonitoringScopes = 
@@ -154,6 +168,8 @@ public static class AuthorizationScopes
         // Data and monitoring
         VariableRead, VariableWrite,
         AlertRead, AlertWrite, AlertManage,
+        // Notifications
+        NotificationSend, NotificationRead, NotificationManage, NotificationDiagnostics,
         // System
         SystemAdmin, SystemHealth, SystemMonitor
     };

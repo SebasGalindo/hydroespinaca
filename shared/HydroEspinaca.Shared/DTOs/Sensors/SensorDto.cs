@@ -10,5 +10,6 @@ public class SensorDto
     public int SamplingFrequency { get; set; }
     public List<string> Variables { get; set; } = new();
     public string Status { get; set; } = default!;
+    public bool AllowMissing { get; set; } = false;
     public DateTime CreatedAt { get; set; }
 }

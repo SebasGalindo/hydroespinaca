@@ -73,6 +73,7 @@ public static class ServiceCollectionAuthExtensions
             ["ActuatorRead"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead },
             ["VariableRead"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead },
             ["AlertRead"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertRead },
+            ["NotificationRead"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationRead },
             
             // Standard write policies
             ["UserWrite"] = new[] { 
@@ -84,6 +85,14 @@ public static class ServiceCollectionAuthExtensions
             ["ActuatorControl"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl },
             ["VariableWrite"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableWrite },
             ["AlertWrite"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite },
+            ["NotificationSend"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend },
+            ["NotificationManage"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationManage },
+            ["NotificationFull"] = new[] { 
+                HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
+                HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationRead,
+                HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationManage,
+                HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationDiagnostics
+            },
             
             // System policies
             ["SystemAdmin"] = new[] { HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin },
