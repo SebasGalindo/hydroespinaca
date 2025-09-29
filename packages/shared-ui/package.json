@@ -8,10 +8,10 @@
   "react-native": "src/index.native.ts",
   "exports": {
     ".": {
+      "react-native": "./src/index.native.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "react-native": "./src/index.native.ts"
+      "require": "./dist/index.js"
     }
   },
   "scripts": {

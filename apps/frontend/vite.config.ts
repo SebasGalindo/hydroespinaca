@@ -14,15 +14,47 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Platform-specific resolvers for web
+      // Platform-specific resolvers for web - use source files but with stubs
       '@hydroespinaca/shared-ui': path.resolve(__dirname, '../../packages/shared-ui/src'),
-      '@hydroespinaca/shared-hooks': path.resolve(__dirname, '../../packages/shared-hooks/src'),
-      '@hydroespinaca/shared-utils': path.resolve(__dirname, '../../packages/shared-utils/src'),
-      '@hydroespinaca/shared-types': path.resolve(__dirname, '../../packages/shared-types/src'),
+      '@hydroespinaca/shared-hooks': path.resolve(__dirname, '../../packages/shared-hooks/dist'),
+      '@hydroespinaca/shared-utils': path.resolve(__dirname, '../../packages/shared-utils/dist'),
+      '@hydroespinaca/shared-types': path.resolve(__dirname, '../../packages/shared-types/dist'),
       // Legacy alias support
       '@shared-ui': path.resolve(__dirname, '../../packages/shared-ui/src'),
+      // Explicitly stub React Native packages for web builds
+      'react-native': path.resolve(__dirname, './src/stubs/react-native.ts'),
+      'expo-secure-store': path.resolve(__dirname, './src/stubs/expo-secure-store.ts'),
+      '@react-native-async-storage/async-storage': path.resolve(__dirname, './src/stubs/async-storage.ts'),
     },
     // Resolve .web.tsx files first for web platform
     extensions: ['.web.tsx', '.web.ts', '.tsx', '.ts', '.jsx', '.js'],
   },
+  define: {
+    // Define platform constants
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
+    // Add global to prevent React Native errors
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    // Force specific dependencies to be pre-bundled
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom'
+    ],
+    exclude: [
+      // Exclude all React Native related packages
+      'react-native',
+      '@react-native-async-storage/async-storage', 
+      'expo-secure-store',
+      '@react-native-masked-view/masked-view',
+      '@react-navigation/native',
+      '@react-navigation/native-stack',
+      'react-native-safe-area-context',
+      'react-native-screens',
+      'expo',
+      'expo-status-bar',
+      'react-native-web'
+    ]
+  }
 })
