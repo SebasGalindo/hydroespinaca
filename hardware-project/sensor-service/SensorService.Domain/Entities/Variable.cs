@@ -14,7 +14,7 @@ public class Variable : IIdentifiableMutable
     
     // Rangos óptimos - valores ideales para el crecimiento de espinaca
     public double OptimalMin { get; set; }
-    public double OptimalMax { get; set; }
+    public double? OptimalMax { get; set; }
     
     public VariableTypes Type { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;

@@ -18,7 +18,6 @@ public static class ServiceCollectionInfrastructureExtensions
     {
         services
             .AddMongoSettings(configuration)
-            .AddApiKeySettings(configuration)
             .AddMqttSettings(configuration);
 
         // Repositorios

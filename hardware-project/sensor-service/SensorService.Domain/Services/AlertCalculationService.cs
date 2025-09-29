@@ -18,6 +18,7 @@ public class AlertCalculationService : IAlertCalculationService
             {
                 Type = AlertType.OutOfRange,
                 SensorId = reading.SensorId,
+                VariableId = reading.VariableId,
                 Value = value,
                 Threshold = physicalThreshold,
                 Timestamp = timestamp,
@@ -28,18 +29,36 @@ public class AlertCalculationService : IAlertCalculationService
         }
 
         // Caso 2 (Warning): Dentro del rango físico pero fuera del óptimo - condiciones subóptimas
-        if (value < variable.OptimalMin || value > variable.OptimalMax)
+        // Check if value is below OptimalMin
+        if (value < variable.OptimalMin)
         {
-            var optimalThreshold = value < variable.OptimalMin ? variable.OptimalMin : variable.OptimalMax;
             return new SensorAlert
             {
                 Type = AlertType.OutOfRange,
                 SensorId = reading.SensorId,
+                VariableId = reading.VariableId,
                 Value = value,
-                Threshold = optimalThreshold,
+                Threshold = variable.OptimalMin,
                 Timestamp = timestamp,
                 Severity = AlertSeverity.Warning,
-                Message = $"Valor {value} fuera del rango óptimo [{variable.OptimalMin} - {variable.OptimalMax}]",
+                Message = GetOptimalRangeMessage(value, variable),
+                Acknowledged = false
+            };
+        }
+
+        // Check if value is above OptimalMax (only if OptimalMax is defined)
+        if (variable.OptimalMax.HasValue && value > variable.OptimalMax.Value)
+        {
+            return new SensorAlert
+            {
+                Type = AlertType.OutOfRange,
+                SensorId = reading.SensorId,
+                VariableId = reading.VariableId,
+                Value = value,
+                Threshold = variable.OptimalMax.Value,
+                Timestamp = timestamp,
+                Severity = AlertSeverity.Warning,
+                Message = GetOptimalRangeMessage(value, variable),
                 Acknowledged = false
             };
         }
@@ -58,6 +77,7 @@ public class AlertCalculationService : IAlertCalculationService
         return new SensorAlert
         {
             SensorId = reading.SensorId,
+            VariableId = reading.VariableId,
             Type = AlertType.Anomaly,
             Value = reading.Value,
             Threshold = latestAggregate.Avg,
@@ -66,5 +86,96 @@ public class AlertCalculationService : IAlertCalculationService
             Message = $"Valor anómalo: {reading.Value} difiere significativamente del promedio anterior {latestAggregate.Avg:F2}",
             Acknowledged = false
         };
+    }
+
+    public SensorAlert? CalculateLuminosityAlert(Reading reading, Variable variable, DateTime timestamp)
+    {
+        var value = reading.Value;
+
+        if (IsLuminosityClear(variable.Name))
+        {
+            // Luminosity Clear (cantidad): siempre validar si llega
+            if (value < variable.OptimalMin)
+            {
+                return new SensorAlert
+                {
+                    Type = AlertType.LuminosityQuantityInsufficient,
+                    SensorId = reading.SensorId,
+                    VariableId = reading.VariableId,
+                    Value = value,
+                    Threshold = variable.OptimalMin,
+                    Timestamp = timestamp,
+                    Severity = AlertSeverity.Warning,
+                    Message = "Cantidad de luz insuficiente",
+                    Acknowledged = false
+                };
+            }
+        }
+        else if (IsLuminosityIndex(variable.Name))
+        {
+            // Luminosity Index (calidad): validar solo si llega (firmware ya filtró)
+            if (value < variable.OptimalMin)
+            {
+                return new SensorAlert
+                {
+                    Type = AlertType.LuminosityQualityInsufficient,
+                    SensorId = reading.SensorId,
+                    VariableId = reading.VariableId,
+                    Value = value,
+                    Threshold = variable.OptimalMin,
+                    Timestamp = timestamp,
+                    Severity = AlertSeverity.Warning,
+                    Message = "Calidad de luz insuficiente",
+                    Acknowledged = false
+                };
+            }
+        }
+
+        return null;
+    }
+
+    public bool IsLuminosityVariable(string variableName)
+    {
+        var normalizedName = variableName.ToLowerInvariant();
+        return normalizedName.Contains("light") || 
+               normalizedName.Contains("luz") || 
+               normalizedName.Contains("luminosity");
+    }
+
+    public bool IsLuminosityIndex(string variableName)
+    {
+        var normalizedName = variableName.ToLowerInvariant();
+        return (normalizedName.Contains("light") || normalizedName.Contains("luz") || normalizedName.Contains("luminosity")) &&
+               (normalizedName.Contains("index") || normalizedName.Contains("indice") || normalizedName.Contains("quality") || normalizedName.Contains("calidad"));
+    }
+
+    public bool IsLuminosityClear(string variableName)
+    {
+        var normalizedName = variableName.ToLowerInvariant();
+        return (normalizedName.Contains("light") || normalizedName.Contains("luz") || normalizedName.Contains("luminosity")) &&
+               (normalizedName.Contains("clear") || normalizedName.Contains("cantidad") || normalizedName.Contains("quantity"));
+    }
+
+    private string GetOptimalRangeMessage(double value, Variable variable)
+    {
+        if (variable.OptimalMax.HasValue)
+        {
+            return $"Valor {value} fuera del rango óptimo [{variable.OptimalMin} - {variable.OptimalMax.Value}]";
+        }
+        else
+        {
+            return $"Valor {value} por debajo del mínimo óptimo {variable.OptimalMin}";
+        }
+    }
+
+    public bool IsValueWithinOptimalRange(double value, Variable variable)
+    {
+        if (value < variable.OptimalMin)
+            return false;
+
+        if (variable.OptimalMax.HasValue && value > variable.OptimalMax.Value)
+            return false;
+
+        return true;
     }
 }

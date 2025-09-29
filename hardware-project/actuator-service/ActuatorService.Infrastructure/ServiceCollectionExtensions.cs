@@ -21,8 +21,7 @@ public static class ServiceCollectionExtensions
     {
         services
             .AddMongoSettings(configuration)
-            .AddMqttSettings(configuration)
-            .AddApiKeySettings(configuration);
+            .AddMqttSettings(configuration);
 
         // Mappers
         services.AddScoped<IEntityMapper<Actuator, ActuatorDocument>, ActuatorMapper>();

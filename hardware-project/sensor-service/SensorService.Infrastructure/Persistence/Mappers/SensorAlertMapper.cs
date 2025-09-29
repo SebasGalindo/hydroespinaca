@@ -11,9 +11,14 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
         var entity = new SensorAlert
         {
             SensorId = doc.SensorId,
+            VariableId = doc.VariableId,
             Type = doc.Type,
             Value = doc.Value,
             Threshold = doc.Threshold,
+            Count = doc.Count,
+            LastSeen = doc.LastSeen,
+            LatestValue = doc.LatestValue,
+            ResolutionReason = doc.ResolutionReason,
             Timestamp = doc.Timestamp,
             Message = doc.Message,
             Severity = doc.Severity,
@@ -29,9 +34,14 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
         var document = new SensorAlertDocument
         {
             SensorId = entity.SensorId,
+            VariableId = entity.VariableId,
             Type = entity.Type,
             Value = entity.Value,
             Threshold = entity.Threshold,
+            Count = entity.Count,
+            LastSeen = entity.LastSeen,
+            LatestValue = entity.LatestValue,
+            ResolutionReason = entity.ResolutionReason,
             Timestamp = entity.Timestamp,
             Message = entity.Message,
             Severity = entity.Severity,

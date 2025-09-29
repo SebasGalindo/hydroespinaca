@@ -15,6 +15,7 @@ public static class SensorMapper
         SamplingFrequency = sensor.SamplingFrequency,
         Variables = sensor.Variables,
         Status = sensor.Status.ToString(),
+        AllowMissing = sensor.AllowMissing,
         CreatedAt = sensor.CreatedAt
     };
 
@@ -26,6 +27,7 @@ public static class SensorMapper
         Esp32Id = dto.Esp32Id,
         SamplingFrequency = dto.SamplingFrequency,
         Variables = dto.Variables,
+        AllowMissing = dto.AllowMissing,
         CreatedAt = DateTime.UtcNow,
         Status = SensorStatus.Active
     };
@@ -40,6 +42,7 @@ public static class SensorMapper
         existing.Esp32Id = dto.Esp32Id;
         existing.SamplingFrequency = dto.SamplingFrequency;
         existing.Variables = dto.Variables;
+        existing.AllowMissing = dto.AllowMissing;
         existing.Status = sensorStatus;
     }
 

@@ -33,6 +33,9 @@ public class SensorDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.String)]
     public SensorStatus Status { get; set; } = default!;
 
+    [BsonElement("allowMissing")]
+    public bool AllowMissing { get; set; } = false;
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; }
     public void SetId(string id) => Id = id;

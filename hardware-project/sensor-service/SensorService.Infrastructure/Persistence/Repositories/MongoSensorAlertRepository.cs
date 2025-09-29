@@ -49,6 +49,19 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.FindOneAsync(filter);
     }
 
+    public async Task<SensorAlert?> GetActiveBySensorVariableAndTypeAsync(string sensorId, string variableId, AlertType type)
+    {
+        var filter = Builders<SensorAlertDocument>.Filter.And(
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorId, sensorId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.VariableId, variableId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
+        );
+
+        return await _baseRepo.FindOneAsync(filter);
+    }
+
     public async Task<int> DeleteOlderThanAsync(DateTime cutoffDate)
     {
         var filter = Builders<SensorAlertDocument>.Filter.Lt(a => a.Timestamp, cutoffDate);

@@ -31,16 +31,22 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
 
         // Validaciones para rangos óptimos
         RuleFor(x => x.OptimalMin)
-            .LessThan(x => x.OptimalMax)
-            .WithMessage("El valor óptimo mínimo debe ser menor que el valor óptimo máximo.")
             .GreaterThanOrEqualTo(x => x.PhysicalMin)
-            .WithMessage("El valor óptimo mínimo no puede ser menor que el valor físico mínimo.");
+            .WithMessage("El valor óptimo mínimo no puede ser menor que el valor físico mínimo.")
+            .LessThanOrEqualTo(x => x.PhysicalMax)
+            .WithMessage("El valor óptimo mínimo no puede ser mayor que el valor físico máximo.");
 
         RuleFor(x => x.OptimalMax)
             .GreaterThan(x => x.OptimalMin)
             .WithMessage("El valor óptimo máximo debe ser mayor que el valor óptimo mínimo.")
             .LessThanOrEqualTo(x => x.PhysicalMax)
-            .WithMessage("El valor óptimo máximo no puede ser mayor que el valor físico máximo.");
+            .WithMessage("El valor óptimo máximo no puede ser mayor que el valor físico máximo.")
+            .When(x => x.OptimalMax.HasValue);
+
+        // Custom validation: OptimalMax, if provided, must be greater than OptimalMin
+        RuleFor(x => x)
+            .Must(x => !x.OptimalMax.HasValue || x.OptimalMax.Value > x.OptimalMin)
+            .WithMessage("Si se proporciona un valor óptimo máximo, debe ser mayor que el valor óptimo mínimo.");
 
         RuleFor(x => x.Type)
           .NotEmpty()

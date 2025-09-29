@@ -30,7 +30,7 @@ public class VariableDocument : IIdentifiableMutable
     public double OptimalMin { get; set; }
 
     [BsonElement("optimalMax")]
-    public double OptimalMax { get; set; }
+    public double? OptimalMax { get; set; }
 
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]
