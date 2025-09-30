@@ -20,18 +20,14 @@
 #define PIN_TDS_ADC      33     // Conductividad eléctrica (EC en mS/cm)
 #define PIN_NTC_TANK     34     // NTC 10K tanque (entrada ADC)
 
-// Módulo de nivel de agua analógico
-#define PIN_WATER_LEVEL_ADC  26     // Módulo nivel agua resistivo (ADC)
+// Sensor ultrasónico
+#define PIN_ULTRA_TRIG   26     // Ultrasonido TRIG
+#define PIN_ULTRA_ECHO   5      // Ultrasonido ECHO (usar divisor)
 
 // Constantes de calibración para sensores
+#define TANK_MAX_DISTANCE_CM 12.48f  // Límite del tanque en cm
 #define ADC_RESOLUTION   4096.0f  // 12-bit ADC
 #define ADC_VREF        3.3f      // Voltaje de referencia
-
-// Calibración módulo nivel de agua analógico
-#define ADC_MIN_VALUE        427     // Valor ADC para nivel mínimo
-#define ADC_MAX_VALUE       1828     // Valor ADC para nivel máximo
-#define MIN_WATER_LEVEL_CM  0.63f    // Nivel mínimo en cm
-#define MAX_WATER_LEVEL_CM  2.64f    // Nivel máximo en cm
 
 // TDS Sensor constants
 #define TDS_SAMPLE_COUNT 30      // Buffer size for TDS averaging

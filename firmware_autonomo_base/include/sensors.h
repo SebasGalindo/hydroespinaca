@@ -38,7 +38,7 @@ private:
     float convertToTemperature(float resistance, bool isTank = true);
     float steinhart(float resistance);
     float calculateMedian(float values[], int size);
-    float measureAnalogWaterLevel();
+    float measureUltrasonicDistance();
     
 public:
     SensorManager(NTPClient* ntpClient = nullptr);
@@ -54,7 +54,7 @@ public:
     float readPH();
     float readTDS();
     float readTankTemperature();
-    float readWaterLevel();  // Analog water level module
+    float readWaterLevel();  // Ultrasonic sensor
     
     // Batch reading - creates JSON with null values for failed sensors
     void createReadingsBatch(DynamicJsonDocument& doc, String (*timestampFunction)() = nullptr);

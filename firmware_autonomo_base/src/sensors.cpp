@@ -18,8 +18,9 @@ void SensorManager::begin() {
     pinMode(PIN_TDS_ADC, INPUT);
     pinMode(PIN_NTC_TANK, INPUT);
     
-    // Configure analog water level pin
-    pinMode(PIN_WATER_LEVEL_ADC, INPUT);
+    // Configure ultrasonic pins
+    pinMode(PIN_ULTRA_TRIG, OUTPUT);
+    pinMode(PIN_ULTRA_ECHO, INPUT);
     
     // Initialize DHT22
     dht.begin();
@@ -260,12 +261,12 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         Serial.println("N/A (sensor falló) ❌");
     }
 
-    // Water Level (Analog Module) - only add if sensor is working
+    // Water Level (HC-SR04) - only add if sensor is working
     Serial.print("💧 Water Level: ");
     float waterLevelValue = readWaterLevel();
     if (!isnan(waterLevelValue)) {
         JsonObject waterLevelReading = readings.createNestedObject();
-        waterLevelReading["physicalId"] = "WaterLevelModule-A1"; // Analog Water Level Module sensor physical ID
+        waterLevelReading["physicalId"] = "HC-SR04-A1"; // Ultrasonido sensor physical ID
         waterLevelReading["variableId"] = "68d1d07307c249cda4c369b0"; // Water Level MongoDB ObjectId
         waterLevelReading["value"] = waterLevelValue;
         validReadings++;
@@ -286,10 +287,10 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     // | ph-001      | SEN0161-A1       | pH Level              | 688970a27f02137645d58396 | Active |
     // | tds-001     | TDS-A1           | Electrical Conduct.   | 688970a77f02137645d58397 | Active |
     // | ntc-001     | NTC-A1           | Water Temperature     | 68bb4d8cbdcb66fc5738f9af | Active |
-    // | waterlevel-analog-01 | WaterLevelModule-A1       | Water Level           | 68d1d07307c249cda4c369b0 | Active |
+    // | ultrasonido-01 | HC-SR04-A1       | Water Level           | 68d1d07307c249cda4c369b0 | Active |
     //
     // Note: All sensors now active and sending telemetry data
-    // Ultrasonic sensor replaced with analog water level module
+    // NTC Roots implementation removed as requested
 }
 
 // ADC Helper Functions
@@ -501,80 +502,79 @@ float SensorManager::readTankTemperature() {
 
 // Roots Temperature (NTC sensor) - REMOVED in autonomous version
 
-// Función auxiliar para medición del módulo analógico de nivel de agua
-float SensorManager::measureAnalogWaterLevel() {
-    // Leer valor ADC con promedio de 20 lecturas
-    const int NUM_SAMPLES = 20;
-    long sum = 0;
+// Función auxiliar para medición ultrasónica individual (basada en código de referencia)
+float SensorManager::measureUltrasonicDistance() {
+    // Send trigger pulse (standard HC-SR04 sequence)
+    digitalWrite(PIN_ULTRA_TRIG, LOW);
+    delayMicroseconds(2);
+    digitalWrite(PIN_ULTRA_TRIG, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(PIN_ULTRA_TRIG, LOW);
     
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-        sum += analogRead(PIN_WATER_LEVEL_ADC);
-        delay(10);  // Pequeño delay entre lecturas
-    }
+    // Timeout 30ms ≈ 5m (según código de referencia)
+    unsigned long duration = pulseIn(PIN_ULTRA_ECHO, HIGH, 30000);
     
-    int avgADC = sum / NUM_SAMPLES;
+    // Check for timeout
+    if (duration == 0) return -1;
     
-    // Validar que el valor ADC esté en el rango funcional
-    if (avgADC < 100 || avgADC > 3900) {
-        Serial.printf("[SENSOR] Módulo nivel agua: ADC fuera de rango funcional (%d)\n", avgADC);
-        return -1;
-    }
+    // Convert duration to distance in cm
+    // Speed of sound = 0.034 cm/μs (según código de referencia), divide by 2 for round trip
+    float distance = duration * 0.034 / 2.0;
     
-    // Convertir ADC a nivel de agua en cm usando interpolación lineal
-    // Mapear: ADC_MIN_VALUE (427) → MIN_WATER_LEVEL_CM (0.63)
-    //         ADC_MAX_VALUE (1828) → MAX_WATER_LEVEL_CM (2.64)
-    float waterLevel = MIN_WATER_LEVEL_CM + 
-        ((float)(avgADC - ADC_MIN_VALUE) / (ADC_MAX_VALUE - ADC_MIN_VALUE)) * 
-        (MAX_WATER_LEVEL_CM - MIN_WATER_LEVEL_CM);
+    // Validate distance is within HC-SR04 functional range (según código de referencia)
+    if (distance < 2 || distance > 400) return -1;
     
-    // Asegurar que el nivel esté en el rango válido
-    if (waterLevel < 0.0f) waterLevel = 0.0f;
-    if (waterLevel > 10.0f) waterLevel = 10.0f;  // Rango máximo razonable
-    
-    Serial.printf("[SENSOR] Módulo nivel agua: ADC=%d (promedio %d lecturas) → %.2f cm\n", 
-                  avgADC, NUM_SAMPLES, waterLevel);
-    
-    return waterLevel;
+    return distance;
 }
 
-// Analog Water Level Module - Returns level in cm for API/MQTT
+// Ultrasonic Water Level Sensor (HC-SR04) - Returns distance in cm for API/MQTT
 float SensorManager::readWaterLevel() {
-    const int NUM_SAMPLES = 3;  // Número de mediciones independientes
+    const float TANK_HEIGHT_CM = 40.0f;           // Altura total del tanque
+    const int NUM_SAMPLES = 5;                    // Número de mediciones para promedio
     
     float suma = 0;
     int validas = 0;
     
-    // Tomar múltiples mediciones independientes del módulo analógico
+    // Tomar múltiples mediciones y promediar solo las válidas (como en código de referencia)
     for (int i = 0; i < NUM_SAMPLES; i++) {
-        float waterLevel = measureAnalogWaterLevel();
-        if (waterLevel >= 0) {  // -1 indica error
-            suma += waterLevel;
+        float distance = measureUltrasonicDistance();
+        if (distance > 0) {
+            suma += distance;
             validas++;
         }
-        delay(100); // Delay entre mediciones del módulo
+        delay(50); // Delay entre mediciones (según código de referencia)
     }
     
     // Si no hay mediciones válidas
     if (validas == 0) {
-        Serial.println("💧 Water Level: [SENSOR] Sin lecturas válidas del módulo resistivo ❌");
+        Serial.println("💧 Water Level: [SENSOR] Sin lecturas válidas del ultrasónico ❌");
         return NAN;
     }
     
-    // Calcular nivel promediado
-    float waterLevel = suma / validas;
+    // Calcular distancia promediada
+    float distance = suma / validas;
     
-    // Validación adicional: el nivel debe estar en rango razonable
-    if (waterLevel < 0.0f || waterLevel > 10.0f) {
-        Serial.printf("💧 Water Level: [SENSOR] Nivel promedio fuera de rango (%.2fcm) ❌\n", waterLevel);
+    // Additional validation: distance should be reasonable for tank
+    if (distance > TANK_HEIGHT_CM + 10.0f) { // 10cm margin for sensor mounting
+        Serial.printf("💧 Water Level: [SENSOR] Distancia promedio inválida (%.2fcm > altura tanque %.0fcm) ❌\n", 
+                     distance, TANK_HEIGHT_CM);
         return NAN;
     }
     
-    // Log de éxito con estadísticas de medición
-    Serial.printf("💧 Water Level: [SENSOR] Módulo resistivo: mediciones válidas=%d/%d, nivel promedio=%.2f cm ✅\n", 
-                  validas, NUM_SAMPLES, waterLevel);
+    // Calculate water level percentage ONLY for local logs
+    // If sensor is mounted at top: level = 100 * (tank_height - distance) / tank_height
+    float waterLevelPercent = 100.0f * (TANK_HEIGHT_CM - distance) / TANK_HEIGHT_CM;
     
-    // Retornar nivel en cm para API/MQTT payload
-    return waterLevel;
+    // Ensure valid range for logging (0-100%)
+    if (waterLevelPercent < 0.0f) waterLevelPercent = 0.0f;
+    if (waterLevelPercent > 100.0f) waterLevelPercent = 100.0f;
+    
+    // Success log with measurement statistics (percentage for debugging only)
+    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia promedio=%.2fcm, nivel=%.1f%% ✅\n", 
+                  validas, NUM_SAMPLES, distance, waterLevelPercent);
+    
+    // CHANGE: Return distance in cm for API/MQTT payload, not percentage
+    return distance;
 }
 
 // Función para verificar si debe enviar telemetría de luz (6:00-18:00)
