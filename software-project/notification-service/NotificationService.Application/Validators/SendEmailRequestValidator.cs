@@ -1,12 +1,11 @@
 using FluentValidation;
-using NotificationService.Application.DTOs;
+using HydroEspinaca.Shared.DTOs.Notifications;
 
 namespace NotificationService.Application.Validators;
 
 // Valida la entrada del envío de correo (seguridad, tamaños y formatos válidos)
 public class SendEmailRequestValidator : AbstractValidator<SendEmailRequestDto>
 {
-    private static readonly string[] AllowedTemplates = new[] { "default" };
     private const int MaxSubjectLength = 200;
     private const int MaxHtmlLength = 100_000; // ~100KB
     private const int MaxAttachmentBytes = 5 * 1024 * 1024; // 5MB individual
@@ -14,25 +13,50 @@ public class SendEmailRequestValidator : AbstractValidator<SendEmailRequestDto>
 
     public SendEmailRequestValidator()
     {
-        // Emails válidos
-        RuleFor(x => x.To).NotEmpty().EmailAddress();
-    RuleForEach(x => x.Cc).NotEmpty().EmailAddress().When(x => x.Cc != null);
-    RuleForEach(x => x.Bcc).NotEmpty().EmailAddress().When(x => x.Bcc != null);
+        // Validar que solo una opción esté presente (Group o To)
+        RuleFor(x => x)
+            .Must(x => !string.IsNullOrWhiteSpace(x.Group) || !string.IsNullOrWhiteSpace(x.To))
+            .WithMessage("Either 'Group' or 'To' field must be specified")
+            .Must(x => string.IsNullOrWhiteSpace(x.Group) || string.IsNullOrWhiteSpace(x.To))
+            .WithMessage("Cannot specify both 'Group' and 'To' fields. Choose one sending mode.");
 
-    // Asunto no vacío y con límite razonable
-    RuleFor(x => x.Subject)
+        // Validación para envío directo (cuando To está presente)
+        When(x => !string.IsNullOrWhiteSpace(x.To), () =>
+        {
+            RuleFor(x => x.To).NotEmpty().EmailAddress();
+            RuleForEach(x => x.Cc).NotEmpty().EmailAddress().When(x => x.Cc != null);
+            RuleForEach(x => x.Bcc).NotEmpty().EmailAddress().When(x => x.Bcc != null);
+        });
+
+        // Validación para envío por grupo (cuando Group está presente)
+        When(x => !string.IsNullOrWhiteSpace(x.Group), () =>
+        {
+            RuleFor(x => x.Group)
+                .NotEmpty()
+                .Length(1, 100)
+                .WithMessage("Group name must be between 1 and 100 characters")
+                .Matches(@"^[a-zA-Z0-9\-_\s]+$")
+                .WithMessage("Group name can only contain letters, numbers, hyphens, underscores and spaces");
+            
+            // Cuando se usa Group, To/Cc/Bcc deben estar vacíos
+            RuleFor(x => x.Cc)
+                .Must(cc => cc == null || cc.Length == 0)
+                .WithMessage("Cannot specify 'Cc' when using 'Group' mode");
+            
+            RuleFor(x => x.Bcc)
+                .Must(bcc => bcc == null || bcc.Length == 0)
+                .WithMessage("Cannot specify 'Bcc' when using 'Group' mode");
+        });
+
+        // Asunto no vacío y con límite razonable
+        RuleFor(x => x.Subject)
             .NotEmpty()
             .MaximumLength(MaxSubjectLength);
 
-    // HTML del cuerpo limitado para evitar abusos
-    RuleFor(x => x.HtmlBody)
+        // HTML del cuerpo limitado para evitar abusos
+        RuleFor(x => x.HtmlBody)
             .NotEmpty()
             .MaximumLength(MaxHtmlLength);
-
-    // Plantilla permitida (lista blanca sencilla por ahora)
-    RuleFor(x => x.TemplateKey)
-            .Must(t => string.IsNullOrWhiteSpace(t) || AllowedTemplates.Contains(t))
-            .WithMessage("TemplateKey must be one of: " + string.Join(", ", AllowedTemplates));
 
         When(x => x.Attachments != null && x.Attachments.Count > 0, () =>
         {

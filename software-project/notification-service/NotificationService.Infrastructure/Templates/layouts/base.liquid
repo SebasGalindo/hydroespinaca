@@ -1,25 +1,90 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ model.subject | default: "HydroEspinaca" }}</title>
-    <style>
-      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:24px;background:#f6f7fb;color:#111}
-      .container{max-width:640px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e6e8ee}
-      .header{padding:16px 20px;background:#0ea5e9;color:#fff;font-weight:600}
-      .content{padding:24px}
-      .footer{padding:16px 20px;color:#6b7280;font-size:12px;border-top:1px solid #f0f2f6}
-      @media (prefers-color-scheme: dark){ body{background:#0b0f1a;color:#e5e7eb} .container{background:#0f172a;border-color:#1f2937} .footer{border-color:#1f2937} }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">HydroEspinaca</div>
-      <div class="content">
-        {{ body | raw }}
-      </div>
-      <div class="footer">Este es un correo automático. No respondas a este mensaje.</div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ model.subject | default: "HydroEspinaca" }}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f4f6f9;
+      color: #111827;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .header {
+      padding: 20px;
+      background: linear-gradient(90deg, #0ea5e9, #10b981);
+      color: #fff;
+      font-weight: 600;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    .content {
+      padding: 32px 24px;
+      font-size: 15px;
+    }
+    .content h1 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #0f172a;
+    }
+    .content p {
+      margin: 12px 0;
+      color: #374151;
+    }
+    .button {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 24px;
+      background: #10b981;
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .footer {
+      padding: 16px 20px;
+      color: #6b7280;
+      font-size: 12px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b0f1a; color: #e5e7eb; }
+      .container { background: #1e293b; border-color: #334155; }
+      .header { background: linear-gradient(90deg, #0284c7, #059669); }
+      .content h1 { color: #f8fafc; }
+      .content p { color: #cbd5e1; }
+      .footer { border-color: #334155; color: #94a3b8; }
+      .button { background: #059669; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">🌱 HydroEspinaca</div>
+    <div class="content">
+      {{ body | raw }}
+
+      <!-- Ejemplo de botón reutilizable -->
+      <!-- <a href="{{ model.action_url }}" class="button">Ver más</a> -->
     </div>
-  </body>
+    <div class="footer">
+      Este es un correo automático de HydroEspinaca. No respondas a este mensaje.
+    </div>
+  </div>
+</body>
 </html>

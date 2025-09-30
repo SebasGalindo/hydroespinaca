@@ -76,6 +76,8 @@ public static class AuthorizationScopes
     public const string NotificationManage = "notification:manage";
     public const string NotificationDiagnostics = "notification:diagnostics";
 
+    
+
     // En AuthorizationScopes.cs - faltan estos scopes:
     public const string FuzzySystemRead = "fuzzy:system:read";
     public const string FuzzySystemCreate = "fuzzy:system:create";

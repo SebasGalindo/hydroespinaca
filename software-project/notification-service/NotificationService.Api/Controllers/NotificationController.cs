@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
 using HydroEspinaca.Shared.Extensions;
+using HydroEspinaca.Shared.DTOs.Notifications;
 
 namespace NotificationService.Api.Controllers;
 
@@ -15,6 +16,7 @@ namespace NotificationService.Api.Controllers;
 // Paso 5: El endpoint responde 202 Accepted (queued) o 200 (si algún día es síncrono).
 [ApiController]
 [Route("api/notifications")]
+
 public class NotificationController : ControllerBase
 {
     private readonly IEmailNotificationService _emailService;
@@ -38,36 +40,4 @@ public class NotificationController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Gets notification logs and history. Requires notification:read scope.
-    /// </summary>
-    [HttpGet("logs")]
-    [Authorize(Policy = PolicyNames.NotificationRead)]
-    public async Task<ActionResult<object>> GetLogs([FromQuery] int limit = 50, [FromQuery] int offset = 0, CancellationToken ct = default)
-    {
-        // TODO: Implement notification logs retrieval
-        return Ok(new { message = "Notification logs endpoint - to be implemented", limit, offset });
-    }
-
-    /// <summary>
-    /// Gets notification status by correlation ID. Requires notification:read scope.
-    /// </summary>
-    [HttpGet("status/{correlationId}")]
-    [Authorize(Policy = PolicyNames.NotificationRead)]
-    public async Task<ActionResult<object>> GetStatus(string correlationId, CancellationToken ct = default)
-    {
-        // TODO: Implement notification status lookup
-        return Ok(new { message = "Notification status endpoint - to be implemented", correlationId });
-    }
-
-    /// <summary>
-    /// Manages notification templates and settings. Requires notification:manage scope.
-    /// </summary>
-    [HttpPost("templates")]
-    [Authorize(Policy = PolicyNames.NotificationManage)]
-    public async Task<ActionResult<object>> ManageTemplates([FromBody] object templateData, CancellationToken ct = default)
-    {
-        // TODO: Implement template management
-        return Ok(new { message = "Template management endpoint - to be implemented" });
-    }
 }
