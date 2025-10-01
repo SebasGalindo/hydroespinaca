@@ -130,6 +130,7 @@ void setup() {
     Serial.println("📊 Publicando telemetría cada 2 minutos");
     Serial.println("📡 Escuchando job schedules en: " + String(TOPIC_JOB_SCHEDULE));
     Serial.println("🎛️  Actuadores controlados dinámicamente por backend (pin, tipo, valor, duración)");
+    Serial.println("💨 Humidificador controlado por actuator-service mediante rutina especializada");
 }
 
 void loop() {

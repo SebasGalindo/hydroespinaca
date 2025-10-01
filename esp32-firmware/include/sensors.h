@@ -32,6 +32,7 @@ private:
     
     // ADC helper functions
     float readADCVoltage(int pin);
+    float readADCVoltageAveraged(int pin, int samples);
     float convertToTemperature(float resistance, bool isTank = true);
     float steinhart(float resistance);
     

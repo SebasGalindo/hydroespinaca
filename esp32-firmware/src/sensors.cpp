@@ -244,16 +244,16 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         Serial.println("N/A (sensor falló) ❌");
     }
     
-    // TDS (Electrical Conductivity) - only add if sensor is working
-    Serial.print("⚡ TDS/EC: ");
-    float tdsValue = readTDS();
-    if (!isnan(tdsValue)) {
-        JsonObject tdsReading = readings.createNestedObject();
-        tdsReading["physicalId"] = "TDS-A1"; // TDS sensor physical ID
-        tdsReading["variableId"] = "688970a77f02137645d58397"; // TDS MongoDB ObjectId
-        tdsReading["value"] = tdsValue;
+    // EC (Electrical Conductivity) - only add if sensor is working
+    Serial.print("⚡ EC: ");
+    float ecValue = readTDS();  // Function now returns EC in mS/cm
+    if (!isnan(ecValue)) {
+        JsonObject ecReading = readings.createNestedObject();
+        ecReading["physicalId"] = "TDS-A1"; // TDS sensor physical ID (hardware ID remains same)
+        ecReading["variableId"] = "688970a77f02137645d58397"; // EC MongoDB ObjectId 
+        ecReading["value"] = ecValue;
         validReadings++;
-        Serial.printf("%.1f ppm ✅\n", tdsValue);
+        Serial.printf("%.2f mS/cm ✅\n", ecValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
@@ -272,12 +272,12 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         Serial.println("N/A (sensor falló) ❌");
     }
     
-    // Water Level (HC-SR04 Ultrasonic) - only add if sensor is working
+    // Water Level (HC-SR04) - only add if sensor is working
     Serial.print("💧 Water Level: ");
     float waterLevelValue = readWaterLevel();
     if (!isnan(waterLevelValue)) {
         JsonObject waterLevelReading = readings.createNestedObject();
-        waterLevelReading["physicalId"] = "WaterLevelModule-A1"; // Water Level Module sensor physical ID
+        waterLevelReading["physicalId"] = "HC-SR04-A1"; // Ultrasonido sensor physical ID
         waterLevelReading["variableId"] = "68d1d07307c249cda4c369b0"; // Water Level MongoDB ObjectId
         waterLevelReading["value"] = waterLevelValue;
         validReadings++;
@@ -304,9 +304,25 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
 
 // ADC Helper Functions
 float SensorManager::readADCVoltage(int pin) {
-    int rawValue = analogRead(pin);
+    return readADCVoltageAveraged(pin, 10);  // Default 10 samples
+}
+
+float SensorManager::readADCVoltageAveraged(int pin, int samples) {
+    long sum = 0;
+    for (int i = 0; i < samples; i++) {
+        sum += analogRead(pin);
+        delay(5);  // Small delay between readings to reduce noise
+    }
+    
+    int rawValue = sum / samples;
     float voltage = (rawValue / ADC_RESOLUTION) * ADC_VREF;
-    Serial.printf("[SENSOR] ADC Pin %d: raw=%d, voltage=%.3fV\n", pin, rawValue, voltage);
+    
+    // Protection against invalid voltages
+    if (voltage < 0.01) voltage = 0.01;  // Prevent division by zero
+    if (voltage > 3.2) voltage = 3.2;   // Clamp to reasonable max
+    
+    Serial.printf("[SENSOR] ADC Pin %d: raw=%d (avg %d samples), voltage=%.3fV\n", 
+                  pin, rawValue, samples, voltage);
     return voltage;
 }
 
@@ -318,14 +334,13 @@ float SensorManager::readPH() {
     // Constantes calibradas usando mediana de mediciones
     const float PH_SLOPE = 21.96f;
     const float PH_INTERCEPT = -16.08f;
-    // Usar constantes definidas en pins.h: ADC_VREF y ADC_RESOLUTION
     
     float voltages[NUM_SAMPLES];
     
     // Tomar muestras con delay
     for (int i = 0; i < NUM_SAMPLES; i++) {
         int adcRaw = analogRead(PIN_PH_ADC);
-        float voltage = adcRaw * (ADC_VREF / 4095.0f);  // 12-bit ADC = 0-4095
+        float voltage = adcRaw * (ADC_VREF / ADC_RESOLUTION);
         voltages[i] = voltage;
         delay(SAMPLE_DELAY);
     }
@@ -342,31 +357,65 @@ float SensorManager::readPH() {
     // Calcular pH usando ecuación calibrada
     float phValue = PH_SLOPE * medianVoltage + PH_INTERCEPT;
     
-    Serial.printf("[SENSOR] pH: %d muestras, mediana=%.4fV, pH=%.2f\n", 
-                  NUM_SAMPLES, medianVoltage, phValue);
+    Serial.printf("[SENSOR] pH: mediana=%.4fV pH=%.2f (calibrado)\n", 
+                  medianVoltage, phValue);
     
-    // Validar rango pH funcional
-    if (phValue < 0.0 || phValue > 14.0) {
-        Serial.printf("[SENSOR] pH fuera de rango válido: %.2f\n", phValue);
+    // Validar rango físico del pH (0-14)
+    if (phValue < 0.0 || phValue > 14.0 || isnan(phValue)) {
+        Serial.printf("[SENSOR] pH value fuera de rango físico: %.2f\n", phValue);
         return NAN;
     }
     
     return phValue;
 }
 
-// TDS Sensor Reading
+// EC Sensor Reading (TDS Meter V1.0) - Returns EC in mS/cm for API/MQTT
 float SensorManager::readTDS() {
-    float voltage = readADCVoltage(PIN_TDS_ADC);
-    if (voltage < 0.1 || voltage > 3.2) {
-        Serial.println("[SENSOR] TDS voltage out of range");
+    static int analogBuffer[30];  // TDS_SAMPLE_COUNT from autonomous version
+    static int analogBufferIndex = 0;
+    static float calibrationFactor = 1.0;  // Adjustable calibration factor
+    
+    // Read ADC value
+    int adcValue = analogRead(PIN_TDS_ADC);
+    
+    // Store in circular buffer
+    analogBuffer[analogBufferIndex++] = adcValue;
+    if (analogBufferIndex >= 30) analogBufferIndex = 0;
+    
+    // Calculate average from buffer
+    long avgValue = 0;
+    for (int i = 0; i < 30; i++) {
+        avgValue += analogBuffer[i];
+    }
+    avgValue /= 30;
+    
+    // Convert to voltage
+    float voltage = (avgValue / 4095.0) * ADC_VREF;
+    
+    // TDS calculation using polynomial formula (TDS Meter V1.0)
+    float tdsValue = (133.42 * pow(voltage, 3) 
+                    - 255.86 * pow(voltage, 2) 
+                    + 857.39 * voltage) * calibrationFactor;
+    
+    // Ensure valid TDS value for calculation
+    if (tdsValue < 0) tdsValue = 0;
+    if (isnan(tdsValue)) tdsValue = 0;
+    
+    // Convert TDS to EC: EC = TDS / 500 (standard conversion factor)
+    float ecValue = tdsValue / 500.0f;
+    
+    // Validate EC range (0-10 mS/cm is physically reasonable)
+    if (ecValue < 0.0f || ecValue > 10.0f) {
+        Serial.printf("⚠️ [SENSOR] EC fuera de rango físico: %.3f mS/cm - descartando lectura\n", ecValue);
         return NAN;
     }
     
-    // Convert voltage to TDS (Total Dissolved Solids)
-    float tdsValue = voltage * tdsCalibration.factor * 1000; // Convert to ppm
-    Serial.printf("[SENSOR] TDS raw V=%.3f TDS=%.1f ppm\n", voltage, tdsValue);
+    // Log with both EC (for API) and TDS (for debugging/traceability)
+    Serial.printf("⚡ [SENSOR] EC: ADC=%d avg=%ld V=%.3f EC=%.2f mS/cm | TDS estimado: %.0f ppm\n", 
+                  adcValue, avgValue, voltage, ecValue, tdsValue);
     
-    return tdsValue;
+    // Return EC in mS/cm for API/MQTT payload
+    return ecValue;
 }
 
 // Steinhart-Hart equation for NTC temperature conversion
@@ -400,14 +449,25 @@ float SensorManager::convertToTemperature(float resistance, bool isTank) {
 
 // Tank Temperature (NTC sensor)
 float SensorManager::readTankTemperature() {
-    float voltage = readADCVoltage(PIN_NTC_TANK);
-    if (voltage < 0.1 || voltage > 3.2) {
-        Serial.println("[SENSOR] Tank NTC voltage out of range");
+    // Use averaged readings for better stability
+    float voltage = readADCVoltageAveraged(PIN_NTC_TANK, 15);  // More samples for NTC
+    
+    if (voltage < 0.05 || voltage > 3.3) {
+        Serial.printf("[SENSOR] Tank NTC voltage fuera de rango funcional: %.3fV\n", voltage);
         return NAN;
     }
     
-    // Convert voltage to resistance (assuming voltage divider with 10k resistor)
-    float resistance = 10000.0 * voltage / (ADC_VREF - voltage);
+    // Improved resistance calculation with protection
+    // Voltage divider: NTC connected between VCC and ADC pin, 10k resistor to ground
+    // R_ntc = R_series * (Vcc / V_adc - 1)
+    float resistance = 10000.0 * (ADC_VREF / voltage - 1.0);
+    
+    // Validate resistance range for sensor functionality (not optimal ranges)  
+    if (resistance < 100.0 || resistance > 500000.0) {
+        Serial.printf("[SENSOR] Tank NTC resistance fuera de rango funcional: %.1f ohms\n", resistance);
+        return NAN;
+    }
+    
     float temperature = convertToTemperature(resistance, true);
     
     Serial.printf("[SENSOR] Tank temp: V=%.3f R=%.1fΩ T=%.2f°C\n", 
@@ -439,7 +499,7 @@ float SensorManager::measureUltrasonicDistance() {
     return distance;
 }
 
-// Ultrasonic Water Level Sensor
+// Ultrasonic Water Level Sensor (HC-SR04) - Returns water level in cm for API/MQTT
 float SensorManager::readWaterLevel() {
     const float TANK_HEIGHT_CM = 40.0f;           // Altura total del tanque
     const int NUM_SAMPLES = 5;                    // Número de mediciones para promedio
@@ -473,16 +533,27 @@ float SensorManager::readWaterLevel() {
         return NAN;
     }
     
-    // Calculate water level percentage
-    // If sensor is mounted at top: level = 100 * (tank_height - distance) / tank_height
-    float waterLevel = 100.0f * (TANK_HEIGHT_CM - distance) / TANK_HEIGHT_CM;
+    // Validate distance is within useful range (not too close to avoid false readings)
+    if (distance < 2.0f) {
+        Serial.printf("💧 Water Level: [SENSOR] Distancia muy pequeña (%.2fcm < 2cm) - posible ruido ❌\n", distance);
+        return NAN;
+    }
     
-    // Ensure valid range (0-100%)
+    // Calculate actual water level in cm (sensor mounted at top)
+    // level = tank_height - distance_to_water_surface
+    float waterLevel = TANK_HEIGHT_CM - distance;
+    
+    // Ensure valid range for water level (0 to tank height)
     if (waterLevel < 0.0f) waterLevel = 0.0f;
-    if (waterLevel > 100.0f) waterLevel = 100.0f;
+    if (waterLevel > TANK_HEIGHT_CM) waterLevel = TANK_HEIGHT_CM;
     
-    Serial.printf("[SENSOR] Ultrasonic: %d muestras válidas, distancia promedio=%.2fcm, nivel=%.1f%%\n", 
-                  validas, distance, waterLevel);
+    // Calculate percentage for logging purposes only
+    float waterLevelPercent = 100.0f * waterLevel / TANK_HEIGHT_CM;
     
+    // Success log with measurement statistics
+    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n", 
+                  validas, NUM_SAMPLES, distance, waterLevel, waterLevelPercent);
+    
+    // Return water level in cm for control system (not raw distance)
     return waterLevel;
 }

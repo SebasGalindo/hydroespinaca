@@ -27,10 +27,10 @@
 #define MAX_JOBS_PER_CHANNEL 10
 #define STEP_TIMEOUT_TOLERANCE 500  // 500ms tolerance
 
-// Humidifier Configuration (specialized control)
-#define HUMID_WARMUP_TIME 2000      // 2 seconds warmup before pulses
-#define HUMID_PULSE_ON_TIME 2000    // 2 seconds pulse ON
-#define HUMID_PULSE_INTERVAL 30000  // 30 seconds interval between pulses
+// Humidifier Configuration (specialized control via actuator-service)
+// Note: Humidifier routine now simulates button press (based on autonomous firmware)
+// - PIN 14 (power relay): Controls main power
+// - PIN 13 (pulse relay): Simulates button press (1-second pulse)
 
 // Import secrets
 #include "secrets.h"
