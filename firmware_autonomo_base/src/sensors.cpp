@@ -561,20 +561,29 @@ float SensorManager::readWaterLevel() {
         return NAN;
     }
     
-    // Calculate water level percentage ONLY for local logs
-    // If sensor is mounted at top: level = 100 * (tank_height - distance) / tank_height
-    float waterLevelPercent = 100.0f * (TANK_HEIGHT_CM - distance) / TANK_HEIGHT_CM;
+    // Validate distance is within useful range (not too close to avoid false readings)
+    if (distance < 2.0f) {
+        Serial.printf("💧 Water Level: [SENSOR] Distancia muy pequeña (%.2fcm < 2cm) - posible ruido ❌\n", distance);
+        return NAN;
+    }
     
-    // Ensure valid range for logging (0-100%)
-    if (waterLevelPercent < 0.0f) waterLevelPercent = 0.0f;
-    if (waterLevelPercent > 100.0f) waterLevelPercent = 100.0f;
+    // Calculate actual water level in cm (sensor mounted at top)
+    // level = tank_height - distance_to_water_surface
+    float waterLevel = TANK_HEIGHT_CM - distance;
     
-    // Success log with measurement statistics (percentage for debugging only)
-    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia promedio=%.2fcm, nivel=%.1f%% ✅\n", 
-                  validas, NUM_SAMPLES, distance, waterLevelPercent);
+    // Ensure valid range for water level (0 to tank height)
+    if (waterLevel < 0.0f) waterLevel = 0.0f;
+    if (waterLevel > TANK_HEIGHT_CM) waterLevel = TANK_HEIGHT_CM;
     
-    // CHANGE: Return distance in cm for API/MQTT payload, not percentage
-    return distance;
+    // Calculate percentage for logging purposes only
+    float waterLevelPercent = 100.0f * waterLevel / TANK_HEIGHT_CM;
+    
+    // Success log with measurement statistics
+    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n", 
+                  validas, NUM_SAMPLES, distance, waterLevel, waterLevelPercent);
+    
+    // FIXED: Return water level in cm for control system (not raw distance)
+    return waterLevel;
 }
 
 // Función para verificar si debe enviar telemetría de luz (6:00-18:00)

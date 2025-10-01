@@ -70,17 +70,21 @@
 #define LIGHT_MIN_TIME (5 * 60 * 1000)         // 5 minutos
 #define PUMP_MIN_ON_TIME (3 * 60 * 1000)       // 3 minutos mínimo bomba
 
-// NUEVA LÓGICA: Recirculación en horarios fijos (cada 4h)
+// ========================================
+// CONFIGURACIÓN DE RUTINAS PERIÓDICAS INDEPENDIENTES
+// ========================================
+
+// CRONOGRAMA DE RECIRCULACIÓN (cada 4h) - INDEPENDIENTE
 #define PUMP_INTERVAL_S 14400                  // 4 horas = 14400 segundos
 #define PUMP_DURATION_S 480                    // 8 minutos = 480 segundos
 #define PUMP_INTERVAL_MINUTES 240              // 4 horas = 240 minutos
 
-// NUEVA LÓGICA: Aireación periódica (cada 30 min)  
+// CRONOGRAMA DE AIREACIÓN AUTÓNOMA (cada 30 min) - INDEPENDIENTE  
 #define AIR_PERIODIC_INTERVAL_S 1800           // 30 minutos = 1800 segundos
 #define AIR_PERIODIC_ON_S 300                  // 5 minutos = 300 segundos
 #define AIR_PERIODIC_INTERVAL_MINUTES 30       // 30 minutos
 
-// NUEVA LÓGICA: Lead + Post hold para recirculación
+// RUTINA ESPECIAL DE AIREACIÓN PARA RECIRCULACIÓN
 #define AIR_LEAD_S 90                          // 90 segundos antes de motobomba
 #define POST_AIR_HOLD_S 45                     // 45 segundos después de motobomba
 
@@ -179,36 +183,41 @@ struct ControlState {
     // Fail-safe por nivel de agua (waterLevelOk se maneja en checkWaterLevelSafety)
     unsigned long waterLevelLastCheck;  // Última verificación nivel
     
-    // NUEVA LÓGICA: Rutinas periódicas con horarios fijos absolutos (no precalculados)
-    unsigned long pumpStartTime;       // Timestamp inicio motobomba
-    unsigned long airStartTime;        // Timestamp inicio aire
+    // ========================================
+    // CRONOGRAMA INDEPENDIENTE DE RECIRCULACIÓN (cada 4h)
+    // ========================================
+    unsigned long nextRecirculationTime;  // Próximo horario de recirculación
+    bool recirculationActive;             // Ciclo completo de recirculación activo
+    unsigned long recirculationStartTime; // Inicio del ciclo completo
     
-    // Estados de control de rutinas
-    bool pumpCycleActive;              // Bomba en ciclo (incluyendo lead/post)
-    bool airLeadActive;                // Aire en lead (antes de bomba)
-    bool airPostActive;                // Aire en post hold (después de bomba)
+    // Fases de la rutina especial de aireación para recirculación
+    bool recircAirLeadActive;             // Aire 90s antes de bomba
+    bool recircPumpActive;                // Bomba 8min con aire continuo
+    bool recircAirPostActive;             // Aire 45s después de bomba
     
-    // NUEVA MÁQUINA DE ESTADOS PARA BOMBA DE AIRE
-    AirStoneMode airStoneMode;         // Modo actual de la bomba de aire
+    unsigned long recircAirLeadStartTime; // Timestamp inicio lead air
+    unsigned long recircPumpStartTime;    // Timestamp inicio bomba
+    unsigned long recircAirPostStartTime; // Timestamp inicio post air
     
-    bool airPeriodicActive;            // Aire periódico activo (solo en modo autónomo)
-    unsigned long airLeadStartTime;    // Timestamp específico para lead
-    unsigned long airPostStartTime;    // Timestamp específico para post
-    unsigned long airPeriodicStartTime; // Timestamp específico para ciclo autónomo
-    unsigned long nextAutonomousAirTime; // Próximo horario de aire autónomo
+    // ========================================
+    // CRONOGRAMA INDEPENDIENTE DE AIREACIÓN AUTÓNOMA (cada 30min)
+    // ========================================
+    unsigned long nextAutonomousAirTime; // Próximo horario de aireación autónoma
+    bool autonomousAirActive;             // Ciclo de aireación autónoma activo
+    unsigned long autonomousAirStartTime; // Timestamp inicio aireación autónoma
     
-    // Prioridades y conflictos
-    bool pumpHasPriority;              // Pump event activo (cancela periodic)
+    // ========================================
+    // EXCLUSIÓN MUTUA Y PRIORIDADES
+    // ========================================
+    AirStoneMode airStoneMode;            // Modo actual del sistema de aireación
     
     // NUEVA REGLA: Emergencia térmica 
-    bool thermalEmergencyActive;       // Emergencia por >25°C activa
-    unsigned long lastEmergencyTime;   // Último timestamp de emergencia
-    unsigned long emergencyStartTime;  // Inicio de recirculación de emergencia
+    bool thermalEmergencyActive;          // Emergencia por >25°C activa
+    unsigned long lastEmergencyTime;      // Último timestamp de emergencia
+    unsigned long emergencyStartTime;     // Inicio de recirculación de emergencia
     
-    // Control de temperatura agua
+    // Control de temperatura agua (independiente de bomba)
     unsigned long waterHeaterStartTime;
-    bool pumpRunningForHeater;    // Bomba activa por calefactor agua
-    unsigned long heaterPumpStartTime;
     
     // NUEVA MÁQUINA DE ESTADOS PARA CONTROL DE LUZ
     LightState lightState;                 // Estado actual de la máquina de estados
@@ -250,20 +259,30 @@ private:
     void controlLight();
     void runPeriodicRoutines();
     
-    // NUEVA LÓGICA: Rutinas periódicas con horarios fijos absolutos
-    bool isPumpScheduleTime();         // Verifica horario exacto de recirculación
-    bool isAirScheduleTime();          // Verifica horario exacto de aireación
-    unsigned long getCurrentMinutes();
-    void handlePumpCycle();
-    void handleAirCycle();
-    void handleThermalEmergency();     // Nueva emergencia térmica
-    void handleLightStateMachine();    // Nueva máquina de estados de luz
+    // ========================================
+    // RUTINAS PERIÓDICAS INDEPENDIENTES
+    // ========================================
+    void runIndependentRoutines();        // Nueva función principal de rutinas
     
-    // NUEVAS FUNCIONES PARA COORDINACIÓN DE BOMBAS
+    // Cronograma de recirculación (cada 4h, independiente)
+    void initializeRecirculationSchedule();
+    void handleRecirculationRoutine();
+    bool isRecirculationScheduleTime();
+    
+    // Cronograma de aireación autónoma (cada 30min, independiente)
+    void initializeAutonomousAirSchedule();
+    void handleAutonomousAirRoutine();
+    bool isAutonomousAirScheduleTime();
+    
+    // Exclusión mutua y control de prioridades
+    void updateAirStoneControl();         // Controlador central de aireación
     void setAirStoneMode(AirStoneMode newMode, const char* reason);
-    void calculateNextAutonomousAirTime();
-    bool shouldActivateAutonomousAir();
-    void handleAirStoneCoordination(); // Nueva función coordinadora principal
+    
+    // Funciones auxiliares
+    unsigned long getCurrentMinutes();
+    void handleThermalEmergency();        // Nueva emergencia térmica
+    void handleLightStateMachine();       // Nueva máquina de estados de luz
+    void logRoutineAction(const char* routine, const char* action);
     void logAirStoneAction(const char* action, const char* mode, const char* reason);
     
     // FUNCIONES DE CONTROL SIMPLIFICADAS CON HISTÉRESIS Y REPOSO
@@ -276,10 +295,10 @@ private:
     bool isLightScheduleActive();
     bool hasMinimumTimePassed(const ActuatorState& state, unsigned long minTime);
     void setActuatorState(ActuatorState& state, bool newState, const char* name);
+    void setActuatorStateImmediate(ActuatorState& state, bool newState, const char* name);
     void applyActuatorStates();
     void logControlDecision(const char* sensor, float value, const char* action);
     void logSafetyAction(const char* reason);
-    void logRoutineAction(const char* routine, const char* action);
     
 public:
     AutonomousController(SensorManager* sensorManager, NTPClient* ntpClient);

@@ -25,12 +25,14 @@ void AutonomousController::begin() {
     unsigned long now = millis();
     state.lastControlCycle = now;
     
-    // NUEVA LÓGICA: Inicializar máquina de estados de bomba de aire
-    state.airStoneMode = AIR_MODE_AUTONOMOUS;
-    state.airLeadStartTime = 0;
-    state.airPostStartTime = 0;
-    state.airPeriodicStartTime = 0;
-    calculateNextAutonomousAirTime();
+    // NUEVA LÓGICA: Inicializar cronogramas independientes
+    state.airStoneMode = AIR_MODE_IDLE;              // Modo inicial: Idle
+    state.recirculationActive = false;               // Recirculación inactiva
+    state.autonomousAirActive = false;               // Aireación autónoma inactiva
+    
+    // Inicializar cronogramas
+    initializeRecirculationSchedule();
+    initializeAutonomousAirSchedule();
     
     // NUEVA LÓGICA: Inicializar máquina de estados de luz artificial
     state.lightState = LIGHT_OFF;
@@ -62,6 +64,17 @@ void AutonomousController::begin() {
 void AutonomousController::loop() {
     unsigned long now = millis();
     
+    // ========================================
+    // CRONOGRAMAS INDEPENDIENTES - VALIDACIÓN INMEDIATA
+    // ========================================
+    // IMPORTANTE: Estos cronogramas son independientes del ciclo de control
+    // Se validan cada loop() para máxima precisión temporal
+    runIndependentRoutines();
+    
+    // ========================================
+    // CICLO DE CONTROL DE SENSORES (cada 4 min)
+    // ========================================
+    
     // Actualizar lecturas de sensores cada 2 minutos
     static unsigned long lastSensorUpdate = 0;
     if (now - lastSensorUpdate >= SENSOR_READING_INTERVAL) {
@@ -69,7 +82,7 @@ void AutonomousController::loop() {
         lastSensorUpdate = now;
     }
     
-    // Ejecutar control cada 4 minutos (con 2 lecturas promediadas)
+    // Ejecutar control de sensores cada 4 minutos (con 2 lecturas promediadas)
     if (shouldExecuteControl()) {
         Serial.println("⚡ [CTRL] ═══ CICLO DE CONTROL INICIADO ═══");
         
@@ -80,15 +93,11 @@ void AutonomousController::loop() {
         checkWaterLevelSafety();
         
         if (state.systemEnabled) {
-            // Ejecutar reglas de control
+            // Ejecutar reglas de control basadas en sensores
             controlTemperature();
             controlWaterTemperature();
             controlHumidity();
             controlLight();
-            
-            // NUEVA LÓGICA: Coordinación mejorada de bombas
-            runPeriodicRoutines();
-            handleAirStoneCoordination();
             
             // Aplicar cambios a actuadores
             applyActuatorStates();
@@ -258,12 +267,12 @@ void AutonomousController::checkWaterLevelSafety() {
         state.waterPump.forceOff = true;
         state.airStone.forceOff = true;
         
-        // Apagar inmediatamente si están encendidos
+        // Apagar inmediatamente si están encendidos (SEGURIDAD CRÍTICA)
         if (state.waterPump.isOn) {
-            setActuatorState(state.waterPump, false, "bomba");
+            setActuatorStateImmediate(state.waterPump, false, "bomba");
         }
         if (state.airStone.isOn) {
-            setActuatorState(state.airStone, false, "difusor");
+            setActuatorStateImmediate(state.airStone, false, "difusor");
         }
         
         // Asegurar que relé maestro humidificador esté OFF en modo seguro
@@ -445,7 +454,6 @@ void AutonomousController::controlWaterTemperature() {
         
         setActuatorState(state.waterHeater, true, "calefactor_agua");
         state.waterHeaterStartTime = millis();
-        state.pumpRunningForHeater = false;  // Resetear estado bomba
         logControlDecision("Temperatura agua", waterTemp, "calefactor agua ON - temperatura baja");
     }
     
@@ -456,31 +464,13 @@ void AutonomousController::controlWaterTemperature() {
         logControlDecision("Temperatura agua", waterTemp, "calefactor agua OFF - temperatura objetivo alcanzada");
     }
     
-    // Coordinar bomba con calefactor para recirculación
-    if (state.waterHeater.isOn) {
-        // Si bomba no está corriendo por calefactor, iniciarla
-        if (!state.pumpRunningForHeater && !state.waterPump.isOn) {
-            setActuatorState(state.waterPump, true, "bomba");
-            state.pumpRunningForHeater = true;
-            state.heaterPumpStartTime = millis();
-            logControlDecision("Calefactor agua activo", waterTemp, "bomba ON para recirculación");
-        }
-    }
+    // ELIMINADO: Coordinación bomba-calefactor
+    // El calentador de agua funciona independientemente de la bomba
+    // La bomba solo se activa por:
+    // 1. Cronograma programado (cada 4h)
+    // 2. Emergencia térmica (T_ambiente > 25°C)
     
-    // Mantener bomba corriendo tiempo mínimo para distribución de calor
-    if (state.pumpRunningForHeater && state.waterPump.isOn) {
-        unsigned long now = millis();
-        
-        // Apagar bomba solo si:
-        // 1. Calefactor ya no necesita recirculación Y
-        // 2. Ha corrido el tiempo mínimo
-        if (!state.waterHeater.isOn && 
-            (now - state.heaterPumpStartTime >= PUMP_MIN_ON_TIME)) {
-            setActuatorState(state.waterPump, false, "bomba");
-            state.pumpRunningForHeater = false;
-            logControlDecision("Recirculación completada", waterTemp, "bomba OFF");
-        }
-    }
+    // El calentador de agua ahora funciona completamente independiente de la bomba
 }
 
 void AutonomousController::controlLight() {
@@ -489,45 +479,63 @@ void AutonomousController::controlLight() {
 }
 
 // NUEVA LÓGICA: Rutinas periódicas con horarios fijos (sin persistencia)
-void AutonomousController::runPeriodicRoutines() {
+// ========================================
+// RUTINAS PERIÓDICAS INDEPENDIENTES - NUEVA IMPLEMENTACIÓN
+// ========================================
+
+void AutonomousController::runIndependentRoutines() {
     // Solo ejecutar si nivel de agua OK
-    if (!state.waterLevelOk) return;
-    
-    // El nuevo sistema no necesita calcular horarios - verifica tiempo absoluto directamente
+    if (!state.waterLevelOk) {
+        // Evitar spam - solo log cada 30 segundos si agua insuficiente
+        static unsigned long lastWaterWarning = 0;
+        unsigned long now = millis();
+        if (now - lastWaterWarning > 30000) {
+            Serial.println("⚠️ [CRONOGRAMAS] Suspendidos por nivel de agua insuficiente");
+            lastWaterWarning = now;
+        }
+        return;
+    }
     
     // Ejecutar rutinas según prioridades (orden de máxima a mínima prioridad)
-    handleThermalEmergency();  // PRIORIDAD MÁXIMA: Emergencia >25°C
-    handlePumpCycle();         // Prioridad 1: Recirculación cada 4h  
-    handleAirCycle();          // Prioridad 2: Aireación cada 30min
+    handleThermalEmergency();     // PRIORIDAD MÁXIMA: Emergencia >25°C
+    handleRecirculationRoutine(); // Prioridad 1: Recirculación cada 4h (independiente)
+    handleAutonomousAirRoutine(); // Prioridad 2: Aireación cada 30min (independiente)
+    updateAirStoneControl();      // Controlador central de exclusión mutua
 }
 
-// Verificar horarios fijos absolutos (basado en tiempo real, no en ciclos)
-bool AutonomousController::isPumpScheduleTime() {
+void AutonomousController::runPeriodicRoutines() {
+    // FUNCIÓN LEGACY - redirigir a nueva implementación
+    runIndependentRoutines();
+}
+
+// ========================================
+// CRONOGRAMA INDEPENDIENTE DE RECIRCULACIÓN (cada 4h)
+// ========================================
+
+void AutonomousController::initializeRecirculationSchedule() {
     unsigned long currentMinutes = getCurrentMinutes();
+    
+    // Calcular próximo horario de recirculación (múltiplo de 4h desde medianoche)
     unsigned long hoursSinceMidnight = currentMinutes / 60;
-    unsigned long minutesInCurrentHour = currentMinutes % 60;
+    unsigned long nextHour = ((hoursSinceMidnight / 4) + 1) * 4; // Próximo múltiplo de 4
+    if (nextHour >= 24) nextHour = 0; // Wrap around midnight
     
-    // Horarios fijos de recirculación: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00
-    bool isFixedHour = (hoursSinceMidnight % 4 == 0);
+    state.nextRecirculationTime = nextHour * 60; // Convertir a minutos
     
-    // Ventana de tolerancia: 0-3 minutos (para ciclo de control de 4 min)
-    bool inToleranceWindow = (minutesInCurrentHour <= 3);
-    
-    return isFixedHour && inToleranceWindow;
+    Serial.printf("🔄 [RECIRCULACIÓN] Próximo horario: %02ld:00 (%ld min desde medianoche)\n", 
+                  nextHour, state.nextRecirculationTime);
 }
 
-bool AutonomousController::isAirScheduleTime() {
+bool AutonomousController::isRecirculationScheduleTime() {
+    if (state.recirculationActive) return false; // Ya está activa
+    
     unsigned long currentMinutes = getCurrentMinutes();
-    unsigned long minutesInCurrentHour = currentMinutes % 60;
     
-    // Horarios fijos de aireación: XX:00, XX:30 (cada 30 minutos exactos)
-    bool isFixedMinute = (minutesInCurrentHour == 0 || minutesInCurrentHour == 30);
+    // Verificar si ha llegado la hora exacta (tolerancia de 1 minuto)
+    bool isTime = (currentMinutes >= state.nextRecirculationTime && 
+                   currentMinutes < state.nextRecirculationTime + 1);
     
-    // Ventana de tolerancia: 0-3 minutos después del horario fijo
-    bool inToleranceWindow = (minutesInCurrentHour <= 3 || 
-                              (minutesInCurrentHour >= 30 && minutesInCurrentHour <= 33));
-    
-    return isFixedMinute || inToleranceWindow;
+    return isTime;
 }
 
 // Obtener minutos actuales desde 00:00 (usando NTP si disponible)
@@ -547,63 +555,152 @@ unsigned long AutonomousController::getCurrentMinutes() {
     return (hours * 60) + minutes;
 }
 
-// Manejar ciclo de recirculación (prioridad 1) - HORARIOS FIJOS ABSOLUTOS
-void AutonomousController::handlePumpCycle() {
+void AutonomousController::handleRecirculationRoutine() {
     unsigned long now = millis();
     
-    // Verificar si es exactamente hora de recirculación (cada 4h: 00:00, 04:00, 08:00, etc.)
-    if (isPumpScheduleTime() && !state.pumpCycleActive) {
-        state.pumpCycleActive = true;
-        state.pumpHasPriority = true;  // Cancelar aire periódico
+    // INICIO: Verificar si debe comenzar el ciclo completo
+    if (isRecirculationScheduleTime() && !state.recirculationActive) {
+        state.recirculationActive = true;
+        state.recirculationStartTime = now;
+        state.airStoneMode = AIR_MODE_RECIRCULATION;
         
-        // LEAD: Activar aire 90s antes de motobomba
-        state.airLeadActive = true;
-        state.airLeadStartTime = now;  // Usar timestamp específico
-        setActuatorState(state.airStone, true, "difusor");
-        logRoutineAction("pump_will_activate", "aire lead 90s");
+        // FASE 1: Activar aire lead (90s antes de bomba)
+        state.recircAirLeadActive = true;
+        state.recircAirLeadStartTime = now;
+        setActuatorStateImmediate(state.airStone, true, "difusor");
+        
+        logRoutineAction("recirculación", "INICIADA - Fase 1: Aire lead 90s");
+        
+        // Programar próximo horario (4h después)
+        state.nextRecirculationTime += 240; // +4h en minutos
+        if (state.nextRecirculationTime >= 1440) state.nextRecirculationTime -= 1440; // Wrap 24h
+        
         return;
     }
     
-    // Estado: LEAD activo (aire antes de motobomba)
-    if (state.airLeadActive && (now - state.airLeadStartTime >= AIR_LEAD_MS)) {
-        state.airLeadActive = false;
+    // Si no está activo, no hay nada que hacer
+    if (!state.recirculationActive) return;
+    
+    // FASE 1 → FASE 2: Aire lead terminado, activar bomba + aire continuo
+    if (state.recircAirLeadActive && (now - state.recircAirLeadStartTime >= AIR_LEAD_MS)) {
+        state.recircAirLeadActive = false;
+        state.recircPumpActive = true;
+        state.recircPumpStartTime = now;
         
-        // Activar motobomba por 8 minutos
-        state.pumpStartTime = now;
-        setActuatorState(state.waterPump, true, "bomba");
-        logRoutineAction("pump_activated", "motobomba 8min + aire continuo");
+        // Bomba ON + Aire sigue ON (aireación durante bomba)
+        setActuatorStateImmediate(state.waterPump, true, "motobomba");
+        setActuatorStateImmediate(state.airStone, true, "difusor"); // Mantener activo
+        
+        logRoutineAction("recirculación", "FASE 2: Bomba 8min + aire continuo");
         return;
     }
     
-    // Estado: Motobomba activa
-    if (state.waterPump.isOn && (now - state.pumpStartTime >= PUMP_DURATION_MS)) {
-        // Apagar motobomba, iniciar POST HOLD
-        setActuatorState(state.waterPump, false, "bomba");
-        state.airPostActive = true;
-        state.airPostStartTime = now;  // Usar timestamp específico para post
-        logRoutineAction("pump_finished", "aire post hold 45s");
+    // FASE 2 → FASE 3: Bomba terminada, activar post air
+    if (state.recircPumpActive && (now - state.recircPumpStartTime >= PUMP_DURATION_MS)) {
+        state.recircPumpActive = false;
+        state.recircAirPostActive = true;
+        state.recircAirPostStartTime = now;
+        
+        // Bomba OFF + Aire sigue ON (post hold)
+        setActuatorStateImmediate(state.waterPump, false, "motobomba");
+        setActuatorStateImmediate(state.airStone, true, "difusor"); // Mantener activo
+        
+        logRoutineAction("recirculación", "FASE 3: Post aire 45s");
         return;
     }
     
-    // Estado: POST HOLD activo (aire después de motobomba)
-    if (state.airPostActive && (now - state.airPostStartTime >= POST_AIR_HOLD_MS)) {
-        state.airPostActive = false;
-        state.pumpCycleActive = false;
-        state.pumpHasPriority = false;  // Liberar prioridad
+    // FASE 3 → FIN: Post air terminado, finalizar ciclo completo
+    if (state.recircAirPostActive && (now - state.recircAirPostStartTime >= POST_AIR_HOLD_MS)) {
+        state.recircAirPostActive = false;
+        state.recirculationActive = false;
         
-        // IMPORTANTE: NO apagar aire aquí - la coordinación se encarga
-        // La función handleAirStoneCoordination() detectará el fin de recirculación
+        // Todo OFF - el control autónomo tomará el control
+        setActuatorStateImmediate(state.airStone, false, "difusor");
+        state.airStoneMode = AIR_MODE_IDLE; // Liberar control
         
-        logRoutineAction("pump_cycle_complete", "recirculación terminada - coordinación toma control de aire");
+        logRoutineAction("recirculación", "COMPLETADA - Control liberado");
         return;
     }
 }
 
-// FUNCIÓN OBSOLETA: La coordinación ahora se maneja en handleAirStoneCoordination()
-void AutonomousController::handleAirCycle() {
-    // Esta función se mantiene por compatibilidad pero ya no se usa
-    // La lógica de aireación ahora está centralizada en handleAirStoneCoordination()
-    return;
+// ========================================
+// CRONOGRAMA INDEPENDIENTE DE AIREACIÓN AUTÓNOMA (cada 30min)
+// ========================================
+
+void AutonomousController::initializeAutonomousAirSchedule() {
+    unsigned long currentMinutes = getCurrentMinutes();
+    
+    // CORREGIDO: Calcular próximo horario basado en múltiplos de 30 desde 00:00
+    // Horarios válidos: 0, 30, 60, 90, 120, 150... (cada 30min desde medianoche)
+    unsigned long nextCycle = ((currentMinutes / 30) + 1) * 30;
+    if (nextCycle >= 1440) nextCycle = 0; // Wrap around medianoche
+    
+    state.nextAutonomousAirTime = nextCycle;
+    
+    Serial.printf("💨 [AIREACIÓN] Próximo horario: %02ld:%02ld (minuto %ld desde medianoche)\n", 
+                  nextCycle / 60, nextCycle % 60, nextCycle);
+}
+
+bool AutonomousController::isAutonomousAirScheduleTime() {
+    if (state.autonomousAirActive) return false; // Ya está activa
+    if (state.airStoneMode != AIR_MODE_IDLE && state.airStoneMode != AIR_MODE_AUTONOMOUS) return false; // No disponible
+    
+    unsigned long currentMinutes = getCurrentMinutes();
+    
+    // CORREGIDO: Verificar si es hora de activar (amplia tolerancia para recuperarse)
+    if (currentMinutes >= state.nextAutonomousAirTime) {
+        // Si perdimos la ventana (más de 5 min tarde), recalcular próximo horario
+        if (currentMinutes > state.nextAutonomousAirTime + 5) {
+            Serial.printf("💨 [AIREACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+            
+            // Recalcular basándose en múltiplos de 30 desde 00:00
+            unsigned long nextCycle = ((currentMinutes / 30) + 1) * 30;
+            if (nextCycle >= 1440) nextCycle = 0; // Wrap 24h
+            
+            state.nextAutonomousAirTime = nextCycle;
+            Serial.printf("💨 [AIREACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n", 
+                          nextCycle / 60, nextCycle % 60, nextCycle);
+            
+            return false; // No activar ahora, esperar al próximo ciclo
+        }
+        
+        return true; // Dentro de ventana válida (0-5 min después)
+    }
+    
+    return false; // Aún no es hora
+}
+
+void AutonomousController::handleAutonomousAirRoutine() {
+    unsigned long now = millis();
+    
+    // INICIO: Verificar si debe comenzar el ciclo de aireación autónoma
+    if (isAutonomousAirScheduleTime() && !state.autonomousAirActive) {
+        state.autonomousAirActive = true;
+        state.autonomousAirStartTime = now;
+        state.airStoneMode = AIR_MODE_AUTONOMOUS;
+        
+        setActuatorStateImmediate(state.airStone, true, "difusor");
+        logRoutineAction("aireación_autónoma", "INICIADA - 5 minutos");
+        
+        // Programar próximo horario (30min después)
+        state.nextAutonomousAirTime += 30;
+        if (state.nextAutonomousAirTime >= 1440) state.nextAutonomousAirTime -= 1440; // Wrap 24h
+        
+        Serial.printf("💨 [AIREACIÓN] Próximo horario programado: %02ld:%02ld (minuto %ld)\n", 
+                      state.nextAutonomousAirTime / 60, state.nextAutonomousAirTime % 60, 
+                      state.nextAutonomousAirTime);
+        return;
+    }
+    
+    // FIN: Verificar si debe terminar el ciclo (5 minutos)
+    if (state.autonomousAirActive && (now - state.autonomousAirStartTime >= AIR_PERIODIC_ON_MS)) {
+        state.autonomousAirActive = false;
+        state.airStoneMode = AIR_MODE_IDLE;
+        
+        setActuatorStateImmediate(state.airStone, false, "difusor");
+        logRoutineAction("aireación_autónoma", "COMPLETADA");
+        return;
+    }
 }
 
 // NUEVA REGLA: Emergencia térmica (>25°C) - PRIORIDAD MÁXIMA
@@ -626,15 +723,15 @@ void AutonomousController::handleThermalEmergency() {
         state.lastEmergencyTime = now;
         
         // Cancelar todas las rutinas normales (máxima prioridad)
-        state.pumpCycleActive = false;
-        state.airPeriodicActive = false;
-        state.airLeadActive = false;
-        state.airPostActive = false;
-        state.pumpHasPriority = true;  // Bloquear rutinas normales
+        state.recirculationActive = false;
+        state.autonomousAirActive = false;
+        state.recircAirLeadActive = false;
+        state.recircAirPostActive = false;
+        state.recircPumpActive = false;
         
         // Activar recirculación de emergencia (aire + bomba inmediato)
-        setActuatorState(state.airStone, true, "difusor");
-        setActuatorState(state.waterPump, true, "bomba");
+        setActuatorStateImmediate(state.airStone, true, "difusor");
+        setActuatorStateImmediate(state.waterPump, true, "bomba");
         
         Serial.printf("🚨 [EMERGENCIA] Temperatura crítica %.1f°C > %.1f°C - recirculación forzada\n", 
                      temp, TEMP_EMERGENCY_THRESHOLD);
@@ -648,10 +745,12 @@ void AutonomousController::handleThermalEmergency() {
         if (now - state.emergencyStartTime >= EMERGENCY_PUMP_DURATION_MS) {
             // Terminar emergencia
             state.thermalEmergencyActive = false;
-            state.pumpHasPriority = false;  // Liberar bloqueo
+            // Reinicializar cronogramas tras emergencia
+            initializeRecirculationSchedule();
+            initializeAutonomousAirSchedule();
             
-            setActuatorState(state.waterPump, false, "bomba");
-            setActuatorState(state.airStone, false, "difusor");
+            setActuatorStateImmediate(state.waterPump, false, "bomba");
+            setActuatorStateImmediate(state.airStone, false, "difusor");
             
             Serial.printf("✅ [EMERGENCIA] Emergencia térmica completada - temperatura actual: %.1f°C\n", temp);
             logRoutineAction("thermal_emergency_complete", "recirculación de emergencia finalizada");
@@ -856,6 +955,32 @@ void AutonomousController::setActuatorState(ActuatorState& state, bool newState,
     }
 }
 
+// NUEVA FUNCIÓN: Aplicación inmediata para cronogramas (sin esperar ciclo de control)
+void AutonomousController::setActuatorStateImmediate(ActuatorState& state, bool newState, const char* name) {
+    // Actualizar estado lógico
+    setActuatorState(state, newState, name);
+    
+    // APLICAR INMEDIATAMENTE al hardware físico para cronogramas de tiempo fijo
+    if (&state == &(this->state.waterPump)) {
+        if (state.isOn && !state.forceOff) {
+            ActuatorController::turnWaterPumpOn();
+            Serial.printf("⚡ [INMEDIATO] Bomba agua → ON (cronograma)\n");
+        } else {
+            ActuatorController::turnWaterPumpOff();
+            Serial.printf("⚡ [INMEDIATO] Bomba agua → OFF (cronograma)\n");
+        }
+    }
+    else if (&state == &(this->state.airStone)) {
+        if (state.isOn && !state.forceOff) {
+            ActuatorController::turnAirStoneOn();
+            Serial.printf("⚡ [INMEDIATO] Difusor aire → ON (cronograma)\n");
+        } else {
+            ActuatorController::turnAirStoneOff();
+            Serial.printf("⚡ [INMEDIATO] Difusor aire → OFF (cronograma)\n");
+        }
+    }
+}
+
 void AutonomousController::applyActuatorStates() {
     // Aplicar estados a actuadores físicos
     if (state.heater.isOn) {
@@ -945,15 +1070,15 @@ void AutonomousController::printActuatorStates() {
                   state.humidifierMasterActive ? "ON" : "OFF");
     Serial.printf("   🌊 Bomba agua: %s %s %s\n", state.waterPump.isOn ? "ON" : "OFF",
                   state.waterPump.forceOff ? "(BLOQUEADA)" : "",
-                  state.pumpRunningForHeater ? "(RECIRCULANDO)" : "");
+                  "");
     
     // NUEVA INFORMACIÓN: Estado de coordinación de bomba de aire
     const char* airModeStr = (state.airStoneMode == AIR_MODE_AUTONOMOUS) ? "AUTONOMO" :
                             (state.airStoneMode == AIR_MODE_RECIRCULATION) ? "RECIRCULACION" : "INACTIVO";
     const char* airPhaseStr = "";
-    if (state.airLeadActive) airPhaseStr = " (LEAD)";
-    else if (state.airPostActive) airPhaseStr = " (POST)";
-    else if (state.airPeriodicActive) airPhaseStr = " (PERIODICO)";
+    if (state.recircAirLeadActive) airPhaseStr = " (LEAD)";
+    else if (state.recircAirPostActive) airPhaseStr = " (POST)";
+    else if (state.autonomousAirActive) airPhaseStr = " (PERIODICO)";
     
     Serial.printf("   💨 Difusor aire: %s %s - Modo: %s%s\n", 
                   state.airStone.isOn ? "ON" : "OFF",
@@ -1103,89 +1228,50 @@ void AutonomousController::setAirStoneMode(AirStoneMode newMode, const char* rea
         Serial.printf("🔄 [AIR-COORD] Cambio modo: %s → %s (%s)\n", oldMode, newModeStr, reason);
         state.airStoneMode = newMode;
         
-        // Reset de estados al cambiar modo
+        // Reset de estados al cambiar modo (ya no necesario - sistema independiente)
         if (newMode == AIR_MODE_AUTONOMOUS) {
-            state.airPeriodicActive = false;
-            calculateNextAutonomousAirTime();
+            // Los horarios autónomos se manejan internamente
         } else if (newMode == AIR_MODE_RECIRCULATION) {
-            state.airPeriodicActive = false;
+            // La recirculación maneja sus propios estados
         }
     }
 }
 
-void AutonomousController::calculateNextAutonomousAirTime() {
-    unsigned long currentMinutes = getCurrentMinutes();
-    unsigned long currentMinutesInHour = currentMinutes % 60;
-    
-    // Calcular próximo horario de 30 minutos: XX:00 o XX:30
-    unsigned long nextMinutesInHour;
-    if (currentMinutesInHour < 30) {
-        nextMinutesInHour = 30;
-    } else {
-        nextMinutesInHour = 60; // Siguiente hora XX:00
+// FUNCIONES LEGACY ELIMINADAS - REEMPLAZADAS POR SISTEMA INDEPENDIENTE
+// calculateNextAutonomousAirTime() → initializeAutonomousAirSchedule()
+// shouldActivateAutonomousAir() → isAutonomousAirScheduleTime()
+
+// ========================================
+// CONTROLADOR CENTRAL DE EXCLUSIÓN MUTUA
+// ========================================
+
+void AutonomousController::updateAirStoneControl() {
+    // PRIORIDAD 1: Recirculación tiene control absoluto
+    if (state.recirculationActive) {
+        if (state.airStoneMode != AIR_MODE_RECIRCULATION) {
+            setAirStoneMode(AIR_MODE_RECIRCULATION, "recirculación tomó control");
+        }
+        return; // Recirculación maneja todo internamente
     }
     
-    // Calcular tiempo absoluto del próximo ciclo
-    unsigned long hoursSinceMidnight = currentMinutes / 60;
-    if (nextMinutesInHour == 60) {
-        hoursSinceMidnight++;
-        nextMinutesInHour = 0;
-    }
-    
-    state.nextAutonomousAirTime = (hoursSinceMidnight * 60) + nextMinutesInHour;
-    
-    Serial.printf("📅 [AIR-COORD] Próximo aire autónomo programado para minuto %lu (actual: %lu)\n", 
-                  state.nextAutonomousAirTime, currentMinutes);
-}
-
-bool AutonomousController::shouldActivateAutonomousAir() {
-    if (state.airStoneMode != AIR_MODE_AUTONOMOUS) return false;
-    
-    unsigned long currentMinutes = getCurrentMinutes();
-    
-    // Verificar si es hora exacta del ciclo autónomo programado
-    bool isTimeForAir = (currentMinutes >= state.nextAutonomousAirTime && 
-                        currentMinutes <= state.nextAutonomousAirTime + 3); // Ventana de 3 min
-    
-    return isTimeForAir && !state.airPeriodicActive;
-}
-
-void AutonomousController::handleAirStoneCoordination() {
-    unsigned long now = millis();
-    
-    // PRIORIDAD 1: Verificar si la recirculación debe tomar control
-    if (state.pumpCycleActive && state.airStoneMode != AIR_MODE_RECIRCULATION) {
-        setAirStoneMode(AIR_MODE_RECIRCULATION, "recirculación iniciada");
+    // PRIORIDAD 2: Liberar control cuando recirculación termine
+    if (!state.recirculationActive && state.airStoneMode == AIR_MODE_RECIRCULATION) {
+        setAirStoneMode(AIR_MODE_IDLE, "recirculación completada - liberando control");
         return;
     }
     
-    // PRIORIDAD 2: Liberar control cuando termine la recirculación
-    if (!state.pumpCycleActive && state.airStoneMode == AIR_MODE_RECIRCULATION) {
-        setAirStoneMode(AIR_MODE_IDLE, "recirculación completada");
-        // Calcular próximo horario autónomo considerando el tiempo que ya pasó
-        calculateNextAutonomousAirTime();
-        return;
+    // PRIORIDAD 3: Aireación autónoma (solo si no hay recirculación)
+    if (state.autonomousAirActive) {
+        if (state.airStoneMode != AIR_MODE_AUTONOMOUS) {
+            setAirStoneMode(AIR_MODE_AUTONOMOUS, "aireación autónoma activa");
+        }
+        return; // Aireación autónoma maneja todo internamente
     }
     
-    // MODO AUTÓNOMO: Verificar si debe activarse el ciclo periódico
-    if (state.airStoneMode == AIR_MODE_AUTONOMOUS || state.airStoneMode == AIR_MODE_IDLE) {
-        if (shouldActivateAutonomousAir()) {
-            setAirStoneMode(AIR_MODE_AUTONOMOUS, "horario ciclo autónomo");
-            state.airPeriodicActive = true;
-            state.airPeriodicStartTime = now;
-            setActuatorState(state.airStone, true, "difusor");
-            logAirStoneAction("ACTIVADO", "AUTONOMO", "ciclo periódico 5min");
-            return;
-        }
-        
-        // Desactivar aire autónomo después de 5 minutos
-        if (state.airPeriodicActive && (now - state.airPeriodicStartTime >= AIR_PERIODIC_ON_MS)) {
-            state.airPeriodicActive = false;
-            setActuatorState(state.airStone, false, "difusor");
-            logAirStoneAction("DESACTIVADO", "AUTONOMO", "ciclo periódico completado");
-            calculateNextAutonomousAirTime();
-            setAirStoneMode(AIR_MODE_IDLE, "esperando próximo ciclo");
-        }
+    // PRIORIDAD 4: Liberar control cuando aireación autónoma termine
+    if (!state.autonomousAirActive && state.airStoneMode == AIR_MODE_AUTONOMOUS) {
+        setAirStoneMode(AIR_MODE_IDLE, "aireación autónoma completada - liberando control");
+        return;
     }
 }
 
