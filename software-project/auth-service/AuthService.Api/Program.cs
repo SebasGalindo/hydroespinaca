@@ -32,6 +32,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddWebApi(builder.Configuration, builder.Environment);
 
+// Add HttpClient for notification service communication
+builder.Services.AddHttpClient<AuthService.Domain.Interfaces.INotificationService, AuthService.Infrastructure.Services.HttpNotificationService>();
+
 // Register auth-service specific exception mapper
 builder.Services.AddSingleton<ProblemDetailsFactory>();
 builder.Services.AddSingleton<IExceptionToProblemDetailsMapper, AuthServiceExceptionMapper>();
