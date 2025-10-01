@@ -138,6 +138,7 @@ services:
       - M2M__ClientSecret=${SENSOR_SERVICE_CLIENT_SECRET}
       - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
       - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - NotificationService__BaseUrl=${NOTIFICATION_SERVICE_URL}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
@@ -200,6 +201,14 @@ services:
       - Jwt__Issuer=${Jwt_Issuer}
       - Jwt__Audience=${Jwt_Audience}
       - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
+      # M2M Configuration for auth-service to communicate with other services
+      - M2M__ClientId=${AUTH_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${AUTH_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      # External Service URLs
+      - NotificationService__BaseUrl=${NOTIFICATION_SERVICE_URL}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
