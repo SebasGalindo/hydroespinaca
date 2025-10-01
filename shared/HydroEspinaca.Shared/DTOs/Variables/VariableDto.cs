@@ -11,5 +11,6 @@ public class VariableDto
     public double OptimalMin { get; set; }
     public double? OptimalMax { get; set; }
     public string Type { get; set; } = default!;
+    public string? RegulationType { get; set; }
     public DateTime LastModified { get; set; }
 }

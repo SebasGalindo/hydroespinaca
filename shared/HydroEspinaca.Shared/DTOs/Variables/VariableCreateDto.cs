@@ -10,4 +10,5 @@ public class VariableCreateDto
     public double OptimalMin { get; set; }
     public double? OptimalMax { get; set; }
     public string Type { get; set; } = default!;
+    public string? RegulationType { get; set; }
 }

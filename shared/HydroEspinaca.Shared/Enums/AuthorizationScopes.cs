@@ -15,6 +15,11 @@ public static class AuthorizationScopes
     // Profile scopes (for self-service operations)
     public const string ProfileRead = "profile:read";
     public const string ProfileUpdate = "profile:update";
+    
+    // Password management scopes
+    public const string PasswordChange = "password:change";
+    public const string PasswordReset = "password:reset";
+    public const string PasswordResetRequest = "password:reset:request";
 
     // Role management scopes
     public const string RoleRead = "role:read";
@@ -103,7 +108,8 @@ public static class AuthorizationScopes
     public static readonly string[] UserScopes =
     {
         UserRead, UserCreate, UserUpdate, UserDelete,
-        ProfileRead, ProfileUpdate
+        ProfileRead, ProfileUpdate,
+        PasswordChange, PasswordReset, PasswordResetRequest
     };
 
     /// <summary>
@@ -181,6 +187,7 @@ public static class AuthorizationScopes
         // User management
         UserRead, UserCreate, UserUpdate, UserDelete,
         ProfileRead, ProfileUpdate,
+        PasswordChange, PasswordReset, PasswordResetRequest,
         // Role and permission management
         RoleRead, RoleCreate, RoleUpdate, RoleDelete,
         PermissionRead, PermissionCreate, PermissionUpdate, PermissionDelete,
