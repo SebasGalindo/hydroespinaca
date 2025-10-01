@@ -17,6 +17,7 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
             OptimalMin = doc.OptimalMin,
             OptimalMax = doc.OptimalMax,
             Type = doc.Type,
+            RegulationType = doc.RegulationType,
             LastModified = doc.LastModified
         };
         variable.SetId(doc.Id);
@@ -35,6 +36,7 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
             OptimalMin = entity.OptimalMin,
             OptimalMax = entity.OptimalMax,
             Type = entity.Type,
+            RegulationType = entity.RegulationType,
             LastModified = entity.LastModified
         };
         document.SetId(entity.Id);

@@ -17,6 +17,10 @@ public class Variable : IIdentifiableMutable
     public double? OptimalMax { get; set; }
     
     public VariableTypes Type { get; set; }
+    
+    // Tipo de regulación - manual o automática
+    public RegulationType? RegulationType { get; set; }
+    
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 
     public void SetId(string id) => Id = id;

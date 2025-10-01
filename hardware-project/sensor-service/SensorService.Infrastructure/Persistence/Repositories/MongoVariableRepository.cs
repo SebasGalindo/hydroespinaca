@@ -1,5 +1,7 @@
+using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Driver;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
 
@@ -22,6 +24,12 @@ public class MongoVariableRepository : IVariableRepository
     public async Task<List<Variable>> GetAllAsync()
     {
         return await _baseRepo.GetAllAsync();
+    }
+
+    public async Task<List<Variable>> GetByRegulationTypeAsync(RegulationType regulationType, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<VariableDocument>.Filter.Eq(v => v.RegulationType, regulationType);
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task CreateAsync(Variable variable)

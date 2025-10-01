@@ -1,6 +1,8 @@
 ﻿using HydroEspinaca.Shared.Extensions;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using HydroEspinaca.Shared.Mqtt;
+using HydroEspinaca.Shared.Authentication.Services;
+using HydroEspinaca.Shared.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SensorService.Domain.Entities;
@@ -38,9 +40,14 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IEntityMapper<Aggregate, AggregateDocument>, AggregateMapper>();
         services.AddScoped<IEntityMapper<Esp32Alert, Esp32AlertDocument>, Esp32AlertMapper>();
 
+        // M2M Authentication configuration
+        services.Configure<M2MAuthOptions>(configuration.GetSection("M2M"));
+        services.AddTransient<M2MTokenService>();
+
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
         services.AddScoped<IVariableMigrationService, VariableMigrationService>();
+        services.AddHttpClient<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
      
         return services;
     }

@@ -36,6 +36,10 @@ public class VariableDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.String)]
     public VariableTypes Type { get; set; }
 
+    [BsonElement("regulationType")]
+    [BsonRepresentation(BsonType.String)]
+    public RegulationType? RegulationType { get; set; }
+
     [BsonElement("lastModified")]
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
 

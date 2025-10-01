@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using HydroEspinaca.Shared.DTOs.Mqtt;
+using SensorService.Application.Interfaces;
 using SensorService.Application.Interfaces.UseCases.Esp32;
 using SensorService.Application.Interfaces.UseCases.ProcessReadingBatch;
 using SensorService.Domain.Entities;
@@ -16,6 +17,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
     private readonly IGenerateAlertsUseCase _generateAlertsUseCase;
     private readonly IGenerateInactiveSensorAlertsUseCase _generateInactiveAlertsUseCase;
     private readonly IUpdateEsp32LastSeenUseCase _updateEsp32LastSeenUseCase;
+    private readonly ICriticalAlertApplicationService _criticalAlertService;
 
     public ProcessReadingBatchUseCase(
         IValidator<ReadingBatchDto> validator,
@@ -24,7 +26,8 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         IMatchReadingsWithSensorsUseCase matchReadingsUseCase,
         IGenerateAlertsUseCase generateAlertsUseCase,
         IGenerateInactiveSensorAlertsUseCase generateInactiveAlertsUseCase,
-        IUpdateEsp32LastSeenUseCase updateEsp32LastSeenUseCase
+        IUpdateEsp32LastSeenUseCase updateEsp32LastSeenUseCase,
+        ICriticalAlertApplicationService criticalAlertService
         )
     {
         _validator = validator;
@@ -34,6 +37,7 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
         _generateAlertsUseCase = generateAlertsUseCase;
         _generateInactiveAlertsUseCase = generateInactiveAlertsUseCase;
         _updateEsp32LastSeenUseCase = updateEsp32LastSeenUseCase;
+        _criticalAlertService = criticalAlertService;
     }
 
     public async Task<Result<ProcessReadingBatchOutput>> ExecuteAsync(ReadingBatchDto dto, CancellationToken cancellationToken = default)
@@ -62,6 +66,9 @@ public class ProcessReadingBatchUseCase : IProcessReadingBatchUseCase
 
             await PersistReadingsAsync(matchedReadings);
             await PersistAlertsAsync(sensorAlerts);
+
+            // Process critical alert notifications for manual variables (pH, EC, Water Level)
+            await _criticalAlertService.ProcessCriticalAlertsAsync(dto.Esp32Id, dto.Timestamp.DateTime, matchedReadings, cancellationToken);
 
             var output = new ProcessReadingBatchOutput(matchedReadings.Count, sensorAlerts.Count);
             return Result<ProcessReadingBatchOutput>.Success(output);

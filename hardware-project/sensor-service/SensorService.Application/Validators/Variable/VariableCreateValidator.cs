@@ -51,5 +51,19 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
         RuleFor(x => x.Type)
           .NotEmpty()
           .WithMessage("El tipo de variable es obligatorio.");
+
+        RuleFor(x => x.RegulationType)
+          .Must(BeValidRegulationType)
+          .WithMessage("El tipo de regulación debe ser 'Manual' o 'Automatic'.")
+          .When(x => !string.IsNullOrEmpty(x.RegulationType));
+    }
+
+    private static bool BeValidRegulationType(string? regulationType)
+    {
+        if (string.IsNullOrEmpty(regulationType))
+            return true; // Allow null/empty as it's optional
+
+        return regulationType.Equals("Manual", StringComparison.OrdinalIgnoreCase) ||
+               regulationType.Equals("Automatic", StringComparison.OrdinalIgnoreCase);
     }
 }

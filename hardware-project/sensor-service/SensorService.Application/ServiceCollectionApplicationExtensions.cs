@@ -20,6 +20,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IEsp32NodeService, Esp32NodeService>();
         services.AddScoped<IEsp32AlertService, Esp32AlertService>();
         services.AddScoped<IUpdateEsp32LastSeenUseCase , UpdateEsp32LastSeenUseCase>();
+        services.AddScoped<ICriticalAlertApplicationService, CriticalAlertApplicationService>();
         
         // Use Cases
         services.AddScoped<MqttMessageDispatcher>();
