@@ -1,41 +1,41 @@
+using ActuatorService.Application.DTOs;
 using ActuatorService.Application.Interfaces;
-using ActuatorService.Domain.Interfaces;
 using ActuatorService.Domain.Exceptions;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
-using HydroEspinaca.Shared.Enums;
-using HydroEspinaca.Shared.Errors;
 using Microsoft.Extensions.Logging;
 
 namespace ActuatorService.Application.Services;
 
 public class JobScheduleService : IJobScheduleService
 {
-    private readonly IActuatorRepository _actuatorRepository;
     private readonly IJobScheduleStateManager _stateManager;
     private readonly ILogger<JobScheduleService> _logger;
 
     public JobScheduleService(
-        IActuatorRepository actuatorRepository,
         IJobScheduleStateManager stateManager,
-        ILogger<JobScheduleService> logger)
+        ILogger<JobScheduleService> _logger)
     {
-        _actuatorRepository = actuatorRepository;
         _stateManager = stateManager;
-        _logger = logger;
+        this._logger = _logger;
     }
 
-    public async Task<JobScheduleDto> CreateJobScheduleAsync(List<RoutineCommandDto> routines)
+    public Task<JobScheduleDto> CreateJobScheduleAsync(List<ResolvedRoutineDto> resolvedRoutines)
     {
-        _logger.LogInformation("Creating job schedule for {RoutineCount} routines", routines.Count);
+        _logger.LogInformation("Creating job schedule for {RoutineCount} resolved routines", resolvedRoutines.Count);
 
-        // Group routines by ESP32 ID (assuming all actuators belong to same ESP32 for now)
-        var esp32Id = await GetEsp32IdForRoutinesAsync(routines);
-
-        // Process each routine through the scheduling algorithm
-        foreach (var routine in routines)
+        if (!resolvedRoutines.Any())
         {
-            await AssignRoutineToChannelAsync(esp32Id, routine);
+            throw new ArgumentException("No routines provided for scheduling");
+        }
+
+        // All routines should belong to same ESP32 (validated earlier)
+        var esp32Id = resolvedRoutines.First().Esp32Id;
+
+        // Process each resolved routine through the scheduling algorithm
+        foreach (var resolvedRoutine in resolvedRoutines)
+        {
+            AssignRoutineToChannel(esp32Id, resolvedRoutine);
         }
 
         // Mark ONLY the first routine in each channel as running (respecting existing queue)
@@ -44,7 +44,12 @@ public class JobScheduleService : IJobScheduleService
             _stateManager.MarkNextCommandAsRunning(esp32Id, channelId);
         }
 
-        return _stateManager.GetCurrentJobSchedule(esp32Id);
+        return Task.FromResult(_stateManager.GetCurrentJobSchedule(esp32Id));
+    }
+
+    public Task<JobScheduleDto> CreateJobScheduleAsync(List<RoutineCommandDto> routines)
+    {
+        throw new NotSupportedException("Use CreateJobScheduleAsync with ResolvedRoutineDto instead");
     }
 
     public Task<JobStatusDto> GetJobStatusAsync(string? esp32Id = null)
@@ -69,49 +74,34 @@ public class JobScheduleService : IJobScheduleService
         return Task.CompletedTask;
     }
 
-    private async Task<string> GetEsp32IdForRoutinesAsync(List<RoutineCommandDto> routines)
+    private void AssignRoutineToChannel(string esp32Id, ResolvedRoutineDto resolvedRoutine)
     {
-        var firstActuatorId = routines.SelectMany(r => r.Steps).Select(s => s.Actuator).FirstOrDefault();
+        var commandId = GenerateCommandId(resolvedRoutine.RoutineId);
 
-        if (firstActuatorId == null)
+        // Transform resolved steps to job step state
+        var jobSteps = resolvedRoutine.ResolvedSteps.Select(rs => new JobStepState
         {
-            throw new ScheduledJobNotFoundException(
-                $"No se encontró ningún actuador en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
-        }
-
-        var actuator = await _actuatorRepository.GetByIdAsync(firstActuatorId);
-
-        if (actuator?.Esp32Id == null)
-        {
-            throw new ScheduledJobNotFoundException(
-                $"No se pudo determinar el ESP32 asociado al actuador '{firstActuatorId}' en las rutinas: {string.Join(", ", routines.Select(r => r.RoutineId))}");
-        }
-
-        return actuator.Esp32Id;
-    }
-
-
-
-    private async Task AssignRoutineToChannelAsync(string esp32Id, RoutineCommandDto routine)
-    {
-        var commandId = GenerateCommandId(routine.RoutineId);
-
-        // Enrich steps with actuator data
-        var enrichedSteps = await EnrichRoutineStepsAsync(routine.Steps);
+            Pin = rs.Pin,
+            Mode = rs.Mode.ToString(),
+            Power = rs.Power,
+            DutyCycle = rs.DutyCycle,
+            Duration = rs.Duration,
+            ActuatorId = rs.ActuatorId
+        }).ToList();
 
         var jobRoutine = new JobRoutineState
         {
             CommandId = commandId,
-            BaseId = routine.RoutineId,
-            Steps = enrichedSteps,
+            BaseId = resolvedRoutine.RoutineId,
+            Steps = jobSteps,
             Status = ActuatorConstants.CommandStatuses.Scheduled // Always start as SCHEDULED, will be updated if needed
         };
 
         // Determine priority level
-        var priority = DeterminePriority(routine);
+        var priority = DeterminePriority(resolvedRoutine);
 
         // Find the best channel for this routine (prevents GPIO conflicts)
-        var channelId = await FindBestChannelForRoutineAsync(routine, priority);
+        var channelId = FindBestChannelForRoutine(resolvedRoutine, priority);
 
         // Add to the selected channel via state manager with priority
         _stateManager.AddRoutineToSchedule(esp32Id, jobRoutine, channelId, (int)priority);
@@ -126,32 +116,6 @@ public class JobScheduleService : IJobScheduleService
         return $"{routineId}_{timestamp}";
     }
 
-    private async Task<List<JobStepState>> EnrichRoutineStepsAsync(List<RoutineStepDto> steps)
-    {
-        var enrichedSteps = new List<JobStepState>();
-
-        foreach (var step in steps)
-        {
-            var actuator = await _actuatorRepository.GetByIdAsync(step.Actuator);
-            if (actuator == null)
-                throw new InvalidOperationException($"Actuator {step.Actuator} not found");
-
-            var jobStep = new JobStepState
-            {
-                Pin = actuator.Pin.ToString(),
-                Mode = actuator.Mode.ToString(),
-                Power = step.Power,
-                DutyCycle = step.DutyCycle,
-                Duration = step.Duration,
-                ActuatorId = step.Actuator
-            };
-
-            enrichedSteps.Add(jobStep);
-        }
-
-        return enrichedSteps;
-    }
-
     /// <summary>
     /// Determines the priority of a routine based on its characteristics.
     /// Priority rules:
@@ -159,25 +123,25 @@ public class JobScheduleService : IJobScheduleService
     /// - SingleStep (1): Routines with exactly one step. Higher priority than normal routines.
     /// - Normal (0): Multi-step routines without control characteristics.
     /// </summary>
-    private RoutinePriority DeterminePriority(RoutineCommandDto routine)
+    private RoutinePriority DeterminePriority(ResolvedRoutineDto resolvedRoutine)
     {
         // Control routines: all steps have "OFF" power or 0 duty cycle
-        bool isControl = routine.Steps.All(step =>
+        bool isControl = resolvedRoutine.ResolvedSteps.All(step =>
             (step.Power == ActuatorConstants.PowerStates.Off) || (step.DutyCycle == ActuatorConstants.Validation.MinDutyCycle));
 
         if (isControl)
             return RoutinePriority.Control;
 
         // Single step routines get medium-high priority
-        if (routine.Steps.Count == 1)
+        if (resolvedRoutine.ResolvedSteps.Count == 1)
             return RoutinePriority.SingleStep;
 
         return RoutinePriority.Normal;
     }
 
-    private async Task<int> FindBestChannelForRoutineAsync(RoutineCommandDto routine, RoutinePriority priority)
+    private int FindBestChannelForRoutine(ResolvedRoutineDto resolvedRoutine, RoutinePriority priority)
     {
-        var routineActuators = routine.Steps.Select(s => s.Actuator).ToHashSet();
+        var routineActuators = resolvedRoutine.ResolvedSteps.Select(s => s.ActuatorId).ToHashSet();
         
         // 1. CRITICAL: Find channels that already have ANY of the same actuators
         //    All routines using the same actuator/pin MUST go to the same channel to prevent GPIO conflicts
@@ -193,21 +157,21 @@ public class JobScheduleService : IJobScheduleService
         }
         
         // 2. No actuator conflicts - find channel with minimum load among safe channels
-        var routinePins = await GetRoutinePinsAsync(routine);
+        var routinePins = GetRoutinePins(resolvedRoutine);
         var safeChannels = new List<(int channelId, int load)>();
-        
+
         for (int channelId = ActuatorConstants.Channels.MinChannelId; channelId <= ActuatorConstants.Channels.MaxChannelId; channelId++)
         {
             var channelPins = GetChannelPins(channelId);
-            
+
             // Check if there's any GPIO pin conflict
             if (channelPins.Any() && routinePins.Overlaps(channelPins))
             {
-                _logger.LogDebug("⚠️  Channel {ChannelId} has GPIO pin conflicts: {ConflictingPins}", 
+                _logger.LogDebug("⚠️  Channel {ChannelId} has GPIO pin conflicts: {ConflictingPins}",
                     channelId, string.Join(", ", routinePins.Intersect(channelPins)));
                 continue; // Skip this channel due to GPIO conflict
             }
-            
+
             // This channel is safe - add to candidates with its current load
             var load = GetChannelLoad(channelId);
             safeChannels.Add((channelId, load));
@@ -281,19 +245,10 @@ public class JobScheduleService : IJobScheduleService
         return pins;
     }
 
-    private async Task<HashSet<string>> GetRoutinePinsAsync(RoutineCommandDto routine)
+    private HashSet<string> GetRoutinePins(ResolvedRoutineDto resolvedRoutine)
     {
-        // Get all GPIO pins that this routine will use
-        var pins = new HashSet<string>();
-        foreach (var step in routine.Steps)
-        {
-            var actuator = await _actuatorRepository.GetByIdAsync(step.Actuator);
-            if (actuator != null)
-            {
-                pins.Add(actuator.Pin.ToString());
-            }
-        }
-        return pins;
+        // Get all GPIO pins that this routine will use (already resolved)
+        return resolvedRoutine.ResolvedSteps.Select(s => s.Pin).ToHashSet();
     }
     
     private bool IsChannelFree(int channelId)

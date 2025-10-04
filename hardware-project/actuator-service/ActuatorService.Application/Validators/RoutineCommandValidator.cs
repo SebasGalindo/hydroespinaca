@@ -26,11 +26,11 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
 {
     public RoutineStepValidator()
     {
-        RuleFor(x => x.Actuator)
+        RuleFor(x => x.OutputVariable)
             .NotEmpty()
-            .WithMessage("Actuator ID es requerido")
+            .WithMessage("OutputVariable (Control Output ID) es requerido")
             .Must(ObjectIdHelper.IsValidObjectId)
-            .WithMessage("Actuator ID debe ser un ObjectId válido");
+            .WithMessage("OutputVariable debe ser un ObjectId válido");
 
         RuleFor(x => x)
             .Must(step => IsValidDuration(step))

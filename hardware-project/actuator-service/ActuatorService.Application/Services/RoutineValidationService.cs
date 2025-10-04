@@ -1,69 +1,76 @@
-using ActuatorService.Domain.Interfaces;
+using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Exceptions;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
-using HydroEspinaca.Shared.Errors;
 
 namespace ActuatorService.Application.Services;
 
-public interface IRoutineValidationService
-{
-    Task ValidateRoutineStepsAsync(List<RoutineStepDto> steps);
-}
-
 public class RoutineValidationService : IRoutineValidationService
 {
-    private readonly IActuatorRepository _actuatorRepository;
+    private readonly IOutputVariableResolver _outputVariableResolver;
 
-    public RoutineValidationService(IActuatorRepository actuatorRepository)
+    public RoutineValidationService(IOutputVariableResolver outputVariableResolver)
     {
-        _actuatorRepository = actuatorRepository;
+        _outputVariableResolver = outputVariableResolver;
     }
 
-    public async Task ValidateRoutineStepsAsync(List<RoutineStepDto> steps)
+    public async Task<List<ResolvedRoutineStepDto>> ValidateAndResolveStepsAsync(List<RoutineStepDto> steps)
     {
-        var actuatorIds = steps.Select(s => s.Actuator).Distinct().ToList();
-        var actuators = await _actuatorRepository.GetByIdsAsync(actuatorIds);
-
-        var missingActuators = actuatorIds.Except(actuators.Select(a => a.Id)).ToList();
-        if (missingActuators.Any())
-        {
-            throw new ActuatorNotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
-        }
-
-        var actuatorModeMap = actuators.ToDictionary(a => a.Id, a => a.Mode);
+        var resolvedSteps = new List<ResolvedRoutineStepDto>();
 
         foreach (var step in steps)
         {
-            var actuatorMode = actuatorModeMap[step.Actuator];
-            ValidateStepForMode(step, actuatorMode);
+            // Resolve outputVariable to physical actuator
+            var (controlOutput, actuator) = await _outputVariableResolver.ResolveAsync(step.OutputVariable);
+
+            // Validate step parameters for actuator mode
+            ValidateStepForMode(step, actuator.Mode, controlOutput.Name);
+
+            // Create resolved step with physical data
+            var resolvedStep = new ResolvedRoutineStepDto
+            {
+                OutputVariableId = controlOutput.Id,
+                OutputVariableName = controlOutput.Name,
+                ActuatorId = actuator.Id,
+                Esp32Id = actuator.Esp32Id,
+                Pin = actuator.Pin,
+                Mode = actuator.Mode,
+                Power = step.Power,
+                DutyCycle = step.DutyCycle,
+                Duration = step.Duration
+            };
+
+            resolvedSteps.Add(resolvedStep);
         }
+
+        return resolvedSteps;
     }
 
-    private void ValidateStepForMode(RoutineStepDto step, ActuatorMode mode)
+    private void ValidateStepForMode(RoutineStepDto step, ActuatorMode mode, string outputVariableName)
     {
         switch (mode)
         {
             case ActuatorMode.DIGITAL:
                 if (step.DutyCycle.HasValue)
                 {
-                    throw new RoutineScheduleConflictException($"Digital actuator {step.Actuator} cannot use 'dutyCycle'. Use 'power' instead.");
+                    throw new RoutineScheduleConflictException($"Digital output '{outputVariableName}' cannot use 'dutyCycle'. Use 'power' instead.");
                 }
                 if (string.IsNullOrEmpty(step.Power))
                 {
-                    throw new RoutineScheduleConflictException($"Digital actuator {step.Actuator} requires 'power' parameter ({ActuatorConstants.PowerStates.On}/{ActuatorConstants.PowerStates.Off}).");
+                    throw new RoutineScheduleConflictException($"Digital output '{outputVariableName}' requires 'power' parameter ({ActuatorConstants.PowerStates.On}/{ActuatorConstants.PowerStates.Off}).");
                 }
                 break;
 
             case ActuatorMode.PWM:
                 if (!string.IsNullOrEmpty(step.Power))
                 {
-                    throw new RoutineScheduleConflictException($"PWM actuator {step.Actuator} cannot use 'power'. Use 'dutyCycle' instead.");
+                    throw new RoutineScheduleConflictException($"PWM output '{outputVariableName}' cannot use 'power'. Use 'dutyCycle' instead.");
                 }
                 if (!step.DutyCycle.HasValue)
                 {
-                    throw new RoutineScheduleConflictException($"PWM actuator {step.Actuator} requires 'dutyCycle' parameter ({ActuatorConstants.Validation.MinDutyCycle}-{ActuatorConstants.Validation.MaxDutyCycle}).");
+                    throw new RoutineScheduleConflictException($"PWM output '{outputVariableName}' requires 'dutyCycle' parameter ({ActuatorConstants.Validation.MinDutyCycle}-{ActuatorConstants.Validation.MaxDutyCycle}).");
                 }
                 break;
         }

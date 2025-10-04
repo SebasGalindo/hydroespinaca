@@ -1,50 +1,28 @@
-using ActuatorService.Domain.Interfaces;
-using ActuatorService.Domain.Exceptions;
+using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Interfaces;
 using HydroEspinaca.Shared.DTOs.Actuator;
-using HydroEspinaca.Shared.Errors;
 
 namespace ActuatorService.Application.Services;
 
 public interface IMqttPayloadEnrichmentService
 {
-    Task<MqttRoutinePayloadDto> EnrichPayloadAsync(string commandId, List<RoutineStepDto> steps);
+    MqttRoutinePayloadDto CreatePhysicalPayload(string commandId, List<ResolvedRoutineStepDto> resolvedSteps);
 }
 
 public class MqttPayloadEnrichmentService : IMqttPayloadEnrichmentService
 {
-    private readonly IActuatorRepository _actuatorRepository;
+    private readonly IPhysicalStepTransformer _physicalStepTransformer;
 
-    public MqttPayloadEnrichmentService(IActuatorRepository actuatorRepository)
+    public MqttPayloadEnrichmentService(IPhysicalStepTransformer physicalStepTransformer)
     {
-        _actuatorRepository = actuatorRepository;
+        _physicalStepTransformer = physicalStepTransformer;
     }
 
-    public async Task<MqttRoutinePayloadDto> EnrichPayloadAsync(string commandId, List<RoutineStepDto> steps)
+    public MqttRoutinePayloadDto CreatePhysicalPayload(string commandId, List<ResolvedRoutineStepDto> resolvedSteps)
     {
-        var actuatorIds = steps.Select(s => s.Actuator).Distinct().ToList();
-        var actuators = await _actuatorRepository.GetByIdsAsync(actuatorIds);
-
-        var missingActuators = actuatorIds.Except(actuators.Select(a => a.Id)).ToList();
-        if (missingActuators.Any())
-        {
-            throw new ActuatorNotFoundException($"Actuators not found: {string.Join(", ", missingActuators)}");
-        }
-
-        var actuatorMap = actuators.ToDictionary(a => a.Id);
-
-        var mqttSteps = steps.Select(step =>
-        {
-            var actuator = actuatorMap[step.Actuator];
-            
-            return new MqttStepDto
-            {
-                Pin = actuator.Pin,
-                Mode = actuator.Mode.ToString(),
-                Power = step.Power,
-                DutyCycle = step.DutyCycle,
-                Duration = step.Duration
-            };
-        }).ToList();
+        var mqttSteps = resolvedSteps
+            .Select(step => _physicalStepTransformer.TransformToPhysicalStep(step))
+            .ToList();
 
         return new MqttRoutinePayloadDto
         {
