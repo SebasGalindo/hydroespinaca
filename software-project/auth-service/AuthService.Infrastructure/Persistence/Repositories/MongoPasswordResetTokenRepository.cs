@@ -19,12 +19,12 @@ public class MongoPasswordResetTokenRepository : IPasswordResetTokenRepository
     {
         _baseRepo = new BaseMongoRepository<PasswordResetToken, PasswordResetTokenDocument>(
             database,
-            "passwordResetTokens",
+            "password_reset_tokens",
             new PasswordResetTokenMapper()
         );
-        
-        _collection = database.GetCollection<PasswordResetTokenDocument>("passwordResetTokens");
-        
+
+        _collection = database.GetCollection<PasswordResetTokenDocument>("password_reset_tokens");
+
         // Create indexes for better performance
         CreateIndexes();
     }
