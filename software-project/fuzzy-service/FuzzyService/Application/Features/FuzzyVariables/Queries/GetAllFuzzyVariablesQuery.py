@@ -16,7 +16,7 @@ class GetAllFuzzyVariablesQuery(BaseModel, Query):
 
     # Filtros
     variable_type: Optional[str] = Field(default=None, description="'input' o 'output'")
-    device_id: Optional[str] = None
+    reference_id: Optional[str] = None
     name_contains: Optional[str] = Field(default=None, min_length=1)
     term_id: Optional[str] = None
 

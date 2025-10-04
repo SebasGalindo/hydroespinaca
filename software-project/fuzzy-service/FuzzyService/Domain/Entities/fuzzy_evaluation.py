@@ -50,12 +50,24 @@ class InputValue(DomainBaseModel):
 
 
 class OutputValue(DomainBaseModel):
+    """
+    Valor de salida de una evaluación fuzzy.
+
+    Contiene información sobre el actuador a controlar, la potencia/duty cycle,
+    y la duración de la acción.
+
+    Los campos power y dutyCycle son mutuamente exclusivos:
+    - power: "ON" o "OFF" para actuadores digitales
+    - dutyCycle: valor 0-100 para actuadores PWM
+
+    El campo power tiene prioridad si ambos están definidos.
+    """
     actuator_id: ActuatorId | str
-    power: float | int
+    power: Optional[str] = None  # "ON" | "OFF" para actuadores digitales
+    dutyCycle: Optional[float] = None  # 0-100 para actuadores PWM
     duration: float | int
 
     # Configuración por defecto basada en enums
-    DEFAULT_POWER_RANGE: ClassVar[PowerRange] = PowerRange.PERCENT_0_100
     DEFAULT_DURATION_RANGE: ClassVar[DurationRange] = DurationRange.SECONDS_5_60
 
     @field_validator("actuator_id", mode="before")
@@ -65,29 +77,58 @@ class OutputValue(DomainBaseModel):
             v = extract_oid(v)
         return v
 
-    @field_validator("power", "duration", mode="before")
+    @field_validator("power")
+    @classmethod
+    def _validate_power(cls, v: Optional[str]) -> Optional[str]:
+        """Valida que power sea 'ON' o 'OFF' si está definido."""
+        if v is not None and v not in ["ON", "OFF"]:
+            raise ValueError("power debe ser 'ON' o 'OFF'")
+        return v
+
+    @field_validator("dutyCycle")
+    @classmethod
+    def _validate_duty_cycle(cls, v: Optional[float]) -> Optional[float]:
+        """Valida que dutyCycle esté entre 0 y 100 si está definido."""
+        if v is not None:
+            if not isinstance(v, (int, float)):
+                raise ValueError("dutyCycle debe ser numérico")
+            if not (0 <= float(v) <= 100):
+                raise ValueError("dutyCycle debe estar entre 0 y 100")
+            return float(v)
+        return v
+
+    @field_validator("duration", mode="before")
     @classmethod
     def _coerce_numeric(cls, v):
         if not isinstance(v, (int, float)):
-            raise ValueError("power/duration deben ser numéricos")
+            raise ValueError("duration debe ser numérico")
         return float(v)
 
     @model_validator(mode="after")
-    def _validate_ranges(self):
-        pmin, pmax = self.DEFAULT_POWER_RANGE.min, self.DEFAULT_POWER_RANGE.max
-        if not (pmin <= float(self.power) <= pmax):
-            raise ValueError(f"power fuera de rango permitido [{pmin}, {pmax}]")
+    def _validate_ranges_and_exclusivity(self):
+        """Valida rangos y que power/dutyCycle sean mutuamente exclusivos."""
+        # Validar que al menos uno esté definido
+        if self.power is None and self.dutyCycle is None:
+            raise ValueError("Debe definirse power o dutyCycle")
+
+        # Validar duración
         dmin, dmax = self.DEFAULT_DURATION_RANGE.min, self.DEFAULT_DURATION_RANGE.max
         if not (dmin <= float(self.duration) <= dmax):
             raise ValueError(f"duration fuera de rango permitido [{dmin}, {dmax}]")
+
         return self
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "actuator_id": str(self.actuator_id),
-            "power": float(self.power),
             "duration": float(self.duration),
         }
+        # Incluir solo el campo definido (power tiene prioridad)
+        if self.power is not None:
+            result["power"] = self.power
+        elif self.dutyCycle is not None:
+            result["dutyCycle"] = float(self.dutyCycle)
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OutputValue":
@@ -98,6 +139,7 @@ class OutputValue(DomainBaseModel):
         return cls(
             actuator_id=aid or "",
             power=data.get("power"),
+            dutyCycle=data.get("dutyCycle"),
             duration=data.get("duration"),
         )
 

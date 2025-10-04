@@ -9,19 +9,38 @@ from FuzzyService.Domain.Common import DomainBaseModel
 
 
 class StepPayload(DomainBaseModel):
-    """Paso defuzzificado listo para el actuator-service."""
+    """Paso defuzzificado listo para el actuator-service.
 
-    actuator: Dict[str, str] = Field(
-        ..., description="Referencia del actuador en formato {\"$oid\": \"...\"}"
+    Estructura esperada por actuator-service:
+    - outputVariable: ObjectId del control_output (string)
+    - power: "ON" | "OFF" (solo para DIGITAL)
+    - dutyCycle: 0-100 (solo para PWM)
+    - duration: segundos
+    """
+
+    outputVariable: str = Field(
+        ..., min_length=1, description="ObjectId del control_output en actuator-service"
     )
-    power: float | int = Field(..., ge=0, description="Potencia a aplicar (0..100 o similar)")
+    power: Optional[str] = Field(
+        None, description="ON/OFF para outputs DIGITAL"
+    )
+    dutyCycle: Optional[float | int] = Field(
+        None, ge=0, le=100, description="0-100 para outputs PWM"
+    )
     duration: float | int = Field(..., gt=0, description="Duración en segundos")
 
-    @field_validator("actuator")
+    @field_validator("outputVariable")
     @classmethod
-    def validate_actuator(cls, v: Dict[str, str]) -> Dict[str, str]:
-        if not isinstance(v, dict) or "$oid" not in v or not isinstance(v["$oid"], str) or not v["$oid"].strip():
-            raise ValueError("El actuador debe tener la forma {\"$oid\": \"<id>\"}")
+    def validate_output_variable(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("outputVariable no puede estar vacío")
+        return v.strip()
+
+    @field_validator("power")
+    @classmethod
+    def validate_power(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ["ON", "OFF"]:
+            raise ValueError("power debe ser 'ON' o 'OFF'")
         return v
 
 
@@ -42,15 +61,24 @@ class RoutinePayload(DomainBaseModel):
 class SendRoutinesToActuatorCommand(DomainBaseModel, Command):
     """Comando para enviar rutinas defuzzificadas al actuator-service.
 
-    Estructura esperada:
-    [
-        {
-            "routineId": "rutina_riego",
-            "steps": [
-                { "actuator": {"$oid": "pump_001"}, "power": 60, "duration": 45 }
-            ]
-        }
-    ]
+    Estructura esperada por actuator-service (/api/commands/multi-routine):
+    {
+        "routines": [
+            {
+                "routineId": "ControlTemperatura",
+                "steps": [
+                    {
+                        "outputVariable": "6883fff7b079309f3ba4f240",
+                        "dutyCycle": 75,
+                        "duration": 300
+                    }
+                ]
+            }
+        ]
+    }
+
+    El campo outputVariable es el reference_id de una FuzzyVariable de tipo "output",
+    que apunta a un control_output en actuator-service.
     """
 
     routines: List[RoutinePayload] = Field(

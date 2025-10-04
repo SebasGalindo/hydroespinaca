@@ -183,6 +183,26 @@ async def on_startup() -> None:
         except Exception:
             _logger.exception("Failed to bind IActuatorService to ActuatorService.")
 
+        # Bind ISensorService to concrete SensorService (HTTP client)
+        try:
+            from FuzzyService.Domain.Interfaces.ISensorService import ISensorService
+            from FuzzyService.Infrastructure.ExternalServices.SensorService.SensorService import SensorService
+
+            sensor_base_url = os.getenv("FUZZY_SENSOR_SERVICE_URL") or os.getenv("SENSOR_SERVICE_URL") or "http://localhost:5001"
+            sensor_timeout_env = os.getenv("FUZZY_SENSOR_SERVICE_TIMEOUT") or os.getenv("SENSOR_SERVICE_TIMEOUT")
+            try:
+                sensor_timeout = float(sensor_timeout_env) if sensor_timeout_env else 30.0
+            except Exception:
+                sensor_timeout = 30.0
+
+            sensor_service = SensorService(base_url=sensor_base_url, timeout=sensor_timeout)
+
+            di[ISensorService] = sensor_service
+            di["sensor_service"] = sensor_service
+            _logger.info("ISensorService bound to SensorService (base_url=%s, timeout=%s).", sensor_base_url, sensor_timeout)
+        except Exception:
+            _logger.exception("Failed to bind ISensorService to SensorService.")
+
         ensure_indexes_env = os.getenv("FUZZY_ENSURE_INDEXES_ON_STARTUP", "true").strip().lower()
         ensure_indexes = ensure_indexes_env in ("1", "true", "yes", "y", "on")
         if ensure_indexes:

@@ -39,11 +39,12 @@ class FuzzyRuleStatus(Enum): #borrar porque regla no tiene estado
 class FuzzyVariableType(Enum):
     """
     Tipos de variables difusas según su uso en el sistema.
+    Valores en minúsculas para consistencia con el esquema MongoDB.
     """
-    
-    INPUT = "INPUT"  # Variable de entrada (sensores)
-    OUTPUT = "OUTPUT"  # Variable de salida (actuadores)
-    
+
+    INPUT = "input"  # Variable de entrada (sensores)
+    OUTPUT = "output"  # Variable de salida (actuadores)
+
     def __str__(self):
         return self.value
 

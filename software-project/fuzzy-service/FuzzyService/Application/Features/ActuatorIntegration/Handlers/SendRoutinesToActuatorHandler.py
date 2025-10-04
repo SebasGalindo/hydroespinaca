@@ -38,21 +38,30 @@ class SendRoutinesToActuatorHandler(CommandHandler[SendRoutinesToActuatorCommand
 
         # Enviar las rutinas al actuator service
         try:
-            # Construir payload HTTP directamente desde el comando
-            payload: List[Dict[str, Any]] = [
-                {
-                    "routineId": r.routineId,
-                    "steps": [
-                        {
-                            "actuator": s.actuator,
-                            "power": s.power,
-                            "duration": s.duration,
-                        }
-                        for s in r.steps
-                    ],
+            # Convertir comando a payload (ya viene en formato correcto desde ScikitFuzzyEngine)
+            payload: List[Dict[str, Any]] = []
+
+            for routine in request.routines:
+                routine_dict = {
+                    "routineId": routine.routineId,
+                    "steps": []
                 }
-                for r in request.routines
-            ]
+
+                for step in routine.steps:
+                    step_dict = {
+                        "outputVariable": step.outputVariable,
+                        "duration": int(step.duration)
+                    }
+
+                    # Agregar power O dutyCycle (mutuamente exclusivos)
+                    if step.power is not None:
+                        step_dict["power"] = step.power
+                    if step.dutyCycle is not None:
+                        step_dict["dutyCycle"] = step.dutyCycle
+
+                    routine_dict["steps"].append(step_dict)
+
+                payload.append(routine_dict)
 
             if not payload:
                 raise ValidationError("El payload de rutinas está vacío")

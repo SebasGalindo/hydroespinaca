@@ -238,13 +238,12 @@ class RuleEvaluationEngine:
         """
         try:
             # Extraer información de la condición
-            # Soportar ambos formatos: nuevo (variableId/value) y legacy (variable_name/term_label)
-            variable_id = condition_data.get('variableId') or condition_data.get('variable_name')
-            term_label = condition_data.get('value') or condition_data.get('term_label')
-            
+            variable_id = condition_data.get('variableId')
+            term_label = condition_data.get('value')
+
             if not variable_id or not term_label:
                 self.logger.warning(
-                    f"Condición incompleta: variableId/variable_name={variable_id}, value/term_label={term_label}"
+                    f"Condición incompleta: variableId={variable_id}, value={term_label}"
                 )
                 return 0.0
             

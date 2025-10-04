@@ -15,10 +15,10 @@ class CreateFuzzyVariableCommand(BaseModel, Command):
     name: str = Field(..., min_length=1, max_length=100)
     variable_type: str = Field(..., description="'input' o 'output'")
     system_id: str = Field(..., description="ID del sistema fuzzy al que pertenece la variable")
+    reference_id: str = Field(..., min_length=1, description="ID de variable en sensor-service (input) o control_output en actuator-service (output)")
 
     # Datos opcionales
     description: Optional[str] = Field(default=None, max_length=500)
-    device_id: Optional[str] = Field(default=None)
     terms: List[str] = Field(default_factory=list, description="IDs de términos asociados")
 
     # Resultado (excluido del modelo de entrada/salida)

@@ -9,18 +9,21 @@ from ..Common import DomainBaseModel
 
 class FuzzyVariable(DomainBaseModel):
     """Entidad del dominio que representa una variable difusa.
-    
-    Estructura basada en el JSON del plan:
+
+    Estructura actualizada con reference_id:
     {
       "_id": { "$oid": "var_temp_air" },
       "name": "Temperatura del aire",
       "description": "Variable que representa la temperatura del aire en el invernadero",
-      "type": "input|output",
-      "deviceId": { "$oid": "sensor_temp_001" },
+      "variable_type": "input|output",
+      "reference_id": { "$oid": "sensor_001" } o { "$oid": "control_output_001" },
       "terms": [ { "$oid": "term_temp_low" }, ... ],
       "createdAt": "2025-01-27T23:39:17.917+00:00",
       "updatedAt": "2025-01-27T23:39:17.917+00:00"
     }
+
+    - Si variable_type = "input": reference_id apunta a variables en sensor-service
+    - Si variable_type = "output": reference_id apunta a control_outputs en actuator-service
     """
 
     # Propiedades de identificación
@@ -30,9 +33,10 @@ class FuzzyVariable(DomainBaseModel):
 
     # Configuración de la variable
     variable_type: str = "input"  # "input" | "output"
+    actuator_type: Optional[str] = None  # "PWM" | "DIGITAL" (solo para outputs)
 
     # Relaciones
-    device_id: Optional[str] = None  # ID del sensor o actuador asociado
+    reference_id: str = ""  # ID de variable en sensor-service o control_output en actuator-service (OBLIGATORIO)
     terms: List[FuzzyTermId] = Field(default_factory=list)
 
     # Metadatos básicos
@@ -66,12 +70,38 @@ class FuzzyVariable(DomainBaseModel):
             raise ValueError(f"Tipo de variable inválido: {v}. Debe ser uno de: {valid_types}")
         return v
 
+    @field_validator("reference_id")
+    @classmethod
+    def _validate_reference_id(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("El reference_id no puede estar vacío")
+        return v.strip()
+
+    @field_validator("actuator_type")
+    @classmethod
+    def _validate_actuator_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid_types = ["PWM", "DIGITAL"]
+            if v not in valid_types:
+                raise ValueError(f"actuator_type inválido: {v}. Debe ser uno de: {valid_types}")
+        return v
+
     @model_validator(mode="after")
     def _ensure_timestamps(self):
         if self.created_at is None:
             self.created_at = datetime.now(timezone.utc)
         if self.updated_at is None:
             self.updated_at = self.created_at
+        return self
+
+    @model_validator(mode="after")
+    def _validate_actuator_type_for_outputs(self):
+        """Validar que las variables de salida tengan actuator_type definido."""
+        # TODO: Habilitar cuando todas las variables output tengan actuator_type en la BD
+        # if self.variable_type == "output" and self.actuator_type is None:
+        #     raise ValueError("Las variables de tipo 'output' deben tener actuator_type definido")
+        if self.variable_type == "input" and self.actuator_type is not None:
+            raise ValueError("Las variables de tipo 'input' no deben tener actuator_type")
         return self
 
     # -------------------------
@@ -105,8 +135,11 @@ class FuzzyVariable(DomainBaseModel):
         self.variable_type = new_type
         self.updated_at = datetime.now(timezone.utc)
 
-    def update_device_id(self, device_id: str):
-        self.device_id = device_id
+    def update_reference_id(self, reference_id: str):
+        """Actualiza el reference_id que apunta a sensor-service o actuator-service."""
+        if not reference_id or not reference_id.strip():
+            raise ValueError("El reference_id no puede estar vacío")
+        self.reference_id = reference_id.strip()
         self.updated_at = datetime.now(timezone.utc)
 
     # -------------------------
@@ -124,23 +157,27 @@ class FuzzyVariable(DomainBaseModel):
     def has_term(self, term_id: FuzzyTermId) -> bool:
         return term_id in self.terms
 
-    def has_device(self) -> bool:
-        return self.device_id is not None
+    def has_reference(self) -> bool:
+        """Verifica si la variable tiene una referencia externa válida."""
+        return self.reference_id is not None and len(self.reference_id.strip()) > 0
 
     # -------------------------
     # Serialización utilitaria
     # -------------------------
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "_id": str(self.id) if self.id else None,
             "name": self.name,
             "description": self.description,
-            "type": self.variable_type,
-            "deviceId": self.device_id,
+            "variable_type": self.variable_type,
+            "reference_id": self.reference_id,
             "terms": [str(tid) for tid in self.terms],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
+        if self.actuator_type is not None:
+            result["actuator_type"] = self.actuator_type
+        return result
 
     def __str__(self) -> str:
         return f"FuzzyVariable({self.name}, {self.variable_type}, {self.get_term_count()} terms)"

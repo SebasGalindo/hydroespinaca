@@ -17,7 +17,7 @@ class UpdateFuzzyVariableCommand(BaseModel, Command):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     description: Optional[str] = Field(default=None, max_length=500)
     variable_type: Optional[str] = Field(default=None, description="'input' o 'output'")
-    device_id: Optional[str] = Field(default=None)
+    reference_id: Optional[str] = Field(default=None, min_length=1, description="ID de variable en sensor-service (input) o control_output en actuator-service (output)")
     terms: Optional[List[str]] = Field(default=None, description="IDs de términos asociados; si se pasa, reemplaza el listado")
 
     # Resultado

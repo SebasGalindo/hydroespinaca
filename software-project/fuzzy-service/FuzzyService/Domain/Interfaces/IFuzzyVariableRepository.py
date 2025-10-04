@@ -136,20 +136,6 @@ class IFuzzyVariableRepository(ABC):
         pass
     
     @abstractmethod
-    async def get_by_device_id(self, device_id: str, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
-        """Gets fuzzy variables by device ID.
-        
-        Args:
-            device_id: ID of the associated device (sensor/actuator)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of fuzzy variables associated with the device
-        """
-        pass
-    
-    @abstractmethod
     async def get_input_variables_by_system(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
         """Gets input variables for a specific system.
         
@@ -282,27 +268,4 @@ class IFuzzyVariableRepository(ABC):
         """
         pass
     
-    # Validation methods
-    @abstractmethod
-    async def has_device_association(self, variable_id: FuzzyVariableId) -> bool:
-        """Checks if a variable has a device association.
-        
-        Args:
-            variable_id: ID of the fuzzy variable
-            
-        Returns:
-            True if the variable has an associated device, False otherwise
-        """
-        pass
-    
-    @abstractmethod
-    async def is_device_in_use(self, device_id: str) -> bool:
-        """Checks if a device is already associated with a variable.
-        
-        Args:
-            device_id: ID of the device
-            
-        Returns:
-            True if the device is in use, False otherwise
-        """
-        pass
+    # Validation methods removed - device_id is deprecated, use reference_id validation in handlers

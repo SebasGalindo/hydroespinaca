@@ -91,7 +91,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             for variable in input_variables:
                 try:
                     # Obtener el valor crisp del sensor
-                    sensor_value = sensor_readings[variable.device_id]
+                    sensor_value = sensor_readings[variable.reference_id]
                     
                     # Paso 3.2: Cargar términos con sus funciones de membresía
                     variable_terms = self._get_variable_terms(variable, terms)
@@ -136,12 +136,12 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             # Solo variables de entrada
             if variable.variable_type != "input":
                 continue
-                
-            # Que tengan device_id vinculado a un sensor
-            if variable.device_id and variable.device_id in sensor_ids:
+
+            # Que tengan reference_id vinculado a un sensor
+            if variable.reference_id and variable.reference_id in sensor_ids:
                 input_variables.append(variable)
                 self.logger.debug(
-                    f"Variable de entrada identificada: {variable.name} -> sensor {variable.device_id}"
+                    f"Variable de entrada identificada: {variable.name} -> sensor {variable.reference_id}"
                 )
         
         return input_variables
@@ -171,7 +171,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         try:
             result = FuzzificationResult(
                 variable_name=variable.name,
-                sensor_id=variable.device_id,
+                sensor_id=variable.reference_id,
                 crisp_value=crisp_value,
                 variable_id=str(variable.id)
             )
@@ -386,16 +386,38 @@ class ScikitFuzzyEngine(IFuzzyEngine):
          for rule_result in result.get_activated_rules():
              if rule_result.consequent:
                  # Buscar la rutina correspondiente en routines_payload
+                 # Usar _routine_id (ID interno) para mapeo con rule.consequent
                  for routine in routines_payload:
-                     if routine.get("routineId") == str(rule_result.consequent):
+                     if routine.get("_routine_id") == str(rule_result.consequent):
                          # Mapear los pasos con el formato correcto
                          mapped_steps = []
                          for step in routine.get("steps", []):
-                             mapped_steps.append({
-                                 "actuator_id": step.get("actuator", ""),
-                                 "power": step.get("power", 0),
-                                 "duration": step.get("duration", 0)
-                             })
+                             # Extraer outputVariable (no "actuator")
+                             actuator_id = step.get("outputVariable", "")
+
+                             duration_value = step.get("duration", 0)
+
+                             # Construir output_value con power o dutyCycle (mutuamente exclusivos)
+                             output_dict = {
+                                 "actuator_id": actuator_id,
+                                 "duration": duration_value
+                             }
+
+                             # Mantener power y dutyCycle separados según el threshold aplicado
+                             power_str = step.get("power")  # "ON"/"OFF" si es DIGITAL
+                             duty_cycle = step.get("dutyCycle")  # 0-100 si es PWM
+
+                             if power_str is not None:
+                                 # Actuador DIGITAL - usar power como string
+                                 output_dict["power"] = power_str
+                             elif duty_cycle is not None:
+                                 # Actuador PWM - usar dutyCycle como número
+                                 output_dict["dutyCycle"] = duty_cycle
+                             else:
+                                 # Fallback: si no hay ninguno, usar dutyCycle = 0
+                                 output_dict["dutyCycle"] = 0
+
+                             mapped_steps.append(output_dict)
                          rule_output_map[rule_result.rule_id] = mapped_steps
                          break
                  
@@ -515,14 +537,16 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                             defuzzified_steps.append(defuzzified_step)
                     
                     if defuzzified_steps:
+                        # Incluir tanto ID como nombre para facilitar el mapeo
                         routine_payload = {
-                            "routineId": str(routine.id),
+                            "routineId": routine.routine_name or str(routine.id),
+                            "_routine_id": str(routine.id),  # ID interno para mapeo con reglas
                             "steps": defuzzified_steps
                         }
                         routines_payload.append(routine_payload)
-                        
+
                         self.logger.info(
-                            f"Rutina {routine.routine_name} defuzzificada con {len(defuzzified_steps)} pasos"
+                            f"Rutina '{routine.routine_name}' defuzzificada con {len(defuzzified_steps)} pasos"
                         )
             
             return routines_payload
@@ -576,35 +600,74 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 self.logger.warning(f"Error defuzzificando paso {step.step_id}")
                 return None
             
-            # Obtener el actuator_id real desde el repositorio de variables
+            # Obtener el control_output_id desde el repositorio de variables
             variable_repository: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
-            
-            # Buscar la variable usando el variable_id del power_term para obtener el device_id (actuator_id)
-            actuator_id = None
+
+            # Buscar la variable OUTPUT usando el variable_id del power_term
+            output_variable_id = None
             try:
-                # Usar el variable_id del power_term para buscar directamente la variable
                 if power_term.variable_id:
                     variable = await variable_repository.get_by_id(power_term.variable_id)
-                    if variable and variable.device_id:
-                        actuator_id = variable.device_id
+                    if variable and variable.reference_id:
+                        # reference_id es el ObjectId del control_output en actuator-service
+                        output_variable_id = variable.reference_id
+                        self.logger.debug(
+                            f"Output variable encontrada: {variable.name} → control_output: {output_variable_id}"
+                        )
                     else:
-                        self.logger.warning(f"Variable {power_term.variable_id} no encontrada o sin device_id")
+                        self.logger.error(
+                            f"Variable {power_term.variable_id} no encontrada o sin reference_id"
+                        )
+                        return None
                 else:
-                    self.logger.warning(f"Power term {step.power_term_id} no tiene variable_id")
-                        
-                if not actuator_id:
-                    self.logger.warning(f"No se encontró actuator_id para power_term_id {step.power_term_id}")
-                    actuator_id = f"actuator_{step.step_id}"  # Fallback
-                    
+                    self.logger.error(f"Power term {step.power_term_id} no tiene variable_id")
+                    return None
+
+                if not output_variable_id:
+                    self.logger.error(
+                        f"No se pudo obtener output_variable_id para power_term {step.power_term_id}"
+                    )
+                    return None
+
             except Exception as e:
-                self.logger.error(f"Error obteniendo actuator_id: {e}")
-                actuator_id = f"actuator_{step.step_id}"  # Fallback
-            
-            return {
-                "actuator": {"$oid": str(actuator_id)},
-                "power": round(power_value, 2),
+                self.logger.error(f"Error obteniendo output_variable_id: {e}")
+                return None
+
+            # Construir step payload según el formato de actuator-service
+            step_payload = {
+                "outputVariable": str(output_variable_id),
                 "duration": round(duration_value, 2)
             }
+
+            # Determinar si usar dutyCycle (PWM) o power (DIGITAL) basado en actuator_type
+            if variable.actuator_type == "DIGITAL":
+                # Actuador digital: usar threshold para determinar ON/OFF
+                if power_value < 50:
+                    step_payload["power"] = "OFF"
+                else:
+                    step_payload["power"] = "ON"
+                self.logger.debug(
+                    f"DIGITAL actuator {variable.name}: power_value={power_value:.2f} → {step_payload['power']}"
+                )
+            elif variable.actuator_type == "PWM":
+                # Actuador PWM: usar valor continuo
+                step_payload["dutyCycle"] = round(power_value, 2)
+                self.logger.debug(
+                    f"PWM actuator {variable.name}: power_value={power_value:.2f} → dutyCycle={step_payload['dutyCycle']}"
+                )
+            else:
+                # Fallback: si no tiene actuator_type, usar heurística antigua
+                self.logger.warning(
+                    f"Variable {variable.name} sin actuator_type, usando heurística antigua"
+                )
+                if power_value <= 1:
+                    step_payload["power"] = "OFF"
+                elif power_value >= 99:
+                    step_payload["power"] = "ON"
+                else:
+                    step_payload["dutyCycle"] = round(power_value, 2)
+
+            return step_payload
             
         except Exception as e:
             self.logger.error(f"Error defuzzificando paso de rutina: {e}")

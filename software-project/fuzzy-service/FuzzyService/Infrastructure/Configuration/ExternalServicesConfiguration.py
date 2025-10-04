@@ -20,7 +20,7 @@ class MqttSettings(BaseModel):
     client_id: str = Field(default="fuzzy-service", description="ID del cliente MQTT")
     
     # Configuración de tópicos
-    sensor_topic_pattern: str = Field(default="sensor/+/batch", description="Patrón de tópicos de sensores")
+    sensor_topic_pattern: str = Field(default="sensor/readings", description="Patrón de tópicos de sensores")
     
     # Configuración de reconexión
     reconnect_delay: int = Field(default=5, description="Delay inicial de reconexión en segundos")
@@ -55,14 +55,14 @@ def get_mqtt_settings() -> MqttSettings:
         return _mqtt_settings
     
     _mqtt_settings = MqttSettings(
-        broker_host=os.getenv("MQTT_BROKER_HOST", "localhost"),
-        broker_port=int(os.getenv("MQTT_BROKER_PORT", "1883")),
+        broker_host=os.getenv("MQTT_HOST", "localhost"),
+        broker_port=int(os.getenv("MQTT_PORT", "1883")),
         username=os.getenv("MQTT_USERNAME"),
         password=os.getenv("MQTT_PASSWORD"),
         keepalive=int(os.getenv("MQTT_KEEPALIVE", "60")),
         qos=int(os.getenv("MQTT_QOS", "1")),
         client_id=os.getenv("MQTT_CLIENT_ID", "fuzzy-service"),
-        sensor_topic_pattern=os.getenv("MQTT_SENSOR_TOPIC_PATTERN", "sensor/+/batch"),
+        sensor_topic_pattern=os.getenv("MQTT_SENSOR_TOPIC_PATTERN", "sensor/readings"),
         reconnect_delay=int(os.getenv("MQTT_RECONNECT_DELAY", "5")),
         max_reconnect_delay=int(os.getenv("MQTT_MAX_RECONNECT_DELAY", "300")),
         reconnect_exponential_base=float(os.getenv("MQTT_RECONNECT_EXPONENTIAL_BASE", "2.0")),
@@ -83,7 +83,7 @@ def get_actuator_service_settings() -> ActuatorServiceSettings:
         return _actuator_settings
     
     _actuator_settings = ActuatorServiceSettings(
-        base_url=os.getenv("ACTUATOR_SERVICE_BASE_URL", "http://localhost:8001"),
+        base_url=os.getenv("ACTUATOR_SERVICE_URL", "http://localhost:8001"),
         timeout=int(os.getenv("ACTUATOR_SERVICE_TIMEOUT", "30")),
         max_retries=int(os.getenv("ACTUATOR_SERVICE_MAX_RETRIES", "3")),
         retry_delay=int(os.getenv("ACTUATOR_SERVICE_RETRY_DELAY", "1"))

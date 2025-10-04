@@ -32,7 +32,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             # Unique variable name (global). If later system-scoped uniqueness is needed, change to compound index
             await self._coll.create_index([("name", 1)], unique=True, name="uq_fuzzy_variable_name")
             await self._coll.create_index([("variable_type", 1)], name="ix_variable_type")
-            await self._coll.create_index([("device_id", 1)], name="ix_device_id")
+            await self._coll.create_index([("reference_id", 1)], name="ix_reference_id")
             await self._coll.create_index([("created_at", -1)], name="ix_created_at_desc")
             await self._coll.create_index([("terms", 1)], name="ix_terms_array")
             # Text index for efficient name searches
@@ -76,11 +76,14 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             "description": v.description,
             # Persist lower-case strings for compatibility with entity
             "variable_type": v.variable_type.value if isinstance(v.variable_type, FuzzyVariableType) else str(v.variable_type),
-            "device_id": v.device_id,
+            "reference_id": v.reference_id,
             "terms": [str(t) for t in v.terms],
             "created_at": created_at,
             "updated_at": updated_at,
         }
+        # Incluir actuator_type solo si está definido
+        if v.actuator_type is not None:
+            doc["actuator_type"] = v.actuator_type
         return doc
 
     @staticmethod
@@ -90,7 +93,8 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             name=doc.get("name", ""),
             description=doc.get("description", ""),
             variable_type=doc.get("variable_type", "input"),
-            device_id=doc.get("device_id"),
+            actuator_type=doc.get("actuator_type"),  # Puede ser None para inputs
+            reference_id=doc.get("reference_id", ""),
             terms=[FuzzyTermId(str(t)) for t in (doc.get("terms") or [])],
             created_at=doc.get("created_at"),
             updated_at=doc.get("updated_at"),
@@ -123,7 +127,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         return self._doc_to_entity(doc) if doc else None
 
     async def get_by_name(self, name: str) -> Optional[FuzzyVariable]:
-        doc = await self._coll.find_one({"name": name}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        doc = await self._coll.find_one({"name": name}, projection={"_id": 1, "name": 1, "variable_type": 1, "reference_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
         return self._doc_to_entity(doc) if doc else None
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
@@ -167,7 +171,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
                 "name": fuzzy_variable.name,
                 "description": fuzzy_variable.description,
                 "variable_type": vtype_value,
-                "device_id": fuzzy_variable.device_id,
+                "reference_id": fuzzy_variable.reference_id,
                 "terms": [str(t) for t in fuzzy_variable.terms],
                 "updated_at": datetime.now(timezone.utc),
             }
@@ -210,16 +214,12 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         if not sys_doc:
             raise EntityNotFoundError("Sistema no encontrado")
         var_ids = [self._to_object_id(v) for v in (sys_doc.get("input_variable_ids", []) + sys_doc.get("output_variable_ids", []))]
-        cursor = self._coll.find({"_id": {"$in": var_ids}}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"_id": {"$in": var_ids}}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_by_type(self, variable_type: FuzzyVariableType, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
         vtype_value = variable_type.value if isinstance(variable_type, FuzzyVariableType) else str(variable_type)
-        cursor = self._coll.find({"variable_type": vtype_value}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
-        return [self._doc_to_entity(d) async for d in cursor]
-
-    async def get_by_device_id(self, device_id: str, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
-        cursor = self._coll.find({"device_id": device_id}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"variable_type": vtype_value}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_input_variables_by_system(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
@@ -229,7 +229,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         ids = [self._to_object_id(v) for v in (sys_doc.get("input_variable_ids") or [])]
         if not ids:
             return []
-        cursor = self._coll.find({"_id": {"$in": ids}}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find({"_id": {"$in": ids}})
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_output_variables_by_system(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
@@ -239,13 +239,13 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         ids = [self._to_object_id(v) for v in (sys_doc.get("output_variable_ids") or [])]
         if not ids:
             return []
-        cursor = self._coll.find({"_id": {"$in": ids}}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find({"_id": {"$in": ids}})
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Term-related queries ----------------------------
     async def get_variables_with_term(self, term_id: FuzzyTermId) -> List[FuzzyVariable]:
         tid = str(term_id)
-        cursor = self._coll.find({"terms": tid}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find({"terms": tid})
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_variables_with_term_count(self, min_terms: int = 0, max_terms: Optional[int] = None) -> List[FuzzyVariable]:
@@ -254,44 +254,33 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         if max_terms is not None:
             query = {"$and": [query, {"$expr": {"$lte": [expr, int(max_terms)]}}]}
         _logger.warning("Query using $size/$expr on 'terms' may be expensive on large collections.")
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find(query)
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Search and filtering ----------------------------
     async def search_by_name(self, name_pattern: str, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
-        cursor = self._coll.find({"$text": {"$search": name_pattern}}, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}) \
-            .skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"$text": {"$search": name_pattern}}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def filter_variables(self, filters: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
         query: Dict[str, Any] = {}
         if (vtype := filters.get("variable_type")):
             query["variable_type"] = vtype.value if isinstance(vtype, FuzzyVariableType) else str(vtype)
-        if (device := filters.get("device_id")):
-            query["device_id"] = device
         if (name_contains := filters.get("name_contains")):
             query["$text"] = {"$search": name_contains}
         if (term_id := filters.get("term_id")):
             query["terms"] = str(term_id)
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
+        if (reference_id := filters.get("reference_id")):
+            query["reference_id"] = reference_id
+        cursor = self._coll.find(query).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
-    async def get_by_date_range(self, start_date: datetime, end_date: datetime, 
+    async def get_by_date_range(self, start_date: datetime, end_date: datetime,
                                skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
         cursor = self._coll.find({
             "created_at": {"$gte": start_date, "$lte": end_date}
-        }, projection={"_id": 1, "name": 1, "variable_type": 1, "device_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", 1)
+        }).skip(int(skip)).limit(int(limit)).sort("created_at", 1)
         return [self._doc_to_entity(d) async for d in cursor]
-
-    async def has_device_association(self, variable_id: FuzzyVariableId) -> bool:
-        var = await self.get_by_id(variable_id)
-        if not var:
-            raise EntityNotFoundError("Variable no encontrada")
-        return var.device_id is not None
-
-    async def is_device_in_use(self, device_id: str) -> bool:
-        count = await self._coll.count_documents({"device_id": device_id}, limit=1)
-        return count > 0
 
     # ---------------------------- Counting ----------------------------
     async def count_by_system(self, system_id: FuzzySystemId) -> int:

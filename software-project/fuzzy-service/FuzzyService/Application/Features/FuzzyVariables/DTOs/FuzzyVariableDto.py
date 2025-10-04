@@ -25,11 +25,10 @@ class FuzzyVariableDto(BaseModel):
     description: Optional[str] = Field(default=None, description="Descripción de la variable difusa (opcional, hasta 500 caracteres)")
 
     # Configuración de la variable
-    # Notar que en el dominio actual variable_type es un string "input" | "output"
     variable_type: str = Field(default="input", description="Tipo de variable: 'input' o 'output'")
 
     # Relaciones
-    device_id: Optional[str] = Field(default=None, description="ID del dispositivo asociado (sensor/actuador)")
+    reference_id: str = Field(..., min_length=1, description="ID de referencia: variable en sensor-service (input) o control_output en actuator-service (output)")
     terms: List[str] = Field(default_factory=list, description="IDs de términos lingüísticos asociados")
 
     # Metadatos
@@ -75,7 +74,7 @@ class FuzzyVariableDto(BaseModel):
             name=entity.name,
             description=entity.description,
             variable_type=entity.variable_type,
-            device_id=entity.device_id,
+            reference_id=entity.reference_id,
             terms=[str(t) for t in entity.terms],
             created_at=entity.created_at,
             updated_at=entity.updated_at,
@@ -88,7 +87,7 @@ class FuzzyVariableDto(BaseModel):
             name=self.name,
             description=self.description or "",
             variable_type=self.variable_type,
-            device_id=self.device_id,
+            reference_id=self.reference_id,
             terms=[FuzzyTermId(t) for t in self.terms],
             created_at=self.created_at,
             updated_at=self.updated_at,

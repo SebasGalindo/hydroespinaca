@@ -17,8 +17,8 @@ class GetAllFuzzyVariablesHandler(QueryHandler[GetAllFuzzyVariablesQuery, List[F
         filters = {}
         if request.variable_type:
             filters["variable_type"] = request.variable_type
-        if request.device_id:
-            filters["device_id"] = request.device_id
+        if request.reference_id:
+            filters["reference_id"] = request.reference_id
         if request.name_contains:
             filters["name_contains"] = request.name_contains
         if request.term_id:

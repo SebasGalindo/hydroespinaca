@@ -67,21 +67,27 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             {"sensor_id": iv.sensor_id, "value": float(iv.value)}
             for iv in (e.inputs or [])
         ]
-        activations = [
-            {
+        activations = []
+        for ra in (e.activated_rules or []):
+            output_values = []
+            for ov in (ra.output_values or []):
+                output_dict = {
+                    "actuator_id": str(ov.actuator_id),
+                    "duration": float(ov.duration),
+                }
+                # Incluir power o dutyCycle según lo que esté definido
+                if ov.power is not None:
+                    output_dict["power"] = ov.power  # Mantener como string "ON"/"OFF"
+                elif ov.dutyCycle is not None:
+                    output_dict["dutyCycle"] = float(ov.dutyCycle)
+
+                output_values.append(output_dict)
+
+            activations.append({
                 "ruleId": str(ra.rule_id) if ra.rule_id else None,
                 "firingStrength": float(ra.firing_strength),
-                "output_values": [
-                    {
-                        "actuator_id": str(ov.actuator_id),
-                        "power": float(ov.power),
-                        "duration": float(ov.duration),
-                    }
-                    for ov in (ra.output_values or [])
-                ],
-            }
-            for ra in (e.activated_rules or [])
-        ]
+                "output_values": output_values,
+            })
         return {
             "_id": FuzzyEvaluationRepository._to_object_id(e.id) or ObjectId(),
             "system_id": str(e.system_id) if e.system_id else None,

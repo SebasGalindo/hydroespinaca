@@ -154,33 +154,79 @@ class AuthenticationService:
         # Request new token
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(
-                    f"{self.m2m_settings.auth_service_url}{self.m2m_settings.token_endpoint}",
-                    json={
-                        "client_id": self.m2m_settings.client_id,
-                        "client_secret": self.m2m_settings.client_secret,
-                        "grant_type": "client_credentials"
-                    },
-                    timeout=10.0
-                )
+                # ASP.NET Core model binding es case-insensitive, pero usamos el formato del DTO
+                # El DTO ClientCredentialsRequestDto tiene: ClientId, ClientSecret (PascalCase)
+                url = f"{self.m2m_settings.auth_service_url}{self.m2m_settings.token_endpoint}"
+                payload = {
+                    "clientId": self.m2m_settings.client_id,
+                    "clientSecret": self.m2m_settings.client_secret
+                }
+
+                _logger.info(f"Requesting M2M token from {url}")
+                _logger.debug(f"Request payload: {{'clientId': '{self.m2m_settings.client_id}', 'clientSecret': '***'}}")
+
+                response = await client.post(url, json=payload, timeout=10.0)
+
+                if response.status_code != 200:
+                    _logger.error(
+                        f"Auth service returned {response.status_code}: {response.text[:300]}"
+                    )
+
                 response.raise_for_status()
-                
+
                 token_data = response.json()
-                self._m2m_token = token_data["access_token"]
-                
+                _logger.debug(f"Token response keys: {list(token_data.keys())}")
+
+                # El auth-service retorna camelCase: accessToken, expiresAt
+                # Intentar ambos formatos para compatibilidad
+                self._m2m_token = (
+                    token_data.get("accessToken") or
+                    token_data.get("AccessToken") or
+                    token_data.get("access_token")
+                )
+
+                if not self._m2m_token:
+                    _logger.error(f"Token response structure: {token_data}")
+                    raise ValueError(f"No access token in response. Keys: {list(token_data.keys())}")
+
                 # Cache token with safety margin
                 import time
-                expires_in = token_data.get("expires_in", 3600)
+                # Intentar leer expiresAt (camelCase) o ExpiresAt (PascalCase)
+                expires_at_str = token_data.get("expiresAt") or token_data.get("ExpiresAt")
+
+                if expires_at_str:
+                    from datetime import datetime, timezone
+                    # Manejar formatos: "2025-10-04T08:35:12Z" o "2025-10-04T08:35:12+00:00"
+                    expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
+                    expires_at = datetime.fromisoformat(expires_at_str_clean)
+                    expires_in = (expires_at - datetime.now(timezone.utc)).total_seconds()
+                    _logger.debug(f"Token expires in {expires_in} seconds")
+                else:
+                    expires_in = 3600  # Fallback: 1 hora
+                    _logger.warning("No expiresAt in response, using 1 hour default")
+
                 self._m2m_token_expiry = time.time() + expires_in - 60  # 60 seconds safety margin
                 
                 _logger.info("M2M token obtained successfully")
                 return self._m2m_token
                 
+            except httpx.HTTPStatusError as e:
+                # Log detalles específicos del error HTTP
+                _logger.error(
+                    f"M2M token HTTP error: {e.response.status_code} - {e.response.text[:200]}"
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Auth service error: {e.response.status_code}"
+                )
             except httpx.RequestError as e:
-                _logger.error(f"Failed to get M2M token: {e}")
+                _logger.error(f"Failed to connect to auth-service: {e}")
                 raise HTTPException(status_code=503, detail="Authentication service unavailable")
+            except ValueError as e:
+                _logger.error(f"Invalid token response format: {e}")
+                raise HTTPException(status_code=500, detail="Invalid auth response")
             except Exception as e:
-                _logger.error(f"M2M token error: {e}")
+                _logger.error(f"M2M token error: {type(e).__name__}: {e}")
                 raise HTTPException(status_code=500, detail="Authentication error")
 
 

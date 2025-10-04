@@ -57,38 +57,22 @@ def get_settings() -> MongoSettings:
     if _settings is not None:
         return _settings
 
-    # Allow FUZZY_* aliases for backwards/compatibility with existing .env
-    connection_string = (
-        os.getenv("MONGO_CONNECTION_STRING")
-        or os.getenv("FUZZY_MONGO_CONNECTION_STRING")
-        or "mongodb://localhost:27017"
-    )
-    database = (
-        os.getenv("MONGO_DATABASE")
-        or os.getenv("MONGO_DATABASE_NAME")
-        or os.getenv("FUZZY_MONGO_DATABASE")
-        or "fuzzy_dev"
-    )
+    connection_string = os.getenv("MONGO_CONNECTION_STRING", "mongodb://localhost:27017")
+    database = os.getenv("MONGO_DATABASE", "fuzzy_dev")
 
-    # Numeric options with safe parsing
     def _int(name: str, default: int) -> int:
         try:
             return int(os.getenv(name, str(default)))
         except (TypeError, ValueError):
             return default
 
-    # If a single FUZZY_MONGO_TIMEOUT is provided, use it as default for specific timeouts
-    fuzzy_timeout = os.getenv("FUZZY_MONGO_TIMEOUT")
-    default_server_sel = int(fuzzy_timeout) if fuzzy_timeout else 5000
-    default_connect = int(fuzzy_timeout) if fuzzy_timeout else 5000
-
     settings = MongoSettings(
         connection_string=connection_string,
         database=database,
         max_pool_size=_int("MONGO_MAX_POOL_SIZE", 20),
         min_pool_size=_int("MONGO_MIN_POOL_SIZE", 0),
-        server_selection_timeout_ms=_int("MONGO_SERVER_SELECTION_TIMEOUT_MS", default_server_sel),
-        connect_timeout_ms=_int("MONGO_CONNECT_TIMEOUT_MS", default_connect),
+        server_selection_timeout_ms=_int("MONGO_SERVER_SELECTION_TIMEOUT_MS", 5000),
+        connect_timeout_ms=_int("MONGO_CONNECT_TIMEOUT_MS", 5000),
         socket_timeout_ms=_int("MONGO_SOCKET_TIMEOUT_MS", 10000),
         direct_connection=_get_env_bool("MONGO_DIRECT_CONNECTION", False),
         collection_systems=os.getenv("COLLECTION_FUZZY_SYSTEMS", "fuzzy_systems"),

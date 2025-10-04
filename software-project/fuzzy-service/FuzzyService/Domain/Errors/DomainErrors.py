@@ -16,3 +16,17 @@ class DuplicateEntityError(DomainError):
 
 class BusinessRuleViolationError(DomainError):
     """Raised when a business rule is violated during domain operations."""
+
+
+class InvalidReferenceException(DomainError):
+    """Raised when a reference_id does not exist in the external service (sensor-service or actuator-service)."""
+
+    def __init__(self, reference_id: str, service: str, variable_type: str):
+        self.reference_id = reference_id
+        self.service = service
+        self.variable_type = variable_type
+        message = (
+            f"Reference validation failed: reference_id='{reference_id}' "
+            f"not found in {service} for variable_type='{variable_type}'"
+        )
+        super().__init__(message)

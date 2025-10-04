@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime,timezone
 
@@ -34,11 +35,11 @@ _logger = logging.getLogger(__name__)
 
 class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand]):
     """Handler para procesar lecturas de sensores y ejecutar evaluación fuzzy.
-    
+
     Responsabilidades:
     1. Buscar el sistema fuzzy activo
     2. Cargar variables y reglas del sistema
-    3. Identificar variables activas basándose en device_id de las lecturas
+    3. Identificar variables activas basándose en reference_id de las lecturas
     4. Preparar datos para evaluación fuzzy (paso futuro)
     """
     
@@ -178,59 +179,66 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             return []
     
     async def _identify_active_variables(
-        self, 
-        system_variables: List[FuzzyVariable], 
+        self,
+        system_variables: List[FuzzyVariable],
         readings: List[SensorReading]
     ) -> List[FuzzyVariable]:
         """Identifica las variables activas basándose en las lecturas.
-        
-        Una variable es activa si su device_id coincide con algún sensor_id
-        de las lecturas recibidas.
-        
+
+        Una variable INPUT es activa si su reference_id coincide con algún sensor_id
+        de las lecturas recibidas. Confiamos en que el firmware (ESP32) ya validó
+        que los IDs enviados son correctos.
+
         Args:
             system_variables: Variables del sistema fuzzy
             readings: Lecturas de sensores recibidas
-            
+
         Returns:
-            Lista de variables activas
+            Lista de variables INPUT activas (que tienen lecturas)
         """
         try:
-            # Crear set de sensor_ids para búsqueda eficiente
-            sensor_ids = {reading.sensor_id for reading in readings}
-            
-            # Filtrar variables que tienen device_id en las lecturas
+            # Crear mapeo de sensor_id a valor para búsqueda eficiente
+            sensor_data_map = {reading.sensor_id: reading.value for reading in readings}
+
+            # Filtrar solo variables INPUT que tienen reference_id en las lecturas
+            # Confiamos en que el firmware envió IDs válidos, no hacemos validación redundante
+            input_variables = [var for var in system_variables if var.variable_type == "input"]
+
             active_variables = [
-                var for var in system_variables 
-                if var.device_id and var.device_id in sensor_ids
+                var for var in input_variables
+                if var.reference_id and var.reference_id in sensor_data_map
             ]
-            
+
             # Log detallado de coincidencias
-            for var in active_variables:
-                matching_reading = next(
-                    reading for reading in readings 
-                    if reading.sensor_id == var.device_id
-                )
-                _logger.info(
-                    f"Variable activa: '{var.name}' (device_id: {var.device_id}) "
-                    f"-> valor: {matching_reading.value}"
-                )
-            
-            # Log de variables sin coincidencias
-            inactive_variables = [
-                var for var in system_variables 
-                if not var.device_id or var.device_id not in sensor_ids
+            if active_variables:
+                _logger.info(f"✅ Identificadas {len(active_variables)} variables INPUT activas:")
+                for var in active_variables:
+                    sensor_value = sensor_data_map[var.reference_id]
+                    _logger.info(
+                        f"   - '{var.name}' (reference_id: {var.reference_id}, "
+                        f"variable_id: {var.id}) → valor: {sensor_value}"
+                    )
+            else:
+                _logger.warning("⚠️  No se encontraron variables INPUT con reference_id coincidente")
+
+            # Log de variables INPUT sin coincidencias (para debugging)
+            inactive_input_vars = [
+                var for var in input_variables
+                if not var.reference_id or var.reference_id not in sensor_data_map
             ]
-            
-            if inactive_variables:
-                inactive_names = [var.name for var in inactive_variables]
+
+            if inactive_input_vars:
                 _logger.debug(
-                    f"Variables sin lecturas correspondientes: {inactive_names}"
+                    f"Variables INPUT sin lecturas: {[(v.name, v.reference_id) for v in inactive_input_vars]}"
                 )
-            
+                _logger.debug(
+                    f"Sensor IDs recibidos: {list(sensor_data_map.keys())}"
+                )
+
             return active_variables
-            
+
         except Exception as e:
-            _logger.error(f"Error al identificar variables activas: {e}")
+            _logger.error(f"Error al identificar variables activas: {e}", exc_info=True)
             return []
     
     async def _perform_complete_fuzzy_evaluation(
@@ -358,9 +366,14 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     output_values = []
                     if "output_values" in rule_data:
                         for output_data in rule_data["output_values"]:
+                            # Extraer power o dutyCycle según lo que venga en el dict
+                            power_value = output_data.get("power")
+                            duty_cycle_value = output_data.get("dutyCycle")
+
                             output_values.append(OutputValue(
                                 actuator_id=output_data.get("actuator_id", ""),
-                                power=output_data.get("power", 0.0),
+                                power=power_value,  # String "ON"/"OFF" o None
+                                dutyCycle=duty_cycle_value,  # Float 0-100 o None
                                 duration=output_data.get("duration", 0.0)
                             ))
                     
@@ -426,11 +439,19 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                 
                 # Convertir cada output_value en un step
                 for output_value in rule_activation.output_values:
-                    step = StepPayload(
-                        actuator={"$oid": output_value.actuator_id},
-                        power=output_value.power,
-                        duration=output_value.duration
-                    )
+                    # Construir step según el tipo de actuador (DIGITAL o PWM)
+                    step_dict = {
+                        "outputVariable": str(output_value.actuator_id),
+                        "duration": float(output_value.duration)
+                    }
+
+                    # Incluir power o dutyCycle según lo que esté definido
+                    if output_value.power is not None:
+                        step_dict["power"] = output_value.power  # "ON" o "OFF"
+                    elif output_value.dutyCycle is not None:
+                        step_dict["dutyCycle"] = float(output_value.dutyCycle)
+
+                    step = StepPayload(**step_dict)
                     steps.append(step)
                 
                 # Crear la rutina si tiene steps
@@ -443,14 +464,34 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             
             # Enviar al actuator service si hay rutinas
             if routines:
+                # Serializar payload para logging (debugging)
+                routines_dict = [
+                    {
+                        "routineId": r.routineId,
+                        "steps": [
+                            {
+                                "outputVariable": s.outputVariable,
+                                **({"power": s.power} if s.power is not None else {}),
+                                **({"dutyCycle": s.dutyCycle} if s.dutyCycle is not None else {}),
+                                "duration": s.duration
+                            }
+                            for s in r.steps
+                        ]
+                    }
+                    for r in routines
+                ]
+                _logger.info(
+                    f"Payload a enviar al actuator-service:\n{json.dumps(routines_dict, indent=2)}"
+                )
+
                 command = SendRoutinesToActuatorCommand(
                     routines=routines
                 )
-                
+
                 # Enviar comando a través del mediador
                 mediator: Medyator = di[Medyator]
                 await mediator.send(command)
-                
+
                 _logger.info(
                     f"Payload enviado al actuator service exitosamente. "
                     f"Evaluación: {fuzzy_evaluation.id}, Rutinas: {len(routines)}"

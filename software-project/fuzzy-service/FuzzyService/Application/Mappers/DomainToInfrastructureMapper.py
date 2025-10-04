@@ -142,7 +142,7 @@ class DomainToInfrastructureMapper:
             name=domain_variable.name,
             universe_range=(min_val, max_val),
             terms=infra_terms,
-            sensor_mapping=domain_variable.device_id
+            sensor_mapping=domain_variable.reference_id
         )
     
     @staticmethod

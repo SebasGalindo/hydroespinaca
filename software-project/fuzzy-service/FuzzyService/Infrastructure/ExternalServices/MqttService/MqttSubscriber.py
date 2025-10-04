@@ -117,16 +117,16 @@ class MqttSubscriber:
                 _logger.warning(f"Payload no tiene campos requeridos (timestamp, readings): {payload}")
                 self._messages_discarded += 1
                 return None
-            
-            if not isinstance(payload['readings'], dict):
-                _logger.warning(f"Campo 'readings' no es un objeto: {payload['readings']}")
+
+            if not isinstance(payload['readings'], list):
+                _logger.warning(f"Campo 'readings' no es una lista: {payload['readings']}")
                 self._messages_discarded += 1
                 return None
-            
-            # Extraer ESP32 ID del tópico
-            esp32_id = self._extract_esp32_id(topic)
+
+            # Extraer ESP32 ID del payload (primero) o del tópico (fallback)
+            esp32_id = payload.get('esp32Id') or self._extract_esp32_id(topic)
             if not esp32_id:
-                _logger.warning(f"No se pudo extraer ESP32 ID del tópico: {topic}")
+                _logger.warning(f"No se pudo extraer ESP32 ID del payload ni del tópico: {topic}")
                 self._messages_discarded += 1
                 return None
             
