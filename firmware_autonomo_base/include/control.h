@@ -18,11 +18,23 @@
 // NUEVA CONFIGURACIÓN DE VARIABLES DE CONTROL
 // ========================================
 
-// Temperatura aire (°C) - Actualizada según especificaciones
+// Temperatura aire (°C) - Configuración de seguridad para calefactor
 #define TEMP_MIN 18.0f
 #define TEMP_MAX 24.0f
 #define TEMP_HYSTERESIS 1.0f
 #define TEMP_REST_TIME_MS (5 * 60 * 1000)  // 5 min reposo
+
+// ========================================
+// PARCHE DE SEGURIDAD DEL CALEFACTOR
+// ========================================
+// Umbrales específicos para monitoreo rápido del calefactor
+#define HEATER_ON_TEMP       17.0f          // Enciende ≤ 17.0°C
+#define HEATER_OFF_TEMP      22.5f          // Apaga ≥ 22.5°C (control normal)
+#define HEATER_EMERGENCY_TEMP 25.0f         // Apaga inmediatamente ≥ 25.0°C
+#define HEATER_MIN_ON_TIME   (3 * 60 * 1000)  // 3 minutos mínimo encendido
+#define HEATER_MIN_OFF_TIME  (2 * 60 * 1000)  // 2 minutos mínimo apagado
+#define HEATER_FAST_MONITOR_INTERVAL 3000   // 3 segundos de monitoreo rápido
+#define HEATER_TEMP_BUFFER_SIZE 3            // Media móvil de 3 lecturas
 
 // Humedad aire (%) - Actualizada según especificaciones
 #define HUMIDITY_MIN 60.0f               // Cambiado de 50% a 60%
@@ -35,6 +47,15 @@
 #define WATER_TEMP_MAX 23.0f             // Máximo seguro para espinaca
 #define WATER_TEMP_HYSTERESIS 1.0f
 #define WATER_TEMP_REST_TIME_MS (5 * 60 * 1000)  // 5 min reposo
+
+// ========================================
+// RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
+// ========================================
+// Cuando el calefactor se apaga por alcanzar WATER_TEMP_MAX,
+// se dispara una recirculación extra para homogeneizar temperatura
+#define EXTRA_RECIRCULATION_DURATION_MS (3 * 60 * 1000)  // 3 minutos
+#define EXTRA_RECIRCULATION_COOLDOWN_MS (60 * 60 * 1000) // 1 hora (cooldown)
+#define SAFE_WINDOW_MS (15 * 60 * 1000)                  // 15 minutos ventana seguridad
 
 // pH - Solo monitoreo (sin control automático)
 #define PH_MIN 6.0f                      // Cambiado de 5.5 a 6.0
@@ -230,6 +251,27 @@ struct ControlState {
     bool humidifierMasterActive;         // Relé maestro (PIN 14) activo
     unsigned long humidifierStartTime;   // Tiempo de inicio del ciclo
     
+    // ========================================
+    // PARCHE DE SEGURIDAD DEL CALEFACTOR (monitoreo rápido)
+    // ========================================
+    bool heaterFastMonitoringActive;     // Monitoreo rápido del calefactor activo
+    unsigned long lastHeaterMonitorTime; // Última verificación del monitoreo rápido
+    unsigned long heaterOnStartTime;     // Tiempo cuando se encendió el calefactor
+    unsigned long heaterOffStartTime;    // Tiempo cuando se apagó el calefactor (para reposo)
+    
+    // Buffer de temperaturas para media móvil (filtro de ruido)
+    float heaterTempBuffer[HEATER_TEMP_BUFFER_SIZE];
+    int heaterTempBufferIndex;
+    bool heaterTempBufferFull;
+    
+    // ========================================
+    // RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
+    // ========================================
+    bool extraRecirculationActive;               // Recirculación extra activa
+    unsigned long extraRecirculationStartTime;   // Inicio de recirculación extra
+    unsigned long lastExtraRecirculationTime;    // Última vez que se activó recirculación extra
+    bool lastWaterHeaterState;                   // Estado previo del calefactor (para detectar cambio)
+    
     // Sistema
     bool waterLevelOk;
     bool systemEnabled;
@@ -258,6 +300,15 @@ private:
     void controlHumidity();
     void controlLight();
     void runPeriodicRoutines();
+
+    // ========================================
+    // PARCHE DE SEGURIDAD DEL CALEFACTOR - Funciones internas
+    // ========================================
+    void addTemperatureToHeaterBuffer(float temp);  // Añadir temperatura al buffer
+    float getHeaterAverageTemperature();      // Obtener media móvil de temperaturas
+    bool canTurnHeaterOn();                   // Verificar si puede encender (tiempos)
+    bool canTurnHeaterOff();                  // Verificar si puede apagar (tiempos)
+    void heaterSafetyTurnOff(const char* reason);   // Apagar por seguridad con logging
     
     // ========================================
     // RUTINAS PERIÓDICAS INDEPENDIENTES
@@ -277,6 +328,14 @@ private:
     // Exclusión mutua y control de prioridades
     void updateAirStoneControl();         // Controlador central de aireación
     void setAirStoneMode(AirStoneMode newMode, const char* reason);
+    
+    // ========================================
+    // RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
+    // ========================================
+    void onWaterHeaterStateChanged(bool isNowOn);      // Detecta cambio de estado del calefactor
+    void tryTriggerExtraRecirculation();               // Intenta activar recirculación extra
+    void handleExtraRecirculation();                   // Maneja ciclo de recirculación extra
+    bool canTriggerExtraRecirculation();               // Valida si puede disparar recirculación extra
     
     // Funciones auxiliares
     unsigned long getCurrentMinutes();
@@ -302,14 +361,19 @@ private:
     
 public:
     AutonomousController(SensorManager* sensorManager, NTPClient* ntpClient);
-    
+
     void begin();
     void loop();
-    
+
+    // ========================================
+    // MONITOREO RÁPIDO DEL CALEFACTOR (llamado desde main.cpp)
+    // ========================================
+    void heaterFastMonitoring();              // Monitoreo rápido cada 3 segundos
+
     // Estado del sistema
     bool isWaterLevelOk() const { return state.waterLevelOk; }
     bool isSystemEnabled() const { return state.systemEnabled; }
-    
+
     // Diagnóstico
     void printSystemStatus();
     void printSensorAverages();

@@ -153,6 +153,9 @@ void loop() {
     // Run autonomous control system
     controller.loop();
     
+    // Run heater fast monitoring (3-second intervals when heater is ON)
+    controller.heaterFastMonitoring();
+    
     // Send telemetry every READING_INTERVAL (120 seconds)
     if (currentTime - lastReadingTime >= READING_INTERVAL) {
         Serial.println("⏰ CICLO DE TELEMETRÍA INICIADO");

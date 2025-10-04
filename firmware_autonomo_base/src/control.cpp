@@ -30,6 +30,14 @@ void AutonomousController::begin() {
     state.recirculationActive = false;               // Recirculación inactiva
     state.autonomousAirActive = false;               // Aireación autónoma inactiva
     
+    // ========================================
+    // INICIALIZAR RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
+    // ========================================
+    state.extraRecirculationActive = false;
+    state.extraRecirculationStartTime = 0;
+    state.lastExtraRecirculationTime = 0;            // Nunca se ha ejecutado
+    state.lastWaterHeaterState = false;              // Calefactor inicialmente apagado
+    
     // Inicializar cronogramas
     initializeRecirculationSchedule();
     initializeAutonomousAirSchedule();
@@ -296,25 +304,28 @@ void AutonomousController::controlTemperature() {
     
     float temp = state.averageReadings.temperature;
     
-    // CONTROL DIRECTO SIN DEBOUNCE DEFECTUOSO
-    // === CALEFACTOR AIRE ===
+    // ========================================
+    // CALEFACTOR AIRE CON PARCHE DE SEGURIDAD
+    // ========================================
     if (state.heater.isOn) {
-        // Calefactor encendido: apagar cuando alcance temperatura mínima + histéresis
-        if (temp >= TEMP_MIN + TEMP_HYSTERESIS) {
+        // Calefactor encendido: usar nuevos umbrales de seguridad
+        if (temp >= HEATER_OFF_TEMP && canTurnHeaterOff()) {
             setActuatorState(state.heater, false, "calefactor_aire");
-            state.heater.lastRestTime = millis();
-            logControlDecision("Temperatura", temp, "calefactor aire OFF - temperatura recuperada");
+            state.heaterOffStartTime = millis();
+            state.heaterFastMonitoringActive = false;  // Detener monitoreo rápido
+            logControlDecision("Temperatura", temp, "calefactor aire OFF - umbral seguridad 22.5°C");
         }
     } else {
-        // Calefactor apagado: encender cuando esté por debajo del mínimo - histéresis
-        if (temp <= TEMP_MIN - TEMP_HYSTERESIS) {
-            if (canActivateAfterRest(state.heater, state.tempConfig.restTimeMs)) {
-                setActuatorState(state.heater, true, "calefactor_aire");
-                logControlDecision("Temperatura", temp, "calefactor aire ON - temperatura baja");
-            } else {
-                Serial.printf("⏳ [CTRL] Calefactor aire bloqueado por tiempo de reposo (%.1f°C ≤ %.1f°C)\n", 
-                             temp, TEMP_MIN - TEMP_HYSTERESIS);
-            }
+        // Calefactor apagado: usar nuevos umbrales de seguridad
+        if (temp <= HEATER_ON_TEMP && canTurnHeaterOn()) {
+            setActuatorState(state.heater, true, "calefactor_aire");
+            state.heaterOnStartTime = millis();
+            state.heaterFastMonitoringActive = true;   // Iniciar monitoreo rápido
+            state.lastHeaterMonitorTime = millis();
+            // Inicializar buffer de temperaturas
+            state.heaterTempBufferIndex = 0;
+            state.heaterTempBufferFull = false;
+            logControlDecision("Temperatura", temp, "calefactor aire ON - umbral seguridad 17.0°C - MONITOREO RÁPIDO INICIADO");
         }
     }
     
@@ -419,6 +430,7 @@ void AutonomousController::controlWaterTemperature() {
         if (state.waterHeater.isOn) {
             setActuatorState(state.waterHeater, false, "calefactor_agua");
             state.waterHeater.lastRestTime = millis();  // Tiempo de reposo
+            onWaterHeaterStateChanged(false);  // Hook para detectar cambio de estado
             logSafetyAction("Calefactor agua apagado - nivel agua insuficiente");
         }
         state.waterHeater.forceOff = true;
@@ -454,6 +466,7 @@ void AutonomousController::controlWaterTemperature() {
         
         setActuatorState(state.waterHeater, true, "calefactor_agua");
         state.waterHeaterStartTime = millis();
+        onWaterHeaterStateChanged(true);  // Hook para detectar cambio de estado
         logControlDecision("Temperatura agua", waterTemp, "calefactor agua ON - temperatura baja");
     }
     
@@ -461,6 +474,7 @@ void AutonomousController::controlWaterTemperature() {
     if (shouldDeactivate) {
         setActuatorState(state.waterHeater, false, "calefactor_agua");
         state.waterHeater.lastRestTime = millis();  // Guardar tiempo para reposo
+        onWaterHeaterStateChanged(false);  // Hook para detectar cambio de estado (puede disparar recirculación extra)
         logControlDecision("Temperatura agua", waterTemp, "calefactor agua OFF - temperatura objetivo alcanzada");
     }
     
@@ -499,6 +513,7 @@ void AutonomousController::runIndependentRoutines() {
     // Ejecutar rutinas según prioridades (orden de máxima a mínima prioridad)
     handleThermalEmergency();     // PRIORIDAD MÁXIMA: Emergencia >25°C
     handleRecirculationRoutine(); // Prioridad 1: Recirculación cada 4h (independiente)
+    handleExtraRecirculation();   // Prioridad 1.5: Recirculación extra por calefactor agua
     handleAutonomousAirRoutine(); // Prioridad 2: Aireación cada 30min (independiente)
     updateAirStoneControl();      // Controlador central de exclusión mutua
 }
@@ -704,6 +719,7 @@ void AutonomousController::handleAutonomousAirRoutine() {
 }
 
 // NUEVA REGLA: Emergencia térmica (>25°C) - PRIORIDAD MÁXIMA
+// NUEVA REGLA: Emergencia térmica (>25°C) - PRIORIDAD MÁXIMA
 void AutonomousController::handleThermalEmergency() {
     if (!state.averageReadings.valid) return;
     
@@ -712,24 +728,20 @@ void AutonomousController::handleThermalEmergency() {
     
     // Verificar si se debe activar emergencia
     if (temp > TEMP_EMERGENCY_THRESHOLD && !state.thermalEmergencyActive) {
-        // Verificar intervalo mínimo entre emergencias (evitar spam)
         if (now - state.lastEmergencyTime < EMERGENCY_MIN_INTERVAL_MS) {
             return;
         }
         
-        // ACTIVAR EMERGENCIA TÉRMICA
         state.thermalEmergencyActive = true;
         state.emergencyStartTime = now;
         state.lastEmergencyTime = now;
         
-        // Cancelar todas las rutinas normales (máxima prioridad)
         state.recirculationActive = false;
         state.autonomousAirActive = false;
         state.recircAirLeadActive = false;
         state.recircAirPostActive = false;
         state.recircPumpActive = false;
         
-        // Activar recirculación de emergencia (aire + bomba inmediato)
         setActuatorStateImmediate(state.airStone, true, "difusor");
         setActuatorStateImmediate(state.waterPump, true, "bomba");
         
@@ -741,11 +753,8 @@ void AutonomousController::handleThermalEmergency() {
     
     // Manejar emergencia activa
     if (state.thermalEmergencyActive) {
-        // Verificar si debe terminar emergencia
         if (now - state.emergencyStartTime >= EMERGENCY_PUMP_DURATION_MS) {
-            // Terminar emergencia
             state.thermalEmergencyActive = false;
-            // Reinicializar cronogramas tras emergencia
             initializeRecirculationSchedule();
             initializeAutonomousAirSchedule();
             
@@ -757,11 +766,17 @@ void AutonomousController::handleThermalEmergency() {
             return;
         }
         
-        // Emergencia en progreso - mantener recirculación
-        Serial.printf("⚠️ [EMERGENCIA] En progreso - T:%.1f°C, tiempo restante: %lus\n", 
-                     temp, (EMERGENCY_PUMP_DURATION_MS - (now - state.emergencyStartTime)) / 1000);
+        // Solo loguear cada X segundos (ej: 20s)
+        static unsigned long lastProgressLog = 0;
+        const unsigned long LOG_INTERVAL_MS = 20000; // 20 segundos
+        if (now - lastProgressLog >= LOG_INTERVAL_MS) {
+            lastProgressLog = now;
+            Serial.printf("⚠️ [EMERGENCIA] En progreso - T:%.1f°C, tiempo restante: %lus\n", 
+                         temp, (EMERGENCY_PUMP_DURATION_MS - (now - state.emergencyStartTime)) / 1000);
+        }
     }
 }
+
 
 // MÁQUINA DE ESTADOS PARA CONTROL DE LUZ ARTIFICIAL
 void AutonomousController::handleLightStateMachine() {
@@ -988,34 +1003,34 @@ void AutonomousController::applyActuatorStates() {
     } else {
         ActuatorController::turnHeaterOff();
     }
-    
-    if (state.waterHeater.isOn) {
+
+    if (state.waterHeater.isOn && !state.waterHeater.forceOff) {
         ActuatorController::turnWaterHeaterOn();
     } else {
         ActuatorController::turnWaterHeaterOff();
     }
-    
+
     if (state.fan.isOn) {
         ActuatorController::turnFanOn();
     } else {
         ActuatorController::turnFanOff();
     }
-    
+
     if (state.light.isOn) {
         ActuatorController::turnLightOn();
     } else {
         ActuatorController::turnLightOff();
     }
-    
+
     // Humidificador controlado por controlHumidity() - no usar ActuatorState
-    
-    if (state.waterPump.isOn) {
+
+    if (state.waterPump.isOn && !state.waterPump.forceOff) {
         ActuatorController::turnWaterPumpOn();
     } else {
         ActuatorController::turnWaterPumpOff();
     }
-    
-    if (state.airStone.isOn) {
+
+    if (state.airStone.isOn && !state.airStone.forceOff) {
         ActuatorController::turnAirStoneOn();
     } else {
         ActuatorController::turnAirStoneOff();
@@ -1277,4 +1292,246 @@ void AutonomousController::updateAirStoneControl() {
 
 void AutonomousController::logAirStoneAction(const char* action, const char* mode, const char* reason) {
     Serial.printf("💨 [AIR-COORD] %s - Modo: %s - Razón: %s\n", action, mode, reason);
+}
+
+// ========================================
+// PARCHE DE SEGURIDAD DEL CALEFACTOR
+// ========================================
+
+void AutonomousController::heaterFastMonitoring() {
+    // Solo ejecutar si el monitoreo rápido está activo (calefactor encendido)
+    if (!state.heaterFastMonitoringActive) return;
+    
+    unsigned long currentTime = millis();
+    
+    // Verificar si ha pasado el intervalo de monitoreo (3 segundos)
+    if (currentTime - state.lastHeaterMonitorTime < HEATER_FAST_MONITOR_INTERVAL) return;
+    
+    state.lastHeaterMonitorTime = currentTime;
+    
+    // Leer temperatura actual
+    float currentTemp = sensors->readTemperature();
+    if (isnan(currentTemp)) {
+        Serial.println("🔥 [HEATER-MONITOR] Sensor de temperatura falló durante monitoreo rápido");
+        return;
+    }
+    
+    // Añadir temperatura al buffer para media móvil
+    addTemperatureToHeaterBuffer(currentTemp);
+    
+    // Obtener temperatura promedio
+    float avgTemp = getHeaterAverageTemperature();
+    
+    // === VERIFICACIÓN DE EMERGENCIA (temperatura actual) ===
+    // PRIORITARIO: Apagar inmediatamente sin verificar tiempo mínimo
+    if (currentTemp >= HEATER_EMERGENCY_TEMP) {
+        heaterSafetyTurnOff("EMERGENCIA - temperatura crítica ≥25.0°C");
+        return;
+    }
+
+    // === VERIFICACIÓN DE APAGADO CRÍTICO (temperatura promedio ≥22.5°C) ===
+    // IMPORTANTE: Apagar sin verificar tiempo mínimo cuando se alcanza temperatura objetivo
+    // El tiempo mínimo solo aplica para prevenir ciclos rápidos, no para seguridad térmica
+    if (!isnan(avgTemp) && avgTemp >= HEATER_OFF_TEMP) {
+        heaterSafetyTurnOff("monitoreo rápido - promedio ≥22.5°C (temperatura objetivo alcanzada)");
+        return;
+    }
+    
+    // Log periódico cada 30 segundos durante monitoreo activo
+    static unsigned long lastLogTime = 0;
+    if (currentTime - lastLogTime >= 30000) {
+        Serial.printf("🔥 [HEATER-MONITOR] Temp actual: %.1f°C, Promedio: %.1f°C (buffer: %d/%d)\n", 
+                      currentTemp, avgTemp, 
+                      state.heaterTempBufferFull ? HEATER_TEMP_BUFFER_SIZE : state.heaterTempBufferIndex,
+                      HEATER_TEMP_BUFFER_SIZE);
+        lastLogTime = currentTime;
+    }
+}
+
+void AutonomousController::addTemperatureToHeaterBuffer(float temp) {
+    state.heaterTempBuffer[state.heaterTempBufferIndex] = temp;
+    state.heaterTempBufferIndex = (state.heaterTempBufferIndex + 1) % HEATER_TEMP_BUFFER_SIZE;
+    
+    if (!state.heaterTempBufferFull && state.heaterTempBufferIndex == 0) {
+        state.heaterTempBufferFull = true;
+    }
+}
+
+float AutonomousController::getHeaterAverageTemperature() {
+    if (!state.heaterTempBufferFull && state.heaterTempBufferIndex == 0) {
+        // No hay lecturas aún
+        return NAN;
+    }
+    
+    int count = state.heaterTempBufferFull ? HEATER_TEMP_BUFFER_SIZE : state.heaterTempBufferIndex;
+    float sum = 0.0f;
+    
+    for (int i = 0; i < count; i++) {
+        sum += state.heaterTempBuffer[i];
+    }
+    
+    return sum / count;
+}
+
+bool AutonomousController::canTurnHeaterOn() {
+    unsigned long currentTime = millis();
+    
+    // Verificar tiempo mínimo de reposo
+    if (state.heaterOffStartTime > 0) {
+        unsigned long timeSinceOff = currentTime - state.heaterOffStartTime;
+        if (timeSinceOff < HEATER_MIN_OFF_TIME) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool AutonomousController::canTurnHeaterOff() {
+    unsigned long currentTime = millis();
+
+    // Verificar tiempo mínimo encendido
+    if (state.heaterOnStartTime > 0) {
+        unsigned long timeSinceOn = currentTime - state.heaterOnStartTime;
+        if (timeSinceOn < HEATER_MIN_ON_TIME) {
+            // NOTA: Esta función solo se usa para apagados normales del ciclo de control
+            // NO se usa para apagados de seguridad (≥22.5°C o ≥25°C) que son prioritarios
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void AutonomousController::heaterSafetyTurnOff(const char* reason) {
+    if (!state.heater.isOn) return;
+    
+    unsigned long currentTime = millis();
+    
+    // Apagar calefactor
+    setActuatorState(state.heater, false, "calefactor_aire");
+    
+    // Actualizar estados del monitoreo rápido
+    state.heaterOffStartTime = currentTime;
+    state.heaterFastMonitoringActive = false;
+    
+    // Logging detallado con timestamp
+    float currentTemp = sensors->readTemperature();
+    float avgTemp = getHeaterAverageTemperature();
+    
+    Serial.printf("🚨 [HEATER-SAFETY] APAGADO: %s\n", reason);
+    Serial.printf("    Temp actual: %.1f°C | Promedio: %.1f°C\n", currentTemp, avgTemp);
+    Serial.printf("    Tiempo encendido: %lu segundos\n", 
+                  (currentTime - state.heaterOnStartTime) / 1000);
+    
+    logControlDecision("Temperatura", currentTemp, reason);
+}
+
+// ========================================
+// RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
+// ========================================
+
+void AutonomousController::onWaterHeaterStateChanged(bool isNowOn) {
+    // Si el calefactor pasó de ON → OFF
+    if (state.lastWaterHeaterState && !isNowOn) {
+        // Verificar que se apagó por alcanzar temperatura máxima
+        if (state.averageReadings.valid && state.averageReadings.waterTemp >= WATER_TEMP_MAX) {
+            Serial.printf("🌡️ [WATER-HEATER] Calefactor apagado por temperatura objetivo (%.1f°C ≥ %.1f°C)\n",
+                         state.averageReadings.waterTemp, WATER_TEMP_MAX);
+            tryTriggerExtraRecirculation();
+        }
+    }
+    
+    // Actualizar estado previo
+    state.lastWaterHeaterState = isNowOn;
+}
+
+bool AutonomousController::canTriggerExtraRecirculation() {
+    unsigned long currentTime = millis();
+    
+    // Validación 1: Verificar cooldown de 1 hora
+    if (state.lastExtraRecirculationTime > 0) {
+        unsigned long timeSinceLastExtra = currentTime - state.lastExtraRecirculationTime;
+        if (timeSinceLastExtra < EXTRA_RECIRCULATION_COOLDOWN_MS) {
+            unsigned long remainingCooldown = EXTRA_RECIRCULATION_COOLDOWN_MS - timeSinceLastExtra;
+            Serial.printf("❌ [EXTRA-RECIRCULATION] Cooldown activo - faltan %lu minutos\n", 
+                         remainingCooldown / (60 * 1000));
+            return false;
+        }
+    }
+    
+    // Validación 2: No interferir con recirculación programada en progreso
+    if (state.recirculationActive) {
+        Serial.println("❌ [EXTRA-RECIRCULATION] Recirculación programada en progreso");
+        return false;
+    }
+    
+    // Validación 3: Ventana de seguridad con próxima recirculación programada
+    unsigned long currentMinutes = getCurrentMinutes();
+    unsigned long timeToNextRecirculation;
+    
+    if (state.nextRecirculationTime > currentMinutes) {
+        timeToNextRecirculation = (state.nextRecirculationTime - currentMinutes) * 60 * 1000;
+    } else {
+        // Próxima recirculación es mañana
+        timeToNextRecirculation = ((1440 - currentMinutes) + state.nextRecirculationTime) * 60 * 1000;
+    }
+    
+    if (timeToNextRecirculation < SAFE_WINDOW_MS) {
+        unsigned long safeWindowMinutes = SAFE_WINDOW_MS / (60 * 1000);
+        Serial.printf("❌ [EXTRA-RECIRCULATION] Muy cerca de recirculación programada - faltan %lu min (mín: %lu min)\n",
+                     timeToNextRecirculation / (60 * 1000), safeWindowMinutes);
+        return false;
+    }
+    
+    // Validación 4: Ya hay recirculación extra activa
+    if (state.extraRecirculationActive) {
+        Serial.println("❌ [EXTRA-RECIRCULATION] Recirculación extra ya activa");
+        return false;
+    }
+    
+    return true;
+}
+
+void AutonomousController::tryTriggerExtraRecirculation() {
+    if (!canTriggerExtraRecirculation()) {
+        return;
+    }
+    
+    unsigned long currentTime = millis();
+    
+    // Activar recirculación extra
+    state.extraRecirculationActive = true;
+    state.extraRecirculationStartTime = currentTime;
+    state.lastExtraRecirculationTime = currentTime;
+    
+    // Activar solo la bomba (NO aireador)
+    setActuatorStateImmediate(state.waterPump, true, "motobomba");
+    
+    Serial.println("🔄 [EXTRA-RECIRCULATION] INICIADA - 3 minutos sin aireador");
+    Serial.printf("   💡 Motivo: Calefactor apagado por temp %.1f°C ≥ %.1f°C\n",
+                  state.averageReadings.waterTemp, WATER_TEMP_MAX);
+    
+    logRoutineAction("recirculación-extra", "INICIADA por calefactor agua");
+}
+
+void AutonomousController::handleExtraRecirculation() {
+    if (!state.extraRecirculationActive) return;
+    
+    unsigned long currentTime = millis();
+    unsigned long elapsedTime = currentTime - state.extraRecirculationStartTime;
+    
+    // Verificar si ha pasado la duración (3 minutos)
+    if (elapsedTime >= EXTRA_RECIRCULATION_DURATION_MS) {
+        // Finalizar recirculación extra
+        state.extraRecirculationActive = false;
+        
+        // Apagar bomba
+        setActuatorStateImmediate(state.waterPump, false, "motobomba");
+        
+        Serial.println("✅ [EXTRA-RECIRCULATION] COMPLETADA - bomba apagada");
+        Serial.printf("   ⏱️  Duración: %lu segundos\n", elapsedTime / 1000);
+        
+        logRoutineAction("recirculación-extra", "COMPLETADA");
+    }
 }

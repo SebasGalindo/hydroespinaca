@@ -108,7 +108,9 @@ bool ActuatorController::isWaterPumpOn() {
 // ========================================
 void ActuatorController::turnWaterHeaterOn() {
     digitalWrite(PIN_HEATER_WATER, LOW);  // ACTIVO LOW
-    Serial.println("🌡️ Calentador de agua ENCENDIDO");
+    int pinState = digitalRead(PIN_HEATER_WATER);
+    Serial.printf("🌡️ Calentador de agua ENCENDIDO (PIN %d = %s)\n",
+                  PIN_HEATER_WATER, pinState == LOW ? "LOW ✅" : "HIGH ⚠️");
 }
 
 void ActuatorController::turnWaterHeaterOff() {

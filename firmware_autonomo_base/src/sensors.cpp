@@ -570,20 +570,21 @@ float SensorManager::readWaterLevel() {
     // Calculate actual water level in cm (sensor mounted at top)
     // level = tank_height - distance_to_water_surface
     float waterLevel = TANK_HEIGHT_CM - distance;
-    
+
     // Ensure valid range for water level (0 to tank height)
     if (waterLevel < 0.0f) waterLevel = 0.0f;
     if (waterLevel > TANK_HEIGHT_CM) waterLevel = TANK_HEIGHT_CM;
-    
+
     // Calculate percentage for logging purposes only
     float waterLevelPercent = 100.0f * waterLevel / TANK_HEIGHT_CM;
-    
+
     // Success log with measurement statistics
-    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n", 
+    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n",
                   validas, NUM_SAMPLES, distance, waterLevel, waterLevelPercent);
-    
-    // FIXED: Return water level in cm for control system (not raw distance)
-    return waterLevel;
+
+    // IMPORTANTE: Retornar DISTANCIA medida (no nivel de agua)
+    // El backend necesita la distancia raw para la variable 68d1d07307c249cda4c369b0
+    return distance;
 }
 
 // Función para verificar si debe enviar telemetría de luz (6:00-18:00)
