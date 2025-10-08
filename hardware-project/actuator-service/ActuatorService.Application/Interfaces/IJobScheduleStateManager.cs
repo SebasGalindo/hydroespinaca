@@ -31,8 +31,8 @@ public class JobStepState
     public string Pin { get; set; } = default!;
     public string Mode { get; set; } = default!;
     public string? Power { get; set; }
-    public int? DutyCycle { get; set; }
-    public int Duration { get; set; }
+    public double? DutyCycle { get; set; }
+    public double Duration { get; set; }
     public string ActuatorId { get; set; } = default!;
 }
 

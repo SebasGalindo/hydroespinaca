@@ -14,6 +14,6 @@ public class ResolvedRoutineStepDto
     public string Pin { get; set; } = default!;
     public ActuatorMode Mode { get; set; }
     public string? Power { get; set; }
-    public int? DutyCycle { get; set; }
-    public int Duration { get; set; }
+    public double? DutyCycle { get; set; }
+    public double Duration { get; set; }
 }
