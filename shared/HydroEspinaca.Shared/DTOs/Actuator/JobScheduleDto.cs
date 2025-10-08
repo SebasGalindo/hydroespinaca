@@ -24,8 +24,8 @@ public class JobStepDto
     public string Pin { get; set; } = default!;
     public string Mode { get; set; } = default!;      // "DIGITAL" or "PWM"
     public string? Power { get; set; }                // "ON" or "OFF" for digital
-    public int? DutyCycle { get; set; }               // 0-100 for PWM
-    public int Duration { get; set; }                 // Duration in seconds
+    public double? DutyCycle { get; set; }            // 0-100 for PWM (supports decimals)
+    public double Duration { get; set; }              // Duration in seconds (supports decimals)
 }
 
 public class JobStatusDto
