@@ -80,10 +80,23 @@ class FuzzySystemRepository(IFuzzySystemRepository):
 
     @staticmethod
     def _doc_to_entity(doc: Dict[str, Any]) -> FuzzySystem:
+        # Normalizar status para asegurar conversión correcta
+        raw_status = doc.get("status", "DRAFT")
+        _logger.debug(f"📄 _doc_to_entity: raw_status='{raw_status}' (type={type(raw_status)})")
+
+        try:
+            # Si ya es un string, usarlo directamente; si es otro tipo, convertir
+            status_str = str(raw_status).strip().upper()
+            status_enum = FuzzySystemStatus(status_str)
+            _logger.debug(f"✅ Status convertido: {status_enum} (type={type(status_enum)})")
+        except (ValueError, KeyError) as e:
+            _logger.warning(f"Invalid status value '{raw_status}' in document, defaulting to DRAFT: {e}")
+            status_enum = FuzzySystemStatus.DRAFT
+
         return FuzzySystem(
             id=FuzzySystemRepository._to_domain_id(doc.get("_id")),
             name=doc.get("name"),
-            status=FuzzySystemStatus(doc.get("status")),
+            status=status_enum,
             defuzzification_method=doc.get("defuzzification_method"),
             operators=OperatorsConfig.from_dict(doc.get("operators") or {}),
             input_variable_ids=[FuzzyVariableId(str(v)) for v in (doc.get("input_variable_ids") or [])],

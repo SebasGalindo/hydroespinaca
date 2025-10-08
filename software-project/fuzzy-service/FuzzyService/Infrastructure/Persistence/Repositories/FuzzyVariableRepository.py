@@ -84,16 +84,46 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         # Incluir actuator_type solo si está definido
         if v.actuator_type is not None:
             doc["actuator_type"] = v.actuator_type
+        # Incluir campos de defuzzificación para outputs
+        if v.universe_min is not None:
+            doc["universe_min"] = v.universe_min
+        if v.universe_max is not None:
+            doc["universe_max"] = v.universe_max
+        # Siempre incluir defuzzification_threshold (tiene default 50.0)
+        doc["defuzzification_threshold"] = v.defuzzification_threshold
         return doc
 
     @staticmethod
     def _doc_to_entity(doc: Dict[str, Any]) -> FuzzyVariable:
+        variable_type = doc.get("variable_type", "input")
+        actuator_type = doc.get("actuator_type")
+
+        # Migración automática: Si es OUTPUT sin actuator_type, inferir por defecto
+        if variable_type == "output" and not actuator_type:
+            # Inferir tipo según el nombre o usar PWM por defecto
+            var_name = doc.get("name", "").lower()
+            if "control" in var_name or "switch" in var_name:
+                actuator_type = "DIGITAL"
+                _logger.warning(
+                    f"Variable OUTPUT '{doc.get('name')}' sin actuator_type. "
+                    f"Usando 'DIGITAL' por defecto (migración automática)"
+                )
+            else:
+                actuator_type = "PWM"
+                _logger.warning(
+                    f"Variable OUTPUT '{doc.get('name')}' sin actuator_type. "
+                    f"Usando 'PWM' por defecto (migración automática)"
+                )
+
         return FuzzyVariable(
             id=FuzzyVariableRepository._to_domain_var_id(doc.get("_id")),
             name=doc.get("name", ""),
             description=doc.get("description", ""),
-            variable_type=doc.get("variable_type", "input"),
-            actuator_type=doc.get("actuator_type"),  # Puede ser None para inputs
+            variable_type=variable_type,
+            actuator_type=actuator_type,
+            defuzzification_threshold=doc.get("defuzzification_threshold", 50.0),
+            universe_min=doc.get("universe_min"),
+            universe_max=doc.get("universe_max"),
             reference_id=doc.get("reference_id", ""),
             terms=[FuzzyTermId(str(t)) for t in (doc.get("terms") or [])],
             created_at=doc.get("created_at"),

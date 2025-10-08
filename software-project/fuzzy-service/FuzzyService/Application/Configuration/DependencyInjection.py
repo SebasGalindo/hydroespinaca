@@ -173,33 +173,6 @@ def configure_application_di() -> None:
     di[GetFuzzyRuleByIdQuery] = GetFuzzyRuleByIdHandler()
     di[GetFuzzyRulesBySystemQuery] = GetFuzzyRulesBySystemHandler()
 
-    # FuzzyRoutines handlers
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.CreateFuzzyRoutineCommand import CreateFuzzyRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.UpdateFuzzyRoutineCommand import UpdateFuzzyRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.DeleteFuzzyRoutineCommand import DeleteFuzzyRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.AddStepToRoutineCommand import AddStepToRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.UpdateStepInRoutineCommand import UpdateStepInRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Commands.DeleteStepFromRoutineCommand import DeleteStepFromRoutineCommand
-    from FuzzyService.Application.Features.FuzzyRoutines.Queries.GetAllFuzzyRoutinesQuery import GetAllFuzzyRoutinesQuery
-    from FuzzyService.Application.Features.FuzzyRoutines.Queries.GetFuzzyRoutineByIdQuery import GetFuzzyRoutineByIdQuery
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.CreateFuzzyRoutineHandler import CreateFuzzyRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.UpdateFuzzyRoutineHandler import UpdateFuzzyRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.DeleteFuzzyRoutineHandler import DeleteFuzzyRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.AddStepToRoutineHandler import AddStepToRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.UpdateStepInRoutineHandler import UpdateStepInRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.DeleteStepFromRoutineHandler import DeleteStepFromRoutineHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.GetAllFuzzyRoutinesHandler import GetAllFuzzyRoutinesHandler
-    from FuzzyService.Application.Features.FuzzyRoutines.Handlers.GetFuzzyRoutineByIdHandler import GetFuzzyRoutineByIdHandler
-
-    di[CreateFuzzyRoutineCommand] = CreateFuzzyRoutineHandler()
-    di[UpdateFuzzyRoutineCommand] = UpdateFuzzyRoutineHandler()
-    di[DeleteFuzzyRoutineCommand] = DeleteFuzzyRoutineHandler()
-    di[AddStepToRoutineCommand] = AddStepToRoutineHandler()
-    di[UpdateStepInRoutineCommand] = UpdateStepInRoutineHandler()
-    di[DeleteStepFromRoutineCommand] = DeleteStepFromRoutineHandler()
-    di[GetAllFuzzyRoutinesQuery] = GetAllFuzzyRoutinesHandler()
-    di[GetFuzzyRoutineByIdQuery] = GetFuzzyRoutineByIdHandler()
-
     # FuzzyEvaluations handlers
     from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetAllFuzzyEvaluationsQuery import GetAllFuzzyEvaluationsQuery
     from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetFuzzyEvaluationByIdQuery import GetFuzzyEvaluationByIdQuery

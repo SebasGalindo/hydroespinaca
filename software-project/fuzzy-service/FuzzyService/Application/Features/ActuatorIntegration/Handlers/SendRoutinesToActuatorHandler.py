@@ -50,14 +50,14 @@ class SendRoutinesToActuatorHandler(CommandHandler[SendRoutinesToActuatorCommand
                 for step in routine.steps:
                     step_dict = {
                         "outputVariable": step.outputVariable,
-                        "duration": int(step.duration)
+                        "duration": float(step.duration)  # Mantener como float, no int
                     }
 
                     # Agregar power O dutyCycle (mutuamente exclusivos)
                     if step.power is not None:
                         step_dict["power"] = step.power
                     if step.dutyCycle is not None:
-                        step_dict["dutyCycle"] = step.dutyCycle
+                        step_dict["dutyCycle"] = float(step.dutyCycle)  # También float
 
                     routine_dict["steps"].append(step_dict)
 

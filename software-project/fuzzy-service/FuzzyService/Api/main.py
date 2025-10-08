@@ -17,7 +17,6 @@ from FuzzyService.Api.Controllers import fuzzy_system_controller
 from FuzzyService.Api.Controllers import fuzzy_variable_controller
 from FuzzyService.Api.Controllers import fuzzy_term_controller
 from FuzzyService.Api.Controllers import fuzzy_rule_controller
-from FuzzyService.Api.Controllers import fuzzy_routine_controller
 from FuzzyService.Api.Controllers import fuzzy_evaluation_controller
 
 # Environment-based configuration (similar to .NET services)
@@ -83,7 +82,6 @@ app.include_router(fuzzy_system_controller.router)
 app.include_router(fuzzy_variable_controller.router)
 app.include_router(fuzzy_term_controller.router)
 app.include_router(fuzzy_rule_controller.router)
-app.include_router(fuzzy_routine_controller.router)
 app.include_router(fuzzy_evaluation_controller.router)
 
 # Health endpoint (no authentication required for health checks)

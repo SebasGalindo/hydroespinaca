@@ -3,16 +3,22 @@ from datetime import datetime, timezone
 
 from pydantic import Field, field_validator, model_validator
 
-from ..ValueObjects import FuzzyRuleId, FuzzySystemId, FuzzyVariableId, FuzzyRoutineId
+from ..ValueObjects import FuzzyRuleId, FuzzySystemId, FuzzyVariableId
 from ..Enums import RuleConnector, LogicalOperator
 from ..Common import DomainBaseModel
 from ..Utils import extract_oid
+from .rule_consequent import RuleConsequent
 
 
 class FuzzyRule(DomainBaseModel):
     """
-    Entidad de dominio que representa una regla difusa.
-    Estructura basada en el JSON especificado en el plan de implementación.
+    Entidad de dominio que representa una regla difusa con consecuentes directos Mamdani.
+
+    Estructura: IF <conditions> THEN <consequents>
+
+    Permite agregación multi-regla: múltiples reglas pueden contribuir a la misma
+    variable de salida, y el motor fuzzy agregará sus funciones de membresía
+    antes de defuzzificar.
     """
 
     # Identificación
@@ -26,7 +32,9 @@ class FuzzyRule(DomainBaseModel):
     conditions: List[Dict[str, Any]] = Field(default_factory=list)
     # connectors: lista de conectores (N condiciones => N-1 conectores) entre condiciones consecutivas
     connectors: List[RuleConnector] = Field(default_factory=list)
-    consequent: Optional[FuzzyRoutineId] = None  # ID de la rutina consecuente
+
+    # Consecuentes directos Mamdani: lista de variables de salida con sus términos
+    consequents: List[RuleConsequent] = Field(default_factory=list)
 
     # Metadatos
     created_at: Optional[datetime] = None
@@ -43,12 +51,29 @@ class FuzzyRule(DomainBaseModel):
             raise ValueError("El nombre de la regla no puede exceder 100 caracteres")
         return v.strip()
 
-    @field_validator("id", "system_id", "consequent", mode="before")
+    @field_validator("id", "system_id", mode="before")
     @classmethod
     def _coerce_ids(cls, v):
         if isinstance(v, dict):
             return extract_oid(v)
         return v
+
+    @field_validator("consequents", mode="before")
+    @classmethod
+    def _coerce_consequents(cls, v):
+        if v is None:
+            return []
+        if not isinstance(v, list):
+            raise ValueError("consequents debe ser una lista")
+        result: List[RuleConsequent] = []
+        for item in v:
+            if isinstance(item, RuleConsequent):
+                result.append(item)
+            elif isinstance(item, dict):
+                result.append(RuleConsequent.from_dict(item))
+            else:
+                raise ValueError("Cada consecuente debe ser RuleConsequent o dict")
+        return result
 
     @field_validator("connectors", mode="before")
     @classmethod
@@ -119,11 +144,14 @@ class FuzzyRule(DomainBaseModel):
         vars_seen = [c.get("variableId") for c in self.conditions]
         if len(vars_seen) != len(set(vars_seen)):
             raise ValueError("Ya existe una condición para alguna variable (variableId duplicado)")
-        # Validación del consecuente
-        if self.consequent is None:
-            raise ValueError("El consecuente (ID de rutina) no puede estar vacío")
-        if isinstance(self.consequent, str):
-            self.consequent = FuzzyRoutineId(self.consequent)
+
+        # Validación del consecuente: debe tener al menos un consecuente Mamdani
+        if not self.consequents or len(self.consequents) == 0:
+            raise ValueError(
+                "La regla debe tener al menos un consecuente. "
+                "Use rule.add_consequent() para agregar consecuentes."
+            )
+
         return self
 
     # -------------------------
@@ -220,11 +248,41 @@ class FuzzyRule(DomainBaseModel):
             raise ValueError(f"Número de conectores inválido: se esperaban {expected} y se recibieron {len(coerced)}")
         self.connectors = coerced
 
-    def update_consequent(self, routine_id: FuzzyRoutineId | str):
-        if isinstance(routine_id, str):
-            self.consequent = FuzzyRoutineId(routine_id)
-        else:
-            self.consequent = routine_id
+    # -------------------------
+    # Métodos de negocio para consecuentes
+    # -------------------------
+    def add_consequent(self, consequent: RuleConsequent):
+        """Agrega un consecuente Mamdani a la regla."""
+        # Validar que no exista ya un consecuente para la misma variable
+        for existing in self.consequents:
+            if existing.variable_id == consequent.variable_id:
+                raise ValueError(
+                    f"Ya existe un consecuente para la variable {consequent.variable_id}"
+                )
+        self.consequents.append(consequent)
+
+    def remove_consequent(self, variable_id: FuzzyVariableId):
+        """Remueve un consecuente por variable_id."""
+        self.consequents = [
+            c for c in self.consequents if c.variable_id != variable_id
+        ]
+
+    def get_consequent_for_variable(
+        self, variable_id: FuzzyVariableId
+    ) -> Optional[RuleConsequent]:
+        """Obtiene el consecuente para una variable específica."""
+        for c in self.consequents:
+            if c.variable_id == variable_id:
+                return c
+        return None
+
+    def has_consequents(self) -> bool:
+        """Verifica si la regla tiene consecuentes definidos."""
+        return len(self.consequents) > 0
+
+    def get_consequent_count(self) -> int:
+        """Retorna el número de consecuentes."""
+        return len(self.consequents)
 
     def update_description(self, description: Optional[str]):
         self.description = description
@@ -277,7 +335,7 @@ class FuzzyRule(DomainBaseModel):
                 for c in self.conditions
             ],
             "connectors": [c.value if hasattr(c, "value") else str(c) for c in self.connectors],
-            "consequent": {"$oid": str(self.consequent)} if self.consequent else None,
+            "consequents": [c.to_dict() for c in self.consequents],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 

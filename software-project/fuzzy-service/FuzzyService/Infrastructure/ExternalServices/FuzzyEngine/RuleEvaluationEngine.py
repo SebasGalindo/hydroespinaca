@@ -90,7 +90,7 @@ class RuleEvaluationEngine:
                     error_result = RuleActivationResult(
                         rule_id=str(rule.id) if rule.id else "unknown",
                         rule_name=rule.name or "unnamed",
-                        consequent=str(rule.consequent) if rule.consequent else None
+                        consequent=None  # No usado en modelo Mamdani (consecuentes en rule.consequents)
                     )
                     error_result.error_message = str(e)
                     batch_result.add_rule_result(error_result)
@@ -172,7 +172,7 @@ class RuleEvaluationEngine:
         result = RuleActivationResult(
             rule_id=str(rule.id) if rule.id else "unknown",
             rule_name=rule.name or "unnamed",
-            consequent=str(rule.consequent) if rule.consequent else None
+            consequent=None  # No usado en modelo Mamdani (consecuentes en rule.consequents)
         )
         
         try:

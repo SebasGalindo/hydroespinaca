@@ -13,7 +13,6 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
     FuzzyRuleId,
     FuzzySystemId,
     FuzzyVariableId,
-    FuzzyRoutineId,
 )
 from FuzzyService.Domain.Enums import RuleConnector
 from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
@@ -69,6 +68,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             for c in (r.conditions or [])
         ]
         conns = [str(c.value) if hasattr(c, "value") else str(c) for c in (r.connectors or [])]
+
         return {
             "_id": FuzzyRuleRepository._to_object_id(r.id) or ObjectId(),
             "name": r.name,
@@ -76,12 +76,18 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             "description": r.description,
             "conditions": conds,
             "connectors": conns,
-            "consequent": str(r.consequent) if r.consequent else None,
+            "consequents": [c.to_dict() for c in r.consequents],
             "created_at": r.created_at or datetime.now(timezone.utc),
         }
 
     @staticmethod
     def _doc_to_entity(doc: Dict[str, Any]) -> FuzzyRule:
+        from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
+
+        # Parsear consecuentes Mamdani
+        consequents_data = doc.get("consequents", [])
+        consequents = [RuleConsequent.from_dict(cons_dict) for cons_dict in consequents_data]
+
         return FuzzyRule(
             id=FuzzyRuleRepository._to_rule_id(doc.get("_id")),
             name=doc.get("name", ""),
@@ -96,7 +102,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
                 for c in (doc.get("conditions") or [])
             ],
             connectors=[RuleConnector(c) for c in (doc.get("connectors") or [])],
-            consequent=FuzzyRoutineId(doc.get("consequent")) if doc.get("consequent") else None,
+            consequents=consequents,
             created_at=doc.get("created_at"),
         )
 
@@ -121,7 +127,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
         return self._doc_to_entity(doc) if doc else None
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", -1)
+        cursor = self._coll.find({}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", -1)
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def update(self, fuzzy_rule: FuzzyRule) -> FuzzyRule:
@@ -160,21 +166,21 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
 
     # ---------------------------- System-specific queries ----------------------------
     async def get_by_system_id(self, system_id: FuzzySystemId, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({"system_id": str(system_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", -1)
+        cursor = self._coll.find({"system_id": str(system_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", -1)
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_by_name(self, system_id: FuzzySystemId, name: str) -> Optional[FuzzyRule]:
-        doc = await self._coll.find_one({"system_id": str(system_id), "name": name}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1})
+        doc = await self._coll.find_one({"system_id": str(system_id), "name": name}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1})
         return self._doc_to_entity(doc) if doc else None
 
     # ---------------------------- Conditions/connectors queries ----------------------------
     async def get_rules_using_variable(self, variable_id: FuzzyVariableId, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({"conditions.variableId": str(variable_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"conditions.variableId": str(variable_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_rules_with_connector(self, connector: RuleConnector, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
         conn_value = connector.value if hasattr(connector, "value") else str(connector)
-        cursor = self._coll.find({"connectors": conn_value}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"connectors": conn_value}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Consequent queries ----------------------------
@@ -184,7 +190,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
 
     # ---------------------------- Search & filter ----------------------------
     async def search_by_name(self, system_id: FuzzySystemId, name_pattern: str, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({"$and": [{"system_id": str(system_id)}, {"$text": {"$search": name_pattern}}]}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({"$and": [{"system_id": str(system_id)}, {"$text": {"$search": name_pattern}}]}, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def filter_rules(self, filters: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
@@ -196,7 +202,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
         if (uses_connector := filters.get("uses_connector")):
             query["connectors"] = str(uses_connector)
         if (has_consequent := filters.get("has_consequent")) is not None:
-            query["consequent"] = {"$ne": None} if bool(has_consequent) else None
+            query["consequents"] = {"$ne": []} if bool(has_consequent) else []
         if (variable_id := filters.get("variable_id")):
             query["conditions.variableId"] = str(variable_id)
         if (created_from := filters.get("created_from")) or (created_to := filters.get("created_to")):
@@ -206,10 +212,10 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             if created_to:
                 dr["$lte"] = created_to
             query["created_at"] = dr
-        # Clean possible None value set for consequent when has_consequent=False
-        if query.get("consequent") is None:
-            query["consequent"] = None
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        # Clean possible empty array value set for consequents when has_consequent=False
+        if query.get("consequents") == []:
+            query["consequents"] = []
+        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Counting & date ----------------------------
@@ -221,5 +227,5 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
 
     async def get_by_date_range(self, start_date: datetime, end_date: datetime, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
         query = {"created_at": {"$gte": start_date, "$lte": end_date}}
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]

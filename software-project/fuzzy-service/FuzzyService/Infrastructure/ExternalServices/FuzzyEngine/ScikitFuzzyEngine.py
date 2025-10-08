@@ -15,7 +15,6 @@ from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable
 from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
 from FuzzyService.Domain.Entities.fuzzy_system import FuzzySystem
-from FuzzyService.Domain.Entities.fuzzy_routine import FuzzyRoutine, RoutineStep
 from FuzzyService.Domain.ValueObjects.MembershipFunction import MembershipFunction
 from FuzzyService.Domain.Enums.MembershipFunctionType import MembershipFunctionType
 from FuzzyService.Domain.Errors.DomainErrors import ValidationError, EntityNotFoundError
@@ -25,7 +24,6 @@ from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.FuzzyResultTypes i
     BatchRuleEvaluationResult
 )
 from FuzzyService.Infrastructure.ExternalServices.FuzzyEngine.RuleEvaluationEngine import RuleEvaluationEngine
-from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
 from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
 from FuzzyService.Domain.Interfaces.IFuzzyTermRepository import IFuzzyTermRepository
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzyTermId
@@ -376,54 +374,130 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             for result in results
         ]
     
-    def _serialize_rule_evaluation_result(self, result: BatchRuleEvaluationResult, routines_payload: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-         """Serializa el resultado de evaluación de reglas para la respuesta."""
+    def _find_duration_variable(
+        self,
+        power_variable_name: str,
+        routines_payload: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Busca la variable de duración asociada a una variable de potencia.
+
+        Convenciones de nombres:
+        - "Potencia X" → "Duración de X"
+        - "Control X" → "Duración de X"
+
+        Args:
+            power_variable_name: Nombre de la variable de potencia/control
+            routines_payload: Lista de variables defuzzificadas
+
+        Returns:
+            Dict con la variable de duración encontrada, o None
+        """
+        # Extraer el nombre base del actuador
+        if "Potencia" in power_variable_name:
+            # "Potencia del Ventilador" → "Ventilador" → "Duración de Ventilación"
+            base_name = power_variable_name.replace("Potencia del ", "").replace("Potencia de ", "").replace("Potencia ", "")
+        elif "Control" in power_variable_name:
+            # "Control Calefactor Aire" → "Calefactor Aire" → "Duración de Calefacción de Aire"
+            base_name = power_variable_name.replace("Control ", "")
+        else:
+            return None
+
+        # Mapeo de nombres de actuadores a nombres de duración
+        # Estos mapeos se infieren del seed data
+        duration_mappings = {
+            "Ventilador": "Duración de Ventilación",
+            "Calefactor Aire": "Duración de Calefacción de Aire",
+            "Calefactor Agua": "Duración de Calefacción de Agua",
+            "Bomba Riego": "Duración de Riego",
+            "Bomba Aireacion": "Duración de Aireación",
+            "Luz": "Duración de Luz"
+        }
+
+        # Buscar el nombre de duración esperado
+        duration_name = duration_mappings.get(base_name)
+        if not duration_name:
+            self.logger.warning(
+                f"No se encontró mapeo de duración para '{power_variable_name}' (base: '{base_name}')"
+            )
+            return None
+
+        # Buscar en routines_payload
+        for routine in routines_payload:
+            if routine.get("variable_name") == duration_name:
+                return routine
+
+        self.logger.warning(
+            f"No se encontró variable de duración '{duration_name}' en routines_payload"
+        )
+        return None
+
+    def _serialize_rule_evaluation_result(
+        self,
+        result: BatchRuleEvaluationResult,
+        routines_payload: List[Dict[str, Any]] = None,
+        fuzzy_rules: List["FuzzyRule"] = None
+    ) -> Dict[str, Any]:
+         """Serializa el resultado de evaluación de reglas para la respuesta (modelo Mamdani)."""
          if routines_payload is None:
              routines_payload = []
-         
-         # Crear un mapeo de rule_id a output_values desde routines_payload
+         if fuzzy_rules is None:
+             fuzzy_rules = []
+
+         # Crear índice de routines por variable_id para búsqueda rápida
+         routines_by_variable = {r["variable_id"]: r for r in routines_payload}
+
+         # Crear índice de reglas por ID
+         rules_by_id = {str(rule.id): rule for rule in fuzzy_rules}
+
+         # Crear mapeo de rule_id a output_values
          rule_output_map = {}
+
          for rule_result in result.get_activated_rules():
-             if rule_result.consequent:
-                 # Buscar la rutina correspondiente en routines_payload
-                 # Usar _routine_id (ID interno) para mapeo con rule.consequent
-                 for routine in routines_payload:
-                     if routine.get("_routine_id") == str(rule_result.consequent):
-                         # Mapear los pasos con el formato correcto
-                         mapped_steps = []
-                         for step in routine.get("steps", []):
-                             # Extraer outputVariable (no "actuator")
-                             actuator_id = step.get("outputVariable", "")
+             rule = rules_by_id.get(str(rule_result.rule_id))
+             if not rule or not rule.has_consequents():
+                 rule_output_map[rule_result.rule_id] = []
+                 continue
 
-                             duration_value = step.get("duration", 0)
+             # Para cada consecuente de la regla, buscar el output correspondiente
+             mapped_outputs = []
+             for consequent in rule.consequents:
+                 variable_id = str(consequent.variable_id)
+                 routine = routines_by_variable.get(variable_id)
 
-                             # Construir output_value con power o dutyCycle (mutuamente exclusivos)
-                             output_dict = {
-                                 "actuator_id": actuator_id,
-                                 "duration": duration_value
-                             }
+                 if routine:
+                     # Construir output_value con el formato esperado
+                     command = routine.get("command", {})
+                     variable_name = routine.get("variable_name", "")
 
-                             # Mantener power y dutyCycle separados según el threshold aplicado
-                             power_str = step.get("power")  # "ON"/"OFF" si es DIGITAL
-                             duty_cycle = step.get("dutyCycle")  # 0-100 si es PWM
+                     output_dict = {
+                         "actuator_id": variable_id,
+                         "duration": 0.5  # Valor mínimo por defecto
+                     }
 
-                             if power_str is not None:
-                                 # Actuador DIGITAL - usar power como string
-                                 output_dict["power"] = power_str
-                             elif duty_cycle is not None:
-                                 # Actuador PWM - usar dutyCycle como número
-                                 output_dict["dutyCycle"] = duty_cycle
-                             else:
-                                 # Fallback: si no hay ninguno, usar dutyCycle = 0
-                                 output_dict["dutyCycle"] = 0
+                     # Buscar variable de duración asociada
+                     duration_routine = self._find_duration_variable(variable_name, routines_payload)
+                     if duration_routine:
+                         # Usar el valor defuzzificado de duración
+                         duration_value = duration_routine.get("crisp_value", 0.5)
+                         # Asegurar que esté en el rango válido [0.5, 10000]
+                         output_dict["duration"] = max(0.5, min(10000.0, float(duration_value)))
+                         self.logger.debug(
+                             f"Duración encontrada para {variable_name}: {output_dict['duration']:.1f}s"
+                         )
+                     else:
+                         self.logger.warning(
+                             f"No se encontró duración para {variable_name}, usando valor mínimo 0.5s"
+                         )
 
-                             mapped_steps.append(output_dict)
-                         rule_output_map[rule_result.rule_id] = mapped_steps
-                         break
-                 
-                 # Si no se encuentra la rutina, usar lista vacía
-                 if rule_result.rule_id not in rule_output_map:
-                     rule_output_map[rule_result.rule_id] = []
+                     # Incluir power o dutyCycle según tipo de actuador
+                     if "power" in command:
+                         output_dict["power"] = command["power"]
+                     elif "dutyCycle" in command:
+                         output_dict["dutyCycle"] = command["dutyCycle"]
+
+                     mapped_outputs.append(output_dict)
+
+             rule_output_map[rule_result.rule_id] = mapped_outputs
          
          return {
              "rules_evaluated": result.rules_evaluated,
@@ -641,13 +715,14 @@ class ScikitFuzzyEngine(IFuzzyEngine):
 
             # Determinar si usar dutyCycle (PWM) o power (DIGITAL) basado en actuator_type
             if variable.actuator_type == "DIGITAL":
-                # Actuador digital: usar threshold para determinar ON/OFF
-                if power_value < 50:
+                # Actuador digital: usar threshold configurable para determinar ON/OFF
+                threshold = variable.defuzzification_threshold
+                if power_value < threshold:
                     step_payload["power"] = "OFF"
                 else:
                     step_payload["power"] = "ON"
                 self.logger.debug(
-                    f"DIGITAL actuator {variable.name}: power_value={power_value:.2f} → {step_payload['power']}"
+                    f"DIGITAL actuator {variable.name}: power_value={power_value:.2f} (threshold={threshold}) → {step_payload['power']}"
                 )
             elif variable.actuator_type == "PWM":
                 # Actuador PWM: usar valor continuo
@@ -656,16 +731,13 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                     f"PWM actuator {variable.name}: power_value={power_value:.2f} → dutyCycle={step_payload['dutyCycle']}"
                 )
             else:
-                # Fallback: si no tiene actuator_type, usar heurística antigua
-                self.logger.warning(
-                    f"Variable {variable.name} sin actuator_type, usando heurística antigua"
+                # actuator_type es obligatorio para variables output
+                self.logger.error(
+                    f"Variable {variable.name} sin actuator_type definido"
                 )
-                if power_value <= 1:
-                    step_payload["power"] = "OFF"
-                elif power_value >= 99:
-                    step_payload["power"] = "ON"
-                else:
-                    step_payload["dutyCycle"] = round(power_value, 2)
+                raise ValidationError(
+                    f"Variable output '{variable.name}' debe tener actuator_type definido (PWM o DIGITAL)"
+                )
 
             return step_payload
             
@@ -703,8 +775,11 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 centroid = fuzz.defuzz(universe, clipped_membership, 'centroid')
                 return float(centroid)
             else:
-                # Si no hay área, usar el centro del universo
-                return float((mf.universe_min + mf.universe_max) / 2)
+                # Si no hay área tras clipear con firing_strength, retornar 0.0
+                self.logger.warning(
+                    f"Término {term.label}: clipped_membership vacío (firing_strength={firing_strength}), retornando 0.0"
+                )
+                return 0.0
                 
         except Exception as e:
             self.logger.error(f"Error defuzzificando término {term.name}: {e}")
@@ -758,9 +833,9 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             return None
 
     def _find_output_term_for_rule(
-        self, 
-        rule_result, 
-        variable: FuzzyVariable, 
+        self,
+        rule_result,
+        variable: FuzzyVariable,
         terms: List[FuzzyTerm]
     ) -> Optional[FuzzyTerm]:
         """Encuentra el término de salida correspondiente a una regla para una variable específica."""
@@ -769,6 +844,334 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         # Por ahora, retornamos el primer término de la variable
         var_terms = [term for term in terms if term.variable_id == variable.id]
         return var_terms[0] if var_terms else None
+
+    def _infer_universe_from_terms(
+        self,
+        variable: FuzzyVariable,
+        all_terms: List[FuzzyTerm]
+    ) -> Tuple[float, float]:
+        """Infiere el universo de discurso de una variable desde sus términos."""
+        var_terms = [t for t in all_terms if t.variable_id == variable.id]
+
+        if not var_terms:
+            # Fallback: universo por defecto según actuator_type
+            if variable.actuator_type == "PWM":
+                return 0.0, 100.0
+            else:
+                return 0.0, 100.0
+
+        # Obtener min/max de todos los términos
+        min_vals = [t.membership_function.universe_min for t in var_terms]
+        max_vals = [t.membership_function.universe_max for t in var_terms]
+
+        return min(min_vals), max(max_vals)
+
+    async def defuzzify_variables_mamdani(
+        self,
+        output_variables: List[FuzzyVariable],
+        rule_evaluation_result: BatchRuleEvaluationResult,
+        all_terms: List[FuzzyTerm]
+    ) -> Dict[str, float]:
+        """Defuzzifica variables de salida usando agregación Mamdani completa.
+
+        Para cada variable de salida:
+        1. Identificar todas las reglas que contribuyen a esa variable
+        2. Aplicar implicación (min) con firing_strength a cada término
+        3. Agregar funciones (max)
+        4. Defuzzificar con centroide
+
+        Args:
+            output_variables: Lista de variables de salida del sistema
+            rule_evaluation_result: Resultado de evaluación de reglas con firing strengths
+            all_terms: Todos los términos fuzzy del sistema
+
+        Returns:
+            Dict[variable_id, crisp_value] - Valores defuzzificados por variable
+        """
+        try:
+            defuzzified_values = {}
+
+            for variable in output_variables:
+                # Determinar universo de discurso
+                if variable.universe_min is not None and variable.universe_max is not None:
+                    universe_min = variable.universe_min
+                    universe_max = variable.universe_max
+                else:
+                    # Inferir desde términos
+                    universe_min, universe_max = self._infer_universe_from_terms(variable, all_terms)
+
+                universe = np.linspace(universe_min, universe_max, 1000)
+
+                # Inicializar función agregada
+                aggregated_output = np.zeros_like(universe)
+
+                # Para cada regla activada
+                rules_contributing = 0
+                for rule_result in rule_evaluation_result.get_activated_rules():
+                    if rule_result.firing_strength <= 0:
+                        continue
+
+                    # Obtener término de salida para esta variable
+                    # NOTA: En el flujo actual basado en rutinas, esto requiere extensión
+                    # Por ahora, usar el método existente
+                    output_term = self._find_output_term_for_rule(
+                        rule_result, variable, all_terms
+                    )
+
+                    if not output_term:
+                        continue
+
+                    # Crear función de membresía
+                    term_membership = self._create_membership_function(
+                        output_term.membership_function, universe
+                    )
+
+                    # Implicación (min con firing strength)
+                    clipped = np.minimum(term_membership, rule_result.firing_strength)
+
+                    # Agregación (max)
+                    aggregated_output = np.maximum(aggregated_output, clipped)
+                    rules_contributing += 1
+
+                # Defuzzificar
+                if np.sum(aggregated_output) > 0:
+                    crisp_value = fuzz.defuzz(universe, aggregated_output, 'centroid')
+                    self.logger.debug(
+                        f"Variable {variable.name}: {rules_contributing} reglas → centroide = {crisp_value:.2f}"
+                    )
+                else:
+                    # Sin agregación: retornar 0.0
+                    crisp_value = 0.0
+                    self.logger.warning(
+                        f"Variable {variable.name}: sin agregación, retornando 0.0 (sin acción)"
+                    )
+
+                defuzzified_values[str(variable.id)] = float(crisp_value)
+
+            return defuzzified_values
+
+        except Exception as e:
+            self.logger.error(f"Error en defuzzificación Mamdani: {e}")
+            raise ValidationError(f"Error en defuzzificación Mamdani: {str(e)}")
+
+    async def defuzzify_from_consequents(
+        self,
+        fuzzy_rules: List["FuzzyRule"],
+        output_variables: List[FuzzyVariable],
+        rule_evaluation_result: BatchRuleEvaluationResult,
+        all_terms: List[FuzzyTerm]
+    ) -> Dict[str, float]:
+        """Defuzzifica usando consecuentes directos (modelo Mamdani completo).
+
+        Este método implementa el flujo de inferencia Mamdani completo:
+        1. Agrupar contribuciones de múltiples reglas por variable de salida
+        2. Para cada variable:
+           - Agregar las funciones de membresía de todos los términos activados
+           - Aplicar implicación (min) con firing_strength
+           - Agregar funciones (método configurable: max, sum, probabilistic_or)
+           - Defuzzificar con centroide
+        3. Aplicar lógica de actuador (PWM continuo o DIGITAL con threshold)
+
+        Args:
+            fuzzy_rules: Lista de reglas con consecuentes directos
+            output_variables: Variables de salida del sistema
+            rule_evaluation_result: Resultado de evaluación con firing strengths
+            all_terms: Todos los términos fuzzy del sistema
+
+        Returns:
+            Dict[variable_id, crisp_value] - Valores defuzzificados
+        """
+        try:
+            defuzzified_values = {}
+
+            # Crear índice de términos por ID para búsqueda rápida
+            terms_by_id = {str(term.id): term for term in all_terms}
+
+            # Crear índice de reglas por ID
+            rules_by_id = {str(rule.id): rule for rule in fuzzy_rules}
+
+            self.logger.info(
+                f"defuzzify_from_consequents: "
+                f"{len(fuzzy_rules)} reglas totales, "
+                f"{len(rule_evaluation_result.get_activated_rules())} reglas activadas, "
+                f"{len(output_variables)} variables de salida"
+            )
+
+            # Agrupar contribuciones por variable de salida
+            contributions_by_variable = {}  # variable_id -> List[(term, firing_strength, aggregation_method)]
+
+            for rule_result in rule_evaluation_result.get_activated_rules():
+                self.logger.debug(f"Procesando regla activada: {rule_result.rule_id}, firing={rule_result.firing_strength}")
+
+                if rule_result.firing_strength <= 0:
+                    self.logger.debug(f"Regla {rule_result.rule_id} tiene firing_strength <= 0, saltando")
+                    continue
+
+                rule = rules_by_id.get(str(rule_result.rule_id))
+                if not rule:
+                    self.logger.warning(f"Regla {rule_result.rule_id} no encontrada en rules_by_id")
+                    continue
+
+                self.logger.debug(f"Regla {rule.name}: has_consequents={rule.has_consequents()}, len={len(rule.consequents)}")
+
+                if not rule.has_consequents():
+                    self.logger.warning(
+                        f"Regla {rule.name} (ID: {rule.id}) no tiene consecuentes. "
+                        f"consequents={rule.consequents}"
+                    )
+                    continue
+
+                # Para cada consecuente de esta regla
+                for consequent in rule.consequents:
+                    variable_id = str(consequent.variable_id)
+
+                    if variable_id not in contributions_by_variable:
+                        contributions_by_variable[variable_id] = []
+
+                    # Agregar todos los términos de este consecuente
+                    for term_id in consequent.terms:
+                        term = terms_by_id.get(str(term_id))
+                        if term:
+                            contributions_by_variable[variable_id].append({
+                                "term": term,
+                                "firing_strength": rule_result.firing_strength,
+                                "aggregation_method": consequent.aggregation_method
+                            })
+
+            # Defuzzificar cada variable de salida
+            for variable in output_variables:
+                variable_id = str(variable.id)
+                contributions = contributions_by_variable.get(variable_id, [])
+
+                if not contributions:
+                    # Sin contribuciones: retornar 0.0 (sin acción)
+                    crisp_value = 0.0
+                    self.logger.warning(
+                        f"Variable {variable.name}: sin contribuciones de reglas activadas, retornando 0.0 (sin acción)"
+                    )
+                    defuzzified_values[variable_id] = float(crisp_value)
+                    continue
+
+                # Determinar universo de discurso
+                if variable.universe_min is not None and variable.universe_max is not None:
+                    universe_min = variable.universe_min
+                    universe_max = variable.universe_max
+                else:
+                    universe_min, universe_max = self._infer_universe_from_terms(variable, all_terms)
+
+                universe = np.linspace(universe_min, universe_max, 1000)
+
+                # Inicializar función agregada
+                aggregated_output = np.zeros_like(universe)
+
+                # Método de agregación (usar el primer consecuente, todos deberían ser iguales)
+                aggregation_method = contributions[0]["aggregation_method"]
+
+                # Procesar cada contribución
+                for contrib in contributions:
+                    term = contrib["term"]
+                    firing_strength = contrib["firing_strength"]
+
+                    # Crear función de membresía
+                    term_membership = self._create_membership_function(
+                        term.membership_function, universe
+                    )
+
+                    # Implicación (min con firing strength)
+                    clipped = np.minimum(term_membership, firing_strength)
+
+                    # Agregación según método
+                    if aggregation_method == "max":
+                        aggregated_output = np.maximum(aggregated_output, clipped)
+                    elif aggregation_method == "sum":
+                        # Suma limitada (bounded sum)
+                        aggregated_output = np.minimum(aggregated_output + clipped, 1.0)
+                    elif aggregation_method == "probabilistic_or":
+                        # OR probabilístico: a + b - a*b
+                        aggregated_output = aggregated_output + clipped - (aggregated_output * clipped)
+                    else:
+                        # Fallback a max
+                        aggregated_output = np.maximum(aggregated_output, clipped)
+
+                # Defuzzificar con centroide
+                if np.sum(aggregated_output) > 0:
+                    crisp_value = fuzz.defuzz(universe, aggregated_output, 'centroid')
+                    self.logger.debug(
+                        f"Variable {variable.name}: {len(contributions)} contribuciones → centroide = {crisp_value:.2f}"
+                    )
+                else:
+                    # Agregación vacía (no debería ocurrir si hay contributions): retornar 0.0
+                    crisp_value = 0.0
+                    self.logger.warning(
+                        f"Variable {variable.name}: agregación vacía tras procesar {len(contributions)} contribuciones, retornando 0.0"
+                    )
+
+                defuzzified_values[variable_id] = float(crisp_value)
+
+            return defuzzified_values
+
+        except Exception as e:
+            self.logger.error(f"Error en defuzzify_from_consequents: {e}")
+            raise ValidationError(f"Error en defuzzify_from_consequents: {str(e)}")
+
+    async def apply_actuator_logic(
+        self,
+        variable: FuzzyVariable,
+        crisp_value: float
+    ) -> Dict[str, Any]:
+        """Convierte valor crisp en comando de actuador según tipo.
+
+        Args:
+            variable: Variable fuzzy con configuración de actuador
+            crisp_value: Valor defuzzificado
+
+        Returns:
+            Dict con "power" (DIGITAL) o "dutyCycle" (PWM)
+
+        Raises:
+            ValidationError: Si la variable no tiene actuator_type definido
+        """
+        if not variable.actuator_type:
+            raise ValidationError(
+                f"Variable output '{variable.name}' debe tener actuator_type definido (PWM o DIGITAL)"
+            )
+
+        try:
+            if variable.actuator_type == "DIGITAL":
+                # Aplicar threshold configurable
+                threshold = variable.defuzzification_threshold
+                if crisp_value >= threshold:
+                    command = {"power": "ON"}
+                    self.logger.debug(
+                        f"DIGITAL {variable.name}: {crisp_value:.2f} >= {threshold} → ON"
+                    )
+                else:
+                    command = {"power": "OFF"}
+                    self.logger.debug(
+                        f"DIGITAL {variable.name}: {crisp_value:.2f} < {threshold} → OFF"
+                    )
+                return command
+
+            elif variable.actuator_type == "PWM":
+                # Valor continuo (clamped 0-100)
+                duty_cycle = max(0.0, min(100.0, crisp_value))
+                command = {"dutyCycle": round(duty_cycle, 2)}
+                self.logger.debug(
+                    f"PWM {variable.name}: {crisp_value:.2f} → dutyCycle {duty_cycle:.2f}"
+                )
+                return command
+
+            else:
+                raise ValidationError(
+                    f"actuator_type inválido '{variable.actuator_type}' para variable '{variable.name}'. "
+                    f"Debe ser 'PWM' o 'DIGITAL'"
+                )
+
+        except ValidationError:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error aplicando lógica de actuador: {e}")
+            raise ValidationError(f"Error aplicando lógica de actuador: {str(e)}")
 
     async def complete_fuzzy_evaluation(
         self,
@@ -817,12 +1220,42 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 fuzzification_results=fuzzification_results,
                 variables=variables
             )
-            
-            # Paso 3: Defuzzificación basada en rutinas
-            routines_payload = await self.defuzzify_routines(
+
+            # Paso 3: Defuzzificación Mamdani con consecuentes directos
+            self.logger.info("Defuzzificando con agregación Mamdani")
+
+            # Obtener variables de salida
+            output_variables = [v for v in variables if v.is_output()]
+
+            self.logger.info(
+                f"Variables totales: {len(variables)}, "
+                f"Variables de salida: {len(output_variables)}"
+            )
+            for v in variables:
+                self.logger.debug(f"Variable: {v.name}, tipo={v.variable_type}, is_output={v.is_output()}")
+
+            # Defuzzificar con agregación multi-regla
+            defuzzified_values = await self.defuzzify_from_consequents(
+                fuzzy_rules=rules,
+                output_variables=output_variables,
                 rule_evaluation_result=rule_evaluation_result,
                 all_terms=terms
             )
+
+            # Convertir valores defuzzificados en comandos de actuador
+            routines_payload = []
+            for variable in output_variables:
+                variable_id = str(variable.id)
+                crisp_value = defuzzified_values.get(variable_id)
+
+                if crisp_value is not None:
+                    command = await self.apply_actuator_logic(variable, crisp_value)
+                    routines_payload.append({
+                        "variable_id": variable_id,
+                        "variable_name": variable.name,
+                        "crisp_value": crisp_value,
+                        "command": command
+                    })
             
             # Construir respuesta completa
             total_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -833,7 +1266,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 "evaluation_timestamp": start_time.isoformat(),
                 "sensor_readings": sensor_readings,
                 "fuzzification_results": self._serialize_fuzzification_results(fuzzification_results),
-                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result, routines_payload),
+                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result, routines_payload, rules),
                 "routines_payload": routines_payload,
                 "total_processing_time_ms": total_time,
                 "status": "completed"

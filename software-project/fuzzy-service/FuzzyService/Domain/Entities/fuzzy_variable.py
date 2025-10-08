@@ -35,6 +35,11 @@ class FuzzyVariable(DomainBaseModel):
     variable_type: str = "input"  # "input" | "output"
     actuator_type: Optional[str] = None  # "PWM" | "DIGITAL" (solo para outputs)
 
+    # Configuración de defuzzificación (solo para outputs)
+    defuzzification_threshold: float = 50.0  # Threshold para actuadores DIGITAL (0-100)
+    universe_min: Optional[float] = None  # Mínimo del universo de discurso
+    universe_max: Optional[float] = None  # Máximo del universo de discurso
+
     # Relaciones
     reference_id: str = ""  # ID de variable en sensor-service o control_output en actuator-service (OBLIGATORIO)
     terms: List[FuzzyTermId] = Field(default_factory=list)
@@ -86,6 +91,27 @@ class FuzzyVariable(DomainBaseModel):
                 raise ValueError(f"actuator_type inválido: {v}. Debe ser uno de: {valid_types}")
         return v
 
+    @field_validator("defuzzification_threshold")
+    @classmethod
+    def _validate_defuzzification_threshold(cls, v: float) -> float:
+        if not 0 <= v <= 100:
+            raise ValueError(f"defuzzification_threshold debe estar entre 0 y 100, recibido: {v}")
+        return v
+
+    @field_validator("universe_min")
+    @classmethod
+    def _validate_universe_min(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and v < 0:
+            raise ValueError(f"universe_min no puede ser negativo, recibido: {v}")
+        return v
+
+    @field_validator("universe_max")
+    @classmethod
+    def _validate_universe_max(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and v < 0:
+            raise ValueError(f"universe_max no puede ser negativo, recibido: {v}")
+        return v
+
     @model_validator(mode="after")
     def _ensure_timestamps(self):
         if self.created_at is None:
@@ -97,11 +123,25 @@ class FuzzyVariable(DomainBaseModel):
     @model_validator(mode="after")
     def _validate_actuator_type_for_outputs(self):
         """Validar que las variables de salida tengan actuator_type definido."""
-        # TODO: Habilitar cuando todas las variables output tengan actuator_type en la BD
-        # if self.variable_type == "output" and self.actuator_type is None:
-        #     raise ValueError("Las variables de tipo 'output' deben tener actuator_type definido")
+        if self.variable_type == "output" and self.actuator_type is None:
+            raise ValueError(
+                f"Las variables de tipo 'output' deben tener actuator_type definido ('PWM' o 'DIGITAL'). "
+                f"Variable: {self.name}"
+            )
         if self.variable_type == "input" and self.actuator_type is not None:
-            raise ValueError("Las variables de tipo 'input' no deben tener actuator_type")
+            raise ValueError(
+                f"Las variables de tipo 'input' no deben tener actuator_type. Variable: {self.name}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_universe_consistency(self):
+        """Validar que universe_max > universe_min si ambos están definidos."""
+        if self.universe_min is not None and self.universe_max is not None:
+            if self.universe_max <= self.universe_min:
+                raise ValueError(
+                    f"universe_max ({self.universe_max}) debe ser mayor que universe_min ({self.universe_min})"
+                )
         return self
 
     # -------------------------
@@ -177,6 +217,12 @@ class FuzzyVariable(DomainBaseModel):
         }
         if self.actuator_type is not None:
             result["actuator_type"] = self.actuator_type
+        if self.universe_min is not None:
+            result["universe_min"] = self.universe_min
+        if self.universe_max is not None:
+            result["universe_max"] = self.universe_max
+        # Siempre incluir defuzzification_threshold (tiene valor default)
+        result["defuzzification_threshold"] = self.defuzzification_threshold
         return result
 
     def __str__(self) -> str:

@@ -4,8 +4,8 @@ from .fuzzy_system import FuzzySystem
 from .fuzzy_variable import FuzzyVariable
 from .fuzzy_term import FuzzyTerm
 from .fuzzy_rule import FuzzyRule
-from .fuzzy_routine import FuzzyRoutine
 from .fuzzy_evaluation import FuzzyEvaluation, InputValue, OutputValue, RuleActivation
+from .rule_consequent import RuleConsequent
 
 __all__ = [
     # Entidades principales
@@ -13,9 +13,9 @@ __all__ = [
     "FuzzyVariable",
     "FuzzyTerm",
     "FuzzyRule",
-    "FuzzyRoutine",
     "FuzzyEvaluation",
-    
+    "RuleConsequent",
+
     # Clases de datos auxiliares
     "InputValue",
     "OutputValue",

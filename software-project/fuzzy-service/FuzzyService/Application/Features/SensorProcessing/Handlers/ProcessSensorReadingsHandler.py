@@ -42,429 +42,494 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
     3. Identificar variables activas basándose en reference_id de las lecturas
     4. Preparar datos para evaluación fuzzy (paso futuro)
     """
-    
+
     async def __call__(self, request: ProcessSensorReadingsCommand) -> None:
         """Procesa las lecturas de sensores.
-        
+
         Args:
             request: Comando con las lecturas de sensores
-            
+
+        Raises:
+            EntityNotFoundError: Si no se encuentra el sistema fuzzy activo
+            BusinessRuleViolationError: Si hay errores de validación
+        """
+        _logger.info(f"Procesando {len(request.readings)} lecturas de sensores")
+
+        # 1. Obtener el sistema fuzzy activo
+        fuzzy_system = await self._get_active_fuzzy_system()
+
+        if not fuzzy_system:
+            raise EntityNotFoundError("No se encontró un sistema fuzzy activo")
+
+        _logger.info(f"Sistema fuzzy encontrado: {fuzzy_system.name} (ID: {fuzzy_system.id})")
+
+        # 2. Cargar variables de entrada del sistema
+        input_variables = await self._load_input_variables(fuzzy_system)
+        _logger.info(f"Variables de entrada cargadas: {len(input_variables)}")
+
+        # 3. Cargar variables de salida del sistema
+        output_variables = await self._load_output_variables(fuzzy_system)
+        _logger.info(f"Variables de salida cargadas: {len(output_variables)}")
+
+        # 4. Cargar reglas del sistema
+        rules = await self._load_rules(fuzzy_system)
+        _logger.info(f"Reglas cargadas: {len(rules)}")
+
+        # 5. Mapear lecturas a variables de entrada usando reference_id
+        input_data = await self._map_readings_to_variables(request.readings, input_variables)
+
+        if not input_data:
+            _logger.warning("No se encontraron variables de entrada que coincidan con las lecturas")
+            return
+
+        _logger.info(f"Variables de entrada mapeadas: {len(input_data)}")
+
+        # 6. Ejecutar evaluación fuzzy
+        fuzzy_evaluation = await self._execute_fuzzy_evaluation(
+            fuzzy_system,
+            input_data,
+            output_variables,
+            rules
+        )
+
+        # 7. Guardar evaluación en repositorio
+        await self._save_evaluation(fuzzy_evaluation)
+
+        # 8. Enviar al actuator service
+        await self._send_to_actuator_service(fuzzy_evaluation, output_variables)
+
+        # 9. Establecer resultado del comando
+        request.result = {
+            "status": "success",
+            "evaluation_id": str(fuzzy_evaluation.id) if fuzzy_evaluation.id else None,
+            "rules_activated": len(fuzzy_evaluation.activated_rules),
+            "outputs_generated": sum(len(r.output_values) for r in fuzzy_evaluation.activated_rules)
+        }
+
+        _logger.info(f"Procesamiento completado exitosamente. Evaluación ID: {fuzzy_evaluation.id}")
+
+    async def _get_active_fuzzy_system(self) -> Optional[FuzzySystem]:
+        """Obtiene el sistema fuzzy activo.
+
         Returns:
-            Result con información del procesamiento
+            Sistema fuzzy activo o None si no existe
         """
         try:
-            _logger.info(
-                f"Iniciando procesamiento de {len(request.readings)} lecturas "
-                f"del ESP32 '{request.esp32_id}'"
-            )
-            
-            # 1. Buscar sistema fuzzy activo
-            active_system = await self._find_active_fuzzy_system()
-            if not active_system:
-                error_msg = "No se encontró un sistema fuzzy activo"
-                _logger.warning(error_msg)
-                raise EntityNotFoundError(error_msg)
-            
-            _logger.info(f"Sistema fuzzy activo encontrado: {active_system.name} (ID: {active_system.id})")
-            
-            # 2. Cargar variables del sistema
-            system_variables = await self._load_system_variables(active_system.id)
-            if not system_variables:
-                error_msg = f"El sistema fuzzy '{active_system.name}' no tiene variables configuradas"
-                _logger.warning(error_msg)
-                raise BusinessRuleViolationError(error_msg)
-            
-            _logger.info(f"Cargadas {len(system_variables)} variables del sistema fuzzy")
-            
-            # 3. Cargar reglas del sistema
-            system_rules = await self._load_system_rules(active_system.id)
-            _logger.info(f"Cargadas {len(system_rules)} reglas del sistema fuzzy")
-            
-            # 4. Identificar variables activas
-            active_variables = await self._identify_active_variables(
-                system_variables, 
-                request.readings
-            )
-            
-            if not active_variables:
-                error_msg = "No se encontraron variables activas que coincidan con las lecturas"
-                _logger.warning(error_msg)
-                raise BusinessRuleViolationError(error_msg)
-            
-            _logger.info(
-                f"Identificadas {len(active_variables)} variables activas: "
-                f"{[var.name for var in active_variables]}"
-            )
-            
-            # 5. Realizar evaluación fuzzy completa (Pasos 3-5 del flujo)
-            fuzzy_evaluation_results = await self._perform_complete_fuzzy_evaluation(
-                active_system, active_variables, system_rules, request.readings
-            )
-            
-            # 6. Crear y guardar el fuzzy evaluation en la base de datos
-            fuzzy_evaluation = await self._create_and_save_fuzzy_evaluation(
-                active_system, request.readings, fuzzy_evaluation_results
-            )
-            
-            _logger.info(f"Fuzzy evaluation guardado con ID: {fuzzy_evaluation.id}")
-            
-            # 7. Establecer el resultado en el comando usando el patrón result
-            request.result = fuzzy_evaluation.model_dump()
-            
-        except Exception as e:
-            error_msg = f"Error al procesar lecturas de sensores: {str(e)}"
-            _logger.error(error_msg, exc_info=True)
-            raise
-    
-    async def _find_active_fuzzy_system(self) -> Optional[FuzzySystem]:
-        """Busca el sistema fuzzy activo.
-        
-        Returns:
-            Sistema fuzzy activo o None si no se encuentra
-        """
-        try:
-            system_repo: IFuzzySystemRepository = di[IFuzzySystemRepository]
-            
-            # Buscar sistemas con estado ACTIVE
-            active_systems = await system_repo.get_by_status(FuzzySystemStatus.ACTIVE)
-            
-            if not active_systems:
-                _logger.warning("No se encontraron sistemas fuzzy activos")
-                return None
-            
-            if len(active_systems) > 1:
-                _logger.warning(
-                    f"Se encontraron {len(active_systems)} sistemas activos, "
-                    f"usando el primero: {active_systems[0].name}"
+            repo: IFuzzySystemRepository = di[IFuzzySystemRepository]
+            systems = await repo.get_all()  # type: ignore[attr-defined]
+
+            _logger.info(f"📊 Total sistemas encontrados: {len(systems)}")
+
+            # Buscar el primer sistema activo
+            for system in systems:
+                _logger.info(
+                    f"🔍 Sistema: {system.name}, "
+                    f"status={system.status}, "
+                    f"type(status)={type(system.status)}, "
+                    f"status.value={system.status.value if hasattr(system.status, 'value') else 'N/A'}, "
+                    f"comparación con ACTIVE: {system.status == FuzzySystemStatus.ACTIVE}"
                 )
-            
-            return active_systems[0]
-            
-        except Exception as e:
-            _logger.error(f"Error al buscar sistema fuzzy activo: {e}")
+
+                if system.status == FuzzySystemStatus.ACTIVE:
+                    _logger.info(f"✅ Sistema activo encontrado: {system.name} (ID: {system.id})")
+                    return system
+
+            _logger.warning("⚠️ No se encontró ningún sistema con status=ACTIVE")
             return None
-    
-    async def _load_system_variables(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
-        """Carga todas las variables del sistema fuzzy.
-        
+
+        except Exception as e:
+            _logger.error(f"Error al obtener sistema fuzzy activo: {e}", exc_info=True)
+            raise
+
+    async def _load_input_variables(self, fuzzy_system: FuzzySystem) -> List[FuzzyVariable]:
+        """Carga las variables de entrada del sistema fuzzy.
+
         Args:
-            system_id: ID del sistema fuzzy
-            
+            fuzzy_system: Sistema fuzzy del cual cargar variables
+
         Returns:
-            Lista de variables del sistema
+            Lista de variables de entrada
         """
         try:
-            variable_repo: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
-            return await variable_repo.get_by_system_id(system_id)
-            
+            repo: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
+            variables = []
+
+            for var_id in fuzzy_system.input_variable_ids:
+                variable = await repo.get_by_id(var_id)  # type: ignore[attr-defined]
+                if variable:
+                    variables.append(variable)
+
+            return variables
+
         except Exception as e:
-            _logger.error(f"Error al cargar variables del sistema {system_id}: {e}")
-            return []
-    
-    async def _load_system_rules(self, system_id: FuzzySystemId) -> List[FuzzyRule]:
-        """Carga todas las reglas del sistema fuzzy.
-        
+            _logger.error(f"Error al cargar variables de entrada: {e}")
+            raise
+
+    async def _load_output_variables(self, fuzzy_system: FuzzySystem) -> List[FuzzyVariable]:
+        """Carga las variables de salida del sistema fuzzy.
+
         Args:
-            system_id: ID del sistema fuzzy
-            
+            fuzzy_system: Sistema fuzzy del cual cargar variables
+
         Returns:
-            Lista de reglas del sistema
+            Lista de variables de salida
         """
         try:
-            rule_repo: IFuzzyRuleRepository = di[IFuzzyRuleRepository]
-            return await rule_repo.get_by_system_id(system_id)
-            
+            repo: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
+            variables = []
+
+            for var_id in fuzzy_system.output_variable_ids:
+                variable = await repo.get_by_id(var_id)  # type: ignore[attr-defined]
+                if variable:
+                    variables.append(variable)
+
+            return variables
+
         except Exception as e:
-            _logger.error(f"Error al cargar reglas del sistema {system_id}: {e}")
-            return []
-    
-    async def _identify_active_variables(
+            _logger.error(f"Error al cargar variables de salida: {e}")
+            raise
+
+    async def _load_rules(self, fuzzy_system: FuzzySystem) -> List[FuzzyRule]:
+        """Carga las reglas del sistema fuzzy.
+
+        Args:
+            fuzzy_system: Sistema fuzzy del cual cargar reglas
+
+        Returns:
+            Lista de reglas
+        """
+        try:
+            repo: IFuzzyRuleRepository = di[IFuzzyRuleRepository]
+            rules = await repo.get_by_system_id(fuzzy_system.id)  # type: ignore[attr-defined]
+            return rules if rules else []
+
+        except Exception as e:
+            _logger.error(f"Error al cargar reglas: {e}")
+            raise
+
+    async def _map_readings_to_variables(
         self,
-        system_variables: List[FuzzyVariable],
-        readings: List[SensorReading]
-    ) -> List[FuzzyVariable]:
-        """Identifica las variables activas basándose en las lecturas.
-
-        Una variable INPUT es activa si su reference_id coincide con algún sensor_id
-        de las lecturas recibidas. Confiamos en que el firmware (ESP32) ya validó
-        que los IDs enviados son correctos.
+        readings: List[SensorReading],
+        variables: List[FuzzyVariable]
+    ) -> Dict[str, float]:
+        """Mapea lecturas de sensores a variables de entrada usando reference_id.
 
         Args:
-            system_variables: Variables del sistema fuzzy
-            readings: Lecturas de sensores recibidas
+            readings: Lecturas de sensores
+            variables: Variables de entrada del sistema
 
         Returns:
-            Lista de variables INPUT activas (que tienen lecturas)
+            Diccionario {variable_id: valor}
         """
-        try:
-            # Crear mapeo de sensor_id a valor para búsqueda eficiente
-            sensor_data_map = {reading.sensor_id: reading.value for reading in readings}
+        # Crear un índice de variables por reference_id
+        variables_by_ref_id = {
+            str(var.reference_id): var
+            for var in variables
+            if var.reference_id
+        }
 
-            # Filtrar solo variables INPUT que tienen reference_id en las lecturas
-            # Confiamos en que el firmware envió IDs válidos, no hacemos validación redundante
-            input_variables = [var for var in system_variables if var.variable_type == "input"]
+        input_data = {}
 
-            active_variables = [
-                var for var in input_variables
-                if var.reference_id and var.reference_id in sensor_data_map
-            ]
+        for reading in readings:
+            sensor_id = str(reading.sensor_id)
 
-            # Log detallado de coincidencias
-            if active_variables:
-                _logger.info(f"✅ Identificadas {len(active_variables)} variables INPUT activas:")
-                for var in active_variables:
-                    sensor_value = sensor_data_map[var.reference_id]
-                    _logger.info(
-                        f"   - '{var.name}' (reference_id: {var.reference_id}, "
-                        f"variable_id: {var.id}) → valor: {sensor_value}"
-                    )
+            if sensor_id in variables_by_ref_id:
+                variable = variables_by_ref_id[sensor_id]
+                input_data[str(variable.id)] = reading.value
+                _logger.debug(
+                    f"Mapeado: {variable.name} (ref={sensor_id}) = {reading.value}"
+                )
             else:
-                _logger.warning("⚠️  No se encontraron variables INPUT con reference_id coincidente")
-
-            # Log de variables INPUT sin coincidencias (para debugging)
-            inactive_input_vars = [
-                var for var in input_variables
-                if not var.reference_id or var.reference_id not in sensor_data_map
-            ]
-
-            if inactive_input_vars:
                 _logger.debug(
-                    f"Variables INPUT sin lecturas: {[(v.name, v.reference_id) for v in inactive_input_vars]}"
-                )
-                _logger.debug(
-                    f"Sensor IDs recibidos: {list(sensor_data_map.keys())}"
+                    f"Lectura ignorada: sensor_id={sensor_id} no coincide con ninguna variable"
                 )
 
-            return active_variables
+        return input_data
 
-        except Exception as e:
-            _logger.error(f"Error al identificar variables activas: {e}", exc_info=True)
-            return []
-    
-    async def _perform_complete_fuzzy_evaluation(
-        self, 
-        active_system: FuzzySystem,
-        active_variables: List[FuzzyVariable], 
-        system_rules: List[FuzzyRule],
-        readings: List[SensorReading]
-    ) -> Dict[str, Any]:
-        """
-        Realiza la evaluación fuzzy completa (Pasos 3-5 del flujo):
-        - Fuzzificación de variables de entrada
-        - Evaluación de reglas fuzzy
-        - Defuzzificación de variables de salida
-        
-        Args:
-            active_system: Sistema fuzzy activo
-            active_variables: Variables que tienen lecturas correspondientes
-            system_rules: Reglas del sistema fuzzy
-            readings: Lecturas de sensores recibidas
-            
-        Returns:
-            Diccionario con los resultados de la evaluación completa
-        """
-        try:
-            _logger.info("Iniciando evaluación fuzzy completa")
-            
-            # Cargar términos fuzzy de las variables activas
-            terms = await self._load_terms_for_variables(active_variables)
-            if not terms:
-                error_msg = "No se encontraron términos fuzzy para las variables activas"
-                _logger.warning(error_msg)
-                raise BusinessRuleViolationError(error_msg)
-            
-            _logger.info(f"Cargados {len(terms)} términos fuzzy")
-            
-            # Obtener motor fuzzy inyectado
-            fuzzy_engine: IFuzzyEngine = di[IFuzzyEngine]
-            
-            # Preparar datos de entrada para la evaluación
-            sensor_data = {reading.sensor_id: reading.value for reading in readings}
-            
-            # Realizar evaluación fuzzy completa
-            evaluation_results = await fuzzy_engine.complete_fuzzy_evaluation(
-                system=active_system,
-                variables=active_variables,
-                terms=terms,
-                rules=system_rules,
-                sensor_readings=sensor_data
-            )
-            
-            _logger.info(
-                f"Evaluación fuzzy completada. Resultados: {evaluation_results}"
-            )
-            
-            return evaluation_results
-            
-        except Exception as e:
-            error_msg = f"Error durante la evaluación fuzzy: {str(e)}"
-            _logger.error(error_msg)
-            raise BusinessRuleViolationError(error_msg)
-    
-    async def _load_terms_for_variables(self, variables: List[FuzzyVariable]) -> List[FuzzyTerm]:
-        """
-        Carga todos los términos fuzzy asociados a las variables proporcionadas.
-        
-        Args:
-            variables: Lista de variables fuzzy
-            
-        Returns:
-            Lista de términos fuzzy de todas las variables
-        """
-        try:
-            term_repo: IFuzzyTermRepository = di[IFuzzyTermRepository]
-            all_terms = []
-            
-            for variable in variables:
-                variable_terms = await term_repo.get_by_variable_id(variable.id)
-                all_terms.extend(variable_terms)
-                _logger.debug(
-                    f"Cargados {len(variable_terms)} términos para variable '{variable.name}'"
-                )
-            
-            return all_terms
-            
-        except Exception as e:
-            _logger.error(f"Error al cargar términos fuzzy: {e}")
-            return []
-    
-    async def _create_and_save_fuzzy_evaluation(
-        self, 
-        system: FuzzySystem, 
-        readings: List[SensorReading], 
-        evaluation_results: Dict[str, Any]
+    async def _execute_fuzzy_evaluation(
+        self,
+        fuzzy_system: FuzzySystem,
+        input_data: Dict[str, float],
+        output_variables: List[FuzzyVariable],
+        rules: List[FuzzyRule]
     ) -> FuzzyEvaluation:
-        """
-        Crea y guarda un fuzzy evaluation en la base de datos.
-        
+        """Ejecuta la evaluación fuzzy.
+
         Args:
-            system: Sistema fuzzy utilizado
-            readings: Lecturas de sensores procesadas
-            evaluation_results: Resultados de la evaluación fuzzy
-            
+            fuzzy_system: Sistema fuzzy
+            input_data: Datos de entrada {variable_id: valor}
+            output_variables: Variables de salida
+            rules: Reglas a evaluar
+
         Returns:
-            FuzzyEvaluation guardado en la base de datos
+            Evaluación fuzzy con resultados
         """
         try:
-            # Construir inputs del fuzzy evaluation
-            inputs = [
-                InputValue(
-                    sensor_id=reading.sensor_id,
-                    value=reading.value
-                )
-                for reading in readings
-            ]
-            
-            # Construir reglas activadas con la estructura correcta
-            activated_rules = []
-            
-            # El resultado viene en evaluation_results["rule_evaluation"]["activated_rules"]
-            rule_evaluation = evaluation_results.get("rule_evaluation", {})
-            if "activated_rules" in rule_evaluation:
-                for rule_data in rule_evaluation["activated_rules"]:
-                    # Construir output_values para cada regla activada
-                    output_values = []
-                    if "output_values" in rule_data:
-                        for output_data in rule_data["output_values"]:
-                            # Extraer power o dutyCycle según lo que venga en el dict
-                            power_value = output_data.get("power")
-                            duty_cycle_value = output_data.get("dutyCycle")
+            # Obtener el motor fuzzy desde DI
+            fuzzy_engine: IFuzzyEngine = di[IFuzzyEngine]
 
-                            output_values.append(OutputValue(
-                                actuator_id=output_data.get("actuator_id", ""),
-                                power=power_value,  # String "ON"/"OFF" o None
-                                dutyCycle=duty_cycle_value,  # Float 0-100 o None
-                                duration=output_data.get("duration", 0.0)
-                            ))
-                    
-                    activated_rules.append(RuleActivation(
-                        rule_id=rule_data.get("rule_id", ""),
-                        firing_strength=rule_data.get("firing_strength", 0.0),
-                        output_values=output_values
-                    ))
-            
-            # Crear el fuzzy evaluation
+            # Cargar términos necesarios para todas las variables
+            term_repo: IFuzzyTermRepository = di[IFuzzyTermRepository]
+            input_var_repo: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
+
+            # Cargar variables de entrada completas
+            input_variables = []
+            sensor_readings_by_ref_id = {}  # {reference_id: valor}
+
+            for var_id, value in input_data.items():
+                var = await input_var_repo.get_by_id(FuzzyVariableId(var_id))  # type: ignore[attr-defined]
+                if var:
+                    input_variables.append(var)
+                    # Mapear a reference_id para el fuzzy engine
+                    sensor_readings_by_ref_id[str(var.reference_id)] = value
+                    _logger.debug(f"Mapeado para evaluación: {var.name} (fuzzy_id={var_id}, ref_id={var.reference_id}) = {value}")
+
+            # Combinar todas las variables
+            all_variables = input_variables + output_variables
+
+            # Cargar todos los términos
+            all_terms = []
+            for var in all_variables:
+                terms = await term_repo.get_by_variable_id(var.id)  # type: ignore[attr-defined]
+                if terms:
+                    all_terms.extend(terms)
+
+            # Ejecutar evaluación completa
+            _logger.info("Ejecutando evaluación fuzzy completa...")
+            result = await fuzzy_engine.complete_fuzzy_evaluation(
+                system=fuzzy_system,
+                variables=all_variables,
+                terms=all_terms,
+                rules=rules,
+                sensor_readings=sensor_readings_by_ref_id  # Usar reference_ids, no fuzzy variable IDs
+            )
+
+            # Extraer resultados de la evaluación
+            rule_evaluation = result.get("rule_evaluation", {})
+            activated_rules_data = rule_evaluation.get("activated_rules", [])
+
+            _logger.debug(f"📊 rule_evaluation keys: {rule_evaluation.keys()}")
+            _logger.debug(f"📊 activated_rules_data count: {len(activated_rules_data)}")
+
+            # Log detallado de cada regla activada
+            for i, rd in enumerate(activated_rules_data):
+                _logger.debug(
+                    f"  Regla {i+1}: rule_id={rd.get('rule_id')}, "
+                    f"firing_strength={rd.get('firing_strength')}, "
+                    f"outputs={len(rd.get('output_values', []))}"
+                )
+                for j, ov in enumerate(rd.get('output_values', [])):
+                    _logger.debug(f"    Output {j+1}: {ov}")
+
+            # Convertir a formato de dominio (RuleActivation)
+            activated_rules = []
+            for rule_data in activated_rules_data:
+                rule_id = rule_data.get("rule_id")
+                firing_strength = rule_data.get("firing_strength", 0.0)
+                output_values_data = rule_data.get("output_values", [])
+
+                # Convertir output_values a OutputValue
+                output_values = []
+                for ov in output_values_data:
+                    try:
+                        output_values.append(OutputValue(
+                            actuator_id=ov.get("actuator_id"),
+                            power=ov.get("power"),
+                            dutyCycle=ov.get("dutyCycle"),
+                            duration=ov.get("duration", 0.5)
+                        ))
+                    except Exception as e:
+                        _logger.warning(f"Error creando OutputValue: {e}, datos: {ov}")
+                        continue
+
+                activated_rules.append(RuleActivation(
+                    rule_id=rule_id,
+                    firing_strength=firing_strength,
+                    output_values=output_values
+                ))
+
+            # Crear input_values para la evaluación
+            input_values = [
+                InputValue(sensor_id=ref_id, value=value)
+                for ref_id, value in sensor_readings_by_ref_id.items()
+            ]
+
             fuzzy_evaluation = FuzzyEvaluation(
-                system_id=str(system.id),
+                system_id=fuzzy_system.id,
                 timestamp=datetime.now(timezone.utc),
-                inputs=inputs,
+                inputs=input_values,
                 activated_rules=activated_rules
             )
-            
-            # Guardar en la base de datos
-            evaluation_repo: IFuzzyEvaluationRepository = di[IFuzzyEvaluationRepository]
-            saved_evaluation = await evaluation_repo.create(fuzzy_evaluation)
-            
+
             _logger.info(
-                f"Fuzzy evaluation creado y guardado exitosamente. "
-                f"ID: {saved_evaluation.id}, Sistema: {system.name}"
+                f"Evaluación completada. Reglas activadas: {len(activated_rules)}, "
+                f"Total outputs: {sum(len(r.output_values) for r in activated_rules)}"
             )
-            
-            # Enviar payload al actuator service
-            await self._send_to_actuator_service(saved_evaluation)
-            
-            return saved_evaluation
-            
+
+            return fuzzy_evaluation
+
         except Exception as e:
-            error_msg = f"Error al crear y guardar fuzzy evaluation: {str(e)}"
-            _logger.error(error_msg)
-            raise BusinessRuleViolationError(error_msg)
-    
-    async def _send_to_actuator_service(self, fuzzy_evaluation: FuzzyEvaluation) -> None:
-        """
-        Envía el payload al actuator service basado en la evaluación fuzzy.
-        
+            _logger.error(f"Error al ejecutar evaluación fuzzy: {e}", exc_info=True)
+            raise
+
+    async def _save_evaluation(self, fuzzy_evaluation: FuzzyEvaluation) -> None:
+        """Guarda la evaluación en el repositorio.
+
         Args:
-            fuzzy_evaluation: Evaluación fuzzy con las reglas activadas y outputs
+            fuzzy_evaluation: Evaluación a guardar
         """
         try:
+            repo: IFuzzyEvaluationRepository = di[IFuzzyEvaluationRepository]
+            await repo.create(fuzzy_evaluation)  # type: ignore[attr-defined]
+            _logger.info(f"Evaluación guardada con ID: {fuzzy_evaluation.id}")
+
+        except Exception as e:
+            _logger.error(f"Error al guardar evaluación: {e}")
+            # No lanzamos excepción para no interrumpir el flujo
+
+    def _pair_control_duration_variables(
+        self,
+        output_values: List[OutputValue],
+        output_variables_dict: Dict[str, FuzzyVariable]
+    ) -> List[Dict[str, Any]]:
+        """Empareja variables de Control con Duración.
+
+        Args:
+            output_values: Valores defuzzificados
+            output_variables_dict: Dict de variables por ID
+
+        Returns:
+            Lista de pares {control_id, control_val, duration_val}
+        """
+        values_by_id = {str(ov.actuator_id): ov for ov in output_values}
+        pairs = []
+        processed_duration_ids = set()
+
+        for var_id, output_val in values_by_id.items():
+            var = output_variables_dict.get(var_id)
+            if not var:
+                continue
+
+            var_name = var.name
+
+            # Detectar variable de Control o Potencia
+            is_control = var_name.startswith("Control ")
+            is_potencia = "Potencia" in var_name
+
+            if is_control or is_potencia:
+                # Extraer nombre del actuador
+                if is_control:
+                    actuator_name = var_name.replace("Control ", "")
+                else:
+                    actuator_name = var_name.replace("Potencia del ", "").replace("Potencia de ", "")
+
+                # Buscar variable de Duración correspondiente
+                duration_var_name = f"Duración de {actuator_name}"
+                duration_var_id = None
+
+                for dvid, dvar in output_variables_dict.items():
+                    if dvar.name == duration_var_name:
+                        duration_var_id = dvid
+                        break
+
+                duration_val = values_by_id.get(duration_var_id) if duration_var_id else None
+
+                pairs.append({
+                    "control_id": var_id,
+                    "control_val": output_val,
+                    "duration_val": duration_val
+                })
+
+                if duration_var_id:
+                    processed_duration_ids.add(duration_var_id)
+
+        return pairs
+
+    async def _send_to_actuator_service(
+        self,
+        fuzzy_evaluation: FuzzyEvaluation,
+        output_variables: List[FuzzyVariable]
+    ) -> None:
+        """Envía payload al actuator service con emparejamiento Control+Duración.
+
+        Args:
+            fuzzy_evaluation: Evaluación fuzzy
+            output_variables: Lista de variables de salida
+        """
+        try:
+            # Crear diccionario de variables por ID para consultas rápidas
+            output_vars_dict = {str(v.id): v for v in output_variables}
+
             routines = []
-            rule_repo: IFuzzyRuleRepository = di[IFuzzyRuleRepository]
-            
-            # Convertir cada regla activada en una rutina para el actuator service
+
             for rule_activation in fuzzy_evaluation.activated_rules:
-                steps = []
-                
-                # Obtener la regla completa para acceder a su consequent (routine_id)
-                try:
-                    rule = await rule_repo.get_by_id(FuzzyRuleId(str(rule_activation.rule_id)))
-                    if not rule or not rule.consequent:
-                        _logger.warning(f"Regla {rule_activation.rule_id} no encontrada o sin consequent")
-                        continue
-                    
-                    routine_id = str(rule.consequent)
-                except Exception as e:
-                    _logger.error(f"Error obteniendo regla {rule_activation.rule_id}: {e}")
+                if not rule_activation.output_values:
                     continue
-                
-                # Convertir cada output_value en un step
-                for output_value in rule_activation.output_values:
-                    # Construir step según el tipo de actuador (DIGITAL o PWM)
+
+                # Emparejar Control + Duración
+                pairs = self._pair_control_duration_variables(
+                    rule_activation.output_values,
+                    output_vars_dict
+                )
+
+                steps = []
+
+                for pair in pairs:
+                    control_val = pair["control_val"]
+                    duration_val = pair["duration_val"]
+
+                    # Obtener la variable de control para extraer su reference_id
+                    control_var = output_vars_dict.get(pair["control_id"])
+                    if not control_var:
+                        _logger.warning(f"Variable de control no encontrada: {pair['control_id']}")
+                        continue
+
+                    # Determinar si es ON o OFF
+                    is_on = False
+                    if control_val.power is not None:
+                        is_on = (control_val.power == "ON")
+                    elif control_val.dutyCycle is not None:
+                        is_on = (control_val.dutyCycle > 0.0)
+
+                    # Construir step con reference_id (apunta al control_output en actuator-service)
                     step_dict = {
-                        "outputVariable": str(output_value.actuator_id),
-                        "duration": float(output_value.duration)
+                        "outputVariable": str(control_var.reference_id)
                     }
 
-                    # Incluir power o dutyCycle según lo que esté definido
-                    if output_value.power is not None:
-                        step_dict["power"] = output_value.power  # "ON" o "OFF"
-                    elif output_value.dutyCycle is not None:
-                        step_dict["dutyCycle"] = float(output_value.dutyCycle)
+                    # Aplicar reglas según estado
+                    if is_on:
+                        # ON: usar duración calculada de la variable de Duración
+                        if duration_val and duration_val.duration > 0:
+                            step_dict["duration"] = float(duration_val.duration)
+                        else:
+                            # Fallback: usar duración del control si existe
+                            step_dict["duration"] = float(control_val.duration) if control_val.duration > 0 else 0.5
+                    else:
+                        # OFF: duración instantánea (0.0)
+                        step_dict["duration"] = 0.0
 
-                    step = StepPayload(**step_dict)
-                    steps.append(step)
-                
-                # Crear la rutina si tiene steps
-                if steps:
-                    routine = RoutinePayload(
-                        routineId=routine_id,  # Usar el routine_id del consequent, no el rule_id
-                        steps=steps
+                    # Agregar power o dutyCycle
+                    if control_val.power is not None:
+                        step_dict["power"] = control_val.power
+                    elif control_val.dutyCycle is not None:
+                        step_dict["dutyCycle"] = float(control_val.dutyCycle)
+
+                    _logger.debug(
+                        f"Step creado: {control_var.name} "
+                        f"(fuzzy_id={pair['control_id']}, ref_id={control_var.reference_id}), "
+                        f"power={step_dict.get('power')}, duty={step_dict.get('dutyCycle')}, "
+                        f"duration={step_dict['duration']}"
                     )
-                    routines.append(routine)
-            
-            # Enviar al actuator service si hay rutinas
+
+                    steps.append(StepPayload(**step_dict))
+
+                if steps:
+                    routines.append(RoutinePayload(
+                        routineId=str(rule_activation.rule_id),
+                        steps=steps
+                    ))
+
             if routines:
-                # Serializar payload para logging (debugging)
                 routines_dict = [
                     {
                         "routineId": r.routineId,
@@ -481,29 +546,15 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     for r in routines
                 ]
                 _logger.info(
-                    f"Payload a enviar al actuator-service:\n{json.dumps(routines_dict, indent=2)}"
+                    f"Payload a enviar (emparejado y filtrado):\n{json.dumps(routines_dict, indent=2)}"
                 )
 
-                command = SendRoutinesToActuatorCommand(
-                    routines=routines
-                )
-
-                # Enviar comando a través del mediador
                 mediator: Medyator = di[Medyator]
-                await mediator.send(command)
+                await mediator.send(SendRoutinesToActuatorCommand(routines=routines))
 
-                _logger.info(
-                    f"Payload enviado al actuator service exitosamente. "
-                    f"Evaluación: {fuzzy_evaluation.id}, Rutinas: {len(routines)}"
-                )
+                _logger.info(f"Payload enviado. Rutinas: {len(routines)}")
             else:
-                _logger.warning(
-                    f"No se encontraron rutinas para enviar al actuator service. "
-                    f"Evaluación: {fuzzy_evaluation.id}"
-                )
-                
+                _logger.warning("No se generaron rutinas tras filtrado OFF")
+
         except Exception as e:
-            error_msg = f"Error al enviar payload al actuator service: {str(e)}"
-            _logger.error(error_msg)
-            # No lanzamos excepción para no interrumpir el flujo principal
-            # El fuzzy evaluation ya fue guardado exitosamente
+            _logger.error(f"Error al enviar payload: {e}")

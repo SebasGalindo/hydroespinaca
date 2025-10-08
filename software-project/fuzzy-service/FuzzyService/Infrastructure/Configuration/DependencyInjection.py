@@ -20,7 +20,6 @@ from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRe
 from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
 from FuzzyService.Domain.Interfaces.IFuzzyTermRepository import IFuzzyTermRepository
 from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleRepository
-from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
 from FuzzyService.Domain.Interfaces.IFuzzyEvaluationRepository import IFuzzyEvaluationRepository
 
 
@@ -127,20 +126,6 @@ async def on_startup() -> None:
             _logger.info("FuzzyRuleRepository initialized and registered in DI.")
         except Exception as ex:
             _logger.warning("Optional FuzzyRuleRepository not initialized: %s", ex)
-
-        # FuzzyRoutineRepository (optional)
-        try:
-            from FuzzyService.Infrastructure.Persistence.Repositories.FuzzyRoutineRepository import FuzzyRoutineRepository  # type: ignore
-            from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository  # type: ignore
-
-            routines_coll = db.get_collection("routines")
-            repo_routine = FuzzyRoutineRepository(routines_coll)
-            di[IFuzzyRoutineRepository] = repo_routine
-            di["repo_fuzzy_routine"] = repo_routine
-            optional_repos.append(repo_routine)
-            _logger.info("FuzzyRoutineRepository initialized and registered in DI.")
-        except Exception as ex:
-            _logger.warning("Optional FuzzyRoutineRepository not initialized: %s", ex)
 
         # FuzzyEvaluationRepository (optional)
         try:

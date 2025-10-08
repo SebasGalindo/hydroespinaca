@@ -27,7 +27,7 @@ class StepPayload(DomainBaseModel):
     dutyCycle: Optional[float | int] = Field(
         None, ge=0, le=100, description="0-100 para outputs PWM"
     )
-    duration: float | int = Field(..., gt=0, description="Duración en segundos")
+    duration: float | int = Field(..., ge=0, description="Duración en segundos (0.0 para apagado instantáneo)")
 
     @field_validator("outputVariable")
     @classmethod

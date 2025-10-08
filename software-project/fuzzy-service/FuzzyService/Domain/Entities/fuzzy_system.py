@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime, timezone
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator, ConfigDict
 
 from ..ValueObjects import FuzzySystemId, FuzzyVariableId, FuzzyRuleId, OperatorsConfig
 from ..Enums import FuzzySystemStatus, DefuzzificationMethod
@@ -13,6 +13,15 @@ class FuzzySystem(DomainBaseModel):
     Entidad de dominio que representa un sistema difuso completo.
     Contiene variables, reglas y configuración para la inferencia difusa.
     """
+
+    # Sobrescribir config para deshabilitar use_enum_values en esta entidad
+    model_config = ConfigDict(
+        validate_assignment=True,
+        populate_by_name=True,
+        use_enum_values=False,  # IMPORTANTE: Mantener enums como enums, no convertir a strings
+        arbitrary_types_allowed=True,
+        extra="forbid",
+    )
 
     # Identificación
     id: Optional[FuzzySystemId] = None
@@ -34,6 +43,26 @@ class FuzzySystem(DomainBaseModel):
     created_by: Optional[str] = None
 
     # Validaciones
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, v: Any) -> FuzzySystemStatus:
+        """Convierte strings a FuzzySystemStatus enum."""
+        if isinstance(v, FuzzySystemStatus):
+            return v
+        if isinstance(v, str):
+            return FuzzySystemStatus(v.strip().upper())
+        raise ValueError(f"status debe ser FuzzySystemStatus o string, recibido: {type(v)}")
+
+    @field_validator("defuzzification_method", mode="before")
+    @classmethod
+    def _validate_defuzzification_method(cls, v: Any) -> DefuzzificationMethod:
+        """Convierte strings a DefuzzificationMethod enum."""
+        if isinstance(v, DefuzzificationMethod):
+            return v
+        if isinstance(v, str):
+            return DefuzzificationMethod(v.strip().lower())
+        raise ValueError(f"defuzzification_method debe ser DefuzzificationMethod o string, recibido: {type(v)}")
+
     @field_validator("name")
     @classmethod
     def _validate_name(cls, v: str) -> str:

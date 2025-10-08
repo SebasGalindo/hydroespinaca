@@ -12,8 +12,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
     FuzzySystemId,
     FuzzyVariableId,
     FuzzyRuleId,
-    FuzzyTermId,
-    FuzzyRoutineId
+    FuzzyTermId
 )
 from FuzzyService.Domain.ValueObjects.MembershipFunction import MembershipFunction
 from FuzzyService.Domain.Enums.MembershipFunctionType import MembershipFunctionType
@@ -23,7 +22,6 @@ from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRe
 from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
 from FuzzyService.Domain.Interfaces.IFuzzyTermRepository import IFuzzyTermRepository
 from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleRepository
-from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
 
 _logger = logging.getLogger(__name__)
 
@@ -91,15 +89,95 @@ class SeedDataConfig:
                 "description": "Control de potencia del ventilador (PWM)",
                 "type": "output",
                 "actuator_type": "PWM",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,  # No aplica para PWM, pero se incluye por consistencia
                 "reference_id": "68e04314d86d6edc39982869",
                 "terms": []
             },
+            # VARIABLES DE CONTROL (DIGITAL) - Opción B: Rediseño completo
+            {
+                "_id": "68e05364d86d6edc398828B0",
+                "name": "Control Calefactor Aire",
+                "description": "Control ON/OFF del calefactor de aire",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,  # OFF si <50, ON si >=50
+                "reference_id": "68e04314d86d6edc3998286b",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc398828B1",
+                "name": "Control Calefactor Agua",
+                "description": "Control ON/OFF del calefactor de agua",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04315d86d6edc3998286f",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc398828B2",
+                "name": "Control Luz",
+                "description": "Control ON/OFF de la luz de amplio espectro",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04314d86d6edc3998286c",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc398828B3",
+                "name": "Control Humidificador",
+                "description": "Control ON/OFF del humidificador",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04315d86d6edc3998286e",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc398828B4",
+                "name": "Control Bomba Aireación",
+                "description": "Control ON/OFF de la bomba de aireación",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04315d86d6edc3998286d",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc398828B5",
+                "name": "Control Bomba Riego",
+                "description": "Control ON/OFF de la bomba de riego",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 100.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04315d86d6edc3998286e",
+                "terms": []
+            },
+            # VARIABLES DE DURACIÓN (DIGITAL)
             {
                 "_id": "68e05364d86d6edc39982876",
                 "name": "Duración de Ventilación",
                 "description": "Duración de activación del ventilador (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,  # 1 hora máximo
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04314d86d6edc3998286a",
                 "terms": []
             },
@@ -109,6 +187,9 @@ class SeedDataConfig:
                 "description": "Duración de calefacción del aire (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04314d86d6edc3998286b",
                 "terms": []
             },
@@ -118,6 +199,9 @@ class SeedDataConfig:
                 "description": "Duración de luz artificial (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04314d86d6edc3998286c",
                 "terms": []
             },
@@ -127,6 +211,9 @@ class SeedDataConfig:
                 "description": "Duración de aireación del agua (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04315d86d6edc3998286d",
                 "terms": []
             },
@@ -136,6 +223,9 @@ class SeedDataConfig:
                 "description": "Duración del riego (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04315d86d6edc3998286e",
                 "terms": []
             },
@@ -145,7 +235,22 @@ class SeedDataConfig:
                 "description": "Duración de calefacción del agua (segundos)",
                 "type": "output",
                 "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
                 "reference_id": "68e04315d86d6edc3998286f",
+                "terms": []
+            },
+            {
+                "_id": "68e05364d86d6edc3998287c",
+                "name": "Duración de Humidificación",
+                "description": "Duración de humidificación (segundos)",
+                "type": "output",
+                "actuator_type": "DIGITAL",
+                "universe_min": 0.0,
+                "universe_max": 3600.0,
+                "defuzzification_threshold": 50.0,
+                "reference_id": "68e04315d86d6edc3998286e",
                 "terms": []
             }
         ]
@@ -263,7 +368,7 @@ class SeedDataConfig:
                 "label": "aguaFria",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [-10.0, 4.0, 18.0],
+                    "parameters": [-10.0, 10.0, 17.5],  # Ajustado: peak en 10°C, cae a 0 en 17.5°C
                     "universe_min": -10.0,
                     "universe_max": 85.0
                 }
@@ -274,7 +379,7 @@ class SeedDataConfig:
                 "label": "temperaturaAguaOptima",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [15.0, 19.5, 24.0],
+                    "parameters": [17.0, 20.0, 23.0],  # Ajustado: empieza en 17°C, peak en 20°C
                     "universe_min": -10.0,
                     "universe_max": 85.0
                 }
@@ -413,7 +518,7 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -425,7 +530,7 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -437,7 +542,7 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -449,7 +554,7 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -461,7 +566,7 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -473,205 +578,358 @@ class SeedDataConfig:
                 "label": "OFF",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 0.0, 0.0],
+                    "parameters": [0.0, 0.0, 1.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
+                }
+            },
+            # TÉRMINOS DE DURACIÓN PARA VARIABLES DIGITAL
+            # Duración de Calefacción de Aire (68e05364d86d6edc39982877)
+            {
+                "_id": "68e05364d86d6edc398828D0",
+                "variable_id": "68e05364d86d6edc39982877",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D1",
+                "variable_id": "68e05364d86d6edc39982877",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D2",
+                "variable_id": "68e05364d86d6edc39982877",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            # Duración de Luz (68e05364d86d6edc39982878)
+            {
+                "_id": "68e05364d86d6edc398828D3",
+                "variable_id": "68e05364d86d6edc39982878",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D4",
+                "variable_id": "68e05364d86d6edc39982878",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D5",
+                "variable_id": "68e05364d86d6edc39982878",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            # Duración de Aireación (68e05364d86d6edc39982879)
+            {
+                "_id": "68e05364d86d6edc398828D6",
+                "variable_id": "68e05364d86d6edc39982879",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D7",
+                "variable_id": "68e05364d86d6edc39982879",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828D8",
+                "variable_id": "68e05364d86d6edc39982879",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            # Duración de Riego (68e05364d86d6edc3998287a)
+            {
+                "_id": "68e05364d86d6edc398828D9",
+                "variable_id": "68e05364d86d6edc3998287a",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828DA",
+                "variable_id": "68e05364d86d6edc3998287a",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828DB",
+                "variable_id": "68e05364d86d6edc3998287a",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            # Duración de Calefacción de Agua (68e05364d86d6edc3998287b)
+            {
+                "_id": "68e05364d86d6edc398828DC",
+                "variable_id": "68e05364d86d6edc3998287b",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828DD",
+                "variable_id": "68e05364d86d6edc3998287b",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828DE",
+                "variable_id": "68e05364d86d6edc3998287b",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            # TÉRMINOS ON/OFF PARA VARIABLES DE CONTROL
+            # Control Calefactor Aire (68e05364d86d6edc398828B0)
+            {
+                "_id": "68e05364d86d6edc398828C0",
+                "variable_id": "68e05364d86d6edc398828B0",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828C1",
+                "variable_id": "68e05364d86d6edc398828B0",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Control Calefactor Agua (68e05364d86d6edc398828B1)
+            {
+                "_id": "68e05364d86d6edc398828C2",
+                "variable_id": "68e05364d86d6edc398828B1",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828C3",
+                "variable_id": "68e05364d86d6edc398828B1",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Control Luz (68e05364d86d6edc398828B2)
+            {
+                "_id": "68e05364d86d6edc398828C4",
+                "variable_id": "68e05364d86d6edc398828B2",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828C5",
+                "variable_id": "68e05364d86d6edc398828B2",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Control Humidificador (68e05364d86d6edc398828B3)
+            {
+                "_id": "68e05364d86d6edc398828C6",
+                "variable_id": "68e05364d86d6edc398828B3",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828C7",
+                "variable_id": "68e05364d86d6edc398828B3",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Control Bomba Aireación (68e05364d86d6edc398828B4)
+            {
+                "_id": "68e05364d86d6edc398828C8",
+                "variable_id": "68e05364d86d6edc398828B4",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828C9",
+                "variable_id": "68e05364d86d6edc398828B4",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Control Bomba Riego (68e05364d86d6edc398828B5)
+            {
+                "_id": "68e05364d86d6edc398828CA",
+                "variable_id": "68e05364d86d6edc398828B5",
+                "label": "OFF",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [0.0, 0.0, 1.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828CB",
+                "variable_id": "68e05364d86d6edc398828B5",
+                "label": "ON",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [99.0, 100.0, 100.0],
+                    "universe_min": 0.0,
+                    "universe_max": 100.0
+                }
+            },
+            # Duración de Humidificación (68e05364d86d6edc3998287c)
+            {
+                "_id": "68e05364d86d6edc398828DE",
+                "variable_id": "68e05364d86d6edc3998287c",
+                "label": "duracionCorta",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [5.0, 62.5, 120.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828DF",
+                "variable_id": "68e05364d86d6edc3998287c",
+                "label": "duracionMedia",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [90.0, 195.0, 300.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
+                }
+            },
+            {
+                "_id": "68e05364d86d6edc398828E0",
+                "variable_id": "68e05364d86d6edc3998287c",
+                "label": "duracionLarga",
+                "membership_function": {
+                    "function_type": "triangular",
+                    "parameters": [240.0, 1920.0, 3600.0],
+                    "universe_min": 0.0,
+                    "universe_max": 3600.0
                 }
             }
         ]
 
-    @staticmethod
-    def get_routines_config() -> List[Dict[str, Any]]:
-        """Get fuzzy routines configuration with predefined IDs."""
-        return [
-            {
-                "_id": "68e05365d86d6edc39982900",
-                "name": "Encender Calefactor Aire",
-                "description": "Activar calefactor de aire",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Activar calefactor de aire (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A1",  # OFF específico de Calefacción Aire
-                        "duration_term_id": "68e05364d86d6edc39982895"  # duracionMedia
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982901",
-                "name": "Apagar Calefactor Aire",
-                "description": "Desactivar calefactor de aire",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Desactivar calefactor de aire (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A1",  # OFF específico de Calefacción Aire
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982902",
-                "name": "Encender Ventilador",
-                "description": "Activar ventilador a potencia alta",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Activar ventilador a potencia alta (PWM)",
-                        "power_term_id": "68e05364d86d6edc39982892",  # potenciaAlta (75%)
-                        "duration_term_id": "68e05364d86d6edc39982895"  # duracionMedia
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982903",
-                "name": "Apagar Ventilador",
-                "description": "Desactivar ventilador",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Desactivar ventilador (PWM a 0%)",
-                        "power_term_id": "68e05364d86d6edc39982890",  # potenciaBaja (5-40%)
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982904",
-                "name": "Encender Calefactor Agua",
-                "description": "Activar calefactor de agua",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Activar calefactor de agua (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A5",  # OFF específico de Calefacción Agua
-                        "duration_term_id": "68e05364d86d6edc39982895"  # duracionMedia
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982905",
-                "name": "Apagar Calefactor Agua",
-                "description": "Desactivar calefactor de agua",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Desactivar calefactor de agua (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A5",  # OFF específico de Calefacción Agua
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982906",
-                "name": "Encender Humidificador",
-                "description": "Activar humidificador",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Activar humidificador (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A4",  # OFF específico de Riego (Humidificador)
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982907",
-                "name": "Apagar Humidificador",
-                "description": "Desactivar humidificador",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Desactivar humidificador (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A4",  # OFF específico de Riego (Humidificador)
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982908",
-                "name": "Emergencia Termica",
-                "description": "Protocolo de emergencia térmica - apagar calefactores y activar enfriamiento",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Forzar apagado de calefactor de aire (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A1",  # OFF específico de Calefacción Aire
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    },
-                    {
-                        "stepId": 1,
-                        "condition": "Encender ventilador (PWM)",
-                        "power_term_id": "68e05364d86d6edc39982892",  # potenciaAlta (~75%)
-                        "duration_term_id": "68e05364d86d6edc39982895"  # duracionMedia
-                    },
-                    {
-                        "stepId": 2,
-                        "condition": "Encender bomba de aire (PWM)",
-                        "power_term_id": "68e05364d86d6edc39982893",  # potenciaMaxima (~92%)
-                        "duration_term_id": "68e05364d86d6edc39982896"  # duracionLarga
-                    },
-                    {
-                        "stepId": 3,
-                        "condition": "Encender bomba de agua (PWM)",
-                        "power_term_id": "68e05364d86d6edc39982893",  # potenciaMaxima (~92%)
-                        "duration_term_id": "68e05364d86d6edc39982896"  # duracionLarga
-                    },
-                    {
-                        "stepId": 4,
-                        "condition": "Apagar calefactor de agua (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc39982897",  # OFF (0)
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc39982909",
-                "name": "Apagar Actuadores de Agua",
-                "description": "Apagar todos los actuadores relacionados con el agua",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Apagar calefactor de agua (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A5",  # OFF específico de Calefacción Agua
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    },
-                    {
-                        "stepId": 1,
-                        "condition": "Apagar bomba de agua (PWM)",
-                        "power_term_id": "68e05364d86d6edc398828A3",  # OFF específico de Aireación
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc3998290a",
-                "name": "Encender Luz",
-                "description": "Encender luz de amplio espectro",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Encender luz de amplio espectro (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A2",  # OFF específico de Luz
-                        "duration_term_id": "68e05364d86d6edc39982896"  # duracionLarga
-                    }
-                ]
-            },
-            {
-                "_id": "68e05365d86d6edc3998290b",
-                "name": "Apagar Luz",
-                "description": "Apagar luz de amplio espectro",
-                "steps": [
-                    {
-                        "stepId": 0,
-                        "condition": "Apagar luz de amplio espectro (DIGITAL)",
-                        "power_term_id": "68e05364d86d6edc398828A2",  # OFF específico de Luz
-                        "duration_term_id": "68e05364d86d6edc39982894"  # duracionCorta
-                    }
-                ]
-            }
-        ]
-
+   
     @staticmethod
     def get_rules_config() -> List[Dict[str, Any]]:
         """Get fuzzy rules configuration with predefined IDs."""
@@ -679,7 +937,7 @@ class SeedDataConfig:
             {
                 "_id": "68e05365d86d6edc39982910",
                 "name": "Regla 1: Temperatura muy fria",
-                "description": "Si temperatura ambiente es muy fría, encender calefactor de aire",
+                "description": "Si temperatura ambiente es muy fría, encender calefactor de aire con duración media",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
@@ -689,13 +947,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982900",  # Encender Calefactor Aire
-                "consequent_routine_name": "Encender Calefactor Aire"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B0",  # Control Calefactor Aire
+                        "terms": ["68e05364d86d6edc398828C1"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982877",  # Duración de Calefacción de Aire
+                        "terms": ["68e05364d86d6edc398828D1"],  # duracionMedia
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982911",
                 "name": "Regla 2: Temperatura normal o mas alta",
-                "description": "Si temperatura ambiente es normal u óptima, apagar calefactor de aire",
+                "description": "Si temperatura ambiente es normal u óptima, apagar calefactor de aire con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
@@ -705,13 +973,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982901",  # Apagar Calefactor Aire
-                "consequent_routine_name": "Apagar Calefactor Aire"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B0",  # Control Calefactor Aire
+                        "terms": ["68e05364d86d6edc398828C0"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982877",  # Duración de Calefacción de Aire
+                        "terms": ["68e05364d86d6edc398828D0"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982912",
                 "name": "Regla 3: Temperatura de emergencia",
-                "description": "Si temperatura ambiente es muy alta, activar protocolo de emergencia térmica",
+                "description": "Si temperatura ambiente es muy alta, activar protocolo de emergencia térmica completo (10 consecuentes: apagar calefactores, encender ventilador y bombas)",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
@@ -721,13 +999,51 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982908",  # Emergencia Termica
-                "consequent_routine_name": "Emergencia Termica"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc39982877",  # Duración de Calefacción de Aire
+                        "terms": ["68e05364d86d6edc398828D0"],  # duracionCorta
+                        "aggregation_method": "max"
+                    },
+                    # Step 1: Ventilador - Encender
+                    {
+                        "variable_id": "68e05364d86d6edc39982875",  # Potencia del Ventilador (PWM)
+                        "terms": ["68e05364d86d6edc39982892"],  # potenciaAlta
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982876",  # Duración de Ventilación
+                        "terms": ["68e05364d86d6edc39982895"],  # duracionMedia
+                        "aggregation_method": "max"
+                    },
+                    # Step 2: Bomba Aireación - Encender
+                    {
+                        "variable_id": "68e05364d86d6edc398828B4",  # Control Bomba Aireación
+                        "terms": ["68e05364d86d6edc398828C9"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982879",  # Duración de Aireación
+                        "terms": ["68e05364d86d6edc39982896"],  # duracionLarga
+                        "aggregation_method": "max"
+                    },
+                    # Step 3: Bomba Riego - Encender
+                    {
+                        "variable_id": "68e05364d86d6edc398828B5",  # Control Bomba Riego
+                        "terms": ["68e05364d86d6edc398828CB"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287a",  # Duración de Riego
+                        "terms": ["68e05364d86d6edc39982896"],  # duracionLarga (reutilizando mismo término ID de ventilación para consistencia)
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982913",
                 "name": "Regla 4: Humedad muy baja",
-                "description": "Si humedad ambiente es muy baja, encender humidificador",
+                "description": "Si humedad ambiente es muy baja, encender humidificador con duración media",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982872",  # Humidity
@@ -737,13 +1053,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982906",  # Encender Humidificador
-                "consequent_routine_name": "Encender Humidificador"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B3",  # Control Humidificador
+                        "terms": ["68e05364d86d6edc398828C7"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287c",  # Duración de Humidificación
+                        "terms": ["68e05364d86d6edc398828DF"],  # duracionMedia
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982914",
                 "name": "Regla 5: Humedad normal o mas alta",
-                "description": "Si humedad ambiente es normal o alta, apagar humidificador",
+                "description": "Si humedad ambiente es normal o alta, apagar humidificador con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982872",  # Humidity
@@ -753,13 +1079,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982907",  # Apagar Humidificador
-                "consequent_routine_name": "Apagar Humidificador"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B3",  # Control Humidificador
+                        "terms": ["68e05364d86d6edc398828C6"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287c",  # Duración de Humidificación
+                        "terms": ["68e05364d86d6edc398828DE"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982915",
                 "name": "Regla 6: Temperatura de agua fria",
-                "description": "Si temperatura del agua es muy fría, encender calefactor de agua",
+                "description": "Si temperatura del agua es muy fría, encender calefactor de agua con duración media",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
@@ -769,13 +1105,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982904",  # Encender Calefactor Agua
-                "consequent_routine_name": "Encender Calefactor Agua"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
+                        "terms": ["68e05364d86d6edc398828C3"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287b",  # Duración de Calefacción de Agua
+                        "terms": ["68e05364d86d6edc398828DD"],  # duracionMedia
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982916",
                 "name": "Regla 7: Temperatura de agua normal o mas alta",
-                "description": "Si temperatura del agua es normal u óptima, apagar calefactor de agua",
+                "description": "Si temperatura del agua es normal u óptima, apagar calefactor de agua con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
@@ -785,13 +1131,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982905",  # Apagar Calefactor Agua
-                "consequent_routine_name": "Apagar Calefactor Agua"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
+                        "terms": ["68e05364d86d6edc398828C2"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287b",  # Duración de Calefacción de Agua
+                        "terms": ["68e05364d86d6edc398828DC"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982917",
                 "name": "Regla 8: Agua demasiado caliente",
-                "description": "Si agua está demasiado caliente, apagar calefactor de agua",
+                "description": "Si agua está demasiado caliente, apagar calefactor de agua con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
@@ -801,13 +1157,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": [],
-                "consequent_routine_id": "68e05365d86d6edc39982905",  # Apagar Calefactor Agua
-                "consequent_routine_name": "Apagar Calefactor Agua"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
+                        "terms": ["68e05364d86d6edc398828C2"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287b",  # Duración de Calefacción de Agua
+                        "terms": ["68e05364d86d6edc398828DC"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982918",
                 "name": "Regla 9: Nivel de luz bajo",
-                "description": "Si tanto el índice de luminosidad como la luz clara son bajas, encender luz artificial",
+                "description": "Si tanto el índice de luminosidad como la luz clara son bajas, encender luz artificial con duración media",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982870",  # Luminosity Index
@@ -823,13 +1189,23 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": ["AND"],
-                "consequent_routine_id": "68e05365d86d6edc3998290a",  # Encender Luz
-                "consequent_routine_name": "Encender Luz"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B2",  # Control Luz
+                        "terms": ["68e05364d86d6edc398828C5"],  # ON
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982878",  # Duración de Luz
+                        "terms": ["68e05364d86d6edc398828D4"],  # duracionMedia
+                        "aggregation_method": "max"
+                    }
+                ]
             },
             {
                 "_id": "68e05365d86d6edc39982919",
                 "name": "Regla 10: Nivel de luz optimo",
-                "description": "Si tanto el índice de luminosidad como la luz clara son óptimas, apagar luz artificial",
+                "description": "Si tanto el índice de luminosidad como la luz clara son óptimas, apagar luz artificial con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982870",  # Luminosity Index
@@ -845,8 +1221,18 @@ class SeedDataConfig:
                     }
                 ],
                 "connectors": ["AND"],
-                "consequent_routine_id": "68e05365d86d6edc3998290b",  # Apagar Luz
-                "consequent_routine_name": "Apagar Luz"
+                "consequents": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828B2",  # Control Luz
+                        "terms": ["68e05364d86d6edc398828C4"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982878",  # Duración de Luz
+                        "terms": ["68e05364d86d6edc398828D3"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
             }
         ]
 
@@ -864,10 +1250,9 @@ async def seed_fuzzy_system_data(di) -> None:
     repo_system = di[IFuzzySystemRepository]
     repo_variable = di[IFuzzyVariableRepository]
     repo_term = di[IFuzzyTermRepository]
-    repo_routine = di[IFuzzyRoutineRepository]
     repo_rule = di[IFuzzyRuleRepository]
 
-    if not all([repo_system, repo_variable, repo_term, repo_routine, repo_rule]):
+    if not all([repo_system, repo_variable, repo_term, repo_rule]):
         _logger.warning("Some repositories not available; skipping seed data creation.")
         return
 
@@ -877,13 +1262,10 @@ async def seed_fuzzy_system_data(di) -> None:
         return
 
     # Create variables and terms with predefined IDs
-    variables_map, created_term_ids = await _create_variables_and_terms(repo_variable, repo_term)
+    variables_map, created_term_ids, created_variable_ids = await _create_variables_and_terms(repo_variable, repo_term)
 
-    # Create routines
-    routines_map = await _create_routines(repo_routine, created_term_ids)
-
-    # Create rules
-    await _create_rules(repo_rule, system, variables_map, routines_map)
+    # Create rules (now uses direct consequents instead of routines)
+    await _create_rules(repo_rule, system, variables_map, created_term_ids, created_variable_ids, repo_term)
 
     # Update system relationships
     await _update_system_relationships(repo_system, system, variables_map, repo_rule)
@@ -950,6 +1332,9 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 description=var_config.get("description", ""),
                 variable_type=var_config["type"],
                 actuator_type=var_config.get("actuator_type"),  # Solo para outputs
+                universe_min=var_config.get("universe_min"),
+                universe_max=var_config.get("universe_max"),
+                defuzzification_threshold=var_config.get("defuzzification_threshold", 50.0),
                 reference_id=var_config["reference_id"],
                 terms=[]  # Empty initially
             )
@@ -965,13 +1350,51 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 str(created_var.id)
             )
         else:
+            # Variable exists, but update fields if they're missing or different
+            updated = False
+
+            # Update actuator_type if missing or different
+            if existing_var.variable_type == "output":
+                new_actuator_type = var_config.get("actuator_type")
+                if existing_var.actuator_type != new_actuator_type:
+                    existing_var.actuator_type = new_actuator_type
+                    updated = True
+
+                # Update universe_min if missing or different
+                new_universe_min = var_config.get("universe_min")
+                if existing_var.universe_min != new_universe_min:
+                    existing_var.universe_min = new_universe_min
+                    updated = True
+
+                # Update universe_max if missing or different
+                new_universe_max = var_config.get("universe_max")
+                if existing_var.universe_max != new_universe_max:
+                    existing_var.universe_max = new_universe_max
+                    updated = True
+
+                # Update defuzzification_threshold if different
+                new_threshold = var_config.get("defuzzification_threshold", 50.0)
+                if existing_var.defuzzification_threshold != new_threshold:
+                    existing_var.defuzzification_threshold = new_threshold
+                    updated = True
+
+            # Save updates if any field changed
+            if updated:
+                existing_var = await repo_variable.update(existing_var)  # type: ignore[attr-defined]
+                _logger.info(
+                    "Seed: updated existing variable '%s' with new fields (id=%s)",
+                    var_name,
+                    str(existing_var.id)
+                )
+            else:
+                _logger.info(
+                    "Seed: variable '%s' already exists and is up-to-date (id=%s)",
+                    var_name,
+                    str(existing_var.id)
+                )
+
             variables_map[var_name] = existing_var
             created_variable_ids[var_config["_id"]] = str(existing_var.id)
-            _logger.info(
-                "Seed: variable '%s' already exists (id=%s)",
-                var_name,
-                str(existing_var.id)
-            )
 
     # STEP 2: Create all terms using actual variable IDs
     _logger.info("STEP 2: Creating fuzzy terms (using actual variable IDs)...")
@@ -1064,87 +1487,116 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 len(term_ids)
             )
 
-    return variables_map, created_term_ids
+    return variables_map, created_term_ids, created_variable_ids
 
 
-async def _create_routines(repo_routine, created_term_ids):
-    """Create fuzzy routines using dynamic term IDs."""
-    from FuzzyService.Domain.Entities.fuzzy_routine import FuzzyRoutine, RoutineStep
-    from FuzzyService.Domain.ValueObjects.DomainId import DomainId
+async def _create_consequents_from_config(rule_config, created_term_ids, created_variable_ids, repo_term):
+    """
+    Create RuleConsequent objects directly from rule configuration.
 
-    routines_map = {}
-    created_routine_ids = {}  # Map: predefined_routine_id -> actual_routine_id
+    This replaces the old routine-based approach with direct Mamdani consequents.
+    The configuration now specifies consequents directly instead of routing through
+    intermediate routines.
 
-    for routine_config in SeedDataConfig.get_routines_config():
-        routine_name = routine_config["name"]
-        predefined_routine_id = routine_config["_id"]
+    Expected config format:
+    {
+        "consequents": [
+            {
+                "variable_id": "68e05364d86d6edc398828B0",  # Predefined variable output ID
+                "terms": ["68e05364d86d6edc398828C1"],  # List of predefined term IDs for this variable
+                "aggregation_method": "max"
+            }
+        ]
+    }
 
-        existing_routine = await repo_routine.get_by_name(routine_name)  # type: ignore[attr-defined]
+    Args:
+        rule_config: Configuration dict for the rule
+        created_term_ids: Map of predefined term IDs to actual MongoDB IDs
+        created_variable_ids: Map of predefined variable IDs to actual MongoDB IDs
+        repo_term: Repository to fetch terms
+    """
+    from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
+    from FuzzyService.Domain.ValueObjects.DomainId import FuzzyTermId, FuzzyVariableId
 
-        if not existing_routine:
-            # Create routine steps
-            steps = []
-            for step_config in routine_config["steps"]:
-                predefined_power_term = step_config["power_term_id"]
-                predefined_duration_term = step_config["duration_term_id"]
+    # Get consequents from config
+    consequents_config = rule_config.get("consequents", [])
 
-                # Get actual term IDs from mapping
-                actual_power_term_id = created_term_ids.get(predefined_power_term)
-                actual_duration_term_id = created_term_ids.get(predefined_duration_term)
+    if consequents_config:
+        consequents = []
+        for cons_config in consequents_config:
+            # New format: variable_id + terms (explicit)
+            predefined_variable_id = cons_config.get("variable_id")
+            predefined_term_ids = cons_config.get("terms", [])
 
-                if not actual_power_term_id or not actual_duration_term_id:
+            # Fallback to old format if new format not found
+            if not predefined_variable_id and "term_ids" in cons_config:
+                predefined_term_ids = cons_config.get("term_ids", [])
+
+            # Map predefined term IDs to actual IDs
+            actual_term_ids = []
+            for predefined_id in predefined_term_ids:
+                actual_id = created_term_ids.get(predefined_id)
+                if actual_id:
+                    actual_term_ids.append(FuzzyTermId(actual_id))
+                else:
                     _logger.warning(
-                        f"Skipping step {step_config['stepId']} in routine '{routine_name}': "
-                        f"power_term={predefined_power_term} or duration_term={predefined_duration_term} not found"
+                        f"Term ID mapping not found: predefined_id={predefined_id}. "
+                        f"Available mappings: {len(created_term_ids)} terms"
+                    )
+
+            if not actual_term_ids:
+                _logger.warning(
+                    f"No actual term IDs found for consequent. "
+                    f"Predefined IDs: {predefined_term_ids}"
+                )
+                continue
+
+            # Determine variable_id - CRITICAL FIX: Map predefined ID to actual MongoDB ID
+            if predefined_variable_id:
+                # Map predefined variable_id to actual MongoDB ID
+                actual_variable_id = created_variable_ids.get(predefined_variable_id)
+                if actual_variable_id:
+                    variable_id = FuzzyVariableId(actual_variable_id)
+                    _logger.debug(
+                        f"Mapped variable: predefined={predefined_variable_id} -> actual={actual_variable_id}"
+                    )
+                else:
+                    # If no mapping found, log error and skip this consequent
+                    _logger.error(
+                        f"Variable ID mapping not found: predefined_id={predefined_variable_id}. "
+                        f"Available variable mappings: {len(created_variable_ids)} variables. "
+                        f"Skipping this consequent."
                     )
                     continue
-
-                step = RoutineStep(
-                    step_id=step_config["stepId"],
-                    condition=step_config["condition"],
-                    power_term_id=DomainId(actual_power_term_id),
-                    duration_term_id=DomainId(actual_duration_term_id)
-                )
-                steps.append(step)
-
-            if steps:
-                routine = await repo_routine.create(  # type: ignore[attr-defined]
-                    FuzzyRoutine(
-                        routine_name=routine_name,
-                        steps=steps
-                    )
-                )
-                actual_routine_id = str(routine.id)
-                created_routine_ids[predefined_routine_id] = actual_routine_id
-                routines_map[routine_name] = routine
-
-                _logger.info(
-                    "Seed: created routine '%s' with %d steps (predefined_id=%s, actual_id=%s)",
-                    routine_name,
-                    len(steps),
-                    predefined_routine_id,
-                    actual_routine_id
-                )
             else:
-                _logger.warning(f"Routine '{routine_name}' has no valid steps, skipping")
-        else:
-            actual_routine_id = str(existing_routine.id)
-            created_routine_ids[predefined_routine_id] = actual_routine_id
-            routines_map[routine_name] = existing_routine
+                # Fallback: Get variable_id from first term (old format)
+                first_term = await repo_term.get_by_id(actual_term_ids[0])  # type: ignore[attr-defined]
+                if not first_term:
+                    _logger.warning(
+                        f"First term not found in repository: term_id={actual_term_ids[0]}"
+                    )
+                    continue
+                variable_id = first_term.variable_id
 
-            _logger.info(
-                "Seed: routine '%s' already exists (predefined_id=%s, actual_id=%s)",
-                routine_name,
-                predefined_routine_id,
-                actual_routine_id
+            consequent = RuleConsequent(
+                variable_id=variable_id,
+                terms=actual_term_ids,
+                aggregation_method=cons_config.get("aggregation_method", "max")
             )
+            consequents.append(consequent)
 
-    return routines_map
+        return consequents
+
+    # Si no hay consecuentes definidos, retornar lista vacía
+    return []
 
 
-async def _create_rules(repo_rule, system, variables_map, routines_map):
-    """Create fuzzy rules using dynamic variable and routine IDs."""
+async def _create_rules(repo_rule, system, variables_map, created_term_ids, created_variable_ids, repo_term):
+    """Create fuzzy rules with direct Mamdani consequents."""
     from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
+    from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
+
+    _logger.info(f"Creating rules with {len(created_term_ids)} term ID mappings and {len(created_variable_ids)} variable ID mappings available")
 
     for rule_config in SeedDataConfig.get_rules_config():
         rule_name = rule_config["name"]
@@ -1171,15 +1623,20 @@ async def _create_rules(repo_rule, system, variables_map, routines_map):
                 }
                 conditions.append(condition)
 
-            # Get consequent routine by name
-            routine_name = rule_config["consequent_routine_name"]
-            routine = routines_map.get(routine_name)
+            # Build consequents directly from config (Mamdani model)
+            _logger.debug(f"Creating consequents for rule '{rule_name}'...")
+            consequents = await _create_consequents_from_config(
+                rule_config, created_term_ids, created_variable_ids, repo_term
+            )
 
-            if not routine:
+            if not consequents:
                 _logger.warning(
-                    f"Skipping rule '{rule_name}': routine '{routine_name}' not found"
+                    f"Skipping rule '{rule_name}': could not create consequents. "
+                    f"Rule config consequents: {rule_config.get('consequents', [])}"
                 )
                 continue
+
+            _logger.info(f"Created {len(consequents)} consequents for rule '{rule_name}'")
 
             if conditions:
                 rule = await repo_rule.create(  # type: ignore[attr-defined]
@@ -1189,13 +1646,14 @@ async def _create_rules(repo_rule, system, variables_map, routines_map):
                         description=rule_config.get("description", ""),
                         conditions=conditions,
                         connectors=rule_config["connectors"],
-                        consequent=FuzzyRoutineId(str(routine.id)),
+                        consequents=consequents,
                     )
                 )
                 _logger.info(
-                    "Seed: created rule '%s' with %d conditions (id=%s)",
+                    "Seed: created rule '%s' with %d conditions and %d consequents (id=%s)",
                     rule_name,
                     len(conditions),
+                    len(consequents),
                     str(rule.id)
                 )
             else:

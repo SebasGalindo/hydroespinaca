@@ -8,12 +8,11 @@ from datetime import datetime, timezone
 from FuzzyService.Application.Features.FuzzyRules.Commands.CreateFuzzyRuleCommand import CreateFuzzyRuleCommand
 from FuzzyService.Application.Features.FuzzyRules.DTOs.FuzzyRuleDto import FuzzyRuleDto
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
-from FuzzyService.Domain.ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId, FuzzyRoutineId
+from FuzzyService.Domain.ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId
 from FuzzyService.Domain.Enums import LogicalOperator, RuleConnector
 from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleRepository
 from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRepository
 from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
-from FuzzyService.Domain.Interfaces.IFuzzyRoutineRepository import IFuzzyRoutineRepository
 from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, BusinessRuleViolationError
 
 
@@ -40,21 +39,13 @@ class CreateFuzzyRuleHandler(CommandHandler[CreateFuzzyRuleCommand]):
             variable = await variable_repo.get_by_id(var_id)
             if not variable:
                 raise EntityNotFoundError(f"Variable difusa con ID {var_id_str} no encontrada")
-        
-        # 3. Validar que la rutina consecuente existe (si se proporciona)
-        consequent_id = None
-        if request.consequent:
-            try:
-                routine_repo: IFuzzyRoutineRepository = di[IFuzzyRoutineRepository]
-                consequent_id = FuzzyRoutineId(request.consequent)
-                routine = await routine_repo.get_by_id(consequent_id)
-                if not routine:
-                    raise EntityNotFoundError(f"Rutina difusa con ID {request.consequent} no encontrada")
-            except:
-                # Si no hay repositorio de rutinas, ignoramos la validación por ahora
-                consequent_id = FuzzyRoutineId(request.consequent) if request.consequent else None
-        
-        # 4. Crear la entidad FuzzyRule
+
+        # 3. Crear la entidad FuzzyRule (sin consecuente - debe agregarse con UpdateRuleConsequentCommand)
+        # NOTA: Las reglas ahora deben tener consecuentes directos (RuleConsequent) en lugar de
+        # apuntar a rutinas. El campo 'consequent' fue eliminado del modelo.
+        # Para backward compatibility temporal, creamos una regla vacía que luego debe
+        # actualizarse con consecuentes directos usando UpdateRuleConsequentHandler.
+
         conditions = [
             {
                 "variableId": FuzzyVariableId(condition.variable_id),
@@ -63,16 +54,39 @@ class CreateFuzzyRuleHandler(CommandHandler[CreateFuzzyRuleCommand]):
             }
             for condition in request.conditions
         ]
-        
+
         connectors = [RuleConnector(connector) for connector in request.connectors]
-        
+
+        # Si el request tiene 'consequent' (legacy), lanzar error indicando usar nuevo modelo
+        if hasattr(request, 'consequent') and request.consequent:
+            raise BusinessRuleViolationError(
+                "El campo 'consequent' (rutina) ya no está soportado. "
+                "Use 'consequents' (array de RuleConsequent) en su lugar."
+            )
+
+        # Crear regla con consecuentes directos si se proporcionan
+        from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
+        from FuzzyService.Domain.ValueObjects.DomainId import FuzzyTermId
+
+        consequents = []
+        if hasattr(request, 'consequents') and request.consequents:
+            for cons_dto in request.consequents:
+                consequent = RuleConsequent(
+                    variable_id=FuzzyVariableId(cons_dto['variable_id']),
+                    terms=[FuzzyTermId(t) for t in cons_dto['terms']],
+                    aggregation_method=cons_dto.get('aggregation_method', 'max')
+                )
+                consequents.append(consequent)
+
+        # Por ahora, si no hay consecuentes, crear lista vacía (fallará validación de FuzzyRule)
+        # Esto forzará al usuario a proporcionar consecuentes válidos
         rule = FuzzyRule(
             name=request.name,
             system_id=system_id,
             description=request.description,
             conditions=conditions,
             connectors=connectors,
-            consequent=consequent_id,
+            consequents=consequents if consequents else [],
             created_at=datetime.now(timezone.utc)
         )
         
