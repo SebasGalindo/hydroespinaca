@@ -62,7 +62,7 @@ void AutonomousController::begin() {
                   WATER_TEMP_MIN, WATER_TEMP_MAX, WATER_TEMP_HYSTERESIS);
     Serial.printf("   💡 Luz: %.1f-%.1f%% (horario %d:00-%d:00)\n", 
                   LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD, LIGHT_START_HOUR, LIGHT_END_HOUR);
-    Serial.printf("   🌊 Nivel agua mínimo: %.1f cm\n", WATER_LEVEL_MIN);
+    Serial.printf("   🌊 Distancia agua máxima: %.1f cm (tanque vacío)\n", WATER_DISTANCE_MAX);
 }
 
 // ========================================
@@ -133,14 +133,11 @@ void AutonomousController::updateSensorReadings() {
     reading.humidity = sensors->readHumidity();
     reading.lightIndex = sensors->readLightIndex();
     reading.clearChannel = sensors->readLightClearChannel();  // Nuevo canal Clear
-    // Convert distance (cm) to water level height (cm) for control logic
+    // IMPORTANTE: Almacenar DISTANCIA directamente (no convertir a nivel)
+    // La validación de seguridad usa distancia del sensor
     float distanceCm = sensors->readWaterLevel();
     if (!isnan(distanceCm)) {
-        const float TANK_HEIGHT_CM = 40.0f;  // Same constant as in sensors.cpp
-        // Convert distance from sensor to actual water level height
-        reading.waterLevel = TANK_HEIGHT_CM - distanceCm;
-        if (reading.waterLevel < 0.0f) reading.waterLevel = 0.0f;
-        if (reading.waterLevel > TANK_HEIGHT_CM) reading.waterLevel = TANK_HEIGHT_CM;
+        reading.waterLevel = distanceCm;  // Guardar distancia directamente
     } else {
         reading.waterLevel = NAN;
     }
@@ -252,23 +249,25 @@ void AutonomousController::checkWaterLevelSafety() {
         return;
     }
     
-    float waterLevel = state.averageReadings.waterLevel;
+    float waterDistance = state.averageReadings.waterLevel;  // Ahora es distancia del sensor
     bool previousWaterOk = state.waterLevelOk;
-    
-    // NUEVA LÓGICA: Histéresis correcta para nivel de agua
+
+    // LÓGICA CORREGIDA: Usar DISTANCIA del sensor con histéresis
+    // Distancia ALTA (>33cm) = Tanque VACÍO → Bloquear bomba
+    // Distancia BAJA (<34cm) = Tanque LLENO → Permitir bomba
     if (state.waterLevelOk) {
-        // Bomba permitida: bloquear si nivel > 7cm (tanque vacío)
-        state.waterLevelOk = waterLevel <= WATER_LEVEL_MIN;
+        // Bomba permitida: bloquear si distancia > 33cm (tanque vacío)
+        state.waterLevelOk = waterDistance <= WATER_DISTANCE_MAX;
     } else {
-        // Bomba bloqueada: permitir solo si nivel < 6cm (tanque lleno)
-        state.waterLevelOk = waterLevel < WATER_LEVEL_RECOVERY;
+        // Bomba bloqueada: permitir solo si distancia < 34cm (tanque lleno)
+        state.waterLevelOk = waterDistance < WATER_DISTANCE_RECOVERY;
     }
-    
+
     if (!state.waterLevelOk) {
         if (previousWaterOk) {
-            logSafetyAction("Nivel agua ALTO - tanque vacío - bloqueando bomba y difusor");
-            Serial.printf("🚨 [NIVEL] %.1fcm > %.1fcm (límite) - BOMBA OFF por tanque vacío\n", 
-                         waterLevel, WATER_LEVEL_MIN);
+            logSafetyAction("Distancia agua ALTA - tanque vacío - bloqueando bomba y difusor");
+            Serial.printf("🚨 [NIVEL] Distancia %.1fcm > %.1fcm (límite) - BOMBA OFF por tanque vacío\n",
+                         waterDistance, WATER_DISTANCE_MAX);
         }
         
         // Forzar apagado de bomba y difusor
@@ -287,9 +286,9 @@ void AutonomousController::checkWaterLevelSafety() {
         ActuatorController::turnHumidifierMasterOff();
     } else {
         if (!previousWaterOk) {
-            logSafetyAction("Nivel agua BAJO - tanque lleno - habilitando bomba");
-            Serial.printf("✅ [NIVEL] %.1fcm < %.1fcm (recuperación) - BOMBA habilitada, tanque lleno\n", 
-                         waterLevel, WATER_LEVEL_RECOVERY);
+            logSafetyAction("Distancia agua BAJA - tanque lleno - habilitando bomba");
+            Serial.printf("✅ [NIVEL] Distancia %.1fcm < %.1fcm (recuperación) - BOMBA habilitada, tanque lleno\n",
+                         waterDistance, WATER_DISTANCE_RECOVERY);
         }
         
         // Restaurar operación normal
@@ -354,66 +353,190 @@ void AutonomousController::controlTemperature() {
 // NUEVA LÓGICA: Control de humedad con debounce y reposo
 void AutonomousController::controlHumidity() {
     if (!state.averageReadings.valid) return;
-    
+
     float humidity = state.averageReadings.humidity;
+    float temperature = state.averageReadings.temperature;
     unsigned long now = millis();
-    
-    // Verificar fail-safe por nivel de agua
+
+    // ===============================================
+    // PASO 1: VERIFICAR FAIL-SAFE POR NIVEL DE AGUA
+    // ===============================================
     if (!state.waterLevelOk && state.humidifierMasterActive) {
         state.humidifierMasterActive = false;
+        state.windowValidationActive = false;  // Cancelar validación
         ActuatorController::turnHumidifierMasterOff();
         ActuatorController::turnHumidifierRelayOff();
         logSafetyAction("Humidificador APAGADO por nivel agua alto (tanque vacío)");
         return;
     }
-    
-    // === ACTIVACIÓN DIRECTA SIN DEBOUNCE DEFECTUOSO ===
+
+    // ===============================================
+    // PASO 2: VERIFICAR BLOQUEO POR INEFECTIVIDAD
+    // ===============================================
+    if (state.humidifierLocked) {
+        // Verificar si expiró el bloqueo
+        if (now >= state.humidifierLockedUntil) {
+            state.humidifierLocked = false;
+            Serial.printf("🔓 [HUMID] Bloqueo por inefectividad EXPIRADO - humidificador desbloqueado\n");
+        } else {
+            // Aún bloqueado - no permitir activación
+            unsigned long remainingMs = state.humidifierLockedUntil - now;
+            unsigned long remainingMin = remainingMs / 60000;
+            if (humidity <= HUMIDITY_MIN - HUMIDITY_HYSTERESIS) {
+                Serial.printf("🔒 [HUMID] Bloqueado por inefectividad - tiempo restante: %lu min (H=%.1f%% ≤ %.1f%%)\n",
+                             remainingMin, humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
+            }
+            return;
+        }
+    }
+
+    // ===============================================
+    // PASO 3: PROTECCIÓN POR TIEMPO MÁXIMO CONTINUO
+    // ===============================================
+    if (state.humidifierMasterActive) {
+        unsigned long onTime = now - state.humidifierStartTime;
+
+        // Verificar tiempo máximo continuo (9 minutos)
+        if (onTime >= HUMID_MAX_ON_TIME_MS) {
+            state.humidifierMasterActive = false;
+            state.humidifier.isOn = false;
+            state.humidifier.lastRestTime = now;
+            state.windowValidationActive = false;  // Cancelar validación
+
+            ActuatorController::turnHumidifierMasterOff();
+            ActuatorController::turnHumidifierRelayOff();
+
+            Serial.printf("⏱️ [HUMID] Tiempo máximo continuo alcanzado (9 min) - desactivado\n");
+            Serial.printf("⏱️ [HUMID] Cooldown obligatorio: 2 minutos\n");
+            logControlDecision("Humedad", humidity, "humidificador desactivado por tiempo máximo");
+            return;
+        }
+    }
+
+    // ===============================================
+    // PASO 4: VALIDACIÓN DE EFECTIVIDAD (VENTANA DE 5 MIN)
+    // ===============================================
+    if (state.windowValidationActive) {
+        unsigned long windowElapsed = now - state.humidifierWindowStart;
+
+        // Detectar aumento de temperatura >2°C → resetear ventana
+        float tempDelta = temperature - state.temperatureAtStart;
+        if (tempDelta > HUMID_TEMP_RESET_THRESHOLD) {
+            Serial.printf("🌡️ [HUMID] Temperatura aumentó %.1f°C (>%.1f°C) → reiniciando ventana de validación\n",
+                         tempDelta, HUMID_TEMP_RESET_THRESHOLD);
+            state.humidifierWindowStart = now;
+            state.humidityAtStart = humidity;
+            state.temperatureAtStart = temperature;
+            Serial.printf("🔄 [HUMID] Nueva ventana iniciada: HR inicial=%.1f%%, T inicial=%.1f°C\n",
+                         state.humidityAtStart, state.temperatureAtStart);
+        }
+
+        // Verificar si expiró la ventana de evaluación (5 minutos)
+        if (windowElapsed >= (HUMID_WINDOW_MINUTES * 60000UL)) {
+            float humidityDelta = humidity - state.humidityAtStart;
+
+            if (humidityDelta < HUMID_MIN_DELTA) {
+                // INEFECTIVO: No aumentó la humedad lo suficiente
+                state.humidifierMasterActive = false;
+                state.humidifier.isOn = false;
+                state.humidifier.lastRestTime = now;
+                state.windowValidationActive = false;
+
+                // BLOQUEAR POR 2 HORAS
+                state.humidifierLocked = true;
+                state.humidifierLockedUntil = now + HUMID_LOCKOUT_DURATION_MS;
+
+                ActuatorController::turnHumidifierMasterOff();
+                ActuatorController::turnHumidifierRelayOff();
+
+                Serial.printf("❌ [HUMID] INEFECTIVO: HR inicial=%.1f%%, HR actual=%.1f%%, delta=%.1f%% (<%.1f%% requerido)\n",
+                             state.humidityAtStart, humidity, humidityDelta, HUMID_MIN_DELTA);
+                Serial.printf("🔒 [HUMID] BLOQUEADO por 2 horas - sin agua o módulo defectuoso\n");
+                logSafetyAction("Humidificador bloqueado por inefectividad - revisar nivel de agua en módulo");
+                return;
+            } else {
+                // EFECTIVO: Aumentó la humedad correctamente
+                Serial.printf("✅ [HUMID] EFECTIVO: HR inicial=%.1f%%, HR actual=%.1f%%, delta=%.1f%% (≥%.1f%% requerido)\n",
+                             state.humidityAtStart, humidity, humidityDelta, HUMID_MIN_DELTA);
+                Serial.printf("✅ [HUMID] Validación exitosa - continuando operación normal\n");
+                state.windowValidationActive = false;  // Ventana cerrada exitosamente
+            }
+        }
+    }
+
+    // ===============================================
+    // PASO 5: ACTIVACIÓN DIRECTA CON VALIDACIÓN
+    // ===============================================
     if (humidity <= HUMIDITY_MIN - HUMIDITY_HYSTERESIS && !state.humidifierMasterActive) {
-        // Verificar tiempo de reposo
-        if (!canActivateAfterRest(state.humidifier, state.humidityConfig.restTimeMs)) {
-            Serial.printf("⏳ [CTRL] Humidificador bloqueado por tiempo de reposo (H=%.1f%% ≤ %.1f%%)\n", 
+        // Verificar tiempo de reposo/cooldown (incluye cooldown de 2 min después de max time)
+        unsigned long restTimeRequired = state.humidityConfig.restTimeMs;
+        unsigned long timeSinceRest = now - state.humidifier.lastRestTime;
+
+        // Si fue por tiempo máximo, forzar cooldown de 2 minutos
+        if (timeSinceRest < HUMID_COOLDOWN_MS) {
+            unsigned long cooldownRemaining = (HUMID_COOLDOWN_MS - timeSinceRest) / 1000;
+            Serial.printf("⏳ [HUMID] Cooldown obligatorio - tiempo restante: %lu s (H=%.1f%% ≤ %.1f%%)\n",
+                         cooldownRemaining, humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
+            return;
+        }
+
+        if (!canActivateAfterRest(state.humidifier, restTimeRequired)) {
+            Serial.printf("⏳ [HUMID] Bloqueado por tiempo de reposo (H=%.1f%% ≤ %.1f%%)\n",
                          humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
             return;
         }
-        
-        Serial.printf("💨 [CTRL] Iniciando secuencia completa humidificador (H=%.1f%% ≤ %.1f%%)\n", 
+
+        Serial.printf("💨 [HUMID] Iniciando secuencia completa humidificador (H=%.1f%% ≤ %.1f%%)\n",
                      humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
-        
+
         // Marcar como activo antes de comenzar la secuencia
         state.humidifierMasterActive = true;
         state.humidifierStartTime = now;
         state.humidifier.isOn = true;
         state.humidifier.lastChangeTime = now;
-        
+
+        // INICIAR VENTANA DE VALIDACIÓN
+        state.windowValidationActive = true;
+        state.humidifierWindowStart = now;
+        state.humidityAtStart = humidity;
+        state.temperatureAtStart = temperature;
+        Serial.printf("🔍 [HUMID] Ventana de validación iniciada: HR inicial=%.1f%%, T inicial=%.1f°C\n",
+                     state.humidityAtStart, state.temperatureAtStart);
+        Serial.printf("🔍 [HUMID] Requiere incremento ≥%.1f%% en %d min (o reset si T sube >%.1f°C)\n",
+                     HUMID_MIN_DELTA, HUMID_WINDOW_MINUTES, HUMID_TEMP_RESET_THRESHOLD);
+
         // 1. Activar relé maestro (PIN 14)
         ActuatorController::turnHumidifierMasterOn();
-        Serial.println("💨 [CTRL] Humidificador: relé maestro ON");
-        
+        Serial.println("💨 [HUMID] Relé maestro ON");
+
         // 2. Esperar delay de seguridad (2 segundos)
         delay(2000);
-        
+
         // 3. Pulso en relé de activación (1 segundo ON, luego OFF)
         ActuatorController::turnHumidifierRelayOn();
-        Serial.println("💨 [CTRL] Humidificador: relé activación ON (pulso)");
+        Serial.println("💨 [HUMID] Relé activación ON (pulso)");
         delay(1000);
-        
-        ActuatorController::turnHumidifierRelayOff(); 
-        Serial.println("💨 [CTRL] Humidificador: relé activación OFF - secuencia completa ejecutada");
-        
-        logControlDecision("Humedad", humidity, "humidificador activado completamente");
+
+        ActuatorController::turnHumidifierRelayOff();
+        Serial.println("💨 [HUMID] Relé activación OFF - secuencia completa ejecutada");
+
+        logControlDecision("Humedad", humidity, "humidificador activado con validación de efectividad");
         return;
     }
-    
-    // === DESACTIVACIÓN CON HISTÉRESIS ===
+
+    // ===============================================
+    // PASO 6: DESACTIVACIÓN CON HISTÉRESIS
+    // ===============================================
     if (state.humidifierMasterActive && humidity >= HUMIDITY_MAX + HUMIDITY_HYSTERESIS) {
         state.humidifierMasterActive = false;
         state.humidifier.isOn = false;
-        state.humidifier.lastRestTime = now;  // Guardar tiempo para reposo
-        
+        state.humidifier.lastRestTime = now;
+        state.windowValidationActive = false;  // Cancelar validación si estaba activa
+
         ActuatorController::turnHumidifierMasterOff();
-        ActuatorController::turnHumidifierRelayOff(); // Asegurar relé de activación OFF
-        
-        Serial.printf("✅ [CTRL] Humidificador: desactivado completamente (H=%.1f%% ≥ %.1f%%)\n", 
+        ActuatorController::turnHumidifierRelayOff();
+
+        Serial.printf("✅ [HUMID] Desactivado por humedad suficiente (H=%.1f%% ≥ %.1f%%)\n",
                      humidity, HUMIDITY_MAX + HUMIDITY_HYSTERESIS);
         logControlDecision("Humedad", humidity, "humidificador desactivado");
     }
@@ -975,8 +1098,17 @@ void AutonomousController::setActuatorStateImmediate(ActuatorState& state, bool 
     // Actualizar estado lógico
     setActuatorState(state, newState, name);
     
-    // APLICAR INMEDIATAMENTE al hardware físico para cronogramas de tiempo fijo
-    if (&state == &(this->state.waterPump)) {
+    // APLICAR INMEDIATAMENTE al hardware físico para eventos críticos
+    if (&state == &(this->state.heater)) {
+        if (state.isOn && !state.forceOff) {
+            ActuatorController::turnHeaterOn();
+            Serial.printf("⚡ [INMEDIATO] Calefactor aire → ON\n");
+        } else {
+            ActuatorController::turnHeaterOff();
+            Serial.printf("⚡ [INMEDIATO] Calefactor aire → OFF\n");
+        }
+    }
+    else if (&state == &(this->state.waterPump)) {
         if (state.isOn && !state.forceOff) {
             ActuatorController::turnWaterPumpOn();
             Serial.printf("⚡ [INMEDIATO] Bomba agua → ON (cronograma)\n");
@@ -1064,7 +1196,7 @@ void AutonomousController::printSensorAverages() {
         Serial.printf("   💡 Índice luz: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n", 
                      state.averageReadings.lightIndex, LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD);
         Serial.printf("   🌊 Altura agua: %.1f cm (bomba OFF si >%.1f cm, ON si <%.1f cm)\n", 
-                     state.averageReadings.waterLevel, WATER_LEVEL_MIN, WATER_LEVEL_RECOVERY);
+                     state.averageReadings.waterLevel, WATER_DISTANCE_MAX, WATER_DISTANCE_RECOVERY);
         Serial.printf("   🌡️  Temperatura agua: %.1f°C (umbral: <%.1f°C=ON, >%.1f°C=OFF)\n", 
                      state.averageReadings.waterTemp, WATER_TEMP_MIN, WATER_TEMP_MAX - WATER_TEMP_HYSTERESIS);
         Serial.printf("   🧪 pH: %.2f (óptimo: %.1f-%.1f)\n", 
@@ -1081,12 +1213,27 @@ void AutonomousController::printActuatorStates() {
                   state.waterHeater.forceOff ? "(BLOQUEADO)" : "");
     Serial.printf("   🌪️  Ventilador: %s\n", state.fan.isOn ? "ON" : "OFF");
     Serial.printf("   💡 Luz: %s\n", state.light.isOn ? "ON" : "OFF");
-    Serial.printf("   💨 Humidificador: maestro=%s\n", 
+
+    // HUMIDIFICADOR: Mostrar estado maestro + estado de bloqueo/validación
+    Serial.printf("   💨 Humidificador: maestro=%s",
                   state.humidifierMasterActive ? "ON" : "OFF");
+
+    if (state.humidifierLocked) {
+        unsigned long now = millis();
+        unsigned long remainingMs = state.humidifierLockedUntil - now;
+        unsigned long remainingMin = remainingMs / 60000;
+        Serial.printf(" 🔒BLOQUEADO (expira en %lu min)", remainingMin);
+    } else if (state.windowValidationActive) {
+        unsigned long now = millis();
+        unsigned long windowElapsed = (now - state.humidifierWindowStart) / 1000;
+        Serial.printf(" 🔍VALIDANDO (%.1fs/300s)", (float)windowElapsed);
+    }
+    Serial.printf("\n");
+
     Serial.printf("   🌊 Bomba agua: %s %s %s\n", state.waterPump.isOn ? "ON" : "OFF",
                   state.waterPump.forceOff ? "(BLOQUEADA)" : "",
                   "");
-    
+
     // NUEVA INFORMACIÓN: Estado de coordinación de bomba de aire
     const char* airModeStr = (state.airStoneMode == AIR_MODE_AUTONOMOUS) ? "AUTONOMO" :
                             (state.airStoneMode == AIR_MODE_RECIRCULATION) ? "RECIRCULACION" : "INACTIVO";
@@ -1094,17 +1241,17 @@ void AutonomousController::printActuatorStates() {
     if (state.recircAirLeadActive) airPhaseStr = " (LEAD)";
     else if (state.recircAirPostActive) airPhaseStr = " (POST)";
     else if (state.autonomousAirActive) airPhaseStr = " (PERIODICO)";
-    
-    Serial.printf("   💨 Difusor aire: %s %s - Modo: %s%s\n", 
+
+    Serial.printf("   💨 Difusor aire: %s %s - Modo: %s%s\n",
                   state.airStone.isOn ? "ON" : "OFF",
                   state.airStone.forceOff ? "(BLOQUEADO)" : "",
                   airModeStr, airPhaseStr);
-    
+
     if (state.airStoneMode != AIR_MODE_RECIRCULATION) {
         unsigned long currentMinutes = getCurrentMinutes();
-        Serial.printf("       Próximo ciclo autónomo: minuto %lu (actual: %lu, en %lu min)\n", 
-                      state.nextAutonomousAirTime, currentMinutes, 
-                      (state.nextAutonomousAirTime > currentMinutes) ? 
+        Serial.printf("       Próximo ciclo autónomo: minuto %lu (actual: %lu, en %lu min)\n",
+                      state.nextAutonomousAirTime, currentMinutes,
+                      (state.nextAutonomousAirTime > currentMinutes) ?
                       (state.nextAutonomousAirTime - currentMinutes) : 0);
     }
 }
@@ -1177,8 +1324,8 @@ void AutonomousController::initializeVariableConfigs() {
     
     // Nivel de agua - Fail-safe para proteger bomba
     state.waterLevelConfig = {
-        .minValue = WATER_LEVEL_RECOVERY,  // Nivel para permitir bomba (< 6cm)
-        .maxValue = WATER_LEVEL_MIN,       // Nivel para apagar bomba (> 7cm)
+        .minValue = WATER_DISTANCE_RECOVERY,  // Distancia para permitir bomba (< 34cm)
+        .maxValue = WATER_DISTANCE_MAX,       // Distancia para apagar bomba (> 33cm)
         .hysteresis = 0.5f,                // 0.5cm de histéresis
         .restTimeMs = WATER_LEVEL_REST_TIME_MS,
         .hasActuator = true
@@ -1325,7 +1472,11 @@ void AutonomousController::heaterFastMonitoring() {
     // === VERIFICACIÓN DE EMERGENCIA (temperatura actual) ===
     // PRIORITARIO: Apagar inmediatamente sin verificar tiempo mínimo
     if (currentTemp >= HEATER_EMERGENCY_TEMP) {
+        Serial.printf("🔴 [HEATER-MONITOR] EMERGENCIA detectada: %.1f°C ≥ %.1f°C\n",
+                     currentTemp, HEATER_EMERGENCY_TEMP);
+        Serial.printf("🔴 [HEATER-MONITOR] Ejecutando apagado inmediato...\n");
         heaterSafetyTurnOff("EMERGENCIA - temperatura crítica ≥25.0°C");
+        Serial.printf("✅ [HEATER-MONITOR] Calefactor_aire estado OFF confirmado\n");
         return;
     }
 
@@ -1333,7 +1484,11 @@ void AutonomousController::heaterFastMonitoring() {
     // IMPORTANTE: Apagar sin verificar tiempo mínimo cuando se alcanza temperatura objetivo
     // El tiempo mínimo solo aplica para prevenir ciclos rápidos, no para seguridad térmica
     if (!isnan(avgTemp) && avgTemp >= HEATER_OFF_TEMP) {
+        Serial.printf("🔴 [HEATER-MONITOR] Umbral alcanzado: promedio %.1f°C ≥ %.1f°C\n",
+                     avgTemp, HEATER_OFF_TEMP);
+        Serial.printf("🔴 [HEATER-MONITOR] Ejecutando apagado inmediato...\n");
         heaterSafetyTurnOff("monitoreo rápido - promedio ≥22.5°C (temperatura objetivo alcanzada)");
+        Serial.printf("✅ [HEATER-MONITOR] Calefactor_aire estado OFF confirmado\n");
         return;
     }
     
@@ -1405,25 +1560,26 @@ bool AutonomousController::canTurnHeaterOff() {
 
 void AutonomousController::heaterSafetyTurnOff(const char* reason) {
     if (!state.heater.isOn) return;
-    
+
     unsigned long currentTime = millis();
-    
-    // Apagar calefactor
-    setActuatorState(state.heater, false, "calefactor_aire");
-    
+
+    // CRÍTICO: Apagar calefactor INMEDIATAMENTE (hardware + estado lógico)
+    setActuatorStateImmediate(state.heater, false, "calefactor_aire");
+
     // Actualizar estados del monitoreo rápido
     state.heaterOffStartTime = currentTime;
     state.heaterFastMonitoringActive = false;
-    
+
     // Logging detallado con timestamp
     float currentTemp = sensors->readTemperature();
     float avgTemp = getHeaterAverageTemperature();
-    
-    Serial.printf("🚨 [HEATER-SAFETY] APAGADO: %s\n", reason);
+
+    Serial.printf("🚨 [HEATER-SAFETY] APAGADO INMEDIATO: %s\n", reason);
     Serial.printf("    Temp actual: %.1f°C | Promedio: %.1f°C\n", currentTemp, avgTemp);
-    Serial.printf("    Tiempo encendido: %lu segundos\n", 
+    Serial.printf("    Tiempo encendido: %lu segundos\n",
                   (currentTime - state.heaterOnStartTime) / 1000);
-    
+    Serial.printf("    ✅ Estado físico actualizado inmediatamente\n");
+
     logControlDecision("Temperatura", currentTemp, reason);
 }
 

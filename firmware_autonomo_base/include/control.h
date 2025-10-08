@@ -42,6 +42,17 @@
 #define HUMIDITY_HYSTERESIS 3.0f         // Cambiado de 5% a 3%
 #define HUMIDITY_REST_TIME_MS (3 * 60 * 1000)  // 3 min reposo (humidificador)
 
+// ========================================
+// VALIDACIÓN DE EFECTIVIDAD DEL HUMIDIFICADOR
+// ========================================
+// Protección contra falta de agua o módulo defectuoso
+#define HUMID_WINDOW_MINUTES 5                          // Ventana de evaluación (5 min)
+#define HUMID_MIN_DELTA 1.5f                            // Incremento mínimo de HR (1.5%)
+#define HUMID_TEMP_RESET_THRESHOLD 2.0f                 // Si temp sube >2°C, reiniciar ventana
+#define HUMID_LOCKOUT_DURATION_MS (2 * 60 * 60 * 1000) // Bloqueo de 2 horas
+#define HUMID_MAX_ON_TIME_MS (9 * 60 * 1000)           // Máximo 9 min encendido continuo
+#define HUMID_COOLDOWN_MS (2 * 60 * 1000)              // Cooldown 2 min después de max time
+
 // Temperatura agua (°C) - Rango seguro para espinaca DWC
 #define WATER_TEMP_MIN 18.0f             // Mínimo seguro para espinaca
 #define WATER_TEMP_MAX 23.0f             // Máximo seguro para espinaca
@@ -68,8 +79,10 @@
 #define EC_HYSTERESIS 0.2f
 
 // Nivel de agua (cm) - Fail-safe para proteger bomba
-#define WATER_LEVEL_MIN 7.0f             // Apagar bomba si nivel > 7cm (tanque vacío)
-#define WATER_LEVEL_RECOVERY 6.0f        // Permitir bomba si nivel < 6cm (tanque lleno)
+// IMPORTANTE: Se usa DISTANCIA medida por sensor (no nivel de agua)
+// Tanque altura = 40cm, sensor en la parte superior
+#define WATER_DISTANCE_MAX 33.0f         // Apagar bomba si distancia > 33cm (tanque vacío - nivel < 7cm)
+#define WATER_DISTANCE_RECOVERY 34.0f    // Permitir bomba si distancia < 34cm (tanque lleno - nivel > 6cm)
 #define WATER_LEVEL_REST_TIME_MS (15 * 60 * 1000)  // 15 min reposo
 
 // Luz - Control con máquina de estados avanzada
@@ -85,7 +98,7 @@
 #define LIGHT_END_HOUR 18    // 6:00 PM
 
 // Tiempos mínimos de actuadores (ms)
-#define HEATER_MIN_ON_TIME (10 * 60 * 1000)    // 10 minutos (aire)
+// NOTA: HEATER_MIN_ON_TIME ya definido en línea 34 como 3 minutos
 #define WATER_HEATER_MIN_ON_TIME (5 * 60 * 1000)  // 5 minutos (agua)
 #define FAN_MIN_ON_TIME (5 * 60 * 1000)        // 5 minutos
 #define LIGHT_MIN_TIME (5 * 60 * 1000)         // 5 minutos
@@ -250,6 +263,16 @@ struct ControlState {
     // HUMIDIFICADOR: Control simplificado con secuencia inmediata
     bool humidifierMasterActive;         // Relé maestro (PIN 14) activo
     unsigned long humidifierStartTime;   // Tiempo de inicio del ciclo
+
+    // ========================================
+    // VALIDACIÓN DE EFECTIVIDAD DEL HUMIDIFICADOR
+    // ========================================
+    float humidityAtStart;               // Humedad cuando se encendió
+    float temperatureAtStart;            // Temperatura cuando se encendió
+    unsigned long humidifierWindowStart; // Inicio de ventana de evaluación
+    bool humidifierLocked;               // Bloqueado por inefectividad
+    unsigned long humidifierLockedUntil; // Timestamp de expiración del bloqueo
+    bool windowValidationActive;         // Ventana de validación activa
     
     // ========================================
     // PARCHE DE SEGURIDAD DEL CALEFACTOR (monitoreo rápido)
