@@ -1,5 +1,6 @@
 #include "mqtt_handler.h"
 #include "config.h"
+#include "actuators.h"
 #include <NTPClient.h>
 #include <time.h>
 
@@ -10,8 +11,7 @@ extern NTPClient timeClient;
 MQTTHandler* MQTTHandler::instance = nullptr;
 
 MQTTHandler::MQTTHandler() 
-    : mqttClient(secureClient), 
-      lastReconnectAttempt(0), reconnectInterval(RECONNECT_INTERVAL), reconnectAttempts(0) {
+    : mqttClient(secureClient) {
     
     instance = this;
     
@@ -19,93 +19,60 @@ MQTTHandler::MQTTHandler()
     secureClient.setCACert(MQTT_ROOT_CA);
     
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-    // No callback needed for autonomous mode - only publishing telemetry
     mqttClient.setKeepAlive(60);
-
-    // 👇 Aquí fuerzas el buffer real de la instancia
     mqttClient.setBufferSize(1024);
 
-    // Logs de verificación
-    Serial.printf("🔧 MQTT Buffer configurado (macro): %d bytes máximo\n", MQTT_MAX_PACKET_SIZE);
-    Serial.printf("🔧 MQTT Buffer disponible (real): %d bytes\n", mqttClient.getBufferSize());
+    Serial.printf("🔧 MQTT Buffer configurado: %d bytes máximo\n", MQTT_MAX_PACKET_SIZE);
+    Serial.printf("🔧 MQTT Buffer disponible: %d bytes\n", mqttClient.getBufferSize());
 }
 
 
 void MQTTHandler::begin() {
     connectWiFi();
-    connectMQTT();
+    // connectMQTT() will be called from loop() once WiFi is connected
 }
 
 bool MQTTHandler::connectWiFi() {
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("📶 WiFi ya conectado - IP: %s\n", WiFi.localIP().toString().c_str());
+        // La lógica de impresión se maneja mejor en loop()
         return true;
     }
     
-    Serial.printf("📶 Conectando a WiFi: %s\n", WIFI_SSID);
-    Serial.println("🔑 Credenciales configuradas, iniciando conexión...");
-    
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
+    // Si la conexión no se ha iniciado, la iniciamos una sola vez.
+    if (WiFi.getMode() == WIFI_MODE_NULL || WiFi.status() == WL_DISCONNECTED) {
+        Serial.printf("📶 Iniciando conexión a WiFi: %s\n", WIFI_SSID);
+        Serial.println("� Credenciales configuradas, iniciando conexión...");
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
     
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n✅ WiFi conectado exitosamente!\n");
-        Serial.printf("📍 IP asignada: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("📡 Intensidad señal: %d dBm\n", WiFi.RSSI());
-        Serial.printf("🌐 Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
-        return true;
-    } else {
-        Serial.printf("\n❌ Error conectando WiFi después de %d intentos\n", attempts);
-        Serial.printf("📊 Estado WiFi: %d\n", WiFi.status());
-        return false;
-    }
+    // NOTA: El monitoreo de la conexión y los reintentos se hacen en MQTTHandler::loop()
+    return false;
 }
 
 bool MQTTHandler::connectMQTT() {
     if (mqttClient.connected()) return true;
     
-    // Ensure NTP is synchronized before attempting TLS connection
+    // Check NTP sync status (non-blocking)
     if (!timeClient.isTimeSet()) {
-        Serial.println("[NET] Sincronizando NTP antes de conectar TLS...");
+        Serial.println("[NET] NTP no sincronizado - intentando actualizar...");
         timeClient.forceUpdate();
         
-        // Wait up to 10 seconds for NTP sync
-        int ntpRetries = 0;
-        while (!timeClient.isTimeSet() && ntpRetries < 10) {
-            delay(1000);
-            timeClient.update();
-            ntpRetries++;
-            Serial.printf("[NET] Intento NTP %d/10...\n", ntpRetries);
-        }
-        
+        // If still not set, skip TLS connection
         if (!timeClient.isTimeSet()) {
-            Serial.println("❌ [NET] Error: NTP no sincronizado - TLS requiere hora correcta");
-            Serial.println("❌ [NET] Conexión TLS cancelada");
+            Serial.println("⚠️  [NET] NTP no disponible - esperando sincronización");
             return false;
         }
-        
-        Serial.printf("✅ [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
     }
     
     // Validate that we have a reasonable time (after year 2021)
     unsigned long epochTime = timeClient.getEpochTime();
     if (epochTime < 1609459200) {  // January 1, 2021
-        Serial.printf("❌ [NET] Hora inválida para TLS: %lu (requiere > 2021)\n", epochTime);
-        Serial.println("❌ [NET] Conexión TLS cancelada");
+        Serial.printf("⚠️  [NET] Hora inválida para TLS: %lu (requiere > 2021)\n", epochTime);
         return false;
     }
     
-    Serial.printf("✅ [NET] Hora válida para TLS: %lu\n", epochTime);
-    
     Serial.printf("[MQTT] Conectando a MQTT broker TLS: %s:%d\n", MQTT_HOST, MQTT_PORT);
     Serial.printf("[MQTT] Usuario: %s, Cliente: %s\n", MQTT_USER, MQTT_CLIENT_ID);
-    Serial.println("[MQTT] Verificando certificado TLS...");
     
     // Set Last Will Testament (LWT)
     DynamicJsonDocument lwtDoc(256);
@@ -117,17 +84,10 @@ bool MQTTHandler::connectMQTT() {
     if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWD, 
                           TOPIC_STATUS, 1, true, lwtPayload.c_str())) {
         Serial.println("✅ [MQTT] MQTT conectado con TLS!");
-        
-        // Reset reconnect attempts on successful connection
-        reconnectAttempts = 0;
-        reconnectInterval = RECONNECT_INTERVAL;
-        
-        // Subscribe to job schedule topic with QoS 1
-        // Autonomous mode: no subscriptions needed, only publish telemetry
         Serial.println("🎛️  Modo autónomo: sin suscripciones MQTT activas");
         
         // Publish online status
-        publishStatus("online"); // Use internal timestamp for initial connection
+        publishStatus("online");
         
         // Process any buffered telemetry
         processBufferedTelemetry();
@@ -135,44 +95,90 @@ bool MQTTHandler::connectMQTT() {
         return true;
     } else {
         int mqttState = mqttClient.state();
-        Serial.printf("❌ [MQTT] connect state = %d\n", mqttState);
+        Serial.printf("❌ [MQTT] Fallo de conexión, estado: %d\n", mqttState);
         
-        // Decodificar estado del error para diagnóstico
+        // Decode error state for diagnostics
         switch (mqttState) {
-            case -4: Serial.println("   📋 Detalles: MQTT_CONNECTION_TIMEOUT"); break;
-            case -3: Serial.println("   📋 Detalles: MQTT_CONNECTION_LOST"); break;
-            case -2: Serial.println("   📋 Detalles: MQTT_CONNECT_FAILED"); break;
-            case -1: Serial.println("   📋 Detalles: MQTT_DISCONNECTED"); break;
-            case 1: Serial.println("   📋 Detalles: MQTT_CONNECT_BAD_PROTOCOL"); break;
-            case 2: Serial.println("   📋 Detalles: MQTT_CONNECT_BAD_CLIENT_ID"); break;
-            case 3: Serial.println("   📋 Detalles: MQTT_CONNECT_UNAVAILABLE"); break;
-            case 4: Serial.println("   📋 Detalles: MQTT_CONNECT_BAD_CREDENTIALS"); break;
-            case 5: Serial.println("   📋 Detalles: MQTT_CONNECT_UNAUTHORIZED"); break;
-            default: Serial.printf("   📋 Detalles: Estado desconocido (%d)\n", mqttState); break;
+            case -4: Serial.println("   📋 MQTT_CONNECTION_TIMEOUT"); break;
+            case -3: Serial.println("   📋 MQTT_CONNECTION_LOST"); break;
+            case -2: Serial.println("   📋 MQTT_CONNECT_FAILED"); break;
+            case -1: Serial.println("   📋 MQTT_DISCONNECTED"); break;
+            case 1: Serial.println("   📋 MQTT_CONNECT_BAD_PROTOCOL"); break;
+            case 2: Serial.println("   📋 MQTT_CONNECT_BAD_CLIENT_ID"); break;
+            case 3: Serial.println("   📋 MQTT_CONNECT_UNAVAILABLE"); break;
+            case 4: Serial.println("   📋 MQTT_CONNECT_BAD_CREDENTIALS"); break;
+            case 5: Serial.println("   📋 MQTT_CONNECT_UNAUTHORIZED"); break;
+            default: Serial.printf("   📋 Estado desconocido (%d)\n", mqttState); break;
         }
         
-        reconnectAttempts++;
-        reconnectInterval = getBackoffInterval();
-        Serial.printf("⏰ Reintento #%d programado en %lu ms\n", reconnectAttempts, reconnectInterval);
         return false;
     }
 }
 
 void MQTTHandler::loop() {
-    // Maintain WiFi connection
-    if (!isWiFiConnected()) {
-        connectWiFi();
-    }
+    unsigned long now = millis();
     
-    // Maintain MQTT connection with exponential backoff
-    if (!isConnected()) {
-        unsigned long now = millis();
-        if (now - lastReconnectAttempt > reconnectInterval) {
-            lastReconnectAttempt = now;
-            connectMQTT();
+    // 1. WiFi connection management with exponential backoff (non-blocking)
+    if (WiFi.status() != WL_CONNECTED) {
+        // Check if it's time to retry WiFi connection
+        if (now - lastWifiReconnectAttempt >= currentWifiReconnectDelay) {
+            lastWifiReconnectAttempt = now;
+            wifiReconnectAttempts++;
+            
+            Serial.printf("❌ WiFi desconectado (Estado: %d). Reintento #%d\n", 
+                          WiFi.status(), wifiReconnectAttempts);
+            
+            // Attempt to reconnect
+            connectWiFi(); 
+            
+            // Exponential backoff: 1s, 2s, 4s, 8s... up to MAX
+            currentWifiReconnectDelay *= 2;
+            if (currentWifiReconnectDelay > MAX_WIFI_RECONNECT_DELAY) {
+                currentWifiReconnectDelay = MAX_WIFI_RECONNECT_DELAY;
+            }
+
+            // Critical condition: too many failed attempts
+            if (wifiReconnectAttempts > MAX_WIFI_ATTEMPTS) {
+                Serial.println("🚨 FALLO PERSISTENTE DE WIFI. Forzando ESP.restart().");
+                ActuatorController::emergencyStop();
+                delay(1000); 
+                ESP.restart(); 
+            }
         }
+        
+        // ⚠️ CRITICAL: Do NOT return here - autonomous control must continue
+        // WiFi is optional for autonomous operation
     } else {
-        mqttClient.loop();
+        // WiFi connected - reset backoff counters
+        if (wifiReconnectAttempts > 0) {
+            Serial.printf("✅ WiFi reconectado. IP: %s, RSSI: %d dBm\n", 
+                         WiFi.localIP().toString().c_str(), WiFi.RSSI());
+            currentWifiReconnectDelay = 1000; 
+            wifiReconnectAttempts = 0; 
+        }
+        
+        // 2. MQTT connection management (only when WiFi is available)
+        if (!isConnected()) {
+            if (now - lastMqttReconnectAttempt > currentMqttReconnectDelay) {
+                lastMqttReconnectAttempt = now;
+                
+                Serial.printf("⚠️ MQTT desconectado. Intentando reconexión...\n");
+
+                if (connectMQTT()) {
+                    // Success: reset delay
+                    currentMqttReconnectDelay = 2000;
+                } else {
+                    // Failure: exponential backoff
+                    currentMqttReconnectDelay *= 2;
+                    if (currentMqttReconnectDelay > MAX_MQTT_RECONNECT_DELAY) {
+                        currentMqttReconnectDelay = MAX_MQTT_RECONNECT_DELAY;
+                    }
+                }
+            }
+        } else {
+            // MQTT connected - process messages
+            mqttClient.loop();
+        }
     }
 }
 
@@ -305,13 +311,6 @@ String MQTTHandler::getCurrentTimestamp() {
     strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
     
     return String(isoBuffer);
-}
-
-unsigned long MQTTHandler::getBackoffInterval() {
-    // Exponential backoff: 5s, 10s, 20s, 30s (max)
-    unsigned long intervals[] = {5000, 10000, 20000, 30000};
-    int index = min(reconnectAttempts - 1, 3);
-    return intervals[index];
 }
 
 void MQTTHandler::bufferTelemetry(const String& payload) {

@@ -108,28 +108,12 @@ void setup() {
     ActuatorController::begin();
     
     Serial.println("🔧 Conectando WiFi y configurando MQTT...");
-    mqttHandler.begin();  // Esto conecta WiFi primero
+    mqttHandler.begin();  // Non-blocking WiFi connection start
     
-    // Initialize NTP AFTER WiFi is connected
+    // Initialize NTP (will sync in loop)
     Serial.println("🔧 Inicializando sincronización NTP...");
     timeClient.begin();
-    
-    // Give NTP time to sync, but don't block indefinitely
-    Serial.print("📅 Sincronizando tiempo NTP");
-    int ntpAttempts = 0;
-    while (!timeClient.isTimeSet() && ntpAttempts < 10) {
-        delay(1000);
-        timeClient.forceUpdate();
-        Serial.print(".");
-        ntpAttempts++;
-    }
-    
-    if (timeClient.isTimeSet()) {
-        Serial.printf("\n✅ [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
-    } else {
-        Serial.println("\n⚠️ [NET] NTP no sincronizado después de 10 intentos");
-        Serial.println("🤖 [NET] El control autónomo funcionará sin timestamps precisos");
-    }
+    Serial.println("📅 NTP se sincronizará en segundo plano (no bloqueante)");
     
     Serial.println("🔧 Inicializando controlador autónomo...");
     controller.begin();
@@ -144,11 +128,11 @@ void setup() {
 void loop() {
     unsigned long currentTime = millis();
     
+    // 👇 Esto debe ir siempre primero: Garantiza reconexión no bloqueante.
+    mqttHandler.loop();
+    
     // Update NTP time
     timeClient.update();
-    
-    // Maintain MQTT connections
-    mqttHandler.loop();
     
     // Run autonomous control system
     controller.loop();
@@ -195,6 +179,15 @@ void loop() {
         
         if (freeHeap < 10000) {
             Serial.println("🚨 Memoria crítica - reiniciando...");
+            ActuatorController::emergencyStop();
+            delay(1000);
+            ESP.restart();
+        }
+        
+        // 🛡️ AÑADIR: Condición de reinicio por fallo prolongado de WiFi
+        if (!mqttHandler.isWiFiConnected() && 
+            (currentTime - mqttHandler.getLastWifiAttemptTime() > 1800000)) { // 30 minutos sin Wi-Fi
+            Serial.println("🚨 [WDT] Reinicio por fallo prolongado de WiFi (30 min).");
             ActuatorController::emergencyStop();
             delay(1000);
             ESP.restart();

@@ -20,10 +20,17 @@ private:
     WiFiClientSecure secureClient;
     PubSubClient mqttClient;
     
-    // Connection management with exponential backoff
-    unsigned long lastReconnectAttempt;
-    unsigned long reconnectInterval;
-    int reconnectAttempts;
+    // WiFi connection backoff
+    unsigned long lastWifiReconnectAttempt = 0;
+    unsigned long currentWifiReconnectDelay = 1000; // Start at 1 second
+    const unsigned long MAX_WIFI_RECONNECT_DELAY = 120000; // Max 2 minutes
+    const int MAX_WIFI_ATTEMPTS = 50; // Max attempts before restart
+    int wifiReconnectAttempts = 0;
+    
+    // MQTT connection backoff
+    unsigned long lastMqttReconnectAttempt = 0;
+    unsigned long currentMqttReconnectDelay = 2000; // Start at 2 seconds
+    const unsigned long MAX_MQTT_RECONNECT_DELAY = 120000; // Max 2 minutes
     
     // Telemetry buffering
     std::queue<TelemetryBuffer> telemetryQueue;
@@ -36,7 +43,6 @@ private:
     bool connectMQTT();
     void processBufferedTelemetry();
     String getCurrentTimestamp();
-    unsigned long getBackoffInterval();
     
 public:
     MQTTHandler();
@@ -50,6 +56,9 @@ public:
     // Connection status
     bool isConnected();
     bool isWiFiConnected();
+    
+    // WiFi watchdog support
+    unsigned long getLastWifiAttemptTime() const { return lastWifiReconnectAttempt; }
     
     // Buffer telemetry when offline
     void bufferTelemetry(const String& payload);
