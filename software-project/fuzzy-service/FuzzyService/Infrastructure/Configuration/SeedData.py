@@ -44,10 +44,11 @@ class SeedDataConfig:
             # INPUT VARIABLES
             {
                 "_id": "68e05364d86d6edc39982870",
-                "name": "Luminosity Index",
-                "description": "Índice de luminosidad ambiental",
+                "name": "Luminosity",
+                "description": "Luminosidad medida por sensor BH1750 (lux)",
                 "type": "input",
                 "reference_id": "688970837f02137645d58395",
+                "defuzzification_threshold": 50,
                 "terms": []  # Se llenarán con IDs de términos creados
             },
             {
@@ -75,11 +76,11 @@ class SeedDataConfig:
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982874",
-                "name": "Luminosity Clear",
-                "description": "Luminosidad clara (lux)",
+                "_id": "68e05364d86d6edc398828D8",
+                "name": "Water Level",
+                "description": "Nivel de agua en el reservorio (seguridad crítica)",
                 "type": "input",
-                "reference_id": "68d6dde25b8956ed967d6a8d",
+                "reference_id": "68d1d07307c249cda4c369b0",
                 "terms": []
             },
             # OUTPUT VARIABLES
@@ -259,16 +260,18 @@ class SeedDataConfig:
     def get_terms_config() -> List[Dict[str, Any]]:
         """Get all fuzzy terms configuration with membership functions."""
         return [
-            # TÉRMINOS PARA: Luminosity Index (68e05364d86d6edc39982870)
+            # TÉRMINOS PARA: Luminosity (BH1750 sensor) (68e05364d86d6edc39982870)
+            # Rangos basados en valores reales de lux (0-65535)
+            # Umbrales: optimalMin=10000, optimalMax=12000
             {
                 "_id": "68e05364d86d6edc39982880",
                 "variable_id": "68e05364d86d6edc39982870",
                 "label": "bajaLuminosidad",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 22.5, 45.0],
+                    "parameters": [0.0, 5000.0, 10000.0],
                     "universe_min": 0.0,
-                    "universe_max": 100.0
+                    "universe_max": 65535.0
                 }
             },
             {
@@ -277,9 +280,9 @@ class SeedDataConfig:
                 "label": "luminosidadNormal",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [35.0, 57.5, 80.0],
+                    "parameters": [9000.0, 11000.0, 13000.0],
                     "universe_min": 0.0,
-                    "universe_max": 100.0
+                    "universe_max": 65535.0
                 }
             },
             {
@@ -288,9 +291,9 @@ class SeedDataConfig:
                 "label": "altaLuminosidad",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [70.0, 85.0, 100.0],
+                    "parameters": [12000.0, 38767.5, 65535.0],
                     "universe_min": 0.0,
-                    "universe_max": 100.0
+                    "universe_max": 65535.0
                 }
             },
             # TÉRMINOS PARA: Ambient Temperature (68e05364d86d6edc39982871)
@@ -395,38 +398,27 @@ class SeedDataConfig:
                     "universe_max": 85.0
                 }
             },
-            # TÉRMINOS PARA: Luminosity Clear (68e05364d86d6edc39982874)
+            # TÉRMINOS PARA: Water Level (68e05364d86d6edc398828D8)
             {
-                "_id": "68e05364d86d6edc3998288c",
-                "variable_id": "68e05364d86d6edc39982874",
-                "label": "pocaLuz",
+                "_id": "68e05364d86d6edc398828D9",
+                "variable_id": "68e05364d86d6edc398828D8",
+                "label": "NivelÓptimo",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 1500.0, 3000.0],
+                    "parameters": [0.0, 3.0, 6.0],
                     "universe_min": 0.0,
-                    "universe_max": 65535.0
+                    "universe_max": 10.0
                 }
             },
             {
-                "_id": "68e05364d86d6edc3998288d",
-                "variable_id": "68e05364d86d6edc39982874",
-                "label": "luzAdecuada",
+                "_id": "68e05364d86d6edc398828DA",
+                "variable_id": "68e05364d86d6edc398828D8",
+                "label": "NivelCrítico",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [2000.0, 3500.0, 5000.0],
+                    "parameters": [6.0, 8.5, 10.0],
                     "universe_min": 0.0,
-                    "universe_max": 65535.0
-                }
-            },
-            {
-                "_id": "68e05364d86d6edc3998288e",
-                "variable_id": "68e05364d86d6edc39982874",
-                "label": "muchaLuz",
-                "membership_function": {
-                    "function_type": "triangular",
-                    "parameters": [4000.0, 34767.5, 65535.0],
-                    "universe_min": 0.0,
-                    "universe_max": 65535.0
+                    "universe_max": 10.0
                 }
             },
             # TÉRMINOS PARA: Potencia del Ventilador (68e05364d86d6edc39982875) - PWM
@@ -988,8 +980,8 @@ class SeedDataConfig:
             },
             {
                 "_id": "68e05365d86d6edc39982912",
-                "name": "Regla 3: Temperatura de emergencia",
-                "description": "Si temperatura ambiente es muy alta, activar protocolo de emergencia térmica completo (10 consecuentes: apagar calefactores, encender ventilador y bombas)",
+                "name": "Regla 3A: Emergencia Térmica - Control de Aire",
+                "description": "Si temperatura ambiente es muy alta, activar ventilador (no depende del nivel de agua)",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
@@ -1000,12 +992,7 @@ class SeedDataConfig:
                 ],
                 "connectors": [],
                 "consequents": [
-                    {
-                        "variable_id": "68e05364d86d6edc39982877",  # Duración de Calefacción de Aire
-                        "terms": ["68e05364d86d6edc398828D0"],  # duracionCorta
-                        "aggregation_method": "max"
-                    },
-                    # Step 1: Ventilador - Encender
+                    # Ventilador - Encender (Potencia Alta, Duración Media)
                     {
                         "variable_id": "68e05364d86d6edc39982875",  # Potencia del Ventilador (PWM)
                         "terms": ["68e05364d86d6edc39982892"],  # potenciaAlta
@@ -1015,8 +1002,30 @@ class SeedDataConfig:
                         "variable_id": "68e05364d86d6edc39982876",  # Duración de Ventilación
                         "terms": ["68e05364d86d6edc39982895"],  # duracionMedia
                         "aggregation_method": "max"
+                    }
+                ]
+            },
+            {
+                "_id": "68e05365d86d6edc3998291B",
+                "name": "Regla 3B: Emergencia Térmica - Activación de Recirculación Segura",
+                "description": "Si la temperatura ambiente es muy alta Y el nivel de agua es seguro, activar bombas para recirculación de emergencia",
+                "conditions": [
+                    {
+                        "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
+                        "variable_name": "Ambient Temperature",
+                        "operator": "IS",
+                        "value": "calorAmbiental"
                     },
-                    # Step 2: Bomba Aireación - Encender
+                    {
+                        "variable_id": "68e05364d86d6edc398828D8",  # Water Level
+                        "variable_name": "Water Level",
+                        "operator": "IS",
+                        "value": "NivelÓptimo"
+                    }
+                ],
+                "connectors": ["AND"],
+                "consequents": [
+                    # Bomba Aireación - Encender
                     {
                         "variable_id": "68e05364d86d6edc398828B4",  # Control Bomba Aireación
                         "terms": ["68e05364d86d6edc398828C9"],  # ON
@@ -1027,7 +1036,7 @@ class SeedDataConfig:
                         "terms": ["68e05364d86d6edc39982896"],  # duracionLarga
                         "aggregation_method": "max"
                     },
-                    # Step 3: Bomba Riego - Encender
+                    # Bomba Riego - Encender
                     {
                         "variable_id": "68e05364d86d6edc398828B5",  # Control Bomba Riego
                         "terms": ["68e05364d86d6edc398828CB"],  # ON
@@ -1035,7 +1044,7 @@ class SeedDataConfig:
                     },
                     {
                         "variable_id": "68e05364d86d6edc3998287a",  # Duración de Riego
-                        "terms": ["68e05364d86d6edc39982896"],  # duracionLarga (reutilizando mismo término ID de ventilación para consistencia)
+                        "terms": ["68e05364d86d6edc39982896"],  # duracionLarga
                         "aggregation_method": "max"
                     }
                 ]
@@ -1095,16 +1104,22 @@ class SeedDataConfig:
             {
                 "_id": "68e05365d86d6edc39982915",
                 "name": "Regla 6: Temperatura de agua fria",
-                "description": "Si temperatura del agua es muy fría, encender calefactor de agua con duración media",
+                "description": "Si temperatura del agua es muy fría Y el nivel de agua es seguro, encender calefactor de agua con duración media",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
                         "variable_name": "Water Temperature",
                         "operator": "IS",
                         "value": "aguaFria"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc398828D8",  # Water Level
+                        "variable_name": "Water Level",
+                        "operator": "IS",
+                        "value": "NivelÓptimo"
                     }
                 ],
-                "connectors": [],
+                "connectors": ["AND"],
                 "consequents": [
                     {
                         "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
@@ -1173,22 +1188,16 @@ class SeedDataConfig:
             {
                 "_id": "68e05365d86d6edc39982918",
                 "name": "Regla 9: Nivel de luz bajo",
-                "description": "Si tanto el índice de luminosidad como la luz clara son bajas, encender luz artificial con duración media",
+                "description": "Si la luminosidad (BH1750) es baja (< 10000 lux), encender luz artificial con duración media",
                 "conditions": [
                     {
-                        "variable_id": "68e05364d86d6edc39982870",  # Luminosity Index
-                        "variable_name": "Luminosity Index",
+                        "variable_id": "68e05364d86d6edc39982870",  # Luminosity
+                        "variable_name": "Luminosity",
                         "operator": "IS",
                         "value": "bajaLuminosidad"
-                    },
-                    {
-                        "variable_id": "68e05364d86d6edc39982874",  # Luminosity Clear
-                        "variable_name": "Luminosity Clear",
-                        "operator": "IS",
-                        "value": "pocaLuz"
                     }
                 ],
-                "connectors": ["AND"],
+                "connectors": [],
                 "consequents": [
                     {
                         "variable_id": "68e05364d86d6edc398828B2",  # Control Luz
@@ -1205,22 +1214,16 @@ class SeedDataConfig:
             {
                 "_id": "68e05365d86d6edc39982919",
                 "name": "Regla 10: Nivel de luz optimo",
-                "description": "Si tanto el índice de luminosidad como la luz clara son óptimas, apagar luz artificial con duración corta",
+                "description": "Si la luminosidad (BH1750) es normal/óptima (10000-13000 lux), apagar luz artificial con duración corta",
                 "conditions": [
                     {
-                        "variable_id": "68e05364d86d6edc39982870",  # Luminosity Index
-                        "variable_name": "Luminosity Index",
+                        "variable_id": "68e05364d86d6edc39982870",  # Luminosity
+                        "variable_name": "Luminosity",
                         "operator": "IS",
                         "value": "luminosidadNormal"
-                    },
-                    {
-                        "variable_id": "68e05364d86d6edc39982874",  # Luminosity Clear
-                        "variable_name": "Luminosity Clear",
-                        "operator": "IS",
-                        "value": "luzAdecuada"
                     }
                 ],
-                "connectors": ["AND"],
+                "connectors": [],
                 "consequents": [
                     {
                         "variable_id": "68e05364d86d6edc398828B2",  # Control Luz
@@ -1230,6 +1233,66 @@ class SeedDataConfig:
                     {
                         "variable_id": "68e05364d86d6edc39982878",  # Duración de Luz
                         "terms": ["68e05364d86d6edc398828D3"],  # duracionCorta
+                        "aggregation_method": "max"
+                    }
+                ]
+            },
+            {
+                "_id": "68e05365d86d6edc3998291A",
+                "name": "Regla 11: Nivel Crítico - Bloqueo de Actuadores de Agua",
+                "description": "Si el Nivel de Agua es Crítico, forzar el apagado de la Bomba de Agua, Calefactor de Agua, Bomba de Aireación y Humidificador para proteger el hardware",
+                "conditions": [
+                    {
+                        "variable_id": "68e05364d86d6edc398828D8",  # Water Level
+                        "variable_name": "Water Level",
+                        "operator": "IS",
+                        "value": "NivelCrítico"
+                    }
+                ],
+                "connectors": [],
+                "consequents": [
+                    # 1. Calefactor Agua = OFF
+                    {
+                        "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
+                        "terms": ["68e05364d86d6edc398828C2"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287b",  # Duración de Calefacción de Agua
+                        "terms": ["68e05364d86d6edc398828DC"],  # duracionCorta
+                        "aggregation_method": "max"
+                    },
+                    # 2. Bomba Riego = OFF
+                    {
+                        "variable_id": "68e05364d86d6edc398828B5",  # Control Bomba Riego
+                        "terms": ["68e05364d86d6edc398828CA"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287a",  # Duración de Riego
+                        "terms": ["68e05364d86d6edc39982897"],  # duracionCorta
+                        "aggregation_method": "max"
+                    },
+                    # 3. Bomba Aireación = OFF
+                    {
+                        "variable_id": "68e05364d86d6edc398828B4",  # Control Bomba Aireación
+                        "terms": ["68e05364d86d6edc398828C8"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc39982879",  # Duración de Aireación
+                        "terms": ["68e05364d86d6edc39982897"],  # duracionCorta
+                        "aggregation_method": "max"
+                    },
+                    # 4. Humidificador = OFF
+                    {
+                        "variable_id": "68e05364d86d6edc398828B3",  # Control Humidificador
+                        "terms": ["68e05364d86d6edc398828C6"],  # OFF
+                        "aggregation_method": "max"
+                    },
+                    {
+                        "variable_id": "68e05364d86d6edc3998287c",  # Duración de Humidificación
+                        "terms": ["68e05364d86d6edc398828DE"],  # duracionCorta
                         "aggregation_method": "max"
                     }
                 ]
