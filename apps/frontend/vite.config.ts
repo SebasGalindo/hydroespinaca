@@ -16,9 +16,9 @@ export default defineConfig({
     alias: {
       // Platform-specific resolvers for web - use source files but with stubs
       '@hydroespinaca/shared-ui': path.resolve(__dirname, '../../packages/shared-ui/src'),
-      '@hydroespinaca/shared-hooks': path.resolve(__dirname, '../../packages/shared-hooks/dist'),
-      '@hydroespinaca/shared-utils': path.resolve(__dirname, '../../packages/shared-utils/dist'),
-      '@hydroespinaca/shared-types': path.resolve(__dirname, '../../packages/shared-types/dist'),
+      '@hydroespinaca/shared-hooks': path.resolve(__dirname, '../../packages/shared-hooks/dist/index.mjs'),
+      '@hydroespinaca/shared-utils': path.resolve(__dirname, '../../packages/shared-utils/dist/index.mjs'),
+      '@hydroespinaca/shared-types': path.resolve(__dirname, '../../packages/shared-types/dist/index.mjs'),
       // Legacy alias support
       '@shared-ui': path.resolve(__dirname, '../../packages/shared-ui/src'),
       // Explicitly stub React Native packages for web builds

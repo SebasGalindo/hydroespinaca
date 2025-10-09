@@ -48,6 +48,19 @@ COPY packages/ ./packages/
 # Install dependencies for all workspaces
 RUN pnpm install --frozen-lockfile
 
+# Build workspace packages in dependency order
+# 1. Build shared-types (no dependencies)
+RUN pnpm --filter @hydroespinaca/shared-types build
+
+# 2. Build shared-utils (depends on shared-types)
+RUN pnpm --filter @hydroespinaca/shared-utils build
+
+# 3. Build shared-hooks (depends on shared-types and shared-utils)
+RUN pnpm --filter @hydroespinaca/shared-hooks build
+
+# 4. Build shared-ui (no internal dependencies)
+RUN pnpm --filter @hydroespinaca/shared-ui build
+
 # Copy source code
 COPY apps/frontend/ ./apps/frontend/
 
