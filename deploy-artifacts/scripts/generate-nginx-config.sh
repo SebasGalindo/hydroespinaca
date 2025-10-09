@@ -74,24 +74,8 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         export NGINX_HTTP_CONFIG="
             # API routes to BFF Service (fallback HTTP)
             location /api/ {
-                # CORS headers
-                
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-                add_header 'Access-Control-Allow-Credentials' 'true' always;
-                
-                # Handle preflight requests
-                if (\$request_method = 'OPTIONS') {
-                    
-                    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                    add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-                    add_header 'Access-Control-Allow-Credentials' 'true' always;
-                    add_header 'Access-Control-Max-Age' 1728000;
-                    add_header 'Content-Type' 'text/plain; charset=utf-8';
-                    add_header 'Content-Length' 0;
-                    return 204;
-                }
-                
+                # CORS is handled by ASP.NET Core application
+
                 proxy_pass http://bff_backend/;
                 proxy_set_header Host \$host;
                 proxy_set_header X-Real-IP \$remote_addr;
@@ -234,24 +218,8 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         
         # API routes to BFF Service
         location /api/ {
-            # CORS headers
-            
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            
-            # Handle preflight requests
-            if (\$request_method = 'OPTIONS') {
-                
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-                add_header 'Access-Control-Allow-Credentials' 'true' always;
-                add_header 'Access-Control-Max-Age' 1728000;
-                add_header 'Content-Type' 'text/plain; charset=utf-8';
-                add_header 'Content-Length' 0;
-                return 204;
-            }
-            
+            # CORS is handled by ASP.NET Core application
+
             proxy_pass http://bff_backend/;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
@@ -325,77 +293,49 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     
 else
     echo "[INFO] Configuring for Development (HTTP only)"
-    
-    # Upstreams: include all services for development
+
+    # Upstreams: only BFF service for development
     export NGINX_UPSTREAMS="
         # Upstream for BFF Service
         upstream bff_backend {
             server bff-service:8080;
             keepalive 32;
-        }
-        
-        # Upstream for Frontend Service (development only)
-        upstream frontend_backend {
-            server frontend:3000;
-            keepalive 32;
         }"
-    
-    # HTTP config: proxy directly
+
+    # HTTP config: serve static frontend files even in development
     export NGINX_HTTP_CONFIG="
             # API routes to BFF Service
             location /api/ {
-                # CORS headers for development
-                
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-                add_header 'Access-Control-Allow-Credentials' 'true' always;
-                
-                # Handle preflight requests
-                if (\$request_method = 'OPTIONS') {
-                    
-                    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-                    add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
-                    add_header 'Access-Control-Allow-Credentials' 'true' always;
-                    add_header 'Access-Control-Max-Age' 1728000;
-                    add_header 'Content-Type' 'text/plain; charset=utf-8';
-                    add_header 'Content-Length' 0;
-                    return 204;
-                }
-                
+                # CORS is handled by ASP.NET Core application
+
                 proxy_pass http://bff_backend/;
                 proxy_set_header Host \$host;
                 proxy_set_header X-Real-IP \$remote_addr;
                 proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto \$scheme;
-                
+
                 # WebSocket support
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
-                
+
                 # Timeouts
                 proxy_connect_timeout 60s;
                 proxy_send_timeout 60s;
                 proxy_read_timeout 60s;
             }
-            
-            # Frontend routes
+
+            # Frontend routes - serve static files from volume
             location / {
-                proxy_pass http://frontend_backend;
-                proxy_set_header Host \$host;
-                proxy_set_header X-Real-IP \$remote_addr;
-                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto \$scheme;
-                
-                # WebSocket support for HMR
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade \$http_upgrade;
-                proxy_set_header Connection \"upgrade\";
-                
-                # Timeouts
-                proxy_connect_timeout 60s;
-                proxy_send_timeout 60s;
-                proxy_read_timeout 60s;
+                root /var/www/frontend;
+                index index.html;
+                try_files \$uri \$uri/ /index.html;
+
+                # Cache static assets
+                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+                    expires 1y;
+                    add_header Cache-Control \"public, immutable\";
+                }
             }"
     
     # Redirect config: empty (no redirect)
