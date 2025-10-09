@@ -9,15 +9,18 @@ public class DataSeedingService
 {
     private readonly IActuatorRepository _actuatorRepository;
     private readonly IControlOutputRepository _controlOutputRepository;
+    private readonly IInternalRoutineRepository _internalRoutineRepository;
     private readonly ILogger<DataSeedingService> _logger;
 
     public DataSeedingService(
         IActuatorRepository actuatorRepository,
         IControlOutputRepository controlOutputRepository,
+        IInternalRoutineRepository internalRoutineRepository,
         ILogger<DataSeedingService> logger)
     {
         _actuatorRepository = actuatorRepository;
         _controlOutputRepository = controlOutputRepository;
+        _internalRoutineRepository = internalRoutineRepository;
         _logger = logger;
     }
 
@@ -28,6 +31,7 @@ public class DataSeedingService
             _logger.LogInformation("Starting data seeding for ActuatorService...");
             await SeedActuatorsAsync();
             await SeedControlOutputsAsync();
+            await SeedInternalRoutinesAsync();
             _logger.LogInformation("Data seeding completed successfully");
         }
         catch (Exception ex)
@@ -256,5 +260,110 @@ private async Task SeedActuatorsAsync()
 
         _logger.LogInformation("🎛️  Control Outputs: Created {CreatedCount} new outputs, {ExistingCount} already existed. Total: {Total}",
             createdCount, totalOutputs - createdCount, totalOutputs);
+    }
+
+    private async Task SeedInternalRoutinesAsync()
+    {
+        var esp32Id = "6883fff7b079309f3ba4f238"; // Same ESP32 as actuators
+
+        // Get control outputs for reference
+        var allControlOutputs = await _controlOutputRepository.GetAllAsync();
+        var airPumpOutput = allControlOutputs.FirstOrDefault(co => co.Name == "Duración de Aireación");
+        var waterPumpOutput = allControlOutputs.FirstOrDefault(co => co.Name == "Duración de Riego");
+
+        if (airPumpOutput == null || waterPumpOutput == null)
+        {
+            _logger.LogWarning("⚠️  Cannot seed internal routines - required control outputs not found");
+            return;
+        }
+
+        var routines = new[]
+        {
+            // Recirculation routine - every 4 hours
+            new InternalRoutine
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                Name = "Recirculation",
+                Description = "Routine to circulate nutrient solution every 4 hours",
+                Esp32Id = esp32Id,
+                Interval = TimeSpan.FromHours(4),
+                StartTime = TimeSpan.Zero, // Start at midnight
+                IsActive = true,
+                Steps = new List<InternalRoutineStep>
+                {
+                    // Air pump for 60 seconds
+                    new InternalRoutineStep
+                    {
+                        OutputVariable = airPumpOutput.Id,
+                        Power = "ON",
+                        Duration = 60,
+                        Mode = "DIGITAL"
+                    },
+                    // Water pump for 8 minutes (480 seconds)
+                    new InternalRoutineStep
+                    {
+                        OutputVariable = waterPumpOutput.Id,
+                        Power = "ON",
+                        Duration = 480,
+                        Mode = "DIGITAL"
+                    },
+                    // Air pump for another 60 seconds
+                    new InternalRoutineStep
+                    {
+                        OutputVariable = airPumpOutput.Id,
+                        Power = "ON",
+                        Duration = 60,
+                        Mode = "DIGITAL"
+                    }
+                },
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            // Aeration routine - every 30 minutes
+            new InternalRoutine
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                Name = "Aeration",
+                Description = "Short routine for air circulation every 30 minutes",
+                Esp32Id = esp32Id,
+                Interval = TimeSpan.FromMinutes(30),
+                StartTime = TimeSpan.Zero, // Start at midnight
+                IsActive = true,
+                Steps = new List<InternalRoutineStep>
+                {
+                    // Air pump for 5 minutes (300 seconds)
+                    new InternalRoutineStep
+                    {
+                        OutputVariable = airPumpOutput.Id,
+                        Power = "ON",
+                        Duration = 300,
+                        Mode = "DIGITAL"
+                    }
+                },
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        };
+
+        var createdCount = 0;
+        var totalRoutines = routines.Length;
+
+        foreach (var routine in routines)
+        {
+            // Check if routine already exists by name
+            var existingRoutines = await _internalRoutineRepository.GetActiveRoutinesAsync();
+            var existing = existingRoutines.FirstOrDefault(r => r.Name == routine.Name);
+
+            if (existing == null)
+            {
+                await _internalRoutineRepository.AddAsync(routine);
+                createdCount++;
+                _logger.LogInformation("⏰ Created internal routine: {Name} (Interval: {Interval})",
+                    routine.Name, routine.Interval);
+            }
+        }
+
+        _logger.LogInformation("⏰ Internal Routines: Created {CreatedCount} new routines, {ExistingCount} already existed. Total: {Total}",
+            createdCount, totalRoutines - createdCount, totalRoutines);
     }
 }

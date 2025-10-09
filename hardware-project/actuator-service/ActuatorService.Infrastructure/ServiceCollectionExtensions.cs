@@ -1,4 +1,5 @@
 ﻿using ActuatorService.Application.Interfaces;
+using ActuatorService.Application.Services;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
 using ActuatorService.Infrastructure.Http;
@@ -27,11 +28,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEntityMapper<Actuator, ActuatorDocument>, ActuatorMapper>();
         services.AddScoped<IEntityMapper<RoutineCommand, RoutineCommandDocument>, RoutineCommandMapper>();
         services.AddScoped<IEntityMapper<ControlOutput, ControlOutputDocument>, ControlOutputMapper>();
+        services.AddScoped<IEntityMapper<InternalRoutine, InternalRoutineDocument>, InternalRoutineMapper>();
+        services.AddScoped<IEntityMapper<ActuatorCooldown, ActuatorCooldownDocument>, ActuatorCooldownMapper>();
 
         // Repositories
         services.AddScoped<IActuatorRepository, MongoActuatorRepository>();
         services.AddScoped<IRoutineCommandRepository, MongoRoutineCommandRepository>();
         services.AddScoped<IControlOutputRepository, MongoControlOutputRepository>();
+        services.AddScoped<IInternalRoutineRepository, MongoInternalRoutineRepository>();
 
         // MQTT Publisher
         services.AddScoped<IRoutineCommandPublisher, MqttRoutineCommandPublisher>();
@@ -41,6 +45,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<DatabaseCleanupService>();
         services.AddHostedService<MqttRoutineCompletionSubscriber>();
         services.AddHostedService<MqttRoutineNotificationSubscriber>();
+        services.AddHostedService<InternalRoutineScheduler>();
+        services.AddHostedService<SafetyRulesHostedService>();
+        services.AddHostedService<AdvancedBehaviorMonitoringService>();
 
         // Validation
         services.AddHttpClient<IEsp32ValidationService, Esp32ValidationService>(client =>
@@ -54,6 +61,9 @@ public static class ServiceCollectionExtensions
 
         // Data Seeding
         services.AddScoped<DataSeedingService>();
+
+        // Advanced behavior rules
+        services.AddScoped<IPinBlockManager, PinBlockManager>();
 
         return services;
     }

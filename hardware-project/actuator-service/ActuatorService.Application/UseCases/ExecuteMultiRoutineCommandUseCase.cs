@@ -3,7 +3,6 @@ using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
 using FluentValidation;
-using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
 using HydroEspinaca.Shared.Enums;
 using Microsoft.Extensions.Logging;
@@ -14,27 +13,24 @@ public class ExecuteMultiRoutineCommandUseCase : IExecuteMultiRoutineCommandUseC
 {
     private readonly IValidator<MultiRoutineCommandDto> _validator;
     private readonly IRoutineValidationService _routineValidationService;
-    private readonly IJobScheduleService _jobScheduleService;
+    private readonly IRoutineExecutionService _routineExecutionService;
     private readonly IRoutineCommandRepository _routineCommandRepository;
-    private readonly IRoutineCommandPublisher _routineCommandPublisher;
-    private readonly IPhysicalStepTransformer _physicalStepTransformer;
+    private readonly ICommandFilterService _commandFilterService;
     private readonly ILogger<ExecuteMultiRoutineCommandUseCase> _logger;
 
     public ExecuteMultiRoutineCommandUseCase(
         IValidator<MultiRoutineCommandDto> validator,
         IRoutineValidationService routineValidationService,
-        IJobScheduleService jobScheduleService,
+        IRoutineExecutionService routineExecutionService,
         IRoutineCommandRepository routineCommandRepository,
-        IRoutineCommandPublisher routineCommandPublisher,
-        IPhysicalStepTransformer physicalStepTransformer,
+        ICommandFilterService commandFilterService,
         ILogger<ExecuteMultiRoutineCommandUseCase> logger)
     {
         _validator = validator;
         _routineValidationService = routineValidationService;
-        _jobScheduleService = jobScheduleService;
+        _routineExecutionService = routineExecutionService;
         _routineCommandRepository = routineCommandRepository;
-        _routineCommandPublisher = routineCommandPublisher;
-        _physicalStepTransformer = physicalStepTransformer;
+        _commandFilterService = commandFilterService;
         _logger = logger;
     }
 
@@ -48,9 +44,21 @@ public class ExecuteMultiRoutineCommandUseCase : IExecuteMultiRoutineCommandUseC
         if (!validationResult.IsValid)
             throw new ValidationException(validationResult.Errors);
 
-        // 2. Validate and resolve all routine steps (outputVariable → physical actuator data)
+        // 2. Apply intelligent command filter (remove redundant commands)
+        var filteredRoutines = await _commandFilterService.FilterCommandsAsync(multiRoutineCommand.Routines);
+
+        if (filteredRoutines.Count == 0)
+        {
+            _logger.LogInformation("🚫 All routines were filtered out as redundant, no commands to execute");
+            return new List<string>();
+        }
+
+        _logger.LogInformation("✅ Filter passed {AcceptedCount}/{TotalCount} routines",
+            filteredRoutines.Count, multiRoutineCommand.Routines.Count);
+
+        // 3. Validate and resolve all routine steps (outputVariable → physical actuator data)
         var resolvedRoutines = new List<ResolvedRoutineDto>();
-        foreach (var routine in multiRoutineCommand.Routines)
+        foreach (var routine in filteredRoutines)
         {
             var resolvedSteps = await _routineValidationService.ValidateAndResolveStepsAsync(routine.Steps);
 
@@ -82,99 +90,42 @@ public class ExecuteMultiRoutineCommandUseCase : IExecuteMultiRoutineCommandUseC
 
         var esp32Id = allEsp32Ids.First();
 
-        // 3. Create job schedule with channel assignments (updates in-memory state)
-        var jobSchedule = await _jobScheduleService.CreateJobScheduleAsync(resolvedRoutines);
+        // 4. Schedule routines with execution service (handles pin locking and MQTT publishing)
+        var commandIds = await _routineExecutionService.ScheduleRoutinesAsync(resolvedRoutines, esp32Id);
 
-        // 4. Store NEW incoming routines in database (avoid duplicates)
-        var commandIds = new List<string>();
-        var newJobRoutines = new List<JobRoutineDto>();
-
-        foreach (var channel in jobSchedule.JobSchedule)
+        // 5. Store routines in database
+        foreach (var resolvedRoutine in resolvedRoutines)
         {
-            foreach (var routine in channel.Queue)
-            {
-                // Check if this routine was just generated (part of incoming request)
-                var routineId = ExtractRoutineIdFromCommandId(routine.CommandId);
-                if (multiRoutineCommand.Routines.Any(r => r.RoutineId == routineId))
-                {
-                    // This is a new routine - save to database
-                    var existingCommand = await _routineCommandRepository.GetByCommandIdAsync(routine.CommandId);
-                    if (existingCommand == null) // Only save if not already exists
-                    {
-                        var routineCommandEntity = new RoutineCommand
-                        {
-                            CommandId = routine.CommandId,
-                            RoutineId = routineId,
-                            Esp32Id = esp32Id,
-                            StatusGeneral = RoutineCommandStatus.SCHEDULED,
-                            CreatedAt = DateTime.UtcNow,
-                            Channel = channel.Channel
-                        };
+            var commandId = commandIds.FirstOrDefault(id => id.Contains(resolvedRoutine.RoutineId));
+            if (commandId == null) continue;
 
-                        await _routineCommandRepository.AddAsync(routineCommandEntity);
-                        commandIds.Add(routine.CommandId);
-                        newJobRoutines.Add(routine);
-                    }
-                }
+            var existingCommand = await _routineCommandRepository.GetByCommandIdAsync(commandId);
+            if (existingCommand == null)
+            {
+                var stepMappings = resolvedRoutine.ResolvedSteps.Select(step => new RoutineStepMapping
+                {
+                    Pin = step.Pin,
+                    ActuatorId = step.ActuatorId,
+                    OutputVariableId = step.OutputVariableId
+                }).ToList();
+
+                var routineCommandEntity = new RoutineCommand
+                {
+                    CommandId = commandId,
+                    RoutineId = resolvedRoutine.RoutineId,
+                    Esp32Id = esp32Id,
+                    StatusGeneral = RoutineCommandStatus.SCHEDULED, // Will be IN_PROGRESS if activated immediately
+                    CreatedAt = DateTime.UtcNow,
+                    StepMappings = stepMappings
+                };
+
+                await _routineCommandRepository.AddAsync(routineCommandEntity);
+                _logger.LogDebug("💾 Saved routine {CommandId} to database", commandId);
             }
         }
 
-        // 5. Update database statuses to match job schedule (first=IN_PROGRESS, rest=SCHEDULED)
-        foreach (var channel in jobSchedule.JobSchedule)
-        {
-            for (int i = 0; i < channel.Queue.Count; i++)
-            {
-                var routine = channel.Queue[i];
-                var command = await _routineCommandRepository.GetByCommandIdAsync(routine.CommandId);
-
-                if (command != null)
-                {
-                    var correctStatus = i == 0 ? RoutineCommandStatus.IN_PROGRESS : RoutineCommandStatus.SCHEDULED;
-                    if (command.StatusGeneral != correctStatus)
-                    {
-                        command.StatusGeneral = correctStatus;
-                        await _routineCommandRepository.UpdateAsync(command);
-                    }
-                }
-            }
-        }
-
-        // 6. Publish NEW routines to MQTT with physical format (ready for ESP32)
-        if (newJobRoutines.Any())
-        {
-            // Transform steps to physical format
-            var newJobSchedule = new JobScheduleDto
-            {
-                Esp32Id = esp32Id,
-                JobSchedule = jobSchedule.JobSchedule
-                    .Select(channel => new JobChannelDto
-                    {
-                        Channel = channel.Channel,
-                        Queue = channel.Queue.Where(r => newJobRoutines.Any(nr => nr.CommandId == r.CommandId)).ToList()
-                    })
-                    .Where(c => c.Queue.Any())
-                    .ToList()
-            };
-
-            await _routineCommandPublisher.PublishJobScheduleAsync(newJobSchedule);
-            _logger.LogInformation("📤 Published {NewRoutineCount} new routines to MQTT for ESP32 {Esp32Id}",
-                newJobRoutines.Count, esp32Id);
-        }
-        else
-        {
-            _logger.LogInformation("📋 No new routines to publish - all already exist");
-        }
-
-        _logger.LogInformation("Successfully executed multi-routine command with {CommandCount} commands: {CommandIds}",
-            commandIds.Count, string.Join(", ", commandIds));
+        _logger.LogInformation("✅ Executed {Count} routines for ESP32 {Esp32Id}", commandIds.Count, esp32Id);
 
         return commandIds;
-    }
-
-    private string ExtractRoutineIdFromCommandId(string commandId)
-    {
-        // CommandId format: {routineId}_{timestamp}
-        var parts = commandId.Split('_');
-        return parts.Length > 0 ? parts[0] : commandId;
     }
 }

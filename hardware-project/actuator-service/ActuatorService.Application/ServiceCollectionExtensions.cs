@@ -1,6 +1,7 @@
 ﻿using ActuatorService.Application.Interfaces;
 using ActuatorService.Application.Services;
 using ActuatorService.Application.UseCases;
+using ActuatorService.Domain.Interfaces;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -25,8 +26,20 @@ public static class ServiceCollectionExtensions
 
         // Multi-routine command services
         services.AddScoped<IExecuteMultiRoutineCommandUseCase, ExecuteMultiRoutineCommandUseCase>();
-        services.AddSingleton<IJobScheduleStateManager, JobScheduleStateManager>();
-        services.AddScoped<IJobScheduleService, JobScheduleService>();
+
+        // Pin-based execution (singleton for in-memory state and locking)
+        services.AddSingleton<IPinLockRegistry, PinLockRegistry>();
+        services.AddSingleton<IRoutineExecutionService, RoutineExecutionService>();
+
+        // Actuator state machine (singleton for in-memory state)
+        services.AddSingleton<IActuatorStateMachine, ActuatorStateMachine>();
+        services.AddScoped<ActuatorStartupSyncService>();
+
+        // Command filtering
+        services.AddScoped<ICommandFilterService, CommandFilterService>();
+
+        // Advanced behavior rules
+        services.AddScoped<AdvancedBehaviorRulesService>();
 
         return services;
     }
