@@ -17,6 +17,7 @@ public static class VariableMapper
         OptimalMin = v.OptimalMin,
         OptimalMax = v.OptimalMax,
         Type = v.Type.ToString(),
+        RegulationType = v.RegulationType?.ToString(),
         LastModified = v.LastModified
     };
 
@@ -24,6 +25,14 @@ public static class VariableMapper
     {
         if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var variableType))
             throw new ArgumentException($"Invalid variable type: '{dto.Type}'.");
+
+        RegulationType? regulationType = null;
+        if (!string.IsNullOrEmpty(dto.RegulationType))
+        {
+            if (!Enum.TryParse<RegulationType>(dto.RegulationType, true, out var parsedRegulationType))
+                throw new ArgumentException($"Invalid regulation type: '{dto.RegulationType}'.");
+            regulationType = parsedRegulationType;
+        }
 
         var variableEn =  new Variable
         {
@@ -35,6 +44,7 @@ public static class VariableMapper
             OptimalMin = dto.OptimalMin,
             OptimalMax = dto.OptimalMax,
             Type = variableType,
+            RegulationType = regulationType,
             LastModified = DateTime.UtcNow
         };
         return variableEn;
@@ -46,6 +56,14 @@ public static class VariableMapper
         if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var variableType))
             throw new ArgumentException($"Invalid variable type: '{dto.Type}'.");
 
+        RegulationType? regulationType = null;
+        if (!string.IsNullOrEmpty(dto.RegulationType))
+        {
+            if (!Enum.TryParse<RegulationType>(dto.RegulationType, true, out var parsedRegulationType))
+                throw new ArgumentException($"Invalid regulation type: '{dto.RegulationType}'.");
+            regulationType = parsedRegulationType;
+        }
+
         entity.Name = dto.Name;
         entity.Unit = dto.Unit;
         entity.Description = dto.Description;
@@ -54,6 +72,7 @@ public static class VariableMapper
         entity.OptimalMin = dto.OptimalMin;
         entity.OptimalMax = dto.OptimalMax;
         entity.Type = variableType;
+        entity.RegulationType = regulationType;
         entity.LastModified = DateTime.UtcNow;
     }
 }

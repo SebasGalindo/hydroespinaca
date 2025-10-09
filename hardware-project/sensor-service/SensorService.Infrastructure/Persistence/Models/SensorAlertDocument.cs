@@ -13,6 +13,9 @@ public class SensorAlertDocument : IIdentifiableMutable
     [BsonElement("sensorId")]
     public string SensorId { get; set; } = default!;
 
+    [BsonElement("variableId")]
+    public string VariableId { get; set; } = default!;
+
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]
     public AlertType Type { get; set; } = default!;
@@ -22,6 +25,18 @@ public class SensorAlertDocument : IIdentifiableMutable
 
     [BsonElement("threshold")]
     public double Threshold { get; set; }
+
+    [BsonElement("count")]
+    public int Count { get; set; } = 1;
+
+    [BsonElement("lastSeen")]
+    public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("latestValue")]
+    public double? LatestValue { get; set; }
+
+    [BsonElement("resolutionReason")]
+    public string? ResolutionReason { get; set; }
 
     [BsonElement("timestamp")]
     public DateTime Timestamp { get; set; }

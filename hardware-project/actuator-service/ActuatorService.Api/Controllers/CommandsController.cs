@@ -28,8 +28,10 @@ public class CommandsController : ControllerBase
     [Authorize(Policy = PolicyNames.CommandCreate)]
     public async Task<IActionResult> ExecuteRoutines([FromBody] List<RoutineCommandDto> routines)
     {
-        var multiRoutineCommand = new MultiRoutineCommandDto { Routines = routines };
-        var commandIds = await _executeMultiRoutineCommandUseCase.ExecuteAsync(multiRoutineCommand);
+        var commandIds = await _executeMultiRoutineCommandUseCase.ExecuteAsync(
+            new MultiRoutineCommandDto { Routines = routines }
+        );
+
         return Ok(new { CommandIds = commandIds });
     }
 

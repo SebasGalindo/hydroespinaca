@@ -1,4 +1,4 @@
-using NotificationService.Application.DTOs;
+using HydroEspinaca.Shared.DTOs.Notifications;
 
 namespace NotificationService.Application.Interfaces;
 

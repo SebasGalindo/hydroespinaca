@@ -1,0 +1,2 @@
+from .GetAllFuzzyTermsQuery import GetAllFuzzyTermsQuery
+from .GetFuzzyTermByIdQuery import GetFuzzyTermByIdQuery

@@ -1,0 +1,3 @@
+from .CreateFuzzyTermCommand import CreateFuzzyTermCommand
+from .UpdateFuzzyTermCommand import UpdateFuzzyTermCommand
+from .DeleteFuzzyTermCommand import DeleteFuzzyTermCommand

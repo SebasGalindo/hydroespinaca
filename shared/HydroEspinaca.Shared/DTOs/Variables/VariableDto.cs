@@ -9,7 +9,8 @@ public class VariableDto
     public double PhysicalMin { get; set; }
     public double PhysicalMax { get; set; }
     public double OptimalMin { get; set; }
-    public double OptimalMax { get; set; }
+    public double? OptimalMax { get; set; }
     public string Type { get; set; } = default!;
+    public string? RegulationType { get; set; }
     public DateTime LastModified { get; set; }
 }

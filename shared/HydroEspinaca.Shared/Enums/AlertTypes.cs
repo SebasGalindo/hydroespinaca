@@ -8,5 +8,7 @@ public enum AlertType
     OutOfRange,
     Anomaly,
     InactiveSensor,
-    Esp32Offline
+    Esp32Offline,
+    LuminosityQuantityInsufficient,
+    LuminosityQualityInsufficient
 }

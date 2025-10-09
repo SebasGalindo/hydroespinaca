@@ -21,16 +21,17 @@ public static class ServiceCollectionExtensions
     {
         services
             .AddMongoSettings(configuration)
-            .AddMqttSettings(configuration)
-            .AddApiKeySettings(configuration);
+            .AddMqttSettings(configuration);
 
         // Mappers
         services.AddScoped<IEntityMapper<Actuator, ActuatorDocument>, ActuatorMapper>();
         services.AddScoped<IEntityMapper<RoutineCommand, RoutineCommandDocument>, RoutineCommandMapper>();
+        services.AddScoped<IEntityMapper<ControlOutput, ControlOutputDocument>, ControlOutputMapper>();
 
         // Repositories
         services.AddScoped<IActuatorRepository, MongoActuatorRepository>();
         services.AddScoped<IRoutineCommandRepository, MongoRoutineCommandRepository>();
+        services.AddScoped<IControlOutputRepository, MongoControlOutputRepository>();
 
         // MQTT Publisher
         services.AddScoped<IRoutineCommandPublisher, MqttRoutineCommandPublisher>();
@@ -51,6 +52,8 @@ public static class ServiceCollectionExtensions
             }
         });
 
+        // Data Seeding
+        services.AddScoped<DataSeedingService>();
 
         return services;
     }

@@ -11,11 +11,15 @@ extern NTPClient timeClient;
 MQTTHandler* MQTTHandler::instance = nullptr;
 
 MQTTHandler::MQTTHandler(JobScheduler* scheduler) 
-    : mqttClient(wifiClient), jobScheduler(scheduler), 
+    : mqttClient(secureClient), jobScheduler(scheduler), 
       lastReconnectAttempt(0), reconnectInterval(RECONNECT_INTERVAL), reconnectAttempts(0) {
     
     instance = this;
-    mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+    
+    // Configure TLS/SSL
+    secureClient.setCACert(MQTT_ROOT_CA);
+    
+    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
     mqttClient.setCallback(messageCallback);
     mqttClient.setKeepAlive(60);
 
@@ -67,8 +71,42 @@ bool MQTTHandler::connectWiFi() {
 bool MQTTHandler::connectMQTT() {
     if (mqttClient.connected()) return true;
     
-    Serial.printf("🔗 Conectando a MQTT broker: %s:%d\n", MQTT_SERVER, MQTT_PORT);
-    Serial.printf("🔑 Usuario: %s, Cliente: %s\n", MQTT_USER, MQTT_CLIENT_ID);
+    // Ensure NTP is synchronized before attempting TLS connection
+    if (!timeClient.isTimeSet()) {
+        Serial.println("[NET] Sincronizando NTP antes de conectar TLS...");
+        timeClient.forceUpdate();
+        
+        // Wait up to 10 seconds for NTP sync
+        int ntpRetries = 0;
+        while (!timeClient.isTimeSet() && ntpRetries < 10) {
+            delay(1000);
+            timeClient.update();
+            ntpRetries++;
+            Serial.printf("[NET] Intento NTP %d/10...\n", ntpRetries);
+        }
+        
+        if (!timeClient.isTimeSet()) {
+            Serial.println("❌ [NET] Error: NTP no sincronizado - TLS requiere hora correcta");
+            Serial.println("❌ [NET] Conexión TLS cancelada");
+            return false;
+        }
+        
+        Serial.printf("✅ [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
+    }
+    
+    // Validate that we have a reasonable time (after year 2021)
+    unsigned long epochTime = timeClient.getEpochTime();
+    if (epochTime < 1609459200) {  // January 1, 2021
+        Serial.printf("❌ [NET] Hora inválida para TLS: %lu (requiere > 2021)\n", epochTime);
+        Serial.println("❌ [NET] Conexión TLS cancelada");
+        return false;
+    }
+    
+    Serial.printf("✅ [NET] Hora válida para TLS: %lu\n", epochTime);
+    
+    Serial.printf("[MQTT] Conectando a MQTT broker TLS: %s:%d\n", MQTT_HOST, MQTT_PORT);
+    Serial.printf("[MQTT] Usuario: %s, Cliente: %s\n", MQTT_USER, MQTT_CLIENT_ID);
+    Serial.println("[MQTT] Verificando certificado TLS...");
     
     // Set Last Will Testament (LWT)
     DynamicJsonDocument lwtDoc(256);
@@ -77,9 +115,9 @@ bool MQTTHandler::connectMQTT() {
     String lwtPayload;
     serializeJson(lwtDoc, lwtPayload);
     
-    if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, 
+    if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWD, 
                           TOPIC_STATUS, 1, true, lwtPayload.c_str())) {
-        Serial.println("✅ MQTT conectado!");
+        Serial.println("✅ [MQTT] MQTT conectado con TLS!");
         
         // Reset reconnect attempts on successful connection
         reconnectAttempts = 0;
@@ -102,7 +140,7 @@ bool MQTTHandler::connectMQTT() {
         return true;
     } else {
         int mqttState = mqttClient.state();
-        Serial.printf("❌ Error MQTT - Estado: %d\n", mqttState);
+        Serial.printf("❌ [MQTT] connect state = %d\n", mqttState);
         
         // Decodificar estado del error para diagnóstico
         switch (mqttState) {

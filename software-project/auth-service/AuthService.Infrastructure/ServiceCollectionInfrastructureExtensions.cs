@@ -6,8 +6,10 @@ using AuthService.Infrastructure.Persistence.Repositories;
 using AuthService.Infrastructure.Persistence.Schemas;
 using AuthService.Infrastructure.Security;
 using AuthService.Infrastructure.Services;
+using HydroEspinaca.Shared.Authentication.Services;
 using HydroEspinaca.Shared.Extensions;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using HydroEspinaca.Shared.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,7 +29,13 @@ public static class ServiceCollectionApplicationExtensions
             .AddScoped<IClientAuthenticationService, ClientAuthenticationService>()
             .AddScoped<ITokenService, JwtTokenService>()
             .AddScoped<IClientAppRegistrationService, ClientAppRegistrationService>()
-            .AddScoped<IRefreshTokenService, RefreshTokenService>();
+            .AddScoped<IRefreshTokenService, RefreshTokenService>()
+            .AddScoped<ICodeGenerator, CodeGenerator>()
+            .AddScoped<IEmailTemplateRenderer, LiquidEmailTemplateRenderer>();
+
+        // M2M Authentication configuration
+        services.Configure<M2MAuthOptions>(configuration.GetSection("M2M"));
+        services.AddTransient<M2MTokenService>();
 
         services.AddSingleton<IKeyStore>(provider =>
         {
@@ -58,6 +66,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
         services.AddScoped<IPermissionRepository, MongoPermissionRepository>();
         services.AddScoped<IRoleRepository, MongoRoleRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, MongoPasswordResetTokenRepository>();
 
         // Mapping services
         services.AddScoped<IEntityMapper<User, UserDocument>, UserMapper>();
@@ -65,6 +74,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IEntityMapper<RefreshToken, RefreshTokenDocument>, RefreshTokenMapper>();
         services.AddScoped<IEntityMapper<Permission, PermissionDocument>, PermissionMapper>();
         services.AddScoped<IEntityMapper<Role, RoleDocument>, RoleMapper>();
+        services.AddScoped<IEntityMapper<PasswordResetToken, PasswordResetTokenDocument>, PasswordResetTokenMapper>();
 
         // Data seeding service
         services.AddScoped<DataSeedingService>();

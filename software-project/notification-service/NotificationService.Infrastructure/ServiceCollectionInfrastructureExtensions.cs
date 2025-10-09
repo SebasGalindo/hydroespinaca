@@ -55,9 +55,10 @@ public static class ServiceCollectionInfrastructureExtensions
             return new CompositeEmailSender(primary, fallback, logger);
         });
 
-    // Persistencia: logs e idempotencia en Mongo
+    // Persistencia: logs, idempotencia y grupos en Mongo
     services.AddSingleton<IEmailLogRepository, MongoEmailLogRepository>();
     services.AddSingleton<IIdempotencyStore, MongoIdempotencyStore>();
+    services.AddSingleton<INotificationGroupRepository, NotificationGroupRepository>();
 
         return services;
     }

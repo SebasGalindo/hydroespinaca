@@ -1,0 +1,220 @@
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using DotLiquid;
+using HydroEspinaca.Shared.DTOs.Notifications;
+using HydroEspinaca.Shared.Authentication.Services;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using SensorService.Domain.Interfaces;
+using SensorService.Domain.ValueObjects;
+
+namespace SensorService.Infrastructure.Services;
+
+public class CriticalAlertNotificationService : ICriticalAlertNotificationService
+{
+    private readonly HttpClient _httpClient;
+    private readonly M2MTokenService _m2mTokenService;
+    private readonly ILogger<CriticalAlertNotificationService> _logger;
+    private readonly string _notificationServiceUrl;
+    private readonly Template _alertTemplate;
+    
+    // In-memory alert state management (in production, consider using Redis or database)
+    private readonly Dictionary<string, HashSet<string>> _activeAlerts = new();
+    private readonly object _alertStateLock = new();
+
+    public CriticalAlertNotificationService(
+        HttpClient httpClient,
+        M2MTokenService m2mTokenService,
+        IConfiguration configuration,
+        ILogger<CriticalAlertNotificationService> logger)
+    {
+        _httpClient = httpClient;
+        _m2mTokenService = m2mTokenService;
+        _logger = logger;
+        _notificationServiceUrl = configuration.GetValue<string>("NotificationService:BaseUrl") 
+            ?? "http://notification-service:8080";
+        
+        // Load and parse the Liquid template
+        _alertTemplate = LoadAlertTemplate();
+    }
+
+    public async Task SendCriticalAlertAsync(CriticalAlertData alertData, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Sending critical alert for ESP32: {Esp32Id}", alertData.Esp32Id);
+
+            // Render the alert template
+            var htmlBody = RenderAlertTemplate(alertData);
+            
+            // Determine the subject based on alerts
+            var subject = GenerateSubject(alertData);
+
+            // Create the notification request
+            var notificationRequest = new SendEmailRequestDto
+            {
+                Group = "mantenimiento",
+                Subject = subject,
+                HtmlBody = htmlBody
+            };
+
+            // Get M2M access token
+            var accessToken = await _m2mTokenService.GetAccessTokenAsync();
+            
+            // Send the notification
+            var endpoint = $"{_notificationServiceUrl}/api/notifications/email";
+            var json = JsonSerializer.Serialize(notificationRequest);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            // Add authorization header
+            _httpClient.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Critical alert sent successfully for ESP32: {Esp32Id}", alertData.Esp32Id);
+            }
+            else
+            {
+                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Failed to send critical alert for ESP32: {Esp32Id}. Status: {Status}, Response: {Response}", 
+                    alertData.Esp32Id, response.StatusCode, responseContent);
+                throw new HttpRequestException($"Failed to send notification: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending critical alert for ESP32: {Esp32Id}", alertData.Esp32Id);
+            throw;
+        }
+    }
+
+    public Task<bool> ShouldSendAlertAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    {
+        lock (_alertStateLock)
+        {
+            if (!_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
+            {
+                return Task.FromResult(true); // No active alerts, should send
+            }
+
+            // Check if any of the new alert variables are not already active
+            var newAlerts = alertVariables.Except(activeVariables);
+            return Task.FromResult(newAlerts.Any());
+        }
+    }
+
+    public Task MarkAlertAsSentAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    {
+        lock (_alertStateLock)
+        {
+            if (!_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
+            {
+                activeVariables = new HashSet<string>();
+                _activeAlerts[esp32Id] = activeVariables;
+            }
+
+            foreach (var variable in alertVariables)
+            {
+                activeVariables.Add(variable);
+            }
+        }
+
+        _logger.LogDebug("Marked alerts as sent for ESP32: {Esp32Id}, variables: {Variables}", 
+            esp32Id, string.Join(", ", alertVariables));
+        
+        return Task.CompletedTask;
+    }
+
+    public Task MarkAlertAsResolvedAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    {
+        lock (_alertStateLock)
+        {
+            if (_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
+            {
+                foreach (var variable in alertVariables)
+                {
+                    activeVariables.Remove(variable);
+                }
+
+                // Remove the ESP32 entry if no active alerts remain
+                if (!activeVariables.Any())
+                {
+                    _activeAlerts.Remove(esp32Id);
+                }
+            }
+        }
+
+        _logger.LogDebug("Marked alerts as resolved for ESP32: {Esp32Id}, variables: {Variables}", 
+            esp32Id, string.Join(", ", alertVariables));
+        
+        return Task.CompletedTask;
+    }
+
+    private Template LoadAlertTemplate()
+    {
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = "SensorService.Infrastructure.Templates.alert-body.liquid";
+            
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                throw new InvalidOperationException($"Embedded resource '{resourceName}' not found");
+            }
+
+            using var reader = new StreamReader(stream);
+            var templateContent = reader.ReadToEnd();
+            
+            return Template.Parse(templateContent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load alert template");
+            throw;
+        }
+    }
+
+    private string RenderAlertTemplate(CriticalAlertData alertData)
+    {
+        try
+        {
+            var templateData = new
+            {
+                esp32Id = alertData.Esp32Id,
+                timestamp = alertData.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC"),
+                manualReadings = alertData.ManualReadings.Select(r => new
+                {
+                    name = r.Name,
+                    value = double.IsNaN(r.Value) ? "N/A" : r.Value.ToString("F2"),
+                    threshold = r.Threshold,
+                    isAlert = r.IsAlert
+                }).ToArray()
+            };
+
+            var hash = Hash.FromAnonymousObject(templateData);
+            return _alertTemplate.Render(hash);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to render alert template");
+            throw;
+        }
+    }
+
+    private static string GenerateSubject(CriticalAlertData alertData)
+    {
+        var alertReadings = alertData.AlertReadings.ToList();
+        
+        if (alertReadings.Count == 1)
+        {
+            return $"⚠️ Alerta de sensor - {alertReadings.First().Name} crítico";
+        }
+        
+        return "⚠️ Alerta de sensor - Variables críticas fuera de rango";
+    }
+}

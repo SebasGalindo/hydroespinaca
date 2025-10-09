@@ -82,6 +82,7 @@ services:
     ports:
       # Production TLS ports (always exposed)
       - "8883:8883"   # External MQTT with TLS
+      - "1883:1883"   # External MQTT without TLS
       - "9002:9002"   # WebSocket with TLS
     expose:
       # Internal development ports (Docker network only)
@@ -118,6 +119,8 @@ services:
     container_name: sensor-service
     expose:
       - "8080"
+    ports:
+      - "6001:8080"  # Expose for testing purposes, can be removed in production
     depends_on:
       mqtt:
         condition: service_healthy
@@ -131,12 +134,12 @@ services:
       - MQTT__ClientId=${SENSOR_MQTT_CLIENT_ID}
       - MQTT__Username=${SENSOR_MQTT_USER}
       - MQTT__Password=${SENSOR_MQTT_PASS}
-      - APIKEY__Key=${SENSOR_API_KEY}
       - M2M__ClientId=${SENSOR_SERVICE_CLIENT_ID}
       - M2M__ClientSecret=${SENSOR_SERVICE_CLIENT_SECRET}
       - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
       - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
-      - ASPNETCORE_ENVIRONMENT=Development
+      - NotificationService__BaseUrl=${NOTIFICATION_SERVICE_URL}
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
     profiles:
@@ -150,6 +153,8 @@ services:
     container_name: actuator-service
     expose:
       - "8080"
+    ports:
+      - "6002:8080"  # Expose for testing purposes, can be removed in production
     depends_on:
       mqtt:
         condition: service_healthy
@@ -163,13 +168,12 @@ services:
       - MQTT__ClientId=${ACTUATOR_MQTT_CLIENT_ID}
       - MQTT__Username=${ACTUATOR_MQTT_USER}
       - MQTT__Password=${ACTUATOR_MQTT_PASS}
-      - APIKEY__Key=${ACTUATOR_API_KEY}
       - M2M__ClientId=${ACTUATOR_SERVICE_CLIENT_ID}
       - M2M__ClientSecret=${ACTUATOR_SERVICE_CLIENT_SECRET}
       - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
       - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
-      - SensorService__BaseUrl=http://sensor-service:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - SensorService__BaseUrl=${SENSOR_SERVICE_URL}
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
     profiles:
@@ -188,6 +192,8 @@ services:
     container_name: auth-service
     expose:
       - "8080"
+    ports:
+      - "5002:8080"  # Expose for testing purposes, can be removed in production
     volumes:
       - ./software-project/auth-service/Keys:/app/Keys
     environment:
@@ -197,7 +203,15 @@ services:
       - Jwt__Issuer=${Jwt_Issuer}
       - Jwt__Audience=${Jwt_Audience}
       - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
-      - ASPNETCORE_ENVIRONMENT=Development
+      # M2M Configuration for auth-service to communicate with other services
+      - M2M__ClientId=${AUTH_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${AUTH_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      # External Service URLs
+      - NotificationService__BaseUrl=${NOTIFICATION_SERVICE_URL}
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
     profiles:
@@ -234,7 +248,7 @@ services:
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
       - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
       - espinaca-net
@@ -242,19 +256,95 @@ services:
       - production
       - development
 
-  # fuzzy-service:
-  #   build: ./software-project/fuzzy-service
-  #   container_name: fuzzy-service
-  #   env_file: ./software-project/fuzzy-service/.env
-  #   ports:
-  #     - "6003:8000"
+  notification-service:
+    build:
+      context: .
+      dockerfile: software-project/notification-service/Dockerfile
+    container_name: notification-service
+    expose:
+      - "8080"
+    ports:
+      - "6004:8080"  # Expose for testing purposes, can be removed in production
+    depends_on:
+      - auth-service
+    environment:
+      # JWT Configuration
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      # MongoDB Configuration (notification-specific)
+      - MONGO__ConnectionString=${NOTIFICATION_MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      # M2M Configuration
+      - M2M__ClientId=${NOTIFICATION_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${NOTIFICATION_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      # Email Configuration
+      - EMAIL__FromEmail=${EMAIL_FROM_EMAIL}
+      - EMAIL__FromName=${EMAIL_FROM_NAME}
+      - EMAIL__Provider=${EMAIL_PROVIDER}
+      # Resend Configuration
+      - EMAIL__Resend__ApiBaseUrl=${RESEND_API_BASE_URL}
+      - EMAIL__Resend__ApiKey=${RESEND_API_KEY}
+      # SMTP Configuration
+      - EMAIL__Smtp__Host=${SMTP_HOST}
+      - EMAIL__Smtp__Port=${SMTP_PORT}
+      - EMAIL__Smtp__UseStartTls=${SMTP_USE_STARTTLS}
+      - EMAIL__Smtp__Username=${SMTP_USERNAME}
+      - EMAIL__Smtp__Password=${SMTP_PASSWORD}
+      # ASP.NET Environment
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
 
-  # notification-service:
-  #   build: ./software-project/notification-service
-  #   container_name: notification-service
-  #   env_file: ./software-project/notification-service/.env
-  #   ports:
-  #     - "6004:80"
+  fuzzy-service:
+    build:
+      context: .
+      dockerfile: software-project/fuzzy-service/Dockerfile
+    container_name: fuzzy-service
+    expose:
+      - "8000"
+    ports:
+      - "6003:8000"  # Expose for testing purposes, can be removed in production
+    depends_on:
+      - auth-service
+      - mqtt
+    environment:
+      # JWT Configuration
+      - JWT_ISSUER=${Jwt_Issuer}
+      - JWT_AUDIENCE=${Jwt_Audience}
+      - JWT_PUBLIC_KEY_PATH=/app/Keys/public.pem
+      # MongoDB Configuration
+      - MONGO_CONNECTION_STRING=${FUZZY_MONGO_CONNECTION_STRING}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      # M2M Configuration
+      - M2M_CLIENT_ID=${FUZZY_SERVICE_CLIENT_ID}
+      - M2M_CLIENT_SECRET=${FUZZY_SERVICE_CLIENT_SECRET}
+      - M2M_AUTH_SERVICE_URL=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M_TOKEN_ENDPOINT=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M_TOKEN_CACHE_DURATION_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      # MQTT Configuration
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_PORT=${MQTT_PORT}
+      - MQTT_CLIENT_ID=${FUZZY_MQTT_CLIENT_ID}
+      - MQTT_USERNAME=${FUZZY_MQTT_USER}
+      - MQTT_PASSWORD=${FUZZY_MQTT_PASS}
+      # External Service URLs
+      - SENSOR_SERVICE_URL=${SENSOR_SERVICE_URL}
+      - ACTUATOR_SERVICE_URL=${ACTUATOR_SERVICE_URL}
+      # Python Environment
+      - PYTHONPATH=/app
+    volumes:
+      - ./software-project/auth-service/Keys:/app/Keys:ro
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
 
   # catalog-service:
   #   build: ./software-project/catalog-service

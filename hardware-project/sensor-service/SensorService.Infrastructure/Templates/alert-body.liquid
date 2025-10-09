@@ -1,0 +1,27 @@
+<h1>⚠️ Alerta de sensor detectada</h1>
+
+<p>Se ha detectado una condición anómala en el cultivo de espinaca.</p>
+
+<ul style="list-style: none; padding: 0; margin: 16px 0;">
+  {% for reading in manualReadings %}
+    <li style="margin-bottom: 8px;">
+      <strong>{{ reading.name }}:</strong> {{ reading.value }}
+      {% if reading.isAlert %}
+        <span style="color: #dc2626; font-weight: 600;">
+          (fuera de rango {{ reading.threshold }})
+        </span>
+      {% else %}
+        <span style="color: #16a34a; font-weight: 600;">
+          (OK)
+        </span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+
+<p><strong>ESP32 ID:</strong> {{ esp32Id }}</p>
+<p><strong>Timestamp:</strong> {{ timestamp }}</p>
+
+<p style="margin-top: 20px; font-style: italic; color: #374151;">
+  Recomendación: revisar parámetros manuales antes de continuar operación.
+</p>

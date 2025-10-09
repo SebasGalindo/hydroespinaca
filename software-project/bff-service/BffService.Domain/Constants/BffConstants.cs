@@ -23,19 +23,22 @@ public static class BffConstants
     public static class Proxy
     {
         public const string ProxyBasePath = "/proxy";
-        
+
         public static class Services
         {
             public const string SensorService = "sensor-service";
             public const string ActuatorService = "actuator-service";
             public const string AuthService = "auth-service";
+            public const string FuzzyService = "fuzzy-service";
+            
         }
 
         public static readonly Dictionary<string, string> ServiceRoutes = new()
         {
             { "/sensor", Services.SensorService },
             { "/actuator", Services.ActuatorService },
-            { "/auth", Services.AuthService }
+            { "/auth", Services.AuthService },
+            { "/fuzzy", Services.FuzzyService }
         };
 
         // API prefixes for each service (added to target URLs)
@@ -43,7 +46,8 @@ public static class BffConstants
         {
             { Services.AuthService, "/api/auth" },
             { Services.SensorService, "/api" },
-            { Services.ActuatorService, "/api" }
+            { Services.ActuatorService, "/api" },
+            { Services.FuzzyService, "/api/fuzzy" }
         };
     }
 

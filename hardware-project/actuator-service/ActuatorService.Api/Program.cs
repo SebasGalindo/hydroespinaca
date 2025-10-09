@@ -3,6 +3,7 @@ using ActuatorService.Api.Middleware;
 using ActuatorService.Api.Services;
 using ActuatorService.Application;
 using ActuatorService.Infrastructure;
+using ActuatorService.Infrastructure.Services;
 using HydroEspinaca.Shared.Authentication.Interfaces;
 using HydroEspinaca.Shared.Errors;
 
@@ -47,6 +48,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
+
+// Seed initial data
+using (var scope = app.Services.CreateScope())
+{
+    var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
+    await seedingService.SeedInitialDataAsync();
+}
 
 app.Run();
 

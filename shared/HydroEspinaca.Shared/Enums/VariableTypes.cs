@@ -6,4 +6,5 @@ public enum VariableTypes
 {
     Analog,
     Digital,
+    Ultrasonic,
 }

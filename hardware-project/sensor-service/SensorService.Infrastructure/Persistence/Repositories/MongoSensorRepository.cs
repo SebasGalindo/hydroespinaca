@@ -1,5 +1,6 @@
 ﻿using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Driver;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
@@ -24,6 +25,12 @@ public class MongoSensorRepository : ISensorRepository
     public async Task<List<Sensor>> GetAllAsync()
     {
         return await _baseRepo.GetAllAsync();
+    }
+
+    public async Task<List<Sensor>> GetSensorsByEsp32IdAsync(string esp32Id, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<SensorDocument>.Filter.Eq(s => s.Esp32Id, esp32Id);
+        return await _baseRepo.FindManyAsync(filter);
     }
 
     public async Task CreateAsync(Sensor sensor)

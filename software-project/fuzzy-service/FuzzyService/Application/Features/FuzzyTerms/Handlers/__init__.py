@@ -1,0 +1,5 @@
+from .CreateFuzzyTermHandler import CreateFuzzyTermHandler
+from .UpdateFuzzyTermHandler import UpdateFuzzyTermHandler
+from .DeleteFuzzyTermHandler import DeleteFuzzyTermHandler
+from .GetAllFuzzyTermsHandler import GetAllFuzzyTermsHandler
+from .GetFuzzyTermByIdHandler import GetFuzzyTermByIdHandler

@@ -1,5 +1,5 @@
-using FluentValidation;
-using NotificationService.Api.Helpers;
+using HydroEspinaca.Shared.Authentication.Interfaces;
+using System.Net.Mime;
 
 namespace NotificationService.Api.Middleware;
 
@@ -22,24 +22,37 @@ public class GlobalExceptionMiddleware
         {
             await _next(context);
         }
-        catch (ValidationException ex)
-        {
-            _logger.LogWarning("Validation failed: {Count} errors", ex.Errors?.Count() ?? 0);
-            var problem = ex.ToProblemDetails(context);
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning("Bad argument: {Msg}", ex.Message);
-            var problem = ProblemDetailsHelper.Create(context, "Invalid Parameter", ex.Message, StatusCodes.Status400BadRequest, "about:blank", _env);
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status400BadRequest);
-        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
-            var detail = _env.IsDevelopment() ? ex.ToString() : ex.Message;
-            var problem = ProblemDetailsHelper.Create(context, "Internal Server Error", detail, StatusCodes.Status500InternalServerError, "about:blank", _env);
-            await context.WriteProblemDetailsAsync(problem, StatusCodes.Status500InternalServerError);
+            _logger.LogError(ex, "❌ Unhandled exception in Notification Service");
+
+            var exceptionMapper = context.RequestServices.GetService<IExceptionToProblemDetailsMapper>();
+            
+            if (exceptionMapper != null && exceptionMapper.CanHandle(ex))
+            {
+                var statusCode = exceptionMapper.GetStatusCode(ex);
+                var problemDetails = exceptionMapper.MapToProblemDetails(ex, context.Request.Path, _env.IsDevelopment());
+
+                context.Response.StatusCode = statusCode;
+                context.Response.ContentType = MediaTypeNames.Application.Json;
+
+                await context.Response.WriteAsJsonAsync(problemDetails);
+            }
+            else
+            {
+                // Fallback to default error response
+                context.Response.StatusCode = 500;
+                context.Response.ContentType = MediaTypeNames.Application.Json;
+                
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    type = "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+                    title = "Internal Server Error",
+                    status = 500,
+                    detail = _env.IsDevelopment() ? ex.Message : "An error occurred in Notification service",
+                    instance = context.Request.Path.ToString()
+                });
+            }
         }
     }
 }

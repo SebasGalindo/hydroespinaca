@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NotificationService.Application.DTOs;
+using HydroEspinaca.Shared.DTOs.Notifications;
 using NotificationService.Application.UseCases;
 using NotificationService.Domain.Entities;
 using NotificationService.Domain.Interfaces;
@@ -75,16 +76,31 @@ public class SendEmailUseCaseTests
         public string Sanitize(string html) => html.Replace("<script>", "").Replace("</script>", "");
     }
 
+    private class FakeGroupRepo : INotificationGroupRepository
+    {
+        public Task<IEnumerable<NotificationGroup>> GetAllAsync(CancellationToken ct = default)
+            => Task.FromResult(Enumerable.Empty<NotificationGroup>());
+        public Task<NotificationGroup?> GetByGroupNameAsync(string groupName, CancellationToken ct = default)
+            => Task.FromResult<NotificationGroup?>(null);
+        public Task<NotificationGroup> CreateAsync(NotificationGroup group, CancellationToken ct = default)
+            => Task.FromResult(group);
+        public Task<NotificationGroup?> UpdateAsync(string groupName, NotificationGroup group, CancellationToken ct = default)
+            => Task.FromResult<NotificationGroup?>(group);
+        public Task<bool> DeleteAsync(string groupName, CancellationToken ct = default)
+            => Task.FromResult(false);
+        public Task<bool> ExistsAsync(string groupName, CancellationToken ct = default)
+            => Task.FromResult(false);
+    }
+
     [Fact]
     public async Task Enqueues_Sanitized_And_Rendered_Html()
     {
         var queue = new FakeQueue();
-        var usecase = new SendEmailUseCase(queue, new FakeRenderer(), new FakeIdempotency(), new FakeLogRepo(), new AllowAllSanitizer());
+        var usecase = new SendEmailUseCase(queue, new FakeRenderer(), new FakeIdempotency(), new FakeLogRepo(), new AllowAllSanitizer(), new FakeGroupRepo());
 
-    var res = await usecase.SendAsync(new SendEmailRequestDto {
+        var res = await usecase.SendAsync(new SendEmailRequestDto {
             To = "a@b.com",
             Subject = "Test",
-            TemplateKey = "layouts/base",
             HtmlBody = "<div>Hola<script>alert('x')</script></div>"
         }, idempotencyKey: null, ct: CancellationToken.None);
 

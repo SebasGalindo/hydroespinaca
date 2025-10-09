@@ -170,6 +170,12 @@ public static class PolicyNames
     public const string AlertWrite = nameof(AuthorizationScopes.AlertWrite);
     public const string AlertManage = nameof(AuthorizationScopes.AlertManage);
     
+    // Notification management policies
+    public const string NotificationSend = nameof(AuthorizationScopes.NotificationSend);
+    public const string NotificationRead = nameof(AuthorizationScopes.NotificationRead);
+    public const string NotificationManage = nameof(AuthorizationScopes.NotificationManage);
+    public const string NotificationDiagnostics = nameof(AuthorizationScopes.NotificationDiagnostics);
+    
     // System policies
     public const string SystemAdmin = nameof(AuthorizationScopes.SystemAdmin);
     public const string SystemHealth = nameof(AuthorizationScopes.SystemHealth);
@@ -186,5 +192,6 @@ public static class PolicyNames
         public const string UserManagement = "UserManagement"; // All user + role + permission scopes
         public const string HardwareRead = "HardwareRead";    // All read scopes for hardware
         public const string HardwareWrite = "HardwareWrite";  // All write/control scopes for hardware
+        public const string NotificationFull = "NotificationFull"; // All notification scopes
     }
 }

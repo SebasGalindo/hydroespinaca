@@ -51,8 +51,19 @@ public class ScheduledJobNotFoundException : NotFoundException
 /// </summary>
 public class RoutineScheduleConflictException : ConflictException
 {
-    public RoutineScheduleConflictException(string message) 
+    public RoutineScheduleConflictException(string message)
         : base(message)
+    {
+    }
+}
+
+/// <summary>
+/// Exception thrown when a control output is not found
+/// </summary>
+public class ControlOutputNotFoundException : NotFoundException
+{
+    public ControlOutputNotFoundException(string controlOutputId)
+        : base($"Control output con el ID {controlOutputId} no encontrado.")
     {
     }
 }

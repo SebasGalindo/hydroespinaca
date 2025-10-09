@@ -30,11 +30,15 @@ public class VariableDocument : IIdentifiableMutable
     public double OptimalMin { get; set; }
 
     [BsonElement("optimalMax")]
-    public double OptimalMax { get; set; }
+    public double? OptimalMax { get; set; }
 
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]
     public VariableTypes Type { get; set; }
+
+    [BsonElement("regulationType")]
+    [BsonRepresentation(BsonType.String)]
+    public RegulationType? RegulationType { get; set; }
 
     [BsonElement("lastModified")]
     public DateTime LastModified { get; set; } = DateTime.UtcNow;

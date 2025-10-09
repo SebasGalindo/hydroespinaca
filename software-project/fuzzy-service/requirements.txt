@@ -1,0 +1,21 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+pydantic>=2.6,<3
+pydantic-settings==2.10.1
+python-dotenv==1.1.1
+kink==0.8.1
+medyator==0.4.0
+numpy>=1.21.0,<2.0.0
+scipy>=1.7.0,<2.0.0
+scikit-fuzzy==0.5.0
+pymongo==4.14.1
+pytest==8.4.1
+pytest-asyncio==0.23.8
+httpx==0.28.1
+anyio==4.10.0
+h11==0.16.0
+websockets==15.0.1
+aiomqtt==2.4.0
+# Authentication dependencies
+PyJWT[crypto]==2.8.0
+cryptography==42.0.5

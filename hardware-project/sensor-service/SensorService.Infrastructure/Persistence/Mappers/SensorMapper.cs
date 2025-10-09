@@ -18,6 +18,7 @@ public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
             SamplingFrequency = doc.SamplingFrequency,
             Variables = doc.Variables,
             Status = doc.Status,
+            AllowMissing = doc.AllowMissing,
             CreatedAt = doc.CreatedAt
         };
         Sensor.SetId(doc.Id);
@@ -35,6 +36,7 @@ public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
             SamplingFrequency = entity.SamplingFrequency,
             Variables = entity.Variables,
             Status = entity.Status,
+            AllowMissing = entity.AllowMissing,
             CreatedAt = entity.CreatedAt
         };
         document.SetId(entity.Id);

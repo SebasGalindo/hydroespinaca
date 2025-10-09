@@ -14,3 +14,7 @@ topic read sensor/#
 user actuator-apiuser
 topic write actuator/#
 topic read actuator/#
+
+# Fuzzy Service
+user fuzzy-apiuser
+topic read sensor/#

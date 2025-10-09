@@ -8,4 +8,5 @@ public class SensorUpdateDto
     public int SamplingFrequency { get; set; }
     public List<string> Variables { get; set; } = new();
     public string Status { get; set; } = default!;
+    public bool AllowMissing { get; set; } = false;
 }

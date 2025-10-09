@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
+using HydroEspinaca.Shared.Extensions;
+using HydroEspinaca.Shared.DTOs.Notifications;
 
 namespace NotificationService.Api.Controllers;
 
@@ -14,15 +16,18 @@ namespace NotificationService.Api.Controllers;
 // Paso 5: El endpoint responde 202 Accepted (queued) o 200 (si algún día es síncrono).
 [ApiController]
 [Route("api/notifications")]
+
 public class NotificationController : ControllerBase
 {
     private readonly IEmailNotificationService _emailService;
 
     public NotificationController(IEmailNotificationService emailService) => _emailService = emailService;
 
-    // Requiere autenticación JWT
-    //[Authorize]
+    /// <summary>
+    /// Sends an email notification. Requires notification:send scope.
+    /// </summary>
     [HttpPost("email")]
+    [Authorize(Policy = PolicyNames.NotificationSend)]
     public async Task<ActionResult<SendEmailResponseDto>> SendEmail([FromBody] SendEmailRequestDto dto, CancellationToken ct)
     {
         // Paso 1: Obtener la clave de idempotencia del header (preferido). Si no llega, el UseCase generará un hash del payload.
@@ -34,4 +39,5 @@ public class NotificationController : ControllerBase
             return Accepted(result);
         return Ok(result);
     }
+
 }

@@ -226,6 +226,30 @@ void JobScheduler::executeStep(Step& step) {
         return;
     }
     
+    // SPECIAL CASE: Humidifier control (PIN_HUMID_POWER = 14)
+    if (step.pin == PIN_HUMID_POWER) {
+        if (step.power == ON) {
+            Serial.printf("💨 HUMIDIFICADOR: Iniciando rutina especializada por %lu ms\n", step.duration);
+            runHumidifierRoutine(step.duration);
+            step.status = STEP_OK;
+            String logEntry = JobUtils::getCurrentTimestamp() + " - Rutina humidificador completada";
+            step.executionLog.push_back(logEntry);
+        } else {
+            Serial.println("💨 HUMIDIFICADOR: Comando OFF - apagando ambos relés");
+            // Configurar pines como salida
+            pinMode(PIN_HUMID_POWER, OUTPUT);
+            pinMode(PIN_HUMID_RELAY, OUTPUT);
+            // Apagar ambos relés (lógica invertida: HIGH = OFF)
+            digitalWrite(PIN_HUMID_POWER, HIGH);  // Relé maestro OFF
+            digitalWrite(PIN_HUMID_RELAY, HIGH);  // Relé de pulso OFF
+            Serial.println("💨 HUMIDIFICADOR: Relés desactivados - PIN 14 y PIN 13 HIGH");
+            step.status = STEP_OK;
+            String logEntry = JobUtils::getCurrentTimestamp() + " - Humidificador apagado forzadamente";
+            step.executionLog.push_back(logEntry);
+        }
+        return;
+    }
+    
     // Configure pin
     pinMode(step.pin, OUTPUT);
     
@@ -665,4 +689,57 @@ void JobScheduler::printStatus() {
         Serial.printf("  Canal %d: Running=%s, Queue=%d\n", 
                      i, isChannelBusy(i) ? "Sí" : "No", getQueueSize(i));
     }
+}
+
+// ========================================
+// HUMIDIFIER SPECIALIZED ROUTINE
+// ========================================
+void JobScheduler::runHumidifierRoutine(unsigned long durationMs) {
+    Serial.printf("💨 [HUMID] Iniciando rutina especializada por %lu ms (simula pulsación de botón)\n", durationMs);
+    
+    unsigned long start = millis();
+    
+    // Configure pins
+    pinMode(PIN_HUMID_POWER, OUTPUT);
+    pinMode(PIN_HUMID_RELAY, OUTPUT);
+    
+    // === SECUENCIA DE ACTIVACIÓN (basada en firmware autónomo) ===
+    
+    // Step 1: Activar relé maestro (PIN 14) - LÓGICA INVERTIDA
+    Serial.println("💨 [HUMID] Activando relé maestro (power) - PIN 14 LOW");
+    digitalWrite(PIN_HUMID_POWER, LOW);  // ACTIVO LOW (lógica invertida)
+    
+    // Step 2: Delay de seguridad (2 segundos)
+    Serial.println("💨 [HUMID] Delay de seguridad (2000ms)");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    
+    // Step 3: Pulso de activación en relé (PIN 13) - simula pulsación de botón
+    Serial.println("💨 [HUMID] Pulso de activación - PIN 13 LOW por 1 segundo");
+    digitalWrite(PIN_HUMID_RELAY, LOW);  // ACTIVO LOW (lógica invertida) - pulso ON
+    vTaskDelay(pdMS_TO_TICKS(1000));     // Mantener pulso por 1 segundo
+    
+    digitalWrite(PIN_HUMID_RELAY, HIGH); // Pulso OFF
+    Serial.println("💨 [HUMID] Pulso de activación completado - PIN 13 HIGH");
+    Serial.println("💨 [HUMID] Humidificador activado, funcionará durante el tiempo especificado");
+    
+    // === ESPERAR DURACIÓN ESPECIFICADA ===
+    
+    // El humidificador ya está funcionando, solo esperamos el tiempo restante
+    unsigned long remainingTime = durationMs - (millis() - start);
+    if (remainingTime > 0) {
+        Serial.printf("💨 [HUMID] Esperando %lu ms hasta desactivación...\n", remainingTime);
+        vTaskDelay(pdMS_TO_TICKS(remainingTime));
+    }
+    
+    // === DESACTIVACIÓN COMPLETA ===
+    
+    // Step 4: Apagar relé maestro (power)
+    Serial.println("💨 [HUMID] Desactivando relé maestro - PIN 14 HIGH");
+    digitalWrite(PIN_HUMID_POWER, HIGH); // INACTIVO HIGH (lógica invertida)
+    
+    // Step 5: Asegurar relé de pulso OFF
+    digitalWrite(PIN_HUMID_RELAY, HIGH);  // INACTIVO HIGH (lógica invertida)
+    
+    unsigned long totalTime = millis() - start;
+    Serial.printf("💨 [HUMID] Rutina completada en %lu ms - humidificador desactivado\n", totalTime);
 }

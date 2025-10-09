@@ -145,6 +145,11 @@ public class DataSeedingService
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead, "Profile Read Permission", "Read own profile information"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate, "Profile Update Permission", "Update own profile information"),
             
+            // Password management permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordChange, "Password Change Permission", "Change own password"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordReset, "Password Reset Permission", "Reset password using verification code"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordResetRequest, "Password Reset Request Permission", "Request password reset via email"),
+            
             // Role management permissions
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleCreate, "Role Create Permission", "Create new roles"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, "Role Read Permission", "Read role information"),
@@ -178,7 +183,14 @@ public class DataSeedingService
             
             // === ACTUATOR-SERVICE PERMISSIONS ===
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead, "Actuator Read Permission", "Read actuator status and information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorCreate, "Actuator Create Permission", "Create new actuators"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorUpdate, "Actuator Update Permission", "Update actuator configuration"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorDelete, "Actuator Delete Permission", "Delete actuators"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl, "Actuator Control Permission", "Control actuator operations"),
+            
+            // Command management permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandRead, "Command Read Permission", "Read command information"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandCreate, "Command Create Permission", "Create new commands"),
             
             // ESP32 Node permissions
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read, "ESP32 Read Permission", "Read ESP32 node information"),
@@ -193,6 +205,24 @@ public class DataSeedingService
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertRead, "Alert Read Permission", "Read alert information"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertWrite, "Alert Write Permission", "Write alert data and configuration"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.AlertManage, "Alert Manage Permission", "Manage alert rules and configuration"),
+            
+            // === NOTIFICATION-SERVICE PERMISSIONS ===
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend, "Notification Send Permission", "Send notifications"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationRead, "Notification Read Permission", "Read notification history"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationManage, "Notification Manage Permission", "Manage notification settings"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationDiagnostics, "Notification Diagnostics Permission", "Access notification diagnostics"),
+            
+            // === FUZZY-SERVICE PERMISSIONS ===
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemRead, "Fuzzy System Read Permission", "Read fuzzy system configurations"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemCreate, "Fuzzy System Create Permission", "Create new fuzzy systems"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemUpdate, "Fuzzy System Update Permission", "Update fuzzy system configurations"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemDelete, "Fuzzy System Delete Permission", "Delete fuzzy systems"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyVariableRead, "Fuzzy Variable Read Permission", "Read fuzzy variable configurations"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyVariableCreate, "Fuzzy Variable Create Permission", "Create new fuzzy variables"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyVariableUpdate, "Fuzzy Variable Update Permission", "Update fuzzy variable configurations"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyVariableDelete, "Fuzzy Variable Delete Permission", "Delete fuzzy variables"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyEvaluationRead, "Fuzzy Evaluation Read Permission", "Read fuzzy evaluation results"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyEvaluationCreate, "Fuzzy Evaluation Create Permission", "Create fuzzy evaluations"),
             
             // System-level permissions
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, "System Admin Permission", "System administration access"),
@@ -253,7 +283,12 @@ public class DataSeedingService
             HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
             HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
             HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead,
-            // Profile management (added automatically by token service)
+            // Profile and password management (self-service)
+            HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead,
+            HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate,
+            HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordChange,
+            HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordReset,
+            HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordResetRequest,
             // System health for basic users
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
         };
@@ -386,31 +421,96 @@ public class DataSeedingService
     {
         var m2mClients = new[]
         {
-            // === SENSOR-SERVICE M2M CLIENT ===
-            // Solo scopes para servicios externos (notificaciones, fuzzy logic, etc.)
+            // === BFF-SERVICE M2M CLIENT ===
+            // BFF solo necesita acceso a otros microservicios para proxy (no scopes propios de BFF)
             new {
-                Code = "sensor-service-client",           // Código interno único
-                ClientId = "sensor-service-m2m",         // ID para protocolo OAuth2
+                Code = "bff-service-client",
+                ClientId = "bff-service-m2m",
+                ClientSecret = "2Qje57qfGWo9",
+                Scopes = new[]
+                {
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            
+            // === AUTH-SERVICE M2M CLIENT ===
+            // Auth-service solo necesita comunicarse con otros servicios (no scopes propios de auth)
+            new {
+                Code = "auth-service-client",
+                ClientId = "auth-service-m2m",
+                ClientSecret = "Arfmk2Fk7r4f",
+                Scopes = new[]
+                {
+                    // NOTIFICATION-SERVICE: Para enviar notificaciones de seguridad
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
+                    // System health de otros servicios
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            
+            // === SENSOR-SERVICE M2M CLIENT ===
+            // Sensor-service solo necesita acceso a otros servicios (no scopes propios de sensor)
+            new {
+                Code = "sensor-service-client",
+                ClientId = "sensor-service-m2m",
                 ClientSecret = "sFv6IkmZX2V98",
                 Scopes = new[]
                 {
-                    // Comunicación con actuator-service para comandos automáticos
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead,
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorControl,
-                    // Puede necesitar enviar notificaciones (cuando se implemente)
-                    // HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend
+                    // NOTIFICATION-SERVICE: Para envío de alertas críticas
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
+                    // System monitoring de otros servicios
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
                 }
             },
             
             // === ACTUATOR-SERVICE M2M CLIENT ===
-            // Solo scopes para servicios externos
+            // Actuator-service solo necesita acceso a otros servicios (no scopes propios de actuator/command/esp32)
             new {
-                Code = "actuator-service-client",         // Código interno único
-                ClientId = "actuator-service-m2m",       // ID para protocolo OAuth2
+                Code = "actuator-service-client",
+                ClientId = "actuator-service-m2m",
                 ClientSecret = "lMag54vgU56x",
                 Scopes = new[]
                 {
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.Esp32Read,
+                    // SENSOR-SERVICE: Para leer datos de sensores antes de actuar
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead,
+                    // NOTIFICATION-SERVICE: Para notificaciones de status
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
+                    // System monitoring de otros servicios
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
+                }
+            },
+            
+            // === NOTIFICATION-SERVICE M2M CLIENT ===
+            // Notification-service solo necesita acceso a otros servicios (no scopes propios de notification)
+            new {
+                Code = "notification-service-client",
+                ClientId = "notification-service-m2m",
+                ClientSecret = "Jl04aOK21mWk",
+                Scopes = new[]
+                {
+                    // System monitoring de otros servicios
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            
+            // === FUZZY-SERVICE M2M CLIENT ===
+            // Fuzzy-service solo necesita acceso a otros servicios (no scopes propios de fuzzy)
+            new {
+                Code = "fuzzy-service-client",
+                ClientId = "fuzzy-service-m2m",
+                ClientSecret = "12RreUNF23Rc",
+                Scopes = new[]
+                {
+                    // ACTUATOR-SERVICE: Para control basado en lógica fuzzy
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandCreate,
+                    // System monitoring de otros servicios
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }
             }
         };
