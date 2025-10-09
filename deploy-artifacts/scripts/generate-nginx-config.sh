@@ -75,14 +75,14 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
             # API routes to BFF Service (fallback HTTP)
             location /api/ {
                 # CORS headers
-                add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                
                 add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
                 add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
                 add_header 'Access-Control-Allow-Credentials' 'true' always;
                 
                 # Handle preflight requests
                 if (\$request_method = 'OPTIONS') {
-                    add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                    
                     add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
                     add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
                     add_header 'Access-Control-Allow-Credentials' 'true' always;
@@ -235,14 +235,14 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         # API routes to BFF Service
         location /api/ {
             # CORS headers
-            add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+            
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
             add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
             add_header 'Access-Control-Allow-Credentials' 'true' always;
             
             # Handle preflight requests
             if (\$request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' 'https://hydroespinaca.online' always;
+                
                 add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
                 add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
                 add_header 'Access-Control-Allow-Credentials' 'true' always;
@@ -345,14 +345,14 @@ else
             # API routes to BFF Service
             location /api/ {
                 # CORS headers for development
-                add_header 'Access-Control-Allow-Origin' 'http://localhost' always;
+                
                 add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
                 add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
                 add_header 'Access-Control-Allow-Credentials' 'true' always;
                 
                 # Handle preflight requests
                 if (\$request_method = 'OPTIONS') {
-                    add_header 'Access-Control-Allow-Origin' 'http://localhost' always;
+                    
                     add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
                     add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Session-ID, X-CSRF-Token' always;
                     add_header 'Access-Control-Allow-Credentials' 'true' always;

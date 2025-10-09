@@ -82,7 +82,6 @@ services:
     ports:
       # Production TLS ports (always exposed)
       - "8883:8883"   # External MQTT with TLS
-      - "1883:1883"   # External MQTT without TLS
       - "9002:9002"   # WebSocket with TLS
     volumes:
       - ./deploy-artifacts/mosquitto/config:/mosquitto/config
