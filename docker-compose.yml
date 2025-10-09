@@ -84,10 +84,6 @@ services:
       - "8883:8883"   # External MQTT with TLS
       - "1883:1883"   # External MQTT without TLS
       - "9002:9002"   # WebSocket with TLS
-    expose:
-      # Internal development ports (Docker network only)
-      - "1883"        # Internal MQTT (no encryption)
-      - "9001"        # WebSocket (no TLS)
     volumes:
       - ./deploy-artifacts/mosquitto/config:/mosquitto/config
       - ./deploy-artifacts/scripts:/scripts:ro
@@ -119,8 +115,6 @@ services:
     container_name: sensor-service
     expose:
       - "8080"
-    ports:
-      - "6001:8080"  # Expose for testing purposes, can be removed in production
     depends_on:
       mqtt:
         condition: service_healthy
@@ -153,8 +147,6 @@ services:
     container_name: actuator-service
     expose:
       - "8080"
-    ports:
-      - "6002:8080"  # Expose for testing purposes, can be removed in production
     depends_on:
       mqtt:
         condition: service_healthy
@@ -192,8 +184,6 @@ services:
     container_name: auth-service
     expose:
       - "8080"
-    ports:
-      - "5002:8080"  # Expose for testing purposes, can be removed in production
     volumes:
       - ./software-project/auth-service/Keys:/app/Keys
     environment:
@@ -263,8 +253,6 @@ services:
     container_name: notification-service
     expose:
       - "8080"
-    ports:
-      - "6004:8080"  # Expose for testing purposes, can be removed in production
     depends_on:
       - auth-service
     environment:
@@ -308,8 +296,6 @@ services:
     container_name: fuzzy-service
     expose:
       - "8000"
-    ports:
-      - "6003:8000"  # Expose for testing purposes, can be removed in production
     depends_on:
       - auth-service
       - mqtt
@@ -346,12 +332,6 @@ services:
       - production
       - development
 
-  # catalog-service:
-  #   build: ./software-project/catalog-service
-  #   container_name: catalog-service
-  #   env_file: ./software-project/catalog-service/.env
-  #   ports:
-  #     - "6005:80"
 
   # -----------------------------
   # Frontend
