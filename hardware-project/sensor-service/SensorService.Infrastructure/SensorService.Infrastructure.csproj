@@ -4,6 +4,8 @@
 		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.7" />
 		<PackageReference Include="MongoDB.Driver" Version="3.4.1" />
 		<PackageReference Include="MQTTnet" Version="5.0.1.1416" />
+		<PackageReference Include="DotLiquid" Version="2.2.728" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.7" />
 
 
 	</ItemGroup>
@@ -11,6 +13,10 @@
 	<ItemGroup>
 		<ProjectReference Include="..\SensorService.Application\SensorService.Application.csproj" />
 		<ProjectReference Include="..\SensorService.Domain\SensorService.Domain.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Templates\alert-body.liquid" />
 	</ItemGroup>
 
 	<PropertyGroup>
