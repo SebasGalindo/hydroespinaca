@@ -118,7 +118,9 @@ start_development() {
     export COMPOSE_PROFILE=development
     
     # Use legacy Docker builder to avoid buildx issues
-    export DOCKER_BUILDKIT=0
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+
     COMPOSE_FILE=docker-compose.yml docker compose --profile development up -d
     
     log "Development environment started successfully!"
@@ -152,7 +154,9 @@ start_production() {
     export COMPOSE_PROFILE=production
     
     # Use legacy Docker builder to avoid buildx issues
-    export DOCKER_BUILDKIT=0
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+
     
     # Build frontend static files first
     log "Building frontend for production..."
