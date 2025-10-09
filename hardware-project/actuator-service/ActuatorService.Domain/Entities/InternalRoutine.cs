@@ -1,0 +1,88 @@
+using HydroEspinaca.Shared.Abstractions;
+
+namespace ActuatorService.Domain.Entities;
+
+/// <summary>
+/// Represents a system-internal recurring routine that executes at fixed intervals.
+/// These routines are independent of the fuzzy-service and are scheduled based on time.
+/// </summary>
+public class InternalRoutine : IIdentifiableMutable
+{
+    public string Id { get; set; } = default!;
+    public string Name { get; set; } = default!;
+    public string Description { get; set; } = default!;
+
+    /// <summary>
+    /// ESP32 device ID where this routine should execute
+    /// </summary>
+    public string Esp32Id { get; set; } = default!;
+
+    /// <summary>
+    /// Interval between executions (e.g., 4 hours, 30 minutes)
+    /// </summary>
+    public TimeSpan Interval { get; set; }
+
+    /// <summary>
+    /// Time of day when the routine should start (e.g., 00:00 for midnight)
+    /// Used to calculate the first execution time each day
+    /// </summary>
+    public TimeSpan StartTime { get; set; }
+
+    /// <summary>
+    /// Steps to execute in this routine (using outputVariable like fuzzy routines)
+    /// </summary>
+    public List<InternalRoutineStep> Steps { get; set; } = new();
+
+    /// <summary>
+    /// Last time this routine was executed (UTC)
+    /// </summary>
+    public DateTime? LastExecutedAt { get; set; }
+
+    /// <summary>
+    /// Whether this routine is currently active
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Creation timestamp
+    /// </summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Last update timestamp
+    /// </summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public void SetId(string id) => Id = id;
+}
+
+/// <summary>
+/// Step in an internal routine
+/// </summary>
+public class InternalRoutineStep
+{
+    /// <summary>
+    /// OutputVariable ID from control_outputs collection
+    /// </summary>
+    public string OutputVariable { get; set; } = default!;
+
+    /// <summary>
+    /// Power state (ON/OFF)
+    /// </summary>
+    public string Power { get; set; } = default!;
+
+    /// <summary>
+    /// Duration in seconds
+    /// </summary>
+    public double Duration { get; set; }
+
+    /// <summary>
+    /// Duty cycle for PWM mode (0-100%)
+    /// </summary>
+    public double? DutyCycle { get; set; }
+
+    /// <summary>
+    /// Actuator mode (DIGITAL, PWM, etc.)
+    /// </summary>
+    public string? Mode { get; set; }
+}

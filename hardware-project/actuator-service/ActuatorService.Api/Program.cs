@@ -49,11 +49,15 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
 
-// Seed initial data
+// Seed initial data and synchronize actuator states
 using (var scope = app.Services.CreateScope())
 {
     var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
     await seedingService.SeedInitialDataAsync();
+
+    // Synchronize actuator states on startup
+    var startupSyncService = scope.ServiceProvider.GetRequiredService<ActuatorService.Application.Services.ActuatorStartupSyncService>();
+    await startupSyncService.SynchronizeOnStartupAsync();
 }
 
 app.Run();

@@ -44,10 +44,7 @@ void AutonomousController::begin() {
     
     // NUEVA LÓGICA: Inicializar máquina de estados de luz artificial
     state.lightState = LIGHT_OFF;
-    state.lightStateStartTime = now;
     state.lightOnStartTime = 0;
-    state.lightRestStartTime = 0;
-    state.lightQualityAtChange = 0.0f;
     
     // Asegurar que todos los actuadores empiecen apagados
     ActuatorController::emergencyStop();
@@ -60,8 +57,8 @@ void AutonomousController::begin() {
                   HUMIDITY_MIN, HUMIDITY_MAX, HUMIDITY_HYSTERESIS);
     Serial.printf("   🌡️  Temperatura agua: %.1f-%.1f°C (histeresis ±%.1f°C)\n", 
                   WATER_TEMP_MIN, WATER_TEMP_MAX, WATER_TEMP_HYSTERESIS);
-    Serial.printf("   💡 Luz: %.1f-%.1f%% (horario %d:00-%d:00)\n", 
-                  LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD, LIGHT_START_HOUR, LIGHT_END_HOUR);
+    Serial.printf("   💡 Luz: %.0f-%.0f lux (horario %d:00-%d:00, %dh diarias)\n",
+                  LUX_ON_THRESHOLD, LUX_OFF_THRESHOLD, LIGHT_START_HOUR, LIGHT_END_HOUR, REQUIRED_LIGHT_HOURS);
     Serial.printf("   🌊 Distancia agua máxima: %.1f cm (tanque vacío)\n", WATER_DISTANCE_MAX);
 }
 
@@ -131,8 +128,7 @@ void AutonomousController::updateSensorReadings() {
     // Leer todos los sensores
     reading.temperature = sensors->readTemperature();
     reading.humidity = sensors->readHumidity();
-    reading.lightIndex = sensors->readLightIndex();
-    reading.clearChannel = sensors->readLightClearChannel();  // Nuevo canal Clear
+    reading.lightLux = sensors->readLightLux();
     // IMPORTANTE: Almacenar DISTANCIA directamente (no convertir a nivel)
     // La validación de seguridad usa distancia del sensor
     float distanceCm = sensors->readWaterLevel();
@@ -146,14 +142,13 @@ void AutonomousController::updateSensorReadings() {
     reading.tds = sensors->readTDS();
     
     // Validar que las lecturas críticas sean válidas
-    // NOTA: lightIndex puede ser NAN en oscuridad (C < 3000), pero la lectura sigue siendo válida
-    reading.valid = !isnan(reading.temperature) && 
-                   !isnan(reading.humidity) && 
+    reading.valid = !isnan(reading.temperature) &&
+                   !isnan(reading.humidity) &&
                    !isnan(reading.waterLevel);
-    
-    Serial.printf("📊 [CTRL] Lectura %d: T=%.1f°C H=%.1f%% L=%.1f%% C=%d N=%.1fcm %s\n",
-                  state.readingIndex, reading.temperature, reading.humidity, 
-                  reading.lightIndex, reading.clearChannel, reading.waterLevel,
+
+    Serial.printf("📊 [CTRL] Lectura %d: T=%.1f°C H=%.1f%% Lux=%.0f N=%.1fcm %s\n",
+                  state.readingIndex, reading.temperature, reading.humidity,
+                  reading.lightLux, reading.waterLevel,
                   reading.valid ? "✅" : "❌");
     
     // Avanzar índice circular
@@ -170,26 +165,24 @@ void AutonomousController::calculateAverages() {
     }
     
     // Inicializar acumuladores
-    float tempSum = 0, humidSum = 0, lightSum = 0, levelSum = 0;
+    float tempSum = 0, humidSum = 0, luxSum = 0, levelSum = 0;
     float waterTempSum = 0, phSum = 0, tdsSum = 0;
-    float clearSum = 0;
     int validCount = 0;
-    int lightValidCount = 0;  // Contador específico para lightIndex (puede ser menor que validCount)
-    
+    int luxValidCount = 0;  // Contador específico para lux
+
     // Calcular promedios solo de lecturas válidas
     for (int i = 0; i < state.readingCount; i++) {
         const SensorReadings& reading = state.readings[i];
         if (reading.valid) {
             tempSum += reading.temperature;
             humidSum += reading.humidity;
-            
-            // lightIndex puede ser NAN en oscuridad - manejar por separado
-            if (!isnan(reading.lightIndex)) {
-                lightSum += reading.lightIndex;
-                lightValidCount++;
+
+            // lux puede ser NAN - manejar por separado
+            if (!isnan(reading.lightLux)) {
+                luxSum += reading.lightLux;
+                luxValidCount++;
             }
-            
-            clearSum += reading.clearChannel;
+
             levelSum += reading.waterLevel;
             waterTempSum += reading.waterTemp;
             phSum += reading.ph;
@@ -197,31 +190,30 @@ void AutonomousController::calculateAverages() {
             validCount++;
         }
     }
-    
+
     if (validCount > 0) {
         state.averageReadings.temperature = tempSum / validCount;
         state.averageReadings.humidity = humidSum / validCount;
-        
-        // lightIndex promedio solo si hay lecturas válidas, sino NAN
-        if (lightValidCount > 0) {
-            state.averageReadings.lightIndex = lightSum / lightValidCount;
+
+        // lux promedio solo si hay lecturas válidas, sino NAN
+        if (luxValidCount > 0) {
+            state.averageReadings.lightLux = luxSum / luxValidCount;
         } else {
-            state.averageReadings.lightIndex = NAN;  // No hay lecturas de lightIndex válidas (oscuridad)
+            state.averageReadings.lightLux = NAN;
         }
-        
-        state.averageReadings.clearChannel = (uint16_t)(clearSum / validCount);
+
         state.averageReadings.waterLevel = levelSum / validCount;
         state.averageReadings.waterTemp = waterTempSum / validCount;
         state.averageReadings.ph = phSum / validCount;
         state.averageReadings.tds = tdsSum / validCount;
         state.averageReadings.valid = true;
         state.averageReadings.timestamp = millis();
-        
-        Serial.printf("📊 [CTRL] Promedios (%d lecturas): T=%.1f°C H=%.1f%% L=%s C=%d N=%.1fcm\n",
-                      validCount, state.averageReadings.temperature, 
-                      state.averageReadings.humidity, 
-                      lightValidCount > 0 ? (String(state.averageReadings.lightIndex, 1) + "%").c_str() : "N/A",
-                      state.averageReadings.clearChannel, state.averageReadings.waterLevel);
+
+        Serial.printf("📊 [CTRL] Promedios (%d lecturas): T=%.1f°C H=%.1f%% Lux=%s N=%.1fcm\n",
+                      validCount, state.averageReadings.temperature,
+                      state.averageReadings.humidity,
+                      luxValidCount > 0 ? (String(state.averageReadings.lightLux, 0) + " lux").c_str() : "N/A",
+                      state.averageReadings.waterLevel);
     } else {
         state.averageReadings.valid = false;
         Serial.println("❌ [CTRL] No hay lecturas válidas para calcular promedios");
@@ -312,6 +304,17 @@ void AutonomousController::controlTemperature() {
             setActuatorState(state.heater, false, "calefactor_aire");
             state.heaterOffStartTime = millis();
             state.heaterFastMonitoringActive = false;  // Detener monitoreo rápido
+
+            // SINCRONIZACIÓN: Apagar humidificador cuando se apaga el calefactor
+            if (state.humidifierMasterActive) {
+                state.humidifierMasterActive = false;
+                state.humidifier.isOn = false;
+                state.windowValidationActive = false;
+                ActuatorController::turnHumidifierMasterOff();
+                ActuatorController::turnHumidifierRelayOff();
+                Serial.println("💧 [CTRL] Humidificador APAGADO - sincronizado con calefactor OFF");
+            }
+
             logControlDecision("Temperatura", temp, "calefactor aire OFF - umbral seguridad 22.5°C");
         }
     } else {
@@ -324,6 +327,31 @@ void AutonomousController::controlTemperature() {
             // Inicializar buffer de temperaturas
             state.heaterTempBufferIndex = 0;
             state.heaterTempBufferFull = false;
+
+            // SINCRONIZACIÓN: Activar humidificador cuando se activa el calefactor
+            // Solo si nivel de agua OK, humedad baja, y no está bloqueado
+            unsigned long now = millis();
+            if (state.waterLevelOk && !state.humidifierLocked && !state.humidifierMasterActive) {
+                float humidity = state.averageReadings.humidity;
+                if (!isnan(humidity) && humidity <= HUMIDITY_MAX) {
+                    // Activar secuencia de humidificador
+                    state.humidifierMasterActive = true;
+                    state.humidifierStartTime = now;
+                    state.humidityAtStart = humidity;
+                    state.temperatureAtStart = temp;
+                    state.humidifierWindowStart = now;
+                    state.windowValidationActive = true;
+
+                    ActuatorController::turnHumidifierMasterOn();
+                    delay(2000);
+                    ActuatorController::turnHumidifierRelayOn();
+                    delay(1000);
+                    ActuatorController::turnHumidifierRelayOff();
+
+                    Serial.printf("💧 [CTRL] Humidificador ACTIVADO - sincronizado con calefactor ON (H=%.1f%%)\n", humidity);
+                }
+            }
+
             logControlDecision("Temperatura", temp, "calefactor aire ON - umbral seguridad 17.0°C - MONITOREO RÁPIDO INICIADO");
         }
     }
@@ -904,146 +932,55 @@ void AutonomousController::handleThermalEmergency() {
 // MÁQUINA DE ESTADOS PARA CONTROL DE LUZ ARTIFICIAL
 void AutonomousController::handleLightStateMachine() {
     if (!state.averageReadings.valid) return;
-    
-    float lightIndex = state.averageReadings.lightIndex;
-    uint16_t clearChannel = state.averageReadings.clearChannel;
-    bool lightIndexValid = !isnan(lightIndex);  // lightIndex puede ser NAN en oscuridad
+
+    float lux = state.averageReadings.lightLux;
+    bool luxValid = !isnan(lux);
     bool inSchedule = isLightScheduleActive();
     unsigned long now = millis();
-    unsigned long stateTime = now - state.lightStateStartTime;
-    
+
     // Si estamos fuera de horario, forzar estado OFF
     if (!inSchedule) {
         if (state.lightState != LIGHT_OFF) {
             state.lightState = LIGHT_OFF;
-            state.lightStateStartTime = now;
             setActuatorState(state.light, false, "luz");
-            Serial.printf("💡 [LUZ-SM] FUERA DE HORARIO → Estado: OFF\n");
+            Serial.println("💡 [LUZ] FUERA DE HORARIO (19:00-5:00) → OFF");
         }
         return;
     }
-    
-    // Dentro de horario: ejecutar máquina de estados
-    switch (state.lightState) {
-        case LIGHT_OFF: {
-            // Estado OFF: La luz está apagada
-            // Condiciones para encender:
-            // 1. Oscuridad total (clearChannel < DARKNESS_THRESHOLD)
-            // 2. Calidad de luz insuficiente (lightIndex < LIGHT_ON_THRESHOLD)
-            
-            if (clearChannel < DARKNESS_THRESHOLD) {
-                // Oscuridad total → encender inmediatamente
-                state.lightState = LIGHT_ON;
-                state.lightStateStartTime = now;
-                state.lightOnStartTime = now;
-                state.lightQualityAtChange = lightIndex;
-                setActuatorState(state.light, true, "luz");
-                
-                Serial.printf("💡 [LUZ-SM] OFF→ON: Oscuridad total (Clear=%d < %d)\n", 
-                             clearChannel, DARKNESS_THRESHOLD);
-                             
-            } else if (lightIndexValid && lightIndex < LIGHT_ON_THRESHOLD) {
-                // Calidad insuficiente → encender para complementar
-                state.lightState = LIGHT_ON;
-                state.lightStateStartTime = now;
-                state.lightOnStartTime = now;
-                state.lightQualityAtChange = lightIndex;
-                setActuatorState(state.light, true, "luz");
-                
-                Serial.printf("💡 [LUZ-SM] OFF→ON: Calidad insuficiente (%.1f%% < %.1f%%)\n", 
-                             lightIndex, LIGHT_ON_THRESHOLD);
-            } else if (!lightIndexValid) {
-                // lightIndex no disponible (oscuridad intermedia) → mantener OFF
-                Serial.printf("💡 [LUZ-SM] OFF: LightIndex N/A (C=%d), mantener OFF\n", clearChannel);
-            }
-            break;
+
+    // Si no hay lectura válida de lux, mantener estado actual
+    if (!luxValid) {
+        Serial.println("💡 [LUZ] Lectura de lux no válida - manteniendo estado actual");
+        return;
+    }
+
+    // Dentro de horario: control simplificado basado en lux
+    if (state.lightState == LIGHT_OFF) {
+        // Luz apagada: encender si lux < umbral ON
+        if (lux < LUX_ON_THRESHOLD) {
+            state.lightState = LIGHT_ON;
+            state.lightOnStartTime = now;
+            setActuatorState(state.light, true, "luz");
+            Serial.printf("💡 [LUZ] OFF→ON: Lux insuficiente (%.0f < %.0f)\n", lux, LUX_ON_THRESHOLD);
+        } else {
+            Serial.printf("💡 [LUZ] OFF: Lux suficiente (%.0f >= %.0f)\n", lux, LUX_ON_THRESHOLD);
         }
-            
-        case LIGHT_ON: {
-            // Estado ON: La luz está encendida
-            // Condiciones para apagar:
-            // 1. Tiempo mínimo cumplido Y calidad suficiente (lightIndex > LIGHT_OFF_THRESHOLD)
-            // 2. Tiempo máximo alcanzado (forzar descanso)
-            
-            unsigned long onTime = now - state.lightOnStartTime;
-            
-            if (onTime >= LIGHT_MAX_ON_MS) {
-                // Tiempo máximo alcanzado → forzar descanso
-                state.lightState = LIGHT_RESTING;
-                state.lightStateStartTime = now;
-                state.lightRestStartTime = now;
-                state.lightQualityAtChange = lightIndex;
-                setActuatorState(state.light, false, "luz");
-                
-                Serial.printf("💡 [LUZ-SM] ON→RESTING: Tiempo máximo (%lus) → descanso obligatorio\n", 
-                             onTime / 1000);
-                             
-            } else if (onTime >= LIGHT_MIN_ON_MS && lightIndexValid && lightIndex > LIGHT_OFF_THRESHOLD) {
-                // Tiempo mínimo cumplido y calidad suficiente → apagar
-                state.lightState = LIGHT_OFF;
-                state.lightStateStartTime = now;
-                state.lightQualityAtChange = lightIndex;
-                setActuatorState(state.light, false, "luz");
-                
-                Serial.printf("💡 [LUZ-SM] ON→OFF: Calidad suficiente (%.1f%% > %.1f%%) después de %lus\n", 
-                             lightIndex, LIGHT_OFF_THRESHOLD, onTime / 1000);
-                             
-            } else if (onTime < LIGHT_MIN_ON_MS) {
-                // Aún no cumple tiempo mínimo
-                Serial.printf("💡 [LUZ-SM] ON: Tiempo mínimo pendiente (%lus/%lus) - Calidad: %s\n", 
-                             onTime / 1000, LIGHT_MIN_ON_MS / 1000, 
-                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
-            } else {
-                // Tiempo mínimo cumplido pero lightIndex no válido o no suficiente calidad → continuar
-                Serial.printf("💡 [LUZ-SM] ON: Continuando - Tiempo: %lus, Calidad: %s\n", 
-                             onTime / 1000, 
-                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
-            }
-            break;
-        }
-            
-        case LIGHT_RESTING: {
-            // Estado RESTING: Luz en descanso obligatorio
-            // Solo puede salir después del tiempo de descanso
-            
-            unsigned long restTime = now - state.lightRestStartTime;
-            
-            if (restTime >= LIGHT_REST_MS) {
-                // Descanso completado → volver a evaluar condiciones
-                bool needsLight = clearChannel < DARKNESS_THRESHOLD || 
-                                (lightIndexValid && lightIndex < LIGHT_ON_THRESHOLD);
-                
-                if (needsLight) {
-                    // Aún necesita luz → volver a encender
-                    state.lightState = LIGHT_ON;
-                    state.lightStateStartTime = now;
-                    state.lightOnStartTime = now;
-                    state.lightQualityAtChange = lightIndexValid ? lightIndex : 0.0f;
-                    setActuatorState(state.light, true, "luz");
-                    
-                    if (clearChannel < DARKNESS_THRESHOLD) {
-                        Serial.printf("💡 [LUZ-SM] RESTING→ON: Descanso completado, oscuridad total (C=%d)\n", clearChannel);
-                    } else {
-                        Serial.printf("💡 [LUZ-SM] RESTING→ON: Descanso completado, calidad insuficiente (%.1f%% < %.1f%%)\n", 
-                                     lightIndex, LIGHT_ON_THRESHOLD);
-                    }
-                                 
-                } else {
-                    // Ya no necesita luz → permanecer apagada
-                    state.lightState = LIGHT_OFF;
-                    state.lightStateStartTime = now;
-                    state.lightQualityAtChange = lightIndexValid ? lightIndex : 0.0f;
-                    
-                    Serial.printf("💡 [LUZ-SM] RESTING→OFF: Descanso completado, luz suficiente (C=%d, Calidad: %s)\n", 
-                                 clearChannel, lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
-                }
-            } else {
-                // Aún en descanso
-                Serial.printf("💡 [LUZ-SM] RESTING: Descanso en progreso (%lus/%lus) - C=%d, Calidad: %s\n", 
-                             restTime / 1000, LIGHT_REST_MS / 1000, clearChannel,
-                             lightIndexValid ? (String(lightIndex, 1) + "%").c_str() : "N/A");
-            }
-            break;
+    } else {
+        // Luz encendida: apagar si lux > umbral OFF Y tiempo mínimo cumplido
+        unsigned long onTime = now - state.lightOnStartTime;
+
+        if (lux > LUX_OFF_THRESHOLD && onTime >= LIGHT_MIN_ON_MS) {
+            state.lightState = LIGHT_OFF;
+            setActuatorState(state.light, false, "luz");
+            Serial.printf("💡 [LUZ] ON→OFF: Lux suficiente (%.0f > %.0f) después de %lu min\n",
+                         lux, LUX_OFF_THRESHOLD, onTime / 60000);
+        } else if (onTime < LIGHT_MIN_ON_MS) {
+            unsigned long remainingMin = (LIGHT_MIN_ON_MS - onTime) / 60000;
+            Serial.printf("💡 [LUZ] ON: Tiempo mínimo pendiente (%lu min) - Lux: %.0f\n",
+                         remainingMin, lux);
+        } else {
+            Serial.printf("💡 [LUZ] ON: Lux insuficiente (%.0f <= %.0f) - continuando\n",
+                         lux, LUX_OFF_THRESHOLD);
         }
     }
 }
@@ -1191,10 +1128,10 @@ void AutonomousController::printSensorAverages() {
         Serial.printf("   🌡️  Temperatura aire: %.1f°C (óptimo: %.1f-%.1f°C, calefactor: <%.1f°C, ventilador: >%.1f°C)\n", 
                      state.averageReadings.temperature, TEMP_MIN, TEMP_MAX, 
                      TEMP_MIN - TEMP_HYSTERESIS, TEMP_MAX + TEMP_HYSTERESIS);
-        Serial.printf("   💧 Humedad aire: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n", 
+        Serial.printf("   💧 Humedad aire: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n",
                      state.averageReadings.humidity, HUMIDITY_MIN, HUMIDITY_MAX);
-        Serial.printf("   💡 Índice luz: %.1f%% (umbral: <%.1f%%=ON, >%.1f%%=OFF)\n", 
-                     state.averageReadings.lightIndex, LIGHT_ON_THRESHOLD, LIGHT_OFF_THRESHOLD);
+        Serial.printf("   💡 Lux: %.0f (umbral: <%.0f=ON, >%.0f=OFF)\n",
+                     state.averageReadings.lightLux, LUX_ON_THRESHOLD, LUX_OFF_THRESHOLD);
         Serial.printf("   🌊 Altura agua: %.1f cm (bomba OFF si >%.1f cm, ON si <%.1f cm)\n", 
                      state.averageReadings.waterLevel, WATER_DISTANCE_MAX, WATER_DISTANCE_RECOVERY);
         Serial.printf("   🌡️  Temperatura agua: %.1f°C (umbral: <%.1f°C=ON, >%.1f°C=OFF)\n", 
@@ -1565,6 +1502,16 @@ void AutonomousController::heaterSafetyTurnOff(const char* reason) {
 
     // CRÍTICO: Apagar calefactor INMEDIATAMENTE (hardware + estado lógico)
     setActuatorStateImmediate(state.heater, false, "calefactor_aire");
+
+    // SINCRONIZACIÓN: Apagar humidificador cuando se apaga el calefactor por seguridad
+    if (state.humidifierMasterActive) {
+        state.humidifierMasterActive = false;
+        state.humidifier.isOn = false;
+        state.windowValidationActive = false;
+        ActuatorController::turnHumidifierMasterOff();
+        ActuatorController::turnHumidifierRelayOff();
+        Serial.println("💧 [SAFETY] Humidificador APAGADO - sincronizado con apagado de seguridad del calefactor");
+    }
 
     // Actualizar estados del monitoreo rápido
     state.heaterOffStartTime = currentTime;

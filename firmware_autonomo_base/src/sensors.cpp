@@ -2,8 +2,8 @@
 #include "config.h"
 #include "pins.h"
 
-SensorManager::SensorManager(NTPClient* ntpClient) : dht(PIN_DHT22, DHT_TYPE), tcs(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X), 
-                                 timeClient(ntpClient), dhtInitialized(false), tcsInitialized(false) {
+SensorManager::SensorManager(NTPClient* ntpClient) : dht(PIN_DHT22, DHT_TYPE),
+                                 timeClient(ntpClient), dhtInitialized(false), bh1750Initialized(false) {
     // Initialize ADC for analog sensors with improved precision
     analogReadResolution(12);        // 0-4095 (12-bit resolution)
     analogSetAttenuation(ADC_11db);  // For 3.3V input range
@@ -26,18 +26,16 @@ void SensorManager::begin() {
     dht.begin();
     dhtInitialized = true;
     Serial.println("✅ DHT22 inicializado");
-    
-    // BH1750 removed - using TCS34725 for light sensing
-    
-    // Initialize TCS34725
-    if (tcs.begin()) {
-        tcsInitialized = true;
-        Serial.println("✅ TCS34725 inicializado");
+
+    // Initialize BH1750
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        bh1750Initialized = true;
+        Serial.println("✅ BH1750 inicializado");
     } else {
-        Serial.println("❌ Error inicializando TCS34725");
-        tcsInitialized = false;
+        Serial.println("❌ Error inicializando BH1750");
+        bh1750Initialized = false;
     }
-    
+
     Serial.println("✅ Sensores inicializados");
 }
 
@@ -63,62 +61,20 @@ float SensorManager::readHumidity() {
     return humidity;
 }
 
-// BH1750 readLightLevel() removed - use readLightIndex() instead
+// BH1750 light sensor - returns lux value
+float SensorManager::readLightLux() {
+    if (!bh1750Initialized) return NAN;
 
-float SensorManager::readLightIndex() {
-    if (!tcsInitialized) return NAN;
-    
-    uint16_t r, g, b, c;
-    
-    // Read raw RGBC values
-    tcs.getRawData(&r, &g, &b, &c);
-    
-    // Validate readings
-    if (c == 0) {
-        Serial.println("[SENSOR] TCS34725 - Clear channel is zero, sensor may be covered");
+    float lux = lightMeter.readLightLevel();
+
+    if (lux < 0) {
+        Serial.println("❌ Error leyendo BH1750");
         return NAN;
     }
-    
-    // NUEVA VALIDACIÓN: Solo calcular lightIndex si hay suficiente luz (C >= 3000)
-    if (c < 3000) {
-        Serial.printf("[SENSOR] TCS34725: C=%d < 3000 (oscuridad) → LightIndex no calculado\n", c);
-        return NAN;  // No calcular ni enviar Index en oscuridad
-    }
-    
-    // Calculate total for normalization
-    float total = r + g + b + c;
-    if (total == 0) {
-        Serial.println("[SENSOR] TCS34725 - All channels zero");
-        return NAN;
-    }
-    
-    // FÓRMULA C ESPECTRAL PARA FOTOSÍNTESIS (VALIDADA EMPÍRICAMENTE)
-    // Fórmula C: (R+B)/RGB sin Clear - La mejor según análisis de test
-    // Luz natural promedio: 67.53% | Luz artificial promedio: 78.11%
-    // Umbral control: <70% enciende LED, >75% por 5min apaga LED
-    float totalRGB = r + g + b;  // Sin canal Clear
-    float lightIndex = 0.0;
-    if (totalRGB > 0) {
-        lightIndex = ((float)(r + b) / totalRGB) * 100.0;
-    }
-    
-    Serial.printf("[SENSOR] TCS34725: R=%d G=%d B=%d C=%d LightIndex=%.2f%% (Fórmula C)\n", 
-                  r, g, b, c, lightIndex);
-    
-    return lightIndex;
-}
 
-uint16_t SensorManager::readLightClearChannel() {
-    if (!tcsInitialized) return 0;
-    
-    uint16_t r, g, b, c;
-    
-    // Read raw RGBC values
-    tcs.getRawData(&r, &g, &b, &c);
-    
-    Serial.printf("[SENSOR] TCS34725 Clear Channel: C=%d\n", c);
-    
-    return c;  // Return raw Clear channel value
+    Serial.printf("[SENSOR] BH1750: %.0f lux\n", lux);
+
+    return lux;
 }
 
 String SensorManager::getCurrentTimestamp() {
@@ -177,46 +133,26 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         Serial.println("N/A (sensor falló) ❌");
     }
     
-    // LECTURAS DE LUZ CON RESTRICCIÓN HORARIA Y VALIDACIÓN OPTIMIZADA
+    // LECTURAS DE LUZ CON RESTRICCIÓN HORARIA
     bool lightTelemetryActive = isLightTelemetryActive();
-    
+
     if (lightTelemetryActive) {
-        // DENTRO DEL HORARIO (6:00-18:00): Procesar lecturas de luz
-        
-        // Clear Channel - SIEMPRE enviar si estamos en horario válido
-        Serial.print("💡 Clear Channel: ");
-        uint16_t clearChannel = readLightClearChannel();
-        if (clearChannel > 0) {  // 0 indica sensor no disponible
-            JsonObject clearReading = readings.createNestedObject();
-            clearReading["physicalId"] = "TCS34725-A1"; // TCS34725 Clear channel physical ID  
-            clearReading["variableId"] = "68d6dde25b8956ed967d6a8d"; // Clear Channel MongoDB ObjectId
-            clearReading["value"] = clearChannel;
+        // DENTRO DEL HORARIO (5:00-19:00): Procesar lecturas de luz BH1750
+        Serial.print("💡 Lux (BH1750): ");
+        float lux = readLightLux();
+        if (!isnan(lux)) {
+            JsonObject luxReading = readings.createNestedObject();
+            luxReading["physicalId"] = "BH1750-A1"; // BH1750 sensor physical ID
+            luxReading["variableId"] = "688970837f02137645d58395"; // Light Lux MongoDB ObjectId
+            luxReading["value"] = lux;
             validReadings++;
-            Serial.printf("%d ✅\n", clearChannel);
-            
-            // Light Index - SOLO calcular y enviar si C >= 3000
-            Serial.print("🌈 LightIndex: ");
-            if (clearChannel >= 3000) {
-                float lightIndex = readLightIndex();
-                if (!isnan(lightIndex)) {
-                    JsonObject lightReading = readings.createNestedObject();
-                    lightReading["physicalId"] = "TCS34725-A1"; // TCS34725 sensor physical ID
-                    lightReading["variableId"] = "688970837f02137645d58395"; // Light Index MongoDB ObjectId
-                    lightReading["value"] = lightIndex;
-                    validReadings++;
-                    Serial.printf("%.1f%% ✅ (C=%d >= 3000)\n", lightIndex, clearChannel);
-                } else {
-                    Serial.printf("N/A (fallo en cálculo) ❌ (C=%d)\n", clearChannel);
-                }
-            } else {
-                Serial.printf("OMITIDO (C=%d < 3000, oscuridad) ⚫\n", clearChannel);
-            }
+            Serial.printf("%.0f lux ✅\n", lux);
         } else {
-            Serial.println("N/A (sensor TCS34725 falló) ❌");
+            Serial.println("N/A (sensor BH1750 falló) ❌");
         }
     } else {
-        // FUERA DEL HORARIO (18:00-6:00): No enviar lecturas de luz
-        Serial.println("🌙 Fuera de horario de luz (18:00-6:00) - omitiendo lecturas Clear e Index");
+        // FUERA DEL HORARIO (19:00-5:00): No enviar lecturas de luz
+        Serial.println("🌙 Fuera de horario de luz (19:00-5:00) - omitiendo lecturas de lux");
     }
     
     // pH Level - only add if sensor is working
@@ -280,8 +216,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     // PhysicalId Mappings:
     // | Code        | physicalId       | Variable              | MongoDB ObjectId         | Status |
     // |-------------|------------------|-----------------------|--------------------------|--------|
-    // | tcs34725-01 | TCS34725-A1      | Light Index           | 688970837f02137645d58395 | Active |
-    // | tcs34725-02 | TCS34725-A1-CLEAR| Clear Channel         | 68d6dde25b8956ed967d6a8d | Active |
+    // | BH1750-A1 | TCS34725-A1      | Lux                    | 688970837f02137645d58395 | Active |
     // | dht22-001   | DHT22-A1         | Temperature           | 688970ab7f02137645d58398 | Active |
     // | dht22-001   | DHT22-A1         | Humidity              | 688970af7f02137645d58399 | Active |
     // | ph-001      | SEN0161-A1       | pH Level              | 688970a27f02137645d58396 | Active |
@@ -602,13 +537,13 @@ bool SensorManager::isLightTelemetryActive() {
     // Obtener hora actual en Colombia (UTC-5)
     int currentHour = timeClient->getHours();
     currentHour = (currentHour - 5 + 24) % 24;  // Convertir a UTC-5
-    
-    // Verificar si estamos en horario de luz (6:00-18:00)
-    bool inSchedule = (currentHour >= 6 && currentHour < 18);
-    
-    Serial.printf("🕐 [SENSOR] Hora local: %02d:%02d - Telemetría luz: %s\n", 
-                  currentHour, timeClient->getMinutes(), 
+
+    // Verificar si estamos en horario de luz (5:00-19:00) - 14 horas
+    bool inSchedule = (currentHour >= 5 && currentHour < 19);
+
+    Serial.printf("🕐 [SENSOR] Hora local: %02d:%02d - Telemetría luz: %s\n",
+                  currentHour, timeClient->getMinutes(),
                   inSchedule ? "ACTIVA" : "INACTIVA");
-    
+
     return inSchedule;
 }

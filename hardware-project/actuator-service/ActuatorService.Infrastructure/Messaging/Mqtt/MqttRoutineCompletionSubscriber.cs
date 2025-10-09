@@ -69,7 +69,8 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
 
         using var scope = _serviceProvider.CreateScope();
         var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
-        var jobScheduleStateManager = scope.ServiceProvider.GetRequiredService<IJobScheduleStateManager>();
+        var routineExecutionService = scope.ServiceProvider.GetRequiredService<IRoutineExecutionService>();
+        var stateMachine = scope.ServiceProvider.GetRequiredService<IActuatorStateMachine>();
 
         try
         {
@@ -106,33 +107,15 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
 
             await routineCommandRepository.UpdateAsync(routineCommand);
 
-            // Remove completed routine from in-memory job schedule
-            jobScheduleStateManager.RemoveCompletedRoutine(completion.CommandId);
-            
-            // Mark the next command in the same channel as running (if exists) in both memory and database
-            if (routineCommand.Channel.HasValue)
-            {
-                jobScheduleStateManager.MarkNextCommandAsRunning(completion.Esp32Id, routineCommand.Channel.Value);
-                
-                // Also update the next command in database to IN_PROGRESS
-                var jobStatus = jobScheduleStateManager.GetJobStatus(completion.Esp32Id);
-                var channel = jobStatus.Channels.FirstOrDefault(c => c.Channel == routineCommand.Channel.Value);
-                var nextCommand = channel?.Queue.FirstOrDefault(q => q.Status == ActuatorConstants.CommandStatuses.Running);
-                
-                if (nextCommand != null)
-                {
-                    var nextCommandEntity = await routineCommandRepository.GetByCommandIdAsync(nextCommand.CommandId);
-                    if (nextCommandEntity != null && nextCommandEntity.StatusGeneral != RoutineCommandStatus.IN_PROGRESS)
-                    {
-                        nextCommandEntity.StatusGeneral = RoutineCommandStatus.IN_PROGRESS;
-                        await routineCommandRepository.UpdateAsync(nextCommandEntity);
-                        _logger.LogInformation("🚀 Updated next command {CommandId} to IN_PROGRESS in database", nextCommand.CommandId);
-                    }
-                }
-            }
+            // Notify execution service that routine completed
+            // This will:
+            // 1. Release pin locks
+            // 2. Update actuator states to OFF
+            // 3. Activate pending routines that were waiting for these pins
+            await routineExecutionService.OnRoutineCompletedAsync(completion.CommandId);
 
-            _logger.LogInformation("✅ Updated routine command {CommandId} with status: {Status} for ESP32 {Esp32Id}, removed from job schedule and marked next command as running", 
-                completion.CommandId, completion.Status, completion.Esp32Id);
+            _logger.LogInformation("✅ Processed completion for routine {CommandId} with status: {Status}",
+                completion.CommandId, completion.Status);
         }
         catch (JsonException ex)
         {

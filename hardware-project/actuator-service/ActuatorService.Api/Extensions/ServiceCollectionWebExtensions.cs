@@ -1,4 +1,5 @@
 using ActuatorService.Api.Services;
+using ActuatorService.Application.Configuration;
 using ActuatorService.Application.Validators;
 using HydroEspinaca.Shared.Authentication.Interfaces;
 using HydroEspinaca.Shared.Extensions;
@@ -18,6 +19,14 @@ public static class ServiceCollectionWebExtensions
             "Actuator Service API",
             typeof(RoutineCommandValidator).Assembly
         );
+
+        // Safety rules configuration
+        services.Configure<SafetyRulesConfiguration>(
+            configuration.GetSection(SafetyRulesConfiguration.SectionName));
+
+        // Advanced rules configuration
+        services.Configure<AdvancedRulesConfiguration>(
+            configuration.GetSection(AdvancedRulesConfiguration.SectionName));
 
         // Service-specific exception mapper
         services.AddScoped<IExceptionToProblemDetailsMapper, ActuatorServiceExceptionMapper>();

@@ -112,13 +112,14 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
+        var stateMachine = scope.ServiceProvider.GetRequiredService<IActuatorStateMachine>();
 
-        _logger.LogInformation("🔄 Handling consolidated notification: removing {AffectedCommand}, updating {TargetCommand}", 
+        _logger.LogInformation("🔄 Handling consolidated notification: removing {AffectedCommand}, updating {TargetCommand}",
             notification.AffectedCommand, notification.TargetCommand);
 
         // Remove the affected command from in-memory queue
         stateManager.RemoveCompletedRoutine(notification.AffectedCommand);
-        
+
         // Remove the affected command from database
         var affectedCommand = await routineCommandRepository.GetByCommandIdAsync(notification.AffectedCommand);
         if (affectedCommand != null)
@@ -126,9 +127,12 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
             await routineCommandRepository.DeleteAsync(affectedCommand.Id);
             _logger.LogInformation("🗑️ Deleted consolidated routine command {CommandId} from database", notification.AffectedCommand);
         }
-        
+
         // Update the target command status
         stateManager.UpdateCommandStatus(notification.TargetCommand, ActuatorConstants.CommandStatuses.Running);
+
+        // Note: Actuator state remains ON (no state change needed for consolidation)
+        _logger.LogDebug("📊 Actuator state remains ON (consolidation does not change state)");
 
         _logger.LogInformation("✅ Consolidated notification processed successfully");
     }

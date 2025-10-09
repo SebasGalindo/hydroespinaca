@@ -64,7 +64,7 @@
 // ========================================
 // Cuando el calefactor se apaga por alcanzar WATER_TEMP_MAX,
 // se dispara una recirculación extra para homogeneizar temperatura
-#define EXTRA_RECIRCULATION_DURATION_MS (3 * 60 * 1000)  // 3 minutos
+#define EXTRA_RECIRCULATION_DURATION_MS (5 * 60 * 1000)  // 5 minutos (actualizado de 3)
 #define EXTRA_RECIRCULATION_COOLDOWN_MS (60 * 60 * 1000) // 1 hora (cooldown)
 #define SAFE_WINDOW_MS (15 * 60 * 1000)                  // 15 minutos ventana seguridad
 
@@ -85,17 +85,15 @@
 #define WATER_DISTANCE_RECOVERY 34.0f    // Permitir bomba si distancia < 34cm (tanque lleno - nivel > 6cm)
 #define WATER_LEVEL_REST_TIME_MS (15 * 60 * 1000)  // 15 min reposo
 
-// Luz - Control con máquina de estados avanzada
-#define DARKNESS_THRESHOLD 3000         // TCS34725 Clear < 3000 = oscuridad total
-#define LIGHT_ON_THRESHOLD   65.0f      // Encender si la calidad de luz está por debajo
-#define LIGHT_OFF_THRESHOLD  67.0f      // Apagar si la calidad supera este valor
-#define LIGHT_MIN_ON_MS      (15 * 60 * 1000UL) // Mínimo 15 min encendida antes de poder apagarse
-#define LIGHT_MAX_ON_MS      (45 * 60 * 1000UL) // Máximo 45 min seguidos
-#define LIGHT_REST_MS        (8 * 60 * 1000UL)  // Tiempo de descanso obligatorio
+// Luz - Control simplificado con BH1750
+#define LUX_ON_THRESHOLD    10000.0f    // Si lux < 10000, encender luz artificial
+#define LUX_OFF_THRESHOLD   12000.0f    // Si lux > 12000, apagar luz artificial
+#define LIGHT_MIN_ON_MS     (30 * 60 * 1000UL) // Mínimo 30 min encendida (evita parpadeos)
+#define REQUIRED_LIGHT_HOURS 14         // Fotoperiodo diario total (5 a.m. – 7 p.m.)
 
-// Horario de luz (Colombia UTC-5) - Control activo con sensores robustos
-#define LIGHT_START_HOUR 6   // 6:00 AM
-#define LIGHT_END_HOUR 18    // 6:00 PM
+// Horario de luz (Colombia UTC-5) - 14 horas de fotoperiodo
+#define LIGHT_START_HOUR 5   // 5:00 AM
+#define LIGHT_END_HOUR 19    // 7:00 PM (19:00)
 
 // Tiempos mínimos de actuadores (ms)
 // NOTA: HEATER_MIN_ON_TIME ya definido en línea 34 como 3 minutos
@@ -108,10 +106,10 @@
 // CONFIGURACIÓN DE RUTINAS PERIÓDICAS INDEPENDIENTES
 // ========================================
 
-// CRONOGRAMA DE RECIRCULACIÓN (cada 4h) - INDEPENDIENTE
-#define PUMP_INTERVAL_S 14400                  // 4 horas = 14400 segundos
-#define PUMP_DURATION_S 480                    // 8 minutos = 480 segundos
-#define PUMP_INTERVAL_MINUTES 240              // 4 horas = 240 minutos
+// CRONOGRAMA DE RECIRCULACIÓN (cada 2h) - INDEPENDIENTE
+#define PUMP_INTERVAL_S 7200                   // 2 horas = 7200 segundos
+#define PUMP_DURATION_S 720                    // 12 minutos = 720 segundos
+#define PUMP_INTERVAL_MINUTES 120              // 2 horas = 120 minutos
 
 // CRONOGRAMA DE AIREACIÓN AUTÓNOMA (cada 30 min) - INDEPENDIENTE  
 #define AIR_PERIODIC_INTERVAL_S 1800           // 30 minutos = 1800 segundos
@@ -150,18 +148,16 @@ enum AirStoneMode {
     AIR_MODE_IDLE                  // Modo inactivo: esperando próximo ciclo
 };
 
-// MÁQUINA DE ESTADOS PARA CONTROL DE LUZ ARTIFICIAL
+// CONTROL DE LUZ SIMPLIFICADO - Solo ON/OFF basado en lux
 enum LightState {
-    LIGHT_OFF,                     // Apagada (fuera de horario o calidad suficiente)
-    LIGHT_ON,                      // Encendida (complementando luz natural)
-    LIGHT_RESTING                  // En descanso obligatorio (después de ciclo)
+    LIGHT_OFF,                     // Apagada (lux suficiente o fuera de horario)
+    LIGHT_ON                       // Encendida (lux insuficiente dentro del horario)
 };
 
 struct SensorReadings {
     float temperature;
     float humidity;
-    float lightIndex;       // Fórmula C para calidad espectral
-    uint16_t clearChannel;  // TCS34725 Clear channel para detección oscuridad  
+    float lightLux;         // BH1750 lux reading
     float waterLevel;       // Water level height in cm (tank_height - sensor_distance)
     float waterTemp;
     float ph;
@@ -253,12 +249,9 @@ struct ControlState {
     // Control de temperatura agua (independiente de bomba)
     unsigned long waterHeaterStartTime;
     
-    // NUEVA MÁQUINA DE ESTADOS PARA CONTROL DE LUZ
-    LightState lightState;                 // Estado actual de la máquina de estados
-    unsigned long lightStateStartTime;     // Timestamp del inicio del estado actual
+    // CONTROL DE LUZ SIMPLIFICADO
+    LightState lightState;                 // Estado actual de la luz (ON/OFF)
     unsigned long lightOnStartTime;        // Timestamp cuando se encendió la luz
-    unsigned long lightRestStartTime;      // Timestamp cuando empezó el descanso
-    float lightQualityAtChange;            // Calidad de luz en el último cambio de estado
     
     // HUMIDIFICADOR: Control simplificado con secuencia inmediata
     bool humidifierMasterActive;         // Relé maestro (PIN 14) activo

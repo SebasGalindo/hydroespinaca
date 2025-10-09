@@ -5,19 +5,19 @@
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
-#include <Adafruit_TCS34725.h>
+#include <BH1750.h>
 #include <NTPClient.h>
 #include "pins.h"
 
 class SensorManager {
 private:
     DHT dht;
-    Adafruit_TCS34725 tcs;
+    BH1750 lightMeter;
     NTPClient* timeClient;
-    
+
     // Sensor validity flags
     bool dhtInitialized;
-    bool tcsInitialized;
+    bool bh1750Initialized;
     
     // ADC calibration parameters
     struct {
@@ -47,8 +47,7 @@ public:
     // Individual sensor readings (return NaN if sensor fails)
     float readTemperature();
     float readHumidity();
-    float readLightIndex();  // TCS34725 color sensor (replaces BH1750)
-    uint16_t readLightClearChannel();  // TCS34725 Clear channel for darkness detection
+    float readLightLux();  // BH1750 light sensor (lux)
     
     // New ADC sensors
     float readPH();
@@ -64,7 +63,7 @@ public:
     
     // Sensor status
     bool isDHTAvailable() const { return dhtInitialized; }
-    bool isTCSAvailable() const { return tcsInitialized; }
+    bool isBH1750Available() const { return bh1750Initialized; }
 };
 
 #endif
