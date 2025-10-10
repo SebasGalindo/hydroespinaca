@@ -25,6 +25,11 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     private readonly Dictionary<string, HashSet<string>> _activeAlerts = new();
     private readonly object _alertStateLock = new();
 
+    // ✅ Cooldown cache: Track when alerts were last sent to prevent spam
+    // Key: "esp32Id:variableName", Value: timestamp of last email sent
+    private readonly Dictionary<string, DateTime> _lastEmailSentCache = new();
+    private readonly TimeSpan _emailCooldownPeriod = TimeSpan.FromMinutes(30);
+
     // Inject repository to query database state
     private readonly ISensorAlertRepository _sensorAlertRepository;
     private readonly ISensorRepository _sensorRepository;
@@ -106,6 +111,26 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     {
         var variableList = alertVariables.ToList();
 
+        // ✅ FIRST LAYER: Cooldown check (prevents spam for persistent conditions)
+        var recentlySentVariables = variableList.Where(v => WasAlertSentRecently(esp32Id, v)).ToList();
+
+        if (recentlySentVariables.Any())
+        {
+            _logger.LogWarning("⚠️ Duplicate alert suppressed for {Esp32Id} - variables: [{Variables}] (sent within last {Cooldown} min)",
+                esp32Id, string.Join(", ", recentlySentVariables), _emailCooldownPeriod.TotalMinutes);
+
+            // If ALL variables were recently sent, skip completely
+            if (recentlySentVariables.Count == variableList.Count)
+            {
+                return false;
+            }
+
+            // Otherwise, filter out recently sent variables
+            variableList = variableList.Except(recentlySentVariables).ToList();
+            _logger.LogInformation("📧 Will send email only for new variables: [{Variables}]",
+                string.Join(", ", variableList));
+        }
+
         lock (_alertStateLock)
         {
             // ✅ Log del estado actual en memoria
@@ -137,7 +162,7 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
             }
         }
 
-        // ✅ MEJORA: Query database to check for unsent email alerts (source of truth)
+        // ✅ SECOND LAYER: Query database to check for unsent email alerts (source of truth)
         var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, cancellationToken);
 
         _logger.LogDebug("📊 Database state for ESP32 {Esp32Id}: {DbCount} unsent email alerts in sensor_alerts",
@@ -179,6 +204,9 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
 
         _logger.LogInformation("💾 Persisted email sent timestamp for {Count} alerts in database", unsentAlerts.Count);
 
+        // ✅ Update cooldown cache (primary anti-spam mechanism)
+        MarkAlertAsSentInCache(esp32Id, variableList);
+
         // Also update in-memory cache for performance
         lock (_alertStateLock)
         {
@@ -216,13 +244,17 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
                 {
                     if (activeVariables.Remove(variable))
                         removed++;
+
+                    // ✅ Also clear from cooldown cache (allow new emails if condition recurs)
+                    var cacheKey = $"{esp32Id}:{variable}";
+                    _lastEmailSentCache.Remove(cacheKey);
                 }
 
                 // Remove the ESP32 entry if no active alerts remain
                 if (!activeVariables.Any())
                 {
                     _activeAlerts.Remove(esp32Id);
-                    _logger.LogInformation("✅ All alerts resolved for ESP32: {Esp32Id} → removed from memory",
+                    _logger.LogInformation("✅ All alerts resolved for ESP32: {Esp32Id} → removed from memory and cooldown cache",
                         esp32Id);
                 }
                 else
@@ -239,6 +271,52 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Check if an alert was sent recently (within cooldown period).
+    /// Prevents spam for the same alert condition.
+    /// </summary>
+    private bool WasAlertSentRecently(string esp32Id, string variableName)
+    {
+        var cacheKey = $"{esp32Id}:{variableName}";
+
+        lock (_alertStateLock)
+        {
+            if (_lastEmailSentCache.TryGetValue(cacheKey, out var lastSentTime))
+            {
+                var timeSinceLastEmail = DateTime.UtcNow - lastSentTime;
+
+                if (timeSinceLastEmail < _emailCooldownPeriod)
+                {
+                    _logger.LogDebug("⏱️ Alert for {Variable} on {Esp32Id} was sent {Minutes:F1} minutes ago (cooldown: {Cooldown} min)",
+                        variableName, esp32Id, timeSinceLastEmail.TotalMinutes, _emailCooldownPeriod.TotalMinutes);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Mark an alert as recently sent in the cooldown cache.
+    /// </summary>
+    private void MarkAlertAsSentInCache(string esp32Id, IEnumerable<string> variableNames)
+    {
+        var now = DateTime.UtcNow;
+
+        lock (_alertStateLock)
+        {
+            foreach (var variableName in variableNames)
+            {
+                var cacheKey = $"{esp32Id}:{variableName}";
+                _lastEmailSentCache[cacheKey] = now;
+            }
+
+            _logger.LogDebug("🕒 Updated cooldown cache for {Count} variables on {Esp32Id}",
+                variableNames.Count(), esp32Id);
+        }
     }
 
     /// <summary>

@@ -86,6 +86,8 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
             existingAlert.Count++;
             existingAlert.LastSeen = timestamp;
             existingAlert.LatestValue = reading.Value;
+            // ✅ CRITICAL: Preserve EmailSentAt to prevent duplicate email notifications
+            // Do NOT reset EmailSentAt when incrementing count
             await _sensorAlertRepository.UpdateAsync(existingAlert);
             return null; // Don't create a new alert
         }
@@ -108,6 +110,8 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
             existingAlert.Count++;
             existingAlert.LastSeen = timestamp;
             existingAlert.LatestValue = reading.Value;
+            // ✅ CRITICAL: Preserve EmailSentAt to prevent duplicate email notifications
+            // Do NOT reset EmailSentAt when incrementing count
             await _sensorAlertRepository.UpdateAsync(existingAlert);
             return null; // Don't create a new alert
         }
@@ -137,6 +141,8 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
             existingAlert.Count++;
             existingAlert.LastSeen = timestamp;
             existingAlert.LatestValue = reading.Value;
+            // ✅ CRITICAL: Preserve EmailSentAt to prevent duplicate email notifications
+            // Do NOT reset EmailSentAt when incrementing count
             await _sensorAlertRepository.UpdateAsync(existingAlert);
             return null; // Don't create a new alert
         }
