@@ -47,8 +47,12 @@ public static class ServiceCollectionInfrastructureExtensions
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
         services.AddScoped<IVariableMigrationService, VariableMigrationService>();
-        services.AddHttpClient<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
-     
+
+        // ✅ CRITICAL: Singleton to maintain in-memory alert state across requests
+        // IMPORTANT: In production with multiple replicas, migrate to Redis/Distributed Cache
+        services.AddSingleton<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
+        services.AddHttpClient<CriticalAlertNotificationService>(); // Only for HttpClient injection
+
         return services;
     }
 }

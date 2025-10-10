@@ -2,6 +2,7 @@
 
 <p>Se ha detectado una condición anómala en el cultivo de espinaca.</p>
 
+<h2 style="color: #dc2626; margin-top: 24px; margin-bottom: 12px; font-size: 18px;">Variables críticas (manuales)</h2>
 <ul style="list-style: none; padding: 0; margin: 16px 0;">
   {% for reading in manualReadings %}
     <li style="margin-bottom: 8px;">
@@ -19,8 +20,29 @@
   {% endfor %}
 </ul>
 
-<p><strong>ESP32 ID:</strong> {{ esp32Id }}</p>
-<p><strong>Timestamp:</strong> {{ timestamp }}</p>
+{% if hasContextualReadings %}
+<div style="margin-top: 32px; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #6b7280; border-radius: 4px;">
+  <h2 style="color: #374151; margin-top: 0; margin-bottom: 12px; font-size: 16px;">📊 Información contextual del ambiente</h2>
+  <p style="margin: 8px 0; font-size: 14px; color: #6b7280;">
+    Los siguientes valores se registraron al momento de la alerta y se proporcionan como contexto:
+  </p>
+  <ul style="list-style: none; padding: 0; margin: 12px 0;">
+    {% for reading in contextualReadings %}
+      <li style="margin-bottom: 6px; font-size: 14px;">
+        <strong>{{ reading.name }}:</strong> {{ reading.value }} {{ reading.unit }}
+      </li>
+    {% endfor %}
+  </ul>
+  <p style="margin: 12px 0 0 0; font-size: 13px; font-style: italic; color: #9ca3af;">
+    ℹ️ Estos valores se muestran solo como referencia y no representan una nueva alerta.
+  </p>
+</div>
+{% endif %}
+
+<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+  <p><strong>ESP32 ID:</strong> {{ esp32Id }}</p>
+  <p><strong>Timestamp:</strong> {{ timestamp }}</p>
+</div>
 
 <p style="margin-top: 20px; font-style: italic; color: #374151;">
   Recomendación: revisar parámetros manuales antes de continuar operación.

@@ -17,11 +17,16 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
     public async Task<CriticalAlertData> EvaluateCriticalReadingsAsync(string esp32Id, DateTime timestamp, IEnumerable<Reading> readings, IEnumerable<Sensor> sensors, CancellationToken cancellationToken = default)
     {
         var criticalReadings = new List<CriticalReadingAlert>();
-        
+        var contextualReadings = new List<ContextualReading>();
+
         // Get only manual variables (critical variables that require human intervention)
         var manualVariables = await _variableRepository.GetByRegulationTypeAsync(RegulationType.Manual, cancellationToken);
         var variableLookup = manualVariables.ToDictionary(v => v.Id, v => v);
-        
+
+        // Get automatic variables for contextual information
+        var automaticVariables = await _variableRepository.GetByRegulationTypeAsync(RegulationType.Automatic, cancellationToken);
+        var automaticVariableLookup = automaticVariables.ToDictionary(v => v.Id, v => v);
+
         if (!manualVariables.Any())
         {
             // No manual variables configured - return empty result
@@ -29,7 +34,8 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
             {
                 Esp32Id = esp32Id,
                 Timestamp = timestamp,
-                ManualReadings = Array.Empty<CriticalReadingAlert>()
+                ManualReadings = Array.Empty<CriticalReadingAlert>(),
+                ContextualReadings = Array.Empty<ContextualReading>()
             };
         }
 
@@ -99,12 +105,51 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
                 });
             }
         }
-        
+
+        // ✅ Collect contextual readings from automatic sensors (temperature, humidity)
+        // These provide context for why the alert was triggered, but are NOT alerts themselves
+        var automaticSensorsByVariableId = sensors
+            .Where(s => s.Variables.Any(varId => automaticVariableLookup.ContainsKey(varId)))
+            .SelectMany(s => s.Variables.Where(varId => automaticVariableLookup.ContainsKey(varId))
+                .Select(varId => new { VariableId = varId, Sensor = s }))
+            .GroupBy(sv => sv.VariableId)
+            .ToDictionary(g => g.Key, g => g.Select(sv => sv.Sensor).ToList());
+
+        foreach (var automaticVariable in automaticVariables)
+        {
+            if (automaticSensorsByVariableId.TryGetValue(automaticVariable.Id, out var sensorsForVariable))
+            {
+                // Find readings for this automatic variable
+                var variableReadings = sensorsForVariable
+                    .Where(sensor => readingsBySensorId.ContainsKey(sensor.Id))
+                    .SelectMany(sensor => readingsBySensorId[sensor.Id])
+                    .Where(reading => reading.VariableId == automaticVariable.Id)
+                    .ToList();
+
+                if (variableReadings.Any())
+                {
+                    // Use the most recent reading for context
+                    var latestReading = variableReadings.OrderByDescending(r => r.Timestamp).First();
+
+                    if (!double.IsNaN(latestReading.Value) && !double.IsInfinity(latestReading.Value))
+                    {
+                        contextualReadings.Add(new ContextualReading
+                        {
+                            Name = automaticVariable.Name,
+                            Value = latestReading.Value,
+                            Unit = automaticVariable.Unit
+                        });
+                    }
+                }
+            }
+        }
+
         return new CriticalAlertData
         {
             Esp32Id = esp32Id,
             Timestamp = timestamp,
-            ManualReadings = criticalReadings.AsReadOnly()
+            ManualReadings = criticalReadings.AsReadOnly(),
+            ContextualReadings = contextualReadings.AsReadOnly()
         };
     }
 

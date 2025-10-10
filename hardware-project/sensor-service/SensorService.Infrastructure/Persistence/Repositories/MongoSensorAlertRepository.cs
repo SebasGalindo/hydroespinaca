@@ -68,4 +68,21 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         var result = await _baseRepo.DeleteManyAsync(filter);
         return (int)result.DeletedCount;
     }
+
+    public async Task<int> CountActiveAlertsBySensorsAsync(IEnumerable<string> sensorIds, CancellationToken cancellationToken = default)
+    {
+        var sensorIdList = sensorIds.ToList();
+
+        if (!sensorIdList.Any())
+            return 0;
+
+        var filter = Builders<SensorAlertDocument>.Filter.And(
+            Builders<SensorAlertDocument>.Filter.In(a => a.SensorId, sensorIdList),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
+        );
+
+        var count = await _baseRepo.CountAsync(filter);
+        return (int)count;
+    }
 }

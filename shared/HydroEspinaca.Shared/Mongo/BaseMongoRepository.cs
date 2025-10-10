@@ -100,6 +100,11 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
         return await _collection.Find(filter).Limit(1).AnyAsync();
     }
 
+    public async Task<long> CountAsync(FilterDefinition<TDocument> filter)
+    {
+        return await _collection.CountDocumentsAsync(filter);
+    }
+
     public async Task<DeleteResult> DeleteManyAsync(FilterDefinition<TDocument> filter)
     {
         return await _collection.DeleteManyAsync(filter);
