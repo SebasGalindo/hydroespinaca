@@ -4,6 +4,12 @@
 // Import pin definitions
 #include "pins.h"
 
+// ========================================
+// TEMPORAL: Usar TCS34725 para estimar lux
+// Cuando se instale BH1750, cambiar a false
+// ========================================
+#define USE_TCS34725_LUX_FALLBACK true
+
 // Device Info
 #define ESP32_ID "6883fff7b079309f3ba4f238"
 #define FIRMWARE_VERSION "4.0.0"  // Autonomous firmware - basic actuator control

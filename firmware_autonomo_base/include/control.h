@@ -78,11 +78,12 @@
 #define EC_MAX 2.3f         
 #define EC_HYSTERESIS 0.2f
 
-// Nivel de agua (cm) - Fail-safe para proteger bomba
-// IMPORTANTE: Se usa DISTANCIA medida por sensor (no nivel de agua)
-// Tanque altura = 40cm, sensor en la parte superior
-#define WATER_DISTANCE_MAX 33.0f         // Apagar bomba si distancia > 33cm (tanque vacío - nivel < 7cm)
-#define WATER_DISTANCE_RECOVERY 34.0f    // Permitir bomba si distancia < 34cm (tanque lleno - nivel > 6cm)
+// Distancia del sensor ultrasónico (cm) - Fail-safe para proteger bomba
+// Sensor montado ARRIBA del tanque midiendo hacia abajo
+// Distancia PEQUEÑA (~3-6cm) = Tanque LLENO (agua cerca del sensor)
+// Distancia GRANDE (>7cm) = Tanque VACÍO (agua lejos del sensor)
+#define WATER_DISTANCE_MAX 7.0f            // Apagar bomba si distancia > 7cm (tanque vacío)
+#define WATER_DISTANCE_RECOVERY 6.0f       // Permitir bomba si distancia < 6cm (tanque lleno)
 #define WATER_LEVEL_REST_TIME_MS (15 * 60 * 1000)  // 15 min reposo
 
 // Luz - Control simplificado con BH1750

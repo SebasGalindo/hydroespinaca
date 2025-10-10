@@ -3,7 +3,8 @@
 #include "pins.h"
 
 SensorManager::SensorManager(NTPClient* ntpClient) : dht(PIN_DHT22, DHT_TYPE),
-                                 timeClient(ntpClient), dhtInitialized(false), bh1750Initialized(false) {
+                                 tcs(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X),
+                                 timeClient(ntpClient), dhtInitialized(false), bh1750Initialized(false), tcsInitialized(false) {
     // Initialize ADC for analog sensors with improved precision
     analogReadResolution(12);        // 0-4095 (12-bit resolution)
     analogSetAttenuation(ADC_11db);  // For 3.3V input range
@@ -27,6 +28,16 @@ void SensorManager::begin() {
     dhtInitialized = true;
     Serial.println("✅ DHT22 inicializado");
 
+#if USE_TCS34725_LUX_FALLBACK
+    // TEMPORAL: Inicializar TCS34725 para estimar lux
+    if (tcs.begin()) {
+        tcsInitialized = true;
+        Serial.println("✅ TCS34725 inicializado (modo fallback lux)");
+    } else {
+        Serial.println("❌ Error inicializando TCS34725");
+        tcsInitialized = false;
+    }
+#else
     // Initialize BH1750
     if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
         bh1750Initialized = true;
@@ -35,6 +46,7 @@ void SensorManager::begin() {
         Serial.println("❌ Error inicializando BH1750");
         bh1750Initialized = false;
     }
+#endif
 
     Serial.println("✅ Sensores inicializados");
 }
@@ -61,8 +73,40 @@ float SensorManager::readHumidity() {
     return humidity;
 }
 
-// BH1750 light sensor - returns lux value
+// Light sensor - returns lux value
 float SensorManager::readLightLux() {
+#if USE_TCS34725_LUX_FALLBACK
+    // TEMPORAL: Estimar lux desde TCS34725
+    if (!tcsInitialized) return NAN;
+
+    uint16_t r, g, b, c;
+
+    // Timeout para evitar bloqueo en I2C
+    unsigned long startTime = millis();
+    const unsigned long timeout = 1000; // 1 segundo timeout
+
+    // Intentar lectura con watchdog feed
+    yield(); // Ceder antes de operación I2C
+    tcs.getRawData(&r, &g, &b, &c);
+
+    // Verificar si la operación tomó demasiado tiempo
+    if (millis() - startTime > timeout) {
+        Serial.println("❌ [SENSOR] TCS34725: Timeout en lectura I2C");
+        return NAN;
+    }
+
+    // Fórmula empírica de Adafruit para estimar lux
+    // Basada en la sensibilidad del sensor al espectro visible
+    float lux = (-0.32466f * r) + (1.57837f * g) + (-0.73191f * b);
+
+    if (lux < 0) lux = 0;
+    lux = constrain(lux, 0, 65535);
+
+    Serial.printf("[SENSOR] TCS34725→Lux (fallback): %.0f lux (R=%d G=%d B=%d C=%d)\n", lux, r, g, b, c);
+
+    return lux;
+#else
+    // BH1750 nativo
     if (!bh1750Initialized) return NAN;
 
     float lux = lightMeter.readLightLevel();
@@ -75,6 +119,7 @@ float SensorManager::readLightLux() {
     Serial.printf("[SENSOR] BH1750: %.0f lux\n", lux);
 
     return lux;
+#endif
 }
 
 String SensorManager::getCurrentTimestamp() {
@@ -238,8 +283,9 @@ float SensorManager::readADCVoltageAveraged(int pin, int samples) {
     for (int i = 0; i < samples; i++) {
         sum += analogRead(pin);
         delay(5);  // Small delay between readings to reduce noise
+        if (i % 5 == 0) yield(); // Ceder control cada 5 lecturas para evitar watchdog
     }
-    
+
     int rawValue = sum / samples;
     float voltage = (rawValue / ADC_RESOLUTION) * ADC_VREF;
     
@@ -286,26 +332,27 @@ float SensorManager::calculateMedian(float values[], int size) {
 
 // pH Sensor Reading (SEN0161 - Calibrated with median filtering)
 float SensorManager::readPH() {
-    const int NUM_SAMPLES = 15;  // Reducido para el sistema autónomo (vs 60 del test)
-    const int SAMPLE_DELAY = 100;  // Reducido para el sistema autónomo (vs 500ms)
-    
-    // Constantes calibradas usando mediana de mediciones
-    const float PH_SLOPE = 21.96f;
-    const float PH_INTERCEPT = -16.08f;
-    
+    const int NUM_SAMPLES = 15;
+    const int SAMPLE_DELAY = 50;  // Delay entre muestras
+
+    // 📐 Calibración: 1.03 V -> pH 6.48 | 1.37 V -> pH 7.00
+    const float PH_SLOPE = 1.529f;
+    const float PH_INTERCEPT = 4.909f;
+
     float voltages[NUM_SAMPLES];
-    
-    // Tomar muestras con delay
+
+    // Tomar muestras con delay y yield para watchdog
     for (int i = 0; i < NUM_SAMPLES; i++) {
         int adcRaw = analogRead(PIN_PH_ADC);
-        float voltage = adcRaw * (ADC_VREF / ADC_RESOLUTION);
+        float voltage = (adcRaw * ADC_VREF) / ADC_RESOLUTION;
         voltages[i] = voltage;
         delay(SAMPLE_DELAY);
+        if (i % 5 == 0) yield(); // Ceder control cada 5 muestras
     }
-    
-    // Calcular mediana para filtrar ruido
+
+    // Calcular mediana para filtrar ruido (usa bubble sort interno)
     float medianVoltage = calculateMedian(voltages, NUM_SAMPLES);
-    
+
     // Validar voltaje funcional
     if (medianVoltage < 0.05 || medianVoltage > 3.3) {
         Serial.printf("[SENSOR] pH voltage fuera de rango funcional: %.4fV\n", medianVoltage);
@@ -314,16 +361,16 @@ float SensorManager::readPH() {
     
     // Calcular pH usando ecuación calibrada
     float phValue = PH_SLOPE * medianVoltage + PH_INTERCEPT;
-    
-    Serial.printf("[SENSOR] pH: mediana=%.4fV pH=%.2f (calibrado)\n", 
-                  medianVoltage, phValue);
-    
+
     // Validar rango físico del pH (0-14)
     if (phValue < 0.0 || phValue > 14.0 || isnan(phValue)) {
-        Serial.printf("[SENSOR] pH value fuera de rango físico: %.2f\n", phValue);
+        Serial.printf("⚠ [SENSOR] pH fuera de rango: %.2f | Voltaje: %.4f V\n", phValue, medianVoltage);
         return NAN;
     }
-    
+
+    Serial.printf("📊 [SENSOR] pH: Voltaje mediana=%.4fV | pH calibrado=%.2f\n",
+                  medianVoltage, phValue);
+
     return phValue;
 }
 
@@ -437,88 +484,77 @@ float SensorManager::readTankTemperature() {
 
 // Roots Temperature (NTC sensor) - REMOVED in autonomous version
 
-// Función auxiliar para medición ultrasónica individual (basada en código de referencia)
+// Función auxiliar para medición ultrasónica individual
 float SensorManager::measureUltrasonicDistance() {
-    // Send trigger pulse (standard HC-SR04 sequence)
+    // Asegurar que TRIG esté en LOW
     digitalWrite(PIN_ULTRA_TRIG, LOW);
     delayMicroseconds(2);
+
+    // Enviar pulso de 10us al TRIG
     digitalWrite(PIN_ULTRA_TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(PIN_ULTRA_TRIG, LOW);
-    
-    // Timeout 30ms ≈ 5m (según código de referencia)
-    unsigned long duration = pulseIn(PIN_ULTRA_ECHO, HIGH, 30000);
-    
+
+    // Medir el tiempo que tarda en regresar el pulso
+    // Timeout 30ms ≈ 5m máximo
+    long duration = pulseIn(PIN_ULTRA_ECHO, HIGH, 30000);
+
     // Check for timeout
     if (duration == 0) return -1;
-    
-    // Convert duration to distance in cm
-    // Speed of sound = 0.034 cm/μs (según código de referencia), divide by 2 for round trip
-    float distance = duration * 0.034 / 2.0;
-    
-    // Validate distance is within HC-SR04 functional range (según código de referencia)
+
+    // Calcular distancia en cm
+    // Velocidad del sonido = 0.0343 cm/us, dividir por 2 por ida y vuelta
+    float distance = (duration * 0.0343) / 2.0;
+
+    // Validar rango funcional del HC-SR04 (2cm a 400cm)
     if (distance < 2 || distance > 400) return -1;
-    
+
     return distance;
 }
 
-// Ultrasonic Water Level Sensor (HC-SR04) - Returns distance in cm for API/MQTT
+// Ultrasonic Sensor (HC-SR04) - Returns distance in cm
 float SensorManager::readWaterLevel() {
-    const float TANK_HEIGHT_CM = 40.0f;           // Altura total del tanque
-    const int NUM_SAMPLES = 5;                    // Número de mediciones para promedio
-    
+    const int NUM_SAMPLES = 5;  // Número de mediciones para promedio
+
     float suma = 0;
     int validas = 0;
-    
-    // Tomar múltiples mediciones y promediar solo las válidas (como en código de referencia)
+
+    // Tomar múltiples mediciones y promediar solo las válidas
     for (int i = 0; i < NUM_SAMPLES; i++) {
         float distance = measureUltrasonicDistance();
         if (distance > 0) {
             suma += distance;
             validas++;
         }
-        delay(50); // Delay entre mediciones (según código de referencia)
+        delay(50); // Delay entre mediciones
+        yield();   // Ceder control al watchdog entre mediciones
     }
-    
+
     // Si no hay mediciones válidas
     if (validas == 0) {
-        Serial.println("💧 Water Level: [SENSOR] Sin lecturas válidas del ultrasónico ❌");
+        Serial.println("💧 [SENSOR] Ultrasónico: Sin lecturas válidas ❌");
         return NAN;
     }
-    
+
     // Calcular distancia promediada
     float distance = suma / validas;
-    
-    // Additional validation: distance should be reasonable for tank
-    if (distance > TANK_HEIGHT_CM + 10.0f) { // 10cm margin for sensor mounting
-        Serial.printf("💧 Water Level: [SENSOR] Distancia promedio inválida (%.2fcm > altura tanque %.0fcm) ❌\n", 
-                     distance, TANK_HEIGHT_CM);
+
+    // Validación básica de rango del sensor
+    if (distance > 400.0f) {
+        Serial.printf("💧 [SENSOR] Ultrasónico: Distancia fuera de rango (%.2fcm > 400cm) ❌\n", distance);
         return NAN;
     }
-    
-    // Validate distance is within useful range (not too close to avoid false readings)
+
     if (distance < 2.0f) {
-        Serial.printf("💧 Water Level: [SENSOR] Distancia muy pequeña (%.2fcm < 2cm) - posible ruido ❌\n", distance);
+        Serial.printf("💧 [SENSOR] Ultrasónico: Distancia muy pequeña (%.2fcm < 2cm) - posible ruido ❌\n", distance);
         return NAN;
     }
-    
-    // Calculate actual water level in cm (sensor mounted at top)
-    // level = tank_height - distance_to_water_surface
-    float waterLevel = TANK_HEIGHT_CM - distance;
 
-    // Ensure valid range for water level (0 to tank height)
-    if (waterLevel < 0.0f) waterLevel = 0.0f;
-    if (waterLevel > TANK_HEIGHT_CM) waterLevel = TANK_HEIGHT_CM;
+    // Mostrar resultado
+    Serial.printf("💧 [SENSOR] Ultrasónico: válidas=%d/%d, distancia=%.2fcm ✅\n",
+                  validas, NUM_SAMPLES, distance);
 
-    // Calculate percentage for logging purposes only
-    float waterLevelPercent = 100.0f * waterLevel / TANK_HEIGHT_CM;
-
-    // Success log with measurement statistics
-    Serial.printf("💧 Water Level: [SENSOR] Ultrasónico: mediciones válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n",
-                  validas, NUM_SAMPLES, distance, waterLevel, waterLevelPercent);
-
-    // IMPORTANTE: Retornar DISTANCIA medida (no nivel de agua)
-    // El backend necesita la distancia raw para la variable 68d1d07307c249cda4c369b0
+    // RETORNAR DISTANCIA MEDIDA (en cm)
     return distance;
 }
 

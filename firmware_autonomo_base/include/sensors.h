@@ -6,18 +6,22 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <BH1750.h>
+#include <Adafruit_TCS34725.h>
 #include <NTPClient.h>
 #include "pins.h"
+#include "config.h"
 
 class SensorManager {
 private:
     DHT dht;
     BH1750 lightMeter;
+    Adafruit_TCS34725 tcs;  // Temporal fallback para lux
     NTPClient* timeClient;
 
     // Sensor validity flags
     bool dhtInitialized;
     bool bh1750Initialized;
+    bool tcsInitialized;  // Temporal fallback
     
     // ADC calibration parameters
     struct {
@@ -64,6 +68,7 @@ public:
     // Sensor status
     bool isDHTAvailable() const { return dhtInitialized; }
     bool isBH1750Available() const { return bh1750Initialized; }
+    bool isTCSAvailable() const { return tcsInitialized; }
 };
 
 #endif

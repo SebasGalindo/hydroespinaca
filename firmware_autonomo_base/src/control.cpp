@@ -59,7 +59,7 @@ void AutonomousController::begin() {
                   WATER_TEMP_MIN, WATER_TEMP_MAX, WATER_TEMP_HYSTERESIS);
     Serial.printf("   💡 Luz: %.0f-%.0f lux (horario %d:00-%d:00, %dh diarias)\n",
                   LUX_ON_THRESHOLD, LUX_OFF_THRESHOLD, LIGHT_START_HOUR, LIGHT_END_HOUR, REQUIRED_LIGHT_HOURS);
-    Serial.printf("   🌊 Distancia agua máxima: %.1f cm (tanque vacío)\n", WATER_DISTANCE_MAX);
+    Serial.printf("   🌊 Distancia máxima: %.1f cm (bomba OFF si mayor)\n", WATER_DISTANCE_MAX);
 }
 
 // ========================================
@@ -121,26 +121,33 @@ void AutonomousController::loop() {
 
 void AutonomousController::updateSensorReadings() {
     Serial.println("📊 [CTRL] Actualizando lecturas de sensores...");
-    
+
     SensorReadings& reading = state.readings[state.readingIndex];
     reading.timestamp = millis();
-    
-    // Leer todos los sensores
+
+    // Leer todos los sensores con yields para evitar watchdog timeout
     reading.temperature = sensors->readTemperature();
+    yield(); // Ceder control al watchdog
+
     reading.humidity = sensors->readHumidity();
+    yield(); // Ceder control al watchdog
+
     reading.lightLux = sensors->readLightLux();
-    // IMPORTANTE: Almacenar DISTANCIA directamente (no convertir a nivel)
-    // La validación de seguridad usa distancia del sensor
-    float distanceCm = sensors->readWaterLevel();
-    if (!isnan(distanceCm)) {
-        reading.waterLevel = distanceCm;  // Guardar distancia directamente
-    } else {
-        reading.waterLevel = NAN;
-    }
+    yield(); // Ceder control al watchdog
+
+    // Leer nivel de agua (ya calculado internamente como altura_tanque - distancia)
+    reading.waterLevel = sensors->readWaterLevel();
+    yield(); // Ceder control al watchdog después de múltiples lecturas ultrasónicas
+
     reading.waterTemp = sensors->readTankTemperature();
+    yield(); // Ceder control al watchdog
+
     reading.ph = sensors->readPH();
+    yield(); // Ceder control al watchdog
+
     reading.tds = sensors->readTDS();
-    
+    yield(); // Ceder control al watchdog
+
     // Validar que las lecturas críticas sean válidas
     reading.valid = !isnan(reading.temperature) &&
                    !isnan(reading.humidity) &&
@@ -150,7 +157,7 @@ void AutonomousController::updateSensorReadings() {
                   state.readingIndex, reading.temperature, reading.humidity,
                   reading.lightLux, reading.waterLevel,
                   reading.valid ? "✅" : "❌");
-    
+
     // Avanzar índice circular
     state.readingIndex = (state.readingIndex + 1) % MAX_READINGS;
     if (state.readingCount < MAX_READINGS) {
@@ -241,31 +248,31 @@ void AutonomousController::checkWaterLevelSafety() {
         return;
     }
     
-    float waterDistance = state.averageReadings.waterLevel;  // Ahora es distancia del sensor
+    float waterDistance = state.averageReadings.waterLevel;  // Distancia en cm del sensor ultrasónico
     bool previousWaterOk = state.waterLevelOk;
 
-    // LÓGICA CORREGIDA: Usar DISTANCIA del sensor con histéresis
-    // Distancia ALTA (>33cm) = Tanque VACÍO → Bloquear bomba
-    // Distancia BAJA (<34cm) = Tanque LLENO → Permitir bomba
+    // LÓGICA: Sensor montado ARRIBA midiendo hacia abajo con histéresis
+    // Distancia GRANDE (>7cm) = Tanque VACÍO → Bloquear bomba
+    // Distancia PEQUEÑA (<6cm) = Tanque LLENO → Permitir bomba
     if (state.waterLevelOk) {
-        // Bomba permitida: bloquear si distancia > 33cm (tanque vacío)
+        // Bomba permitida: bloquear si distancia > 7cm (tanque vacío)
         state.waterLevelOk = waterDistance <= WATER_DISTANCE_MAX;
     } else {
-        // Bomba bloqueada: permitir solo si distancia < 34cm (tanque lleno)
+        // Bomba bloqueada: permitir solo si distancia < 6cm (tanque lleno)
         state.waterLevelOk = waterDistance < WATER_DISTANCE_RECOVERY;
     }
 
     if (!state.waterLevelOk) {
         if (previousWaterOk) {
-            logSafetyAction("Distancia agua ALTA - tanque vacío - bloqueando bomba y difusor");
-            Serial.printf("🚨 [NIVEL] Distancia %.1fcm > %.1fcm (límite) - BOMBA OFF por tanque vacío\n",
+            logSafetyAction("Distancia ALTA - tanque vacío - bloqueando bomba y difusor");
+            Serial.printf("🚨 [DISTANCIA] %.1fcm > %.1fcm (vacío) - BOMBA OFF\n",
                          waterDistance, WATER_DISTANCE_MAX);
         }
-        
+
         // Forzar apagado de bomba y difusor
         state.waterPump.forceOff = true;
         state.airStone.forceOff = true;
-        
+
         // Apagar inmediatamente si están encendidos (SEGURIDAD CRÍTICA)
         if (state.waterPump.isOn) {
             setActuatorStateImmediate(state.waterPump, false, "bomba");
@@ -273,16 +280,16 @@ void AutonomousController::checkWaterLevelSafety() {
         if (state.airStone.isOn) {
             setActuatorStateImmediate(state.airStone, false, "difusor");
         }
-        
+
         // Asegurar que relé maestro humidificador esté OFF en modo seguro
         ActuatorController::turnHumidifierMasterOff();
     } else {
         if (!previousWaterOk) {
-            logSafetyAction("Distancia agua BAJA - tanque lleno - habilitando bomba");
-            Serial.printf("✅ [NIVEL] Distancia %.1fcm < %.1fcm (recuperación) - BOMBA habilitada, tanque lleno\n",
+            logSafetyAction("Distancia BAJA - tanque lleno - habilitando bomba");
+            Serial.printf("✅ [DISTANCIA] %.1fcm < %.1fcm (lleno) - BOMBA habilitada\n",
                          waterDistance, WATER_DISTANCE_RECOVERY);
         }
-        
+
         // Restaurar operación normal
         state.waterPump.forceOff = false;
         state.airStone.forceOff = false;
@@ -305,15 +312,15 @@ void AutonomousController::controlTemperature() {
             state.heaterOffStartTime = millis();
             state.heaterFastMonitoringActive = false;  // Detener monitoreo rápido
 
-            // SINCRONIZACIÓN: Apagar humidificador cuando se apaga el calefactor
-            if (state.humidifierMasterActive) {
-                state.humidifierMasterActive = false;
-                state.humidifier.isOn = false;
-                state.windowValidationActive = false;
-                ActuatorController::turnHumidifierMasterOff();
-                ActuatorController::turnHumidifierRelayOff();
-                Serial.println("💧 [CTRL] Humidificador APAGADO - sincronizado con calefactor OFF");
-            }
+            // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
+            // if (state.humidifierMasterActive) {
+            //     state.humidifierMasterActive = false;
+            //     state.humidifier.isOn = false;
+            //     state.windowValidationActive = false;
+            //     ActuatorController::turnHumidifierMasterOff();
+            //     ActuatorController::turnHumidifierRelayOff();
+            //     Serial.println("💧 [CTRL] Humidificador APAGADO - sincronizado con calefactor OFF");
+            // }
 
             logControlDecision("Temperatura", temp, "calefactor aire OFF - umbral seguridad 22.5°C");
         }
@@ -328,29 +335,25 @@ void AutonomousController::controlTemperature() {
             state.heaterTempBufferIndex = 0;
             state.heaterTempBufferFull = false;
 
-            // SINCRONIZACIÓN: Activar humidificador cuando se activa el calefactor
-            // Solo si nivel de agua OK, humedad baja, y no está bloqueado
-            unsigned long now = millis();
-            if (state.waterLevelOk && !state.humidifierLocked && !state.humidifierMasterActive) {
-                float humidity = state.averageReadings.humidity;
-                if (!isnan(humidity) && humidity <= HUMIDITY_MAX) {
-                    // Activar secuencia de humidificador
-                    state.humidifierMasterActive = true;
-                    state.humidifierStartTime = now;
-                    state.humidityAtStart = humidity;
-                    state.temperatureAtStart = temp;
-                    state.humidifierWindowStart = now;
-                    state.windowValidationActive = true;
-
-                    ActuatorController::turnHumidifierMasterOn();
-                    delay(2000);
-                    ActuatorController::turnHumidifierRelayOn();
-                    delay(1000);
-                    ActuatorController::turnHumidifierRelayOff();
-
-                    Serial.printf("💧 [CTRL] Humidificador ACTIVADO - sincronizado con calefactor ON (H=%.1f%%)\n", humidity);
-                }
-            }
+            // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
+            // unsigned long now = millis();
+            // if (state.waterLevelOk && !state.humidifierLocked && !state.humidifierMasterActive) {
+            //     float humidity = state.averageReadings.humidity;
+            //     if (!isnan(humidity) && humidity <= HUMIDITY_MAX) {
+            //         state.humidifierMasterActive = true;
+            //         state.humidifierStartTime = now;
+            //         state.humidityAtStart = humidity;
+            //         state.temperatureAtStart = temp;
+            //         state.humidifierWindowStart = now;
+            //         state.windowValidationActive = true;
+            //         ActuatorController::turnHumidifierMasterOn();
+            //         delay(2000);
+            //         ActuatorController::turnHumidifierRelayOn();
+            //         delay(1000);
+            //         ActuatorController::turnHumidifierRelayOff();
+            //         Serial.printf("💧 [CTRL] Humidificador ACTIVADO - sincronizado con calefactor ON (H=%.1f%%)\n", humidity);
+            //     }
+            // }
 
             logControlDecision("Temperatura", temp, "calefactor aire ON - umbral seguridad 17.0°C - MONITOREO RÁPIDO INICIADO");
         }
@@ -380,6 +383,11 @@ void AutonomousController::controlTemperature() {
 
 // NUEVA LÓGICA: Control de humedad con debounce y reposo
 void AutonomousController::controlHumidity() {
+    // ⚠️ PARCHE TEMPORAL: HUMIDIFICADOR DESHABILITADO
+    // Relé maestro del humidificador (PIN 14) está defectuoso y produce zumbido
+    // TODO: Remover este return cuando se reemplace el relé
+    return;
+
     if (!state.averageReadings.valid) return;
 
     float humidity = state.averageReadings.humidity;
@@ -675,33 +683,51 @@ void AutonomousController::runPeriodicRoutines() {
 }
 
 // ========================================
-// CRONOGRAMA INDEPENDIENTE DE RECIRCULACIÓN (cada 4h)
+// CRONOGRAMA INDEPENDIENTE DE RECIRCULACIÓN (cada 2h)
 // ========================================
 
 void AutonomousController::initializeRecirculationSchedule() {
     unsigned long currentMinutes = getCurrentMinutes();
-    
-    // Calcular próximo horario de recirculación (múltiplo de 4h desde medianoche)
+
+    // Calcular próximo horario de recirculación (múltiplo de 2h desde medianoche)
     unsigned long hoursSinceMidnight = currentMinutes / 60;
-    unsigned long nextHour = ((hoursSinceMidnight / 4) + 1) * 4; // Próximo múltiplo de 4
+    unsigned long nextHour = ((hoursSinceMidnight / 2) + 1) * 2; // Próximo múltiplo de 2
     if (nextHour >= 24) nextHour = 0; // Wrap around midnight
-    
+
     state.nextRecirculationTime = nextHour * 60; // Convertir a minutos
-    
-    Serial.printf("🔄 [RECIRCULACIÓN] Próximo horario: %02ld:00 (%ld min desde medianoche)\n", 
+
+    Serial.printf("🔄 [RECIRCULACIÓN] Próximo horario: %02ld:00 (%ld min desde medianoche)\n",
                   nextHour, state.nextRecirculationTime);
 }
 
 bool AutonomousController::isRecirculationScheduleTime() {
     if (state.recirculationActive) return false; // Ya está activa
-    
+
     unsigned long currentMinutes = getCurrentMinutes();
-    
-    // Verificar si ha llegado la hora exacta (tolerancia de 1 minuto)
-    bool isTime = (currentMinutes >= state.nextRecirculationTime && 
-                   currentMinutes < state.nextRecirculationTime + 1);
-    
-    return isTime;
+
+    // CORREGIDO: Verificar si es hora de activar (amplia tolerancia para recuperarse)
+    if (currentMinutes >= state.nextRecirculationTime) {
+        // Si perdimos la ventana (más de 5 min tarde), recalcular próximo horario
+        if (currentMinutes > state.nextRecirculationTime + 5) {
+            Serial.printf("🌊 [RECIRCULACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+
+            // Recalcular basándose en múltiplos de 2h desde 00:00
+            unsigned long hoursSinceMidnight = currentMinutes / 60;
+            unsigned long nextHour = ((hoursSinceMidnight / 2) + 1) * 2; // Próximo múltiplo de 2
+            nextHour = nextHour % 24; // Wrap 24h
+
+            state.nextRecirculationTime = nextHour * 60;
+            Serial.printf("🌊 [RECIRCULACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
+                          state.nextRecirculationTime / 60, state.nextRecirculationTime % 60,
+                          state.nextRecirculationTime);
+
+            return false; // No activar ahora, esperar al próximo ciclo
+        }
+
+        return true; // Dentro de ventana válida (0-5 min después)
+    }
+
+    return false; // Aún no es hora
 }
 
 // Obtener minutos actuales desde 00:00 (usando NTP si disponible)
@@ -736,9 +762,9 @@ void AutonomousController::handleRecirculationRoutine() {
         setActuatorStateImmediate(state.airStone, true, "difusor");
         
         logRoutineAction("recirculación", "INICIADA - Fase 1: Aire lead 90s");
-        
-        // Programar próximo horario (4h después)
-        state.nextRecirculationTime += 240; // +4h en minutos
+
+        // Programar próximo horario (2h después)
+        state.nextRecirculationTime += PUMP_INTERVAL_MINUTES; // +2h en minutos (120 min)
         if (state.nextRecirculationTime >= 1440) state.nextRecirculationTime -= 1440; // Wrap 24h
         
         return;
@@ -795,15 +821,15 @@ void AutonomousController::handleRecirculationRoutine() {
 
 void AutonomousController::initializeAutonomousAirSchedule() {
     unsigned long currentMinutes = getCurrentMinutes();
-    
+
     // CORREGIDO: Calcular próximo horario basado en múltiplos de 30 desde 00:00
     // Horarios válidos: 0, 30, 60, 90, 120, 150... (cada 30min desde medianoche)
     unsigned long nextCycle = ((currentMinutes / 30) + 1) * 30;
-    if (nextCycle >= 1440) nextCycle = 0; // Wrap around medianoche
-    
+    nextCycle = nextCycle % 1440; // Wrap around medianoche usando modulo
+
     state.nextAutonomousAirTime = nextCycle;
-    
-    Serial.printf("💨 [AIREACIÓN] Próximo horario: %02ld:%02ld (minuto %ld desde medianoche)\n", 
+
+    Serial.printf("💨 [AIREACIÓN] Próximo horario: %02ld:%02ld (minuto %ld desde medianoche)\n",
                   nextCycle / 60, nextCycle % 60, nextCycle);
 }
 
@@ -818,15 +844,15 @@ bool AutonomousController::isAutonomousAirScheduleTime() {
         // Si perdimos la ventana (más de 5 min tarde), recalcular próximo horario
         if (currentMinutes > state.nextAutonomousAirTime + 5) {
             Serial.printf("💨 [AIREACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
-            
+
             // Recalcular basándose en múltiplos de 30 desde 00:00
             unsigned long nextCycle = ((currentMinutes / 30) + 1) * 30;
-            if (nextCycle >= 1440) nextCycle = 0; // Wrap 24h
-            
+            nextCycle = nextCycle % 1440; // Wrap 24h usando modulo
+
             state.nextAutonomousAirTime = nextCycle;
-            Serial.printf("💨 [AIREACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n", 
+            Serial.printf("💨 [AIREACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
                           nextCycle / 60, nextCycle % 60, nextCycle);
-            
+
             return false; // No activar ahora, esperar al próximo ciclo
         }
         
@@ -1132,7 +1158,7 @@ void AutonomousController::printSensorAverages() {
                      state.averageReadings.humidity, HUMIDITY_MIN, HUMIDITY_MAX);
         Serial.printf("   💡 Lux: %.0f (umbral: <%.0f=ON, >%.0f=OFF)\n",
                      state.averageReadings.lightLux, LUX_ON_THRESHOLD, LUX_OFF_THRESHOLD);
-        Serial.printf("   🌊 Altura agua: %.1f cm (bomba OFF si >%.1f cm, ON si <%.1f cm)\n", 
+        Serial.printf("   🌊 Distancia sensor: %.1f cm (bomba OFF si >%.1f cm, ON si <%.1f cm)\n",
                      state.averageReadings.waterLevel, WATER_DISTANCE_MAX, WATER_DISTANCE_RECOVERY);
         Serial.printf("   🌡️  Temperatura agua: %.1f°C (umbral: <%.1f°C=ON, >%.1f°C=OFF)\n", 
                      state.averageReadings.waterTemp, WATER_TEMP_MIN, WATER_TEMP_MAX - WATER_TEMP_HYSTERESIS);
@@ -1259,11 +1285,11 @@ void AutonomousController::initializeVariableConfigs() {
         .hasActuator = false
     };
     
-    // Nivel de agua - Fail-safe para proteger bomba
+    // Distancia del sensor ultrasónico - Fail-safe para proteger bomba
     state.waterLevelConfig = {
-        .minValue = WATER_DISTANCE_RECOVERY,  // Distancia para permitir bomba (< 34cm)
-        .maxValue = WATER_DISTANCE_MAX,       // Distancia para apagar bomba (> 33cm)
-        .hysteresis = 0.5f,                // 0.5cm de histéresis
+        .minValue = WATER_DISTANCE_RECOVERY,  // Distancia mínima para permitir bomba (< 6cm = lleno)
+        .maxValue = WATER_DISTANCE_MAX,       // Distancia máxima antes de bloquear (> 7cm = vacío)
+        .hysteresis = 1.0f,                   // 1cm de histéresis
         .restTimeMs = WATER_LEVEL_REST_TIME_MS,
         .hasActuator = true
     };
@@ -1503,15 +1529,15 @@ void AutonomousController::heaterSafetyTurnOff(const char* reason) {
     // CRÍTICO: Apagar calefactor INMEDIATAMENTE (hardware + estado lógico)
     setActuatorStateImmediate(state.heater, false, "calefactor_aire");
 
-    // SINCRONIZACIÓN: Apagar humidificador cuando se apaga el calefactor por seguridad
-    if (state.humidifierMasterActive) {
-        state.humidifierMasterActive = false;
-        state.humidifier.isOn = false;
-        state.windowValidationActive = false;
-        ActuatorController::turnHumidifierMasterOff();
-        ActuatorController::turnHumidifierRelayOff();
-        Serial.println("💧 [SAFETY] Humidificador APAGADO - sincronizado con apagado de seguridad del calefactor");
-    }
+    // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
+    // if (state.humidifierMasterActive) {
+    //     state.humidifierMasterActive = false;
+    //     state.humidifier.isOn = false;
+    //     state.windowValidationActive = false;
+    //     ActuatorController::turnHumidifierMasterOff();
+    //     ActuatorController::turnHumidifierRelayOff();
+    //     Serial.println("💧 [SAFETY] Humidificador APAGADO - sincronizado con apagado de seguridad del calefactor");
+    // }
 
     // Actualizar estados del monitoreo rápido
     state.heaterOffStartTime = currentTime;
