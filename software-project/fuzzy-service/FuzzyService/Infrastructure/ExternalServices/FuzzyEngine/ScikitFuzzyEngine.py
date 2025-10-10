@@ -444,7 +444,12 @@ class ScikitFuzzyEngine(IFuzzyEngine):
              fuzzy_rules = []
 
          # Crear índice de routines por variable_id para búsqueda rápida
-         routines_by_variable = {r["variable_id"]: r for r in routines_payload}
+         # Soporta dos formatos: nuevo (variable_id) y antiguo (_routine_id)
+         routines_by_variable = {}
+         for r in routines_payload:
+             if "variable_id" in r:
+                 routines_by_variable[r["variable_id"]] = r
+             # Formato antiguo basado en rutinas se maneja más abajo
 
          # Crear índice de reglas por ID
          rules_by_id = {str(rule.id): rule for rule in fuzzy_rules}
@@ -452,50 +457,72 @@ class ScikitFuzzyEngine(IFuzzyEngine):
          # Crear mapeo de rule_id a output_values
          rule_output_map = {}
 
+         # Crear índice de routines por _routine_id para formato antiguo
+         routines_by_routine_id = {}
+         for r in routines_payload:
+             if "_routine_id" in r:
+                 routines_by_routine_id[r["_routine_id"]] = r
+
          for rule_result in result.get_activated_rules():
              rule = rules_by_id.get(str(rule_result.rule_id))
-             if not rule or not rule.has_consequents():
-                 rule_output_map[rule_result.rule_id] = []
-                 continue
-
-             # Para cada consecuente de la regla, buscar el output correspondiente
              mapped_outputs = []
-             for consequent in rule.consequents:
-                 variable_id = str(consequent.variable_id)
-                 routine = routines_by_variable.get(variable_id)
 
-                 if routine:
-                     # Construir output_value con el formato esperado
-                     command = routine.get("command", {})
-                     variable_name = routine.get("variable_name", "")
+             # Intentar con formato nuevo (consecuentes)
+             if rule and rule.has_consequents():
+                 # Para cada consecuente de la regla, buscar el output correspondiente
+                 for consequent in rule.consequents:
+                     variable_id = str(consequent.variable_id)
+                     routine = routines_by_variable.get(variable_id)
 
-                     output_dict = {
-                         "actuator_id": variable_id,
-                         "duration": 0.5  # Valor mínimo por defecto
-                     }
+                     if routine:
+                         # Construir output_value con el formato esperado
+                         command = routine.get("command", {})
+                         variable_name = routine.get("variable_name", "")
 
-                     # Buscar variable de duración asociada
-                     duration_routine = self._find_duration_variable(variable_name, routines_payload)
-                     if duration_routine:
-                         # Usar el valor defuzzificado de duración
-                         duration_value = duration_routine.get("crisp_value", 0.5)
-                         # Asegurar que esté en el rango válido [0.5, 10000]
-                         output_dict["duration"] = max(0.5, min(10000.0, float(duration_value)))
-                         self.logger.debug(
-                             f"Duración encontrada para {variable_name}: {output_dict['duration']:.1f}s"
-                         )
-                     else:
-                         self.logger.warning(
-                             f"No se encontró duración para {variable_name}, usando valor mínimo 0.5s"
-                         )
+                         output_dict = {
+                             "actuator_id": variable_id,
+                             "duration": 0.5  # Valor mínimo por defecto
+                         }
 
-                     # Incluir power o dutyCycle según tipo de actuador
-                     if "power" in command:
-                         output_dict["power"] = command["power"]
-                     elif "dutyCycle" in command:
-                         output_dict["dutyCycle"] = command["dutyCycle"]
+                         # Buscar variable de duración asociada
+                         duration_routine = self._find_duration_variable(variable_name, routines_payload)
+                         if duration_routine:
+                             # Usar el valor defuzzificado de duración
+                             duration_value = duration_routine.get("crisp_value", 0.5)
+                             # Asegurar que esté en el rango válido [0.5, 10000]
+                             output_dict["duration"] = max(0.5, min(10000.0, float(duration_value)))
+                             self.logger.debug(
+                                 f"Duración encontrada para {variable_name}: {output_dict['duration']:.1f}s"
+                             )
+                         else:
+                             self.logger.warning(
+                                 f"No se encontró duración para {variable_name}, usando valor mínimo 0.5s"
+                             )
 
-                     mapped_outputs.append(output_dict)
+                         # Incluir power o dutyCycle según tipo de actuador
+                         if "power" in command:
+                             output_dict["power"] = command["power"]
+                         elif "dutyCycle" in command:
+                             output_dict["dutyCycle"] = command["dutyCycle"]
+
+                         mapped_outputs.append(output_dict)
+
+             # Fallback: formato antiguo con rutinas basadas en consequent string
+             elif rule_result.consequent and routines_by_routine_id:
+                 routine = routines_by_routine_id.get(rule_result.consequent)
+                 if routine and "steps" in routine:
+                     # Formato antiguo: extraer de steps
+                     for step in routine["steps"]:
+                         output_dict = {
+                             "actuator_id": step.get("outputVariable", "unknown"),
+                             "duration": step.get("duration", 0.5)
+                         }
+                         if "power" in step:
+                             output_dict["power"] = step["power"]
+                         elif "dutyCycle" in step:
+                             output_dict["dutyCycle"] = step["dutyCycle"]
+
+                         mapped_outputs.append(output_dict)
 
              rule_output_map[rule_result.rule_id] = mapped_outputs
          

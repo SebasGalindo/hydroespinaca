@@ -354,16 +354,21 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                 for ref_id, value in sensor_readings_by_ref_id.items()
             ]
 
+            # Unificar output_values (emparejar Control+Duración) ANTES de guardar
+            unified_activated_rules = self._unify_output_values_in_rules(
+                activated_rules, output_variables
+            )
+
             fuzzy_evaluation = FuzzyEvaluation(
                 system_id=fuzzy_system.id,
                 timestamp=datetime.now(timezone.utc),
                 inputs=input_values,
-                activated_rules=activated_rules
+                activated_rules=unified_activated_rules
             )
 
             _logger.info(
-                f"Evaluación completada. Reglas activadas: {len(activated_rules)}, "
-                f"Total outputs: {sum(len(r.output_values) for r in activated_rules)}"
+                f"Evaluación completada. Reglas activadas: {len(unified_activated_rules)}, "
+                f"Total outputs unificados: {sum(len(r.output_values) for r in unified_activated_rules)}"
             )
 
             return fuzzy_evaluation
@@ -387,6 +392,68 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             _logger.error(f"Error al guardar evaluación: {e}")
             # No lanzamos excepción para no interrumpir el flujo
 
+    def _unify_output_values_in_rules(
+        self,
+        activated_rules: List[RuleActivation],
+        output_variables: List[FuzzyVariable]
+    ) -> List[RuleActivation]:
+        """Unifica output_values emparejando Control+Duración en cada regla.
+
+        Args:
+            activated_rules: Reglas activadas con output_values separados
+            output_variables: Lista de variables de salida
+
+        Returns:
+            Lista de RuleActivation con output_values unificados
+        """
+        output_vars_dict = {str(v.id): v for v in output_variables}
+        unified_rules = []
+
+        for rule_activation in activated_rules:
+            # Emparejar Control + Duración para esta regla
+            pairs = self._pair_control_duration_variables(
+                rule_activation.output_values,
+                output_vars_dict
+            )
+
+            # Crear OutputValues unificados
+            unified_outputs = []
+            for pair in pairs:
+                control_val = pair["control_val"]
+                duration_val = pair["duration_val"]
+
+                # Determinar duración final
+                if duration_val and duration_val.duration > 0:
+                    final_duration = float(duration_val.duration)
+                else:
+                    # Fallback a duración del control
+                    final_duration = float(control_val.duration) if control_val.duration > 0 else 0.5
+
+                # Crear OutputValue unificado
+                unified_output = OutputValue(
+                    actuator_id=control_val.actuator_id,
+                    power=control_val.power,
+                    dutyCycle=control_val.dutyCycle,
+                    duration=final_duration
+                )
+                unified_outputs.append(unified_output)
+
+            # Crear RuleActivation con outputs unificados
+            unified_rule = RuleActivation(
+                rule_id=rule_activation.rule_id,
+                firing_strength=rule_activation.firing_strength,
+                output_values=unified_outputs
+            )
+            unified_rules.append(unified_rule)
+
+        _logger.info(
+            f"Output values unificados: {len(activated_rules)} reglas, "
+            f"total outputs antes={sum(len(r.output_values) for r in activated_rules)}, "
+            f"después={sum(len(r.output_values) for r in unified_rules)}"
+        )
+
+        return unified_rules
+
     def _pair_control_duration_variables(
         self,
         output_values: List[OutputValue],
@@ -405,12 +472,18 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         pairs = []
         processed_duration_ids = set()
 
+        _logger.debug(f"🔍 Emparejando variables. values_by_id keys: {list(values_by_id.keys())}")
+        _logger.debug(f"🔍 Variables disponibles: {[(vid, var.name) for vid, var in output_variables_dict.items()]}")
+
         for var_id, output_val in values_by_id.items():
             var = output_variables_dict.get(var_id)
             if not var:
+                _logger.debug(f"⚠️ Variable no encontrada para ID: {var_id}")
                 continue
 
-            var_name = var.name
+            var_name = str(var.name)  # Asegurar que sea string
+
+            _logger.debug(f"📝 Procesando variable: {var_name} (ID: {var_id})")
 
             # Detectar variable de Control o Potencia
             is_control = var_name.startswith("Control ")
@@ -421,18 +494,42 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                 if is_control:
                     actuator_name = var_name.replace("Control ", "")
                 else:
-                    actuator_name = var_name.replace("Potencia del ", "").replace("Potencia de ", "")
+                    actuator_name = var_name.replace("Potencia del ", "").replace("Potencia de ", "").replace("Potencia ", "")
 
-                # Buscar variable de Duración correspondiente
-                duration_var_name = f"Duración de {actuator_name}"
+                # Mapeo de nombres de actuadores a sus nombres de duración
+                # Esto maneja las inconsistencias de nomenclatura
+                duration_mappings = {
+                    "Ventilador": "Duración de Ventilación",
+                    "Calefactor Aire": "Duración de Calefacción de Aire",
+                    "Calefactor Agua": "Duración de Calefacción de Agua",
+                    "Bomba Riego": "Duración de Riego",
+                    "Bomba Aireacion": "Duración de Aireación",
+                    "Luz": "Duración de Luz"
+                }
+
+                # Intentar primero con el mapeo específico
+                duration_var_name = duration_mappings.get(actuator_name)
+
+                # Si no está en el mapeo, usar el formato genérico
+                if not duration_var_name:
+                    duration_var_name = f"Duración de {actuator_name}"
+
+                _logger.debug(f"🔍 Buscando duración: '{duration_var_name}' para actuador '{actuator_name}'")
+
                 duration_var_id = None
 
                 for dvid, dvar in output_variables_dict.items():
-                    if dvar.name == duration_var_name:
+                    dvar_name = str(dvar.name)
+                    _logger.debug(f"  Comparando con: '{dvar_name}'")
+                    if dvar_name == duration_var_name:
                         duration_var_id = dvid
+                        _logger.debug(f"✅ Duración encontrada: {duration_var_name} (ID: {dvid})")
                         break
 
                 duration_val = values_by_id.get(duration_var_id) if duration_var_id else None
+
+                if not duration_val:
+                    _logger.warning(f"⚠️ No se encontró valor de duración para '{duration_var_name}' (actuador: '{actuator_name}')")
 
                 pairs.append({
                     "control_id": var_id,
@@ -442,7 +539,10 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
 
                 if duration_var_id:
                     processed_duration_ids.add(duration_var_id)
+            else:
+                _logger.debug(f"⏭️ Variable '{var_name}' no es Control ni Potencia, saltando")
 
+        _logger.debug(f"✅ Emparejamiento completado. Pares generados: {len(pairs)}")
         return pairs
 
     async def _send_to_actuator_service(
