@@ -9,4 +9,11 @@ public class SensorAlert : AlertBase
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
     public double? LatestValue { get; set; }
     public string? ResolutionReason { get; set; }
+
+    /// <summary>
+    /// Timestamp when the critical alert email was sent.
+    /// null = email not sent yet, DateTime = email sent at this time.
+    /// Used to prevent duplicate emails after service restarts.
+    /// </summary>
+    public DateTime? EmailSentAt { get; set; }
 }

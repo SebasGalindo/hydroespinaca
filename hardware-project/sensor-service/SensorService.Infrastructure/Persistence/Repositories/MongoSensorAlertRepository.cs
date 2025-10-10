@@ -85,4 +85,31 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         var count = await _baseRepo.CountAsync(filter);
         return (int)count;
     }
+
+    public async Task MarkEmailAsSentAsync(string alertId, DateTime sentAt, CancellationToken cancellationToken = default)
+    {
+        var alert = await _baseRepo.GetByIdAsync(alertId);
+        if (alert == null)
+            return;
+
+        alert.EmailSentAt = sentAt;
+        await _baseRepo.UpdateAsync(alert);
+    }
+
+    public async Task<List<SensorAlert>> GetUnsentEmailAlertsBySensorsAsync(IEnumerable<string> sensorIds, CancellationToken cancellationToken = default)
+    {
+        var sensorIdList = sensorIds.ToList();
+
+        if (!sensorIdList.Any())
+            return new List<SensorAlert>();
+
+        var filter = Builders<SensorAlertDocument>.Filter.And(
+            Builders<SensorAlertDocument>.Filter.In(a => a.SensorId, sensorIdList),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.EmailSentAt, null)
+        );
+
+        return await _baseRepo.FindManyAsync(filter);
+    }
 }

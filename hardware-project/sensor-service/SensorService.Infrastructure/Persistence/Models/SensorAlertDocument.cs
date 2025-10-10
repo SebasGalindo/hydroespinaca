@@ -54,5 +54,8 @@ public class SensorAlertDocument : IIdentifiableMutable
     [BsonElement("resolvedAt")]
     public DateTime? ResolvedAt { get; set; }
 
+    [BsonElement("emailSentAt")]
+    public DateTime? EmailSentAt { get; set; }
+
     public void SetId(string id) => Id = id;
 }

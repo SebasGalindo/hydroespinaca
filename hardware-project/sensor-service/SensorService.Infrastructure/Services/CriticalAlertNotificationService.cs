@@ -6,6 +6,7 @@ using HydroEspinaca.Shared.DTOs.Notifications;
 using HydroEspinaca.Shared.Authentication.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.ValueObjects;
 
@@ -107,7 +108,7 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
 
         lock (_alertStateLock)
         {
-            // ✅ MEJORA 1: Log del estado actual en memoria
+            // ✅ Log del estado actual en memoria
             var memoryCount = _activeAlerts.TryGetValue(esp32Id, out var activeVariables)
                 ? activeVariables.Count
                 : 0;
@@ -136,55 +137,49 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
             }
         }
 
-        // ✅ MEJORA 2: Query database to check for active unresolved alerts
-        var dbActiveCount = await GetActiveAlertsCountFromDatabaseAsync(esp32Id, variableList, cancellationToken);
+        // ✅ MEJORA: Query database to check for unsent email alerts (source of truth)
+        var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, cancellationToken);
 
-        _logger.LogDebug("📊 Database state for ESP32 {Esp32Id}: {DbCount} active alerts in sensor_alerts",
-            esp32Id, dbActiveCount);
+        _logger.LogDebug("📊 Database state for ESP32 {Esp32Id}: {DbCount} unsent email alerts in sensor_alerts",
+            esp32Id, unsentAlerts.Count);
 
-        // ✅ MEJORA 3: Decision logic with database validation
-        lock (_alertStateLock)
+        // ✅ Decision logic based on database (source of truth)
+        if (!unsentAlerts.Any())
         {
-            if (!_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
+            _logger.LogInformation("🚫 All active alerts already have emails sent → skip email");
+
+            // Re-sync memory from current state (all variables are already notified)
+            lock (_alertStateLock)
             {
-                // No state in memory
-                if (dbActiveCount > 0)
-                {
-                    _logger.LogWarning("⚠️ Memory state lost but DB shows {Count} active alerts. Re-syncing from database.",
-                        dbActiveCount);
-
-                    // Re-sync from database
-                    _activeAlerts[esp32Id] = new HashSet<string>(variableList);
-
-                    // Don't send email - alerts already exist in DB
-                    _logger.LogInformation("🚫 Skipping email - alerts already active in database");
-                    return false;
-                }
-
-                // No state in memory AND no active alerts in DB → send email
-                _logger.LogInformation("✅ No active alerts in memory or DB → will send email");
-                return true;
+                _activeAlerts[esp32Id] = new HashSet<string>(variableList);
             }
 
-            // Check for new variables not already tracked
-            var newAlerts = variableList.Except(activeVariables).ToList();
-
-            if (!newAlerts.Any())
-            {
-                _logger.LogInformation("🚫 All variables already have active alerts → skip email");
-                return false;
-            }
-
-            _logger.LogInformation("✅ Found {Count} new variables in alert state → will send email: [{Variables}]",
-                newAlerts.Count, string.Join(", ", newAlerts));
-            return true;
+            return false;
         }
+
+        // There are unsent alerts in the database → must send email
+        _logger.LogInformation("✅ Found {Count} unsent email alerts in database → will send email",
+            unsentAlerts.Count);
+
+        return true;
     }
 
-    public Task MarkAlertAsSentAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    public async Task MarkAlertAsSentAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
     {
         var variableList = alertVariables.ToList();
+        var sentAt = DateTime.UtcNow;
 
+        // ✅ CRITICAL: Persist email sent timestamp in database
+        var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, cancellationToken);
+
+        foreach (var alert in unsentAlerts)
+        {
+            await _sensorAlertRepository.MarkEmailAsSentAsync(alert.Id, sentAt, cancellationToken);
+        }
+
+        _logger.LogInformation("💾 Persisted email sent timestamp for {Count} alerts in database", unsentAlerts.Count);
+
+        // Also update in-memory cache for performance
         lock (_alertStateLock)
         {
             if (!_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
@@ -200,14 +195,12 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
                     newVariables++;
             }
 
-            _logger.LogInformation("📌 Marked {New}/{Total} variables as sent for ESP32: {Esp32Id}",
+            _logger.LogInformation("📌 Marked {New}/{Total} variables as sent in memory for ESP32: {Esp32Id}",
                 newVariables, variableList.Count, esp32Id);
 
             _logger.LogDebug("   Now tracking: [{Variables}]",
                 string.Join(", ", activeVariables));
         }
-
-        return Task.CompletedTask;
     }
 
     public Task MarkAlertAsResolvedAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
@@ -249,12 +242,11 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     }
 
     /// <summary>
-    /// Query database to count active unresolved alerts for the given variables.
+    /// Query database to get unsent email alerts for the ESP32.
     /// This prevents sending duplicate emails when memory state is lost (e.g., after restart).
     /// </summary>
-    private async Task<int> GetActiveAlertsCountFromDatabaseAsync(
+    private async Task<List<SensorAlert>> GetUnsentEmailAlertsFromDatabaseAsync(
         string esp32Id,
-        IEnumerable<string> variableNames,
         CancellationToken cancellationToken)
     {
         try
@@ -266,21 +258,21 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
             if (!sensorIds.Any())
             {
                 _logger.LogDebug("No sensors found for ESP32 {Esp32Id}", esp32Id);
-                return 0;
+                return new List<SensorAlert>();
             }
 
-            // Count active alerts for these sensors
-            var count = await _sensorAlertRepository.CountActiveAlertsBySensorsAsync(sensorIds, cancellationToken);
+            // Get active alerts that haven't been emailed yet
+            var unsentAlerts = await _sensorAlertRepository.GetUnsentEmailAlertsBySensorsAsync(sensorIds, cancellationToken);
 
-            _logger.LogDebug("Found {Count} active alerts in DB for {SensorCount} sensors of ESP32 {Esp32Id}",
-                count, sensorIds.Count, esp32Id);
+            _logger.LogDebug("Found {Count} unsent email alerts in DB for {SensorCount} sensors of ESP32 {Esp32Id}",
+                unsentAlerts.Count, sensorIds.Count, esp32Id);
 
-            return count;
+            return unsentAlerts;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to query database for active alerts - assuming no active alerts");
-            return 0;
+            _logger.LogWarning(ex, "Failed to query database for unsent alerts - assuming no pending alerts");
+            return new List<SensorAlert>();
         }
     }
 
