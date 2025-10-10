@@ -5,6 +5,7 @@ using DotLiquid;
 using HydroEspinaca.Shared.DTOs.Notifications;
 using HydroEspinaca.Shared.Authentication.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -15,7 +16,7 @@ namespace SensorService.Infrastructure.Services;
 public class CriticalAlertNotificationService : ICriticalAlertNotificationService
 {
     private readonly HttpClient _httpClient;
-    private readonly M2MTokenService _m2mTokenService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<CriticalAlertNotificationService> _logger;
     private readonly string _notificationServiceUrl;
     private readonly Template _alertTemplate;
@@ -30,22 +31,14 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     private readonly Dictionary<string, DateTime> _lastEmailSentCache = new();
     private readonly TimeSpan _emailCooldownPeriod = TimeSpan.FromMinutes(30);
 
-    // Inject repository to query database state
-    private readonly ISensorAlertRepository _sensorAlertRepository;
-    private readonly ISensorRepository _sensorRepository;
-
     public CriticalAlertNotificationService(
         HttpClient httpClient,
-        M2MTokenService m2mTokenService,
+        IServiceScopeFactory serviceScopeFactory,
         IConfiguration configuration,
-        ISensorAlertRepository sensorAlertRepository,
-        ISensorRepository sensorRepository,
         ILogger<CriticalAlertNotificationService> logger)
     {
         _httpClient = httpClient;
-        _m2mTokenService = m2mTokenService;
-        _sensorAlertRepository = sensorAlertRepository;
-        _sensorRepository = sensorRepository;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _notificationServiceUrl = configuration.GetValue<string>("NotificationService:BaseUrl")
             ?? "http://notification-service:8080";
@@ -74,8 +67,12 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
                 HtmlBody = htmlBody
             };
 
+            // ✅ Create a scope to resolve scoped services
+            using var scope = _serviceScopeFactory.CreateScope();
+            var m2mTokenService = scope.ServiceProvider.GetRequiredService<M2MTokenService>();
+
             // Get M2M access token
-            var accessToken = await _m2mTokenService.GetAccessTokenAsync();
+            var accessToken = await m2mTokenService.GetAccessTokenAsync();
 
             // Send the notification
             var endpoint = $"{_notificationServiceUrl}/api/notifications/email";
@@ -163,7 +160,13 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
         }
 
         // ✅ SECOND LAYER: Query database to check for unsent email alerts (source of truth)
-        var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, cancellationToken);
+        List<SensorAlert> unsentAlerts;
+        using (var scope = _serviceScopeFactory.CreateScope())
+        {
+            var sensorAlertRepository = scope.ServiceProvider.GetRequiredService<ISensorAlertRepository>();
+            var sensorRepository = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
+            unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, sensorRepository, sensorAlertRepository, cancellationToken);
+        }
 
         _logger.LogDebug("📊 Database state for ESP32 {Esp32Id}: {DbCount} unsent email alerts in sensor_alerts",
             esp32Id, unsentAlerts.Count);
@@ -195,14 +198,19 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
         var sentAt = DateTime.UtcNow;
 
         // ✅ CRITICAL: Persist email sent timestamp in database
-        var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, cancellationToken);
-
-        foreach (var alert in unsentAlerts)
+        using (var scope = _serviceScopeFactory.CreateScope())
         {
-            await _sensorAlertRepository.MarkEmailAsSentAsync(alert.Id, sentAt, cancellationToken);
-        }
+            var sensorAlertRepository = scope.ServiceProvider.GetRequiredService<ISensorAlertRepository>();
+            var sensorRepository = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
+            var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, sensorRepository, sensorAlertRepository, cancellationToken);
 
-        _logger.LogInformation("💾 Persisted email sent timestamp for {Count} alerts in database", unsentAlerts.Count);
+            foreach (var alert in unsentAlerts)
+            {
+                await sensorAlertRepository.MarkEmailAsSentAsync(alert.Id, sentAt, cancellationToken);
+            }
+
+            _logger.LogInformation("💾 Persisted email sent timestamp for {Count} alerts in database", unsentAlerts.Count);
+        }
 
         // ✅ Update cooldown cache (primary anti-spam mechanism)
         MarkAlertAsSentInCache(esp32Id, variableList);
@@ -325,12 +333,14 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     /// </summary>
     private async Task<List<SensorAlert>> GetUnsentEmailAlertsFromDatabaseAsync(
         string esp32Id,
+        ISensorRepository sensorRepository,
+        ISensorAlertRepository sensorAlertRepository,
         CancellationToken cancellationToken)
     {
         try
         {
             // Get all sensors for this ESP32 to find their IDs
-            var sensors = await _sensorRepository.GetSensorsByEsp32IdAsync(esp32Id, cancellationToken);
+            var sensors = await sensorRepository.GetSensorsByEsp32IdAsync(esp32Id, cancellationToken);
             var sensorIds = sensors.Select(s => s.Id).ToList();
 
             if (!sensorIds.Any())
@@ -340,7 +350,7 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
             }
 
             // Get active alerts that haven't been emailed yet
-            var unsentAlerts = await _sensorAlertRepository.GetUnsentEmailAlertsBySensorsAsync(sensorIds, cancellationToken);
+            var unsentAlerts = await sensorAlertRepository.GetUnsentEmailAlertsBySensorsAsync(sensorIds, cancellationToken);
 
             _logger.LogDebug("Found {Count} unsent email alerts in DB for {SensorCount} sensors of ESP32 {Esp32Id}",
                 unsentAlerts.Count, sensorIds.Count, esp32Id);

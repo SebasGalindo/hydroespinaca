@@ -26,7 +26,8 @@ public class ProxyService : IProxyService
         {
             { BffConstants.Proxy.Services.SensorService, _configuration["Services:SensorService:Url"] ?? "http://sensor-service:8080" },
             { BffConstants.Proxy.Services.ActuatorService, _configuration["Services:ActuatorService:Url"] ?? "http://actuator-service:8080" },
-            { BffConstants.Proxy.Services.AuthService, _configuration["Services:AuthService:Url"] ?? "http://auth-service:8080" }
+            { BffConstants.Proxy.Services.AuthService, _configuration["Services:AuthService:Url"] ?? "http://auth-service:8080" },
+            { BffConstants.Proxy.Services.FuzzyService, _configuration["Services:FuzzyService:Url"] ?? "http://fuzzy-service:8000" }
         };
     }
 

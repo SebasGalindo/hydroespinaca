@@ -80,23 +80,6 @@ public class AuthController : ControllerBase
         return Ok(new MobileLoginResponseDto(result.SessionId, result.CsrfToken));
     }
 
-    [AllowAnonymous]
-    [HttpPost("login")]   
-    [Obsolete("Use /login/web or /login/mobile instead")]
-    public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
-    {
-        var result = await _sessionService.LoginAsync(request, cancellationToken);
-
-        // Set session ID in response header using config values
-        var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-        var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
-
-        Response.Headers[sessionIdHeader] = result.SessionId;
-        Response.Headers[csrfTokenHeader] = result.CsrfToken;
-
-        return Ok(result);
-    }
-
     [HttpPost("logout")]
     public async Task<ActionResult> Logout(CancellationToken cancellationToken)
     {

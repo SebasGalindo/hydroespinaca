@@ -41,8 +41,9 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IEntityMapper<Esp32Alert, Esp32AlertDocument>, Esp32AlertMapper>();
 
         // M2M Authentication configuration
+        // Note: M2MTokenService is registered as Scoped in shared library
+        // CriticalAlertNotificationService uses IServiceScopeFactory to resolve it properly
         services.Configure<M2MAuthOptions>(configuration.GetSection("M2M"));
-        services.AddTransient<M2MTokenService>();
 
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
