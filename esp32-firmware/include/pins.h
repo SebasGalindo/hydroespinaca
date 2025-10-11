@@ -32,11 +32,16 @@
 #define ADC_VREF        3.3f      // Voltaje de referencia
 
 // ========================================
-// EXCEPCIÓN: Humidificador (control especializado)
+// EXCEPCIÓN: Actuadores con monitoreo especializado
 // ========================================
-// ÚNICO actuador hardcodeado debido a lógica de 2 relés
+// Actuadores hardcodeados que requieren monitoreo de sensores
+
+// Humidificador (lógica de 2 relés)
 #define PIN_HUMID_RELAY  13     // Relé pulso humidificador
 #define PIN_HUMID_POWER  14     // Relé maestro (power)
+
+// Calefactor de ambiente (monitoreo de temperatura)
+#define PIN_RELAY_HEATER 17     // Relé del calefactor con monitoreo térmico
 
 // NOTA: Todos los demás actuadores NO están definidos aquí
 // El backend enviará el pin específico, tipo (digital/PWM), valor y duración

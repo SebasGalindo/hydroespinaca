@@ -22,9 +22,8 @@
 #define MQTT_BACKOFF_MAX 30000   // 30 sec max backoff
 #define DHT_TYPE DHT22
 
-// Job Scheduler - Generic pin controller
-#define MAX_CHANNELS 2
-#define MAX_JOBS_PER_CHANNEL 10
+// Job Scheduler - Sequential execution (simplified)
+// Backend manages concurrency via pin-locking. Firmware processes jobs one at a time.
 #define STEP_TIMEOUT_TOLERANCE 500  // 500ms tolerance
 
 // Humidifier Configuration (specialized control via actuator-service)

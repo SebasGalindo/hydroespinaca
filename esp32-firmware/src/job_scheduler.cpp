@@ -5,33 +5,28 @@
 #include "job_consolidator.h"
 #include "job_notifier.h"
 #include "job_utils.h"
+#include "sensors.h"
 
 // Global instance
 JobScheduler jobScheduler;
 
-JobScheduler::JobScheduler() : globalMutex(nullptr), mqttHandler(nullptr) {
-    // Initialize channels
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        channels[i] = ChannelState(i);
-        channelTasks[i] = nullptr;
-    }
-    
+// ========================================
+// CONSTRUCTOR & DESTRUCTOR
+// ========================================
+
+JobScheduler::JobScheduler() : currentJob(nullptr), currentJobIndex(-1),
+                                mqttHandler(nullptr), sensorManager(nullptr) {
     // Initialize PWM manager
     PWMManager::initialize();
 }
 
 JobScheduler::~JobScheduler() {
-    if (globalMutex) {
-        vSemaphoreDelete(globalMutex);
-    }
-    
-    // Clean up channel mutexes
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        if (channels[i].channelMutex) {
-            vSemaphoreDelete(channels[i].channelMutex);
-        }
-    }
+    // Clean up (no mutexes or tasks to delete)
 }
+
+// ========================================
+// INITIALIZATION
+// ========================================
 
 void JobScheduler::setMQTTHandler(MQTTHandler* handler) {
     mqttHandler = handler;
@@ -39,184 +34,129 @@ void JobScheduler::setMQTTHandler(MQTTHandler* handler) {
     Serial.println("✅ MQTT handler vinculado al JobScheduler");
 }
 
+void JobScheduler::setSensorManager(SensorManager* manager) {
+    sensorManager = manager;
+    Serial.println("✅ SensorManager vinculado con JobScheduler (para monitoreo del calefactor)");
+}
+
 void JobScheduler::begin() {
-    // Create global mutex for cross-channel operations
-    globalMutex = xSemaphoreCreateMutex();
-    if (globalMutex == nullptr) {
-        Serial.println("❌ Error creating global mutex");
+    Serial.println("🚀 JobScheduler inicializado (modo ejecución secuencial)");
+    Serial.println("📋 Backend gestiona concurrencia vía pin-locking");
+    Serial.println("⚙️  Firmware procesa jobs uno a la vez en orden de llegada");
+
+    jobQueue.clear();
+    currentJob = nullptr;
+    currentJobIndex = -1;
+}
+
+// ========================================
+// MAIN LOOP - SEQUENTIAL PROCESSING
+// ========================================
+
+void JobScheduler::loop() {
+    // If there's a job currently executing, process its current step
+    if (currentJob != nullptr) {
+        processCurrentStep();
         return;
     }
-    
-    // Create individual mutex for each channel
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        channels[i].channelMutex = xSemaphoreCreateMutex();
-        if (channels[i].channelMutex == nullptr) {
-            Serial.printf("❌ Error creating mutex for channel %d\n", i);
-            return;
-        }
+
+    // No job running - check if there's one in the queue
+    if (!jobQueue.empty()) {
+        processNextJob();
     }
-    
-    // Clear all channels and reset state
-    Serial.println("🧹 Limpiando estado de canales...");
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        channels[i].jobQueue.clear();
-        channels[i].jobQueue.reserve(MAX_JOBS_PER_CHANNEL);  // Pre-allocate to reduce fragmentation
-        channels[i].isRunning = false;
-        channels[i].lastActivity = 0;
-        Serial.printf("✅ Canal %d: queue limpiada, estado reset, capacidad reservada: %d\n", i, MAX_JOBS_PER_CHANNEL);
-    }
-    
-    // Create tasks for each channel
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        String taskName = "ChannelTask" + String(i);
-        xTaskCreate(
-            channelTaskWrapper,
-            taskName.c_str(),
-            8192,  // Increased stack size for long-running jobs
-            &channels[i],  // Parameter
-            1,     // Priority
-            &channelTasks[i]
-        );
-    }
-    
-    Serial.printf("✅ JobScheduler inicializado - %d canales limpiados\n", MAX_CHANNELS);
 }
 
-void JobScheduler::channelTaskWrapper(void* parameter) {
-    ChannelState* channel = (ChannelState*)parameter;
-    jobScheduler.channelTask(channel->channelId);
+// ========================================
+// JOB PROCESSING
+// ========================================
+
+void JobScheduler::processNextJob() {
+    if (jobQueue.empty()) return;
+
+    // Take first job from queue
+    currentJobIndex = 0;
+    currentJob = &jobQueue[0];
+
+    Serial.println("═══════════════════════════════════════");
+    Serial.printf("🚀 INICIANDO JOB: %s\n", currentJob->commandId.c_str());
+    Serial.printf("📋 BaseId: %s\n", currentJob->baseId.c_str());
+    Serial.printf("📊 Steps totales: %d\n", currentJob->steps.size());
+    Serial.println("═══════════════════════════════════════");
+
+    currentJob->currentStepIndex = 0;
+
+    // Process first step immediately
+    processCurrentStep();
 }
 
-void JobScheduler::channelTask(int channelId) {
-    Serial.printf("🔄 Canal %d iniciado\n", channelId);
-    
-    // Check initial stack
-    UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    Serial.printf("📊 Canal %d: stack inicial libre: %d bytes\n", channelId, stackHighWaterMark * sizeof(StackType_t));
-    
-    while (true) {
-        // Use channel-specific mutex with shorter timeout (reduced contention)
-        if (xSemaphoreTake(channels[channelId].channelMutex, pdMS_TO_TICKS(200))) { // 200ms timeout
-            ChannelState& channel = channels[channelId];
-            
-            // Si no hay job activo y hay elementos en cola, tomar el primero
-            if (!channel.hasActiveJob() && !channel.jobQueue.empty()) {
-                Serial.printf("▶️ Canal %d: promoviendo job %s de la cola\n", 
-                             channelId, channel.jobQueue[0].commandId.c_str());
-                // El primer job en la cola se convierte automáticamente en el job activo
-                // porque getCurrentJob() retorna &jobQueue[0] y hasActiveJob() verifica !isCompleted()
+void JobScheduler::processCurrentStep() {
+    if (currentJob == nullptr) return;
+
+    Step* step = currentJob->getCurrentStep();
+    if (step == nullptr) {
+        // Job completed
+        completeCurrentJob();
+        return;
+    }
+
+    unsigned long now = millis();
+
+    // Handle step lifecycle
+    switch (step->status) {
+        case STEP_PENDING:
+            // Start step execution
+            Serial.printf("🔹 Step %d/%d: Pin %d, Mode: %s, Power: %s, Duration: %lu ms\n",
+                         currentJob->currentStepIndex + 1,
+                         currentJob->steps.size(),
+                         step->pin,
+                         step->mode == DIGITAL ? "DIGITAL" : "PWM",
+                         step->power == ON ? "ON" : "OFF",
+                         step->duration);
+
+            step->status = STEP_IN_PROGRESS;
+            step->startTime = now;
+            step->endTime = now + step->duration;
+
+            // Execute the step
+            executeStep(*step);
+            break;
+
+        case STEP_IN_PROGRESS:
+            // Check if step duration has elapsed
+            if (now >= step->endTime) {
+                // Step completed
+                step->status = STEP_OK;
+
+                String logEntry = JobUtils::getCurrentTimestamp() + " - Step completado";
+                step->executionLog.push_back(logEntry);
+
+                Serial.printf("✅ Step %d completado\n", currentJob->currentStepIndex + 1);
+
+                // Move to next step
+                currentJob->currentStepIndex++;
             }
-            
-            if (channel.hasActiveJob()) {
-                Job* currentJob = channel.getCurrentJob();
-                if (currentJob && !currentJob->isCompleted()) {
-                    
-                    // Get current step
-                    if (currentJob->currentStepIndex < currentJob->steps.size()) {
-                        Step& currentStep = currentJob->steps[currentJob->currentStepIndex];
-                        
-                        if (currentStep.status == STEP_PENDING) {
-                            // Start step execution
-                            currentStep.status = STEP_IN_PROGRESS;
-                            currentStep.startTime = millis();
-                            currentStep.endTime = currentStep.startTime + currentStep.duration;
-                            channel.isRunning = true;
-                            
-                            Serial.printf("▶️ Canal %d: Iniciando step %d del job %s\n", 
-                                        channelId, currentJob->currentStepIndex, 
-                                        currentJob->commandId.c_str());
-#ifdef DEBUG
-                            Serial.printf("🔍 DEBUG: Step pin=%d, mode=%s, power=%s, duty=%d%%, duration=%lums\n",
-                                        currentStep.pin, 
-                                        (currentStep.mode == PWM) ? "PWM" : "DIGITAL",
-                                        (currentStep.power == ON) ? "ON" : "OFF",
-                                        currentStep.dutyCycle, currentStep.duration);
-                            Serial.printf("🔍 DEBUG: Job queue size=%d, isCompleted=%s\n", 
-                                        channel.jobQueue.size(), 
-                                        currentJob->isCompleted() ? "true" : "false");
-#endif
-                            
-                            xSemaphoreGive(channels[channelId].channelMutex);
-                            executeStep(currentStep);
-                            if (!xSemaphoreTake(channels[channelId].channelMutex, pdMS_TO_TICKS(500))) {
-                                Serial.printf("⚠️ Canal %d: timeout retomando mutex después de executeStep\n", channelId);
-                                continue; // Skip to next iteration
-                            }
-                            
-                        } else if (currentStep.status == STEP_IN_PROGRESS) {
-                            // Check if step endTime is reached (supports extensions)
-                            unsigned long now = millis();
-                            if (now >= currentStep.endTime) {
-                                // Turn off the pin atomically when duration expires
-                                if (currentStep.mode == DIGITAL) {
-                                    digitalWrite(currentStep.pin, HIGH);  // Inverted logic for relay board
-                                } else if (currentStep.mode == PWM) {
-                                    PWMManager::writeDuty(currentStep.pin, 0);
-                                    PWMManager::detachIfAttached(currentStep.pin);  // Detach to ensure clean reinit
-                                }
-                                
-                                currentStep.status = STEP_OK;
-                                String logEntry = JobUtils::getCurrentTimestamp() + " - Step completado (endTime reached)";
-                                currentStep.executionLog.push_back(logEntry);
-                                
-                                #ifdef DEBUG
-                                Serial.printf("⏰ Canal %d: Step duration completed, pin %d turned OFF\n", channelId, currentStep.pin);
-                                #endif
-                            }
-                        }
-                        
-                        // Check if current step is done
-                        if (currentStep.status == STEP_OK || currentStep.status == STEP_CANCELLED || currentStep.status == STEP_ERROR) {
-                            currentJob->currentStepIndex++;
-                            
-                            if (currentJob->isCompleted()) {
-                                // Job completed - remove immediately to prevent consolidation race
-                                channel.isRunning = false;
-                                Serial.printf("✅ Canal %d: Job %s completado\n", 
-                                            channelId, currentJob->commandId.c_str());
-                                
-                                // Make a copy for publishing before removing from queue
-                                Job completedJob = *currentJob;
-                                channel.removeCompletedJob();
-                                
-                                xSemaphoreGive(channels[channelId].channelMutex);
-                                JobNotifier::publishCompletion(completedJob);
-                                xSemaphoreTake(channels[channelId].channelMutex, portMAX_DELAY);
-                            }
-                        }
-                    }
-                }
-            } else {
-                channel.isRunning = false;
-            }
-            
-            xSemaphoreGive(channels[channelId].channelMutex);
-        } else {
-            Serial.printf("⚠️ Canal %d: timeout obteniendo mutex de canal\n", channelId);
-            // Reduced timeout means less blocking, but we still need to monitor contention
-            static unsigned long lastMutexWarning = 0;
-            unsigned long now = millis();
-            if (now - lastMutexWarning > 10000) { // Every 10 seconds
-                Serial.printf("🚨 CHANNEL MUTEX CONTENTION: Canal %d esperando > 200ms\n", channelId);
-                lastMutexWarning = now;
-            }
-        }
-         
-        vTaskDelay(pdMS_TO_TICKS(100)); // Check every 100ms
+            break;
+
+        case STEP_OK:
+        case STEP_CANCELLED:
+        case STEP_ERROR:
+            // Step already finished - move to next
+            currentJob->currentStepIndex++;
+            break;
     }
 }
 
 void JobScheduler::executeStep(Step& step) {
-    Serial.printf("🔧 Ejecutando step en pin %d, mode %s, power %s, duty %d, duration %lu ms\n",
-                  step.pin, 
-                  (step.mode == PWM) ? "PWM" : "DIGITAL",
-                  (step.power == ON) ? "ON" : "OFF", 
+    Serial.printf("⚙️  Ejecutando step: Pin %d, Mode: %s, Power/Duty: %s/%d, Duration: %lu ms\n",
+                  step.pin,
+                  step.mode == DIGITAL ? "DIGITAL" : "PWM",
+                  (step.power == ON) ? "ON" : "OFF",
                   step.dutyCycle, step.duration);
-    
+
     String connectivityStr = JobNotifier::hasInternetConnectivity() ? "conectado" : "desconectado";
     String logEntry = JobUtils::getCurrentTimestamp() + " - Step iniciado (internet: " + connectivityStr + ")";
     step.executionLog.push_back(logEntry);
-    
+
     // Validate pin range
     if (step.pin < 0 || step.pin >= 40) {
         Serial.printf("❌ ERROR: Pin %d fuera de rango (0-39), step cancelado\n", step.pin);
@@ -225,7 +165,7 @@ void JobScheduler::executeStep(Step& step) {
         step.executionLog.push_back(logEntry);
         return;
     }
-    
+
     // SPECIAL CASE: Humidifier control (PIN_HUMID_POWER = 14)
     if (step.pin == PIN_HUMID_POWER) {
         if (step.power == ON) {
@@ -236,10 +176,8 @@ void JobScheduler::executeStep(Step& step) {
             step.executionLog.push_back(logEntry);
         } else {
             Serial.println("💨 HUMIDIFICADOR: Comando OFF - apagando ambos relés");
-            // Configurar pines como salida
             pinMode(PIN_HUMID_POWER, OUTPUT);
             pinMode(PIN_HUMID_RELAY, OUTPUT);
-            // Apagar ambos relés (lógica invertida: HIGH = OFF)
             digitalWrite(PIN_HUMID_POWER, HIGH);  // Relé maestro OFF
             digitalWrite(PIN_HUMID_RELAY, HIGH);  // Relé de pulso OFF
             Serial.println("💨 HUMIDIFICADOR: Relés desactivados - PIN 14 y PIN 13 HIGH");
@@ -249,446 +187,367 @@ void JobScheduler::executeStep(Step& step) {
         }
         return;
     }
-    
+
+    // SPECIAL CASE: Heater control with temperature monitoring (PIN_RELAY_HEATER = 17)
+    if (step.pin == PIN_RELAY_HEATER) {
+        if (step.power == ON) {
+            Serial.printf("🔥 CALEFACTOR: Iniciando rutina con monitoreo térmico por %lu ms\n", step.duration);
+            runHeaterRoutine(step.duration);
+            step.status = STEP_OK;
+            String logEntry = JobUtils::getCurrentTimestamp() + " - Rutina calefactor completada (objetivo 22.5°C alcanzado)";
+            step.executionLog.push_back(logEntry);
+        } else {
+            Serial.println("🔥 CALEFACTOR: Comando OFF - apagando relé");
+            pinMode(PIN_RELAY_HEATER, OUTPUT);
+            digitalWrite(PIN_RELAY_HEATER, HIGH);  // Relé OFF (lógica invertida)
+            Serial.println("🔥 CALEFACTOR: Relé desactivado - PIN 17 HIGH");
+            step.status = STEP_OK;
+            String logEntry = JobUtils::getCurrentTimestamp() + " - Calefactor apagado forzadamente";
+            step.executionLog.push_back(logEntry);
+        }
+        return;
+    }
+
     // Configure pin
     pinMode(step.pin, OUTPUT);
-    
+
+    // Execute based on mode
     if (step.mode == DIGITAL) {
-        if (step.power == ON) {
-            // Reset pin before activation for TIP41C BJT
-            digitalWrite(step.pin, HIGH);  // Inverted logic for relay board
-            Serial.printf("🔄 DIGITAL Pin %d: Reset LOW\n", step.pin);
-            vTaskDelay(pdMS_TO_TICKS(50)); // 50ms reset pulse
-            digitalWrite(step.pin, LOW);  // Inverted logic for relay board
-            Serial.printf("📌 DIGITAL Pin %d: LOW (activado - lógica invertida)\n", step.pin);
-        } else {
-            digitalWrite(step.pin, HIGH);  // Inverted logic for relay board
-            Serial.printf("📌 DIGITAL Pin %d: HIGH (desactivado - lógica invertida)\n", step.pin);
-        }
-    } else if (step.mode == PWM) {
-        // Convert dutyCycle 0-100 to 0-255 for LEDC
-        int duty8bit = map(step.dutyCycle, 0, 100, 0, 255);
-        // Ensure PWM channel is attached once
-        PWMManager::ensureAttached(step.pin);
-        
-        if (step.power == ON && step.dutyCycle > 0) {
-            // Direct PWM update without detach/attach cycle
-            PWMManager::writeDuty(step.pin, duty8bit);
-            Serial.printf("🌀 PWM Pin %d: duty=%d%% (%d/255) activado\n", step.pin, step.dutyCycle, duty8bit);
-        } else {
-            PWMManager::writeDuty(step.pin, 0);
-            Serial.printf("🌀 PWM Pin %d: OFF (duty=0)\n", step.pin);
-        }
-        // Note: PWM channel stays attached throughout job lifecycle
+        // Digital mode: ON/OFF
+        int pinValue = (step.power == ON) ? HIGH : LOW;
+        digitalWrite(step.pin, pinValue);
+
+        Serial.printf("📌 Pin %d configurado: DIGITAL %s\n",
+                     step.pin, step.power == ON ? "HIGH" : "LOW");
+
+        String logEntry = JobUtils::getCurrentTimestamp() + " - Pin " + String(step.pin) +
+                         " digital " + (step.power == ON ? "HIGH" : "LOW");
+        step.executionLog.push_back(logEntry);
     }
-    
-    // executeStep is now atomic - only activates pin, channelTask handles duration/deactivation
-    // Status remains STEP_IN_PROGRESS until channelTask completes it based on elapsed time
+    else if (step.mode == PWM) {
+        // PWM mode
+        PWMManager::ensureAttached(step.pin);
+        PWMManager::writeDuty(step.pin, step.dutyCycle);
+
+        Serial.printf("📌 Pin %d configurado: PWM duty=%d/255 (%.1f%%)\n",
+                     step.pin, step.dutyCycle, (step.dutyCycle / 255.0f) * 100.0f);
+
+        String logEntry = JobUtils::getCurrentTimestamp() + " - Pin " + String(step.pin) +
+                         " PWM " + String(step.dutyCycle) + "/255";
+        step.executionLog.push_back(logEntry);
+    }
 }
+
+void JobScheduler::completeCurrentJob() {
+    if (currentJob == nullptr) return;
+
+    Serial.println("═══════════════════════════════════════");
+    Serial.printf("🏁 JOB COMPLETADO: %s\n", currentJob->commandId.c_str());
+
+    // Determine completion type
+    if (currentJob->hasError()) {
+        currentJob->completionType = JOB_COMPLETED_ERROR;
+        Serial.println("⚠️  Completado con errores");
+    } else if (currentJob->isCancelled()) {
+        currentJob->completionType = JOB_COMPLETED_CANCELLED;
+        Serial.println("⚠️  Completado (cancelado)");
+    } else {
+        Serial.println("✅ Completado exitosamente");
+    }
+
+    // Report completion via MQTT
+    JobNotifier::publishCompletion(*currentJob);
+
+    Serial.println("═══════════════════════════════════════");
+
+    // Remove completed job from queue
+    if (currentJobIndex >= 0 && currentJobIndex < jobQueue.size()) {
+        jobQueue.erase(jobQueue.begin() + currentJobIndex);
+    }
+
+    // Reset current job pointer
+    currentJob = nullptr;
+    currentJobIndex = -1;
+
+    Serial.printf("📊 Jobs restantes en cola: %d\n", jobQueue.size());
+}
+
+// ========================================
+// MQTT JOB SCHEDULE PROCESSING
+// ========================================
 
 void JobScheduler::processJobSchedule(const JsonDocument& payload) {
-    Serial.println("╔══════════════════════════════════════════════════════");
-    Serial.println("║  🔄 PROCESANDO JOB SCHEDULE");
-    Serial.println("╚══════════════════════════════════════════════════════");
-    
-    // 🌐 VALIDACIÓN DE CONECTIVIDAD OBLIGATORIA
-    Serial.println("🌐 Verificando conectividad a internet...");
-    if (!JobNotifier::hasInternetConnectivity()) {
-        Serial.println("🛑 JOBS RECHAZADOS: Sin conectividad a internet");
-        Serial.println("   → WiFi y MQTT deben estar conectados antes de procesar rutinas");
-        Serial.println("   → Los jobs serán ignorados hasta que se restablezca la conexión");
+    Serial.println("═══════════════════════════════════════");
+    Serial.println("📥 PROCESANDO JOB SCHEDULE");
+
+    // Extract esp32Id
+    if (!payload.containsKey("esp32Id")) {
+        Serial.println("❌ ERROR: Payload no contiene 'esp32Id'");
         return;
     }
-    Serial.println("✅ Conectividad verificada - Procediendo con jobs");
-    
-    // Diagnostic: Print current state before processing
-    Serial.println("📊 ESTADO PREVIO DEL SCHEDULER:");
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        Serial.printf("   Canal %d: %s, %d jobs en cola, running=%s\n", 
-                     i, channels[i].hasActiveJob() ? "OCUPADO" : "LIBRE",
-                     channels[i].jobQueue.size(),
-                     channels[i].isRunning ? "Sí" : "No");
-    }
-    
-    if (!payload.containsKey("jobSchedule")) {
-        Serial.println("❌ No jobSchedule en el payload");
+
+    String esp32Id = payload["esp32Id"].as<String>();
+    Serial.printf("🆔 ESP32 ID: %s\n", esp32Id.c_str());
+
+    // Validate ESP32 ID
+    if (esp32Id != ESP32_ID) {
+        Serial.printf("❌ ERROR: Job schedule no es para este ESP32 (recibido: %s, esperado: %s)\n",
+                     esp32Id.c_str(), ESP32_ID);
         return;
     }
-    
-    JsonArrayConst jobScheduleArray = payload["jobSchedule"];
-    Serial.printf("📋 JobSchedule contiene %d canal(es)\n", jobScheduleArray.size());
-    
-    int totalJobsProcessed = 0;
-    int totalJobsQueued = 0;
-    int totalJobsConsolidated = 0;
-    int totalJobsDirectAdded = 0;
 
-    Serial.printf("DEBUG: jobScheduleArray.size() = %d\n", jobScheduleArray.size());
+    // Extract jobs array (backend sends JobScheduleDto with jobs array)
+    if (!payload.containsKey("jobs")) {
+        Serial.println("❌ ERROR: Payload no contiene 'jobs'");
+        return;
+    }
 
-    for (size_t i = 0; i < jobScheduleArray.size(); i++) {
-        Serial.printf("DEBUG: entrando al for, i = %d\n", i);
+    JsonArrayConst jobsArray = payload["jobs"].as<JsonArrayConst>();
+    Serial.printf("📦 Jobs recibidos: %d\n", jobsArray.size());
 
-        JsonVariantConst channelVariant = jobScheduleArray[i];
-        if (channelVariant.isNull()) {
-            Serial.printf("⚠️  Canal %d es null\n", i);
-            continue;
-        }
+    int jobsAdded = 0;
+    int jobsConsolidated = 0;
 
-        if (!channelVariant.is<JsonObjectConst>()) {
-            Serial.printf("⚠️  Canal %d no es un objeto JSON\n", i);
-            continue;
-        }
+    for (JsonVariantConst jobVariant : jobsArray) {
+        JsonObjectConst jobObj = jobVariant.as<JsonObjectConst>();
 
-        JsonObjectConst channelObj = channelVariant.as<JsonObjectConst>();
-        Serial.printf("✅ Canal %d válido, keys=%d\n", i, channelObj.size());
+        // Parse job
+        Job newJob;
+        newJob.commandId = jobObj["commandId"].as<String>();
+        newJob.baseId = jobObj["baseId"] | newJob.commandId;  // Use commandId as fallback
+        newJob.queueTime = millis();
 
-        // Validar claves esperadas
-        if (!channelObj.containsKey("channel") || !channelObj.containsKey("queue")) {
-            Serial.printf("⚠️  Canal %d no tiene 'channel' o 'queue'\n", i);
-            continue;
-        }
+        Serial.printf("\n🔹 Job: %s (BaseId: %s)\n", newJob.commandId.c_str(), newJob.baseId.c_str());
 
-        int channelId = channelObj["channel"] | -1; // si no existe, -1
-        if (channelId < 0 || channelId >= MAX_CHANNELS) {
-            Serial.printf("❌ Canal inválido: %d (válidos: 0-%d)\n", channelId, MAX_CHANNELS-1);
-            continue;
-        }
+        // Parse steps
+        JsonArrayConst stepsArray = jobObj["steps"].as<JsonArrayConst>();
+        Serial.printf("   Steps: %d\n", stepsArray.size());
 
-        // Obtener queue
-        JsonVariantConst queueVariant = channelObj["queue"];
-        if (!queueVariant.is<JsonArrayConst>()) {
-            Serial.printf("❌ Canal %d → 'queue' no es un array\n", channelId);
+        for (JsonVariantConst stepVariant : stepsArray) {
+            JsonObjectConst stepObj = stepVariant.as<JsonObjectConst>();
 
-            // Debug extra de tipo real
-            if (queueVariant.is<JsonObjectConst>()) Serial.println("   → Es un OBJECT");
-            else if (queueVariant.is<const char*>()) Serial.println("   → Es un STRING");
-            else if (queueVariant.is<int>()) Serial.println("   → Es un INT");
-            else if (queueVariant.isNull()) Serial.println("   → Es NULL");
-            else Serial.println("   → Tipo desconocido");
+            Step step;
+            step.pin = String(stepObj["pin"].as<String>()).toInt();
 
-            continue;
-        }
+            String modeStr = stepObj["mode"].as<String>();
+            step.mode = (modeStr == "PWM") ? PWM : DIGITAL;
 
-        JsonArrayConst queueArray = queueVariant.as<JsonArrayConst>();
-        Serial.printf("✅ Canal %d → queue con %d job(s)\n", channelId, queueArray.size());
-
-        if (queueArray.size() == 0) {
-            Serial.printf("⚠️  Canal %d tiene 'queue' vacío\n", channelId);
-            continue;
-        }
-
-        // Aquí ya puedes procesar queueArray
-        Serial.printf("✅ Canal %d listo para procesar %d job(s)\n", channelId, queueArray.size());
-
-        Serial.println("┌─────────────────────────────────────────────────");
-        Serial.printf("│ 📍 PROCESANDO CANAL %d\n", channelId);
-        Serial.printf("│ 📦 Jobs en cola recibida: %d\n", queueArray.size());
-        Serial.printf("│ 🔄 Estado canal: %s\n", (channels[channelId].hasActiveJob() ? "OCUPADO" : "LIBRE"));
-        Serial.printf("│ 📋 Jobs actuales en canal: %d\n", channels[channelId].jobQueue.size());
-        Serial.println("└─────────────────────────────────────────────────");
-        
-        if (xSemaphoreTake(channels[channelId].channelMutex, pdMS_TO_TICKS(1000))) {
-            ChannelState& channel = channels[channelId];
-            
-            // Process each job in the queue
-            for (size_t jobIndex = 0; jobIndex < queueArray.size(); jobIndex++) {
-                JsonVariantConst jobVariant = queueArray[jobIndex];
-                if (!jobVariant.is<JsonObjectConst>()) continue;
-                JsonObjectConst jobObj = jobVariant;
-                totalJobsProcessed++;
-                
-                Job newJob;
-                newJob.commandId = jobObj["commandId"].as<String>();
-                newJob.baseId = jobObj["baseId"].as<String>();
-                newJob.queueTime = millis();
-                
-                // Reserve aggressive capacity to reduce fragmentation
-                newJob.steps.reserve(8);  // More capacity to handle complex jobs
-                
-                Serial.println("    ┌─────────────────────────────────────────");
-                Serial.printf("    │ 🆔 JOB #%d: %s\n", totalJobsProcessed, newJob.commandId.c_str());
-                Serial.printf("    │ 🏷️  BaseId: %s\n", newJob.baseId.c_str());
-                Serial.printf("    │ ⏰ Queue time: %lu ms\n", newJob.queueTime);
-                
-                // Parse steps
-                JsonArrayConst stepsArray = jobObj["steps"];
-                for (JsonObjectConst stepObj : stepsArray) {
-                    Step step;
-                    
-                    // Parse pin - handle both string and int
-                    if (stepObj["pin"].is<int>()) {
-                        step.pin = stepObj["pin"].as<int>();
-                    } else {
-                        step.pin = String(stepObj["pin"].as<const char*>()).toInt();
-                    }
-                    
-                    String modeStr = stepObj["mode"];
-                    step.mode = (modeStr == "PWM") ? PWM : DIGITAL;
-                    
-                    // Parse power - handle null values
-                    if (stepObj["power"].isNull()) {
-                        if (stepObj.containsKey("dutyCycle") && !stepObj["dutyCycle"].isNull()) {
-                            int dutyCycle = stepObj["dutyCycle"];
-                            step.power = (step.mode == PWM && dutyCycle > 0) ? ON : OFF;
-                        } else {
-                            step.power = OFF;
-                        }
-                    } else {
-                        String powerStr = stepObj["power"].as<const char*>();
-                        step.power = (powerStr == "ON") ? ON : OFF;
-                    }
-                    
-                    if (stepObj.containsKey("dutyCycle") && !stepObj["dutyCycle"].isNull()) {
-                        step.dutyCycle = stepObj["dutyCycle"];
-                    }
-                    
-                    unsigned long durationSec = stepObj["duration"];
-                    step.duration = durationSec * 1000UL;
-                    
-                    step.status = STEP_PENDING;
-                    
-                    // Reserve execution log capacity to reduce fragmentation
-                    step.executionLog.reserve(16);  // More capacity for detailed logging
-                    
-                    newJob.steps.push_back(step);
-                }
-                
-                Serial.printf("    │ 📝 Steps: %d step(s)\n", newJob.steps.size());
-                for (size_t s = 0; s < newJob.steps.size(); s++) {
-                    const Step& step = newJob.steps[s];
-                    Serial.printf("    │   [%d] Pin %d, %s, %s, ", s, step.pin,
-                                 (step.mode == PWM) ? "PWM" : "DIGITAL",
-                                 (step.power == ON) ? "ON" : "OFF");
-                    if (step.mode == PWM) {
-                        Serial.printf("duty=%d%%, ", step.dutyCycle);
-                    }
-                    Serial.printf("duration=%lus\n", step.duration / 1000);
-                }
-                Serial.println("    └─────────────────────────────────────────");
-                
-                bool jobProcessed = false;
-                
-                // Check if this is a control routine
-                if (JobConsolidator::isControlRoutine(newJob)) {
-                    Step& firstStep = newJob.steps[0];
-                    Serial.printf("    │ ⚠️  RUTINA DE CONTROL detectada en pin %d\n", firstStep.pin);
-                    Serial.printf("    │ 🛑 Cancelando jobs existentes en pin %d\n", firstStep.pin);
-                    cancelJobsOnPin(firstStep.pin, "Cancelado por rutina de control");
-                }
-                
-                Serial.printf("    │ 🧠 DECISIÓN DEL SCHEDULER:\n");
-                if (channel.hasActiveJob()) {
-                    Job* currentJob = channel.getCurrentJob();
-                    Serial.printf("    │   📊 Canal OCUPADO con job: %s\n", currentJob->commandId.c_str());
-                    
-                    if (currentJob && JobConsolidator::canConsolidate(newJob, *currentJob)) {
-                        Serial.printf("    │   ✅ CONSOLIDACIÓN posible (mismo baseId + step 0 + no completado)\n");
-                        Serial.printf("    │   🔄 Fusionando %s → %s\n", newJob.commandId.c_str(), currentJob->commandId.c_str());
-#ifdef DEBUG
-                        Serial.printf("    │   🔍 DEBUG: current job - stepIndex=%d, isCompleted=%s, steps.size=%d\n", 
-                                    currentJob->currentStepIndex, 
-                                    currentJob->isCompleted() ? "true" : "false",
-                                    currentJob->steps.size());
-#endif
-                        
-                        std::vector<String> logs;
-                        JobConsolidator::consolidateJob(*currentJob, newJob, logs);
-                        
-                        // Mark job as modified through consolidation
-                        currentJob->completionType = JOB_COMPLETED_MODIFIED;
-                        
-                        // Notification only includes summary, detailed logs are in step.executionLog
-                        std::vector<String> notificationLogs;
-                        notificationLogs.push_back(JobUtils::getCurrentTimestamp() + " - Job fusionado con cambios aplicados");
-                        
-                        JobNotifier::publishNotification("consolidated", channelId, 
-                                          newJob.commandId, currentJob->commandId, notificationLogs);
-                        
-                        // Mark the incoming (extender) job as processed - it doesn't need to be queued
-                        // since its changes have been applied to the current job
-                        jobProcessed = true;
-                        totalJobsConsolidated++;
-                        
-                        Serial.printf("    │   ✅ CONSOLIDADO: %s fusionado en canal %d\n", 
-                                    newJob.commandId.c_str(), channelId);
-                    } else {
-                        Serial.printf("    │   ❌ CONSOLIDACIÓN imposible (baseId diferente, step > 0, completado o pin diferente)\n");
-#ifdef DEBUG
-                        Serial.printf("    │   🔍 DEBUG: baseId match=%s, stepIndex=%d, isCompleted=%s, pinMatch=%s\n",
-                                    (newJob.baseId == currentJob->baseId) ? "true" : "false",
-                                    currentJob->currentStepIndex,
-                                    currentJob->isCompleted() ? "true" : "false",
-                                    (!newJob.steps.empty() && !currentJob->steps.empty() && 
-                                     newJob.steps[0].pin == currentJob->steps[0].pin) ? "true" : "false");
-#endif
-                        Serial.printf("    │   📋 ENCOLANDO job para esperar...\n");
-                        
-                        if (channel.jobQueue.size() < MAX_JOBS_PER_CHANNEL) {
-                            channel.jobQueue.push_back(newJob);
-                            
-                            std::vector<String> logs;
-                            logs.push_back(JobUtils::getCurrentTimestamp() + " - Job encolado, rutina actual ya avanzó");
-                            
-                            JobNotifier::publishNotification("queued", channelId, 
-                                              newJob.commandId, "", logs);
-                            jobProcessed = true;
-                            totalJobsQueued++;
-                            
-                            Serial.printf("    │   ✅ ENCOLADO: %s en posición %d del canal %d\n", 
-                                        newJob.commandId.c_str(), channel.jobQueue.size(), channelId);
-                        }
-                    }
-                } else {
-                    Serial.printf("    │   ✅ Canal LIBRE - ejecución directa\n");
-                    if (channel.jobQueue.size() < MAX_JOBS_PER_CHANNEL) {
-                        channel.jobQueue.push_back(newJob);
-                        jobProcessed = true;
-                        totalJobsDirectAdded++;
-                        
-                        Serial.printf("    │   ⚡ EJECUCIÓN DIRECTA: %s en canal %d\n", 
-                                    newJob.commandId.c_str(), channelId);
-                        Serial.printf("    │   🚀 Job listo para ejecutar inmediatamente\n");
-                    } else {
-                        Serial.printf("    │   🚫 Canal lleno (max %d jobs)\n", MAX_JOBS_PER_CHANNEL);
-                    }
-                }
-                
-                if (!jobProcessed) {
-                    Serial.printf("❌ No se pudo procesar job %s\n", newJob.commandId.c_str());
-                }
+            if (stepObj.containsKey("power")) {
+                String powerStr = stepObj["power"].as<String>();
+                step.power = (powerStr == "ON") ? ON : OFF;
             }
-            
-            xSemaphoreGive(channels[channelId].channelMutex);
+
+            if (stepObj.containsKey("dutyCycle")) {
+                // Backend sends 0-100, convert to 0-255
+                double dutyCyclePercent = stepObj["dutyCycle"].as<double>();
+                step.dutyCycle = (int)((dutyCyclePercent / 100.0) * 255.0);
+            }
+
+            // Backend sends duration in seconds (can be decimal)
+            double durationSec = stepObj["duration"].as<double>();
+            step.duration = (unsigned long)(durationSec * 1000.0);  // Convert to milliseconds
+
+            step.status = STEP_PENDING;
+
+            newJob.steps.push_back(step);
+
+            Serial.printf("      Pin %d, %s, %s, Duty: %d, Duration: %lu ms\n",
+                         step.pin,
+                         step.mode == DIGITAL ? "DIGITAL" : "PWM",
+                         step.power == ON ? "ON" : "OFF",
+                         step.dutyCycle,
+                         step.duration);
+        }
+
+        // Check if we should consolidate this job with an existing one
+        bool consolidated = false;
+
+        // Try to consolidate with queued jobs
+        for (auto& existingJob : jobQueue) {
+            if (JobConsolidator::canConsolidate(newJob, existingJob)) {
+                Serial.printf("🔄 Consolidando job %s con job existente %s\n",
+                             newJob.commandId.c_str(), existingJob.commandId.c_str());
+
+                std::vector<String> consolidationLogs;
+                JobConsolidator::consolidateJob(existingJob, newJob, consolidationLogs);
+
+                // Log consolidation logs
+                for (const auto& log : consolidationLogs) {
+                    Serial.println(log);
+                }
+
+                jobsConsolidated++;
+                consolidated = true;
+                break;
+            }
+        }
+
+        // Try to consolidate with currently running job
+        if (!consolidated && currentJob != nullptr) {
+            if (JobConsolidator::canConsolidate(newJob, *currentJob)) {
+                Serial.printf("🔄 Consolidando job %s con job en ejecución %s\n",
+                             newJob.commandId.c_str(), currentJob->commandId.c_str());
+
+                std::vector<String> consolidationLogs;
+                JobConsolidator::consolidateJob(*currentJob, newJob, consolidationLogs);
+
+                // Log consolidation logs
+                for (const auto& log : consolidationLogs) {
+                    Serial.println(log);
+                }
+
+                jobsConsolidated++;
+                consolidated = true;
+            }
+        }
+
+        // If not consolidated, add to queue
+        if (!consolidated) {
+            jobQueue.push_back(newJob);
+            jobsAdded++;
+            Serial.printf("✅ Job %s agregado a cola (posición %d)\n",
+                         newJob.commandId.c_str(), jobQueue.size());
         }
     }
-    
-    Serial.println("╔══════════════════════════════════════════════════════");
-    Serial.println("║  📊 RESUMEN DE PROCESAMIENTO");
-    Serial.println("╠══════════════════════════════════════════════════════");
-    Serial.printf("║  📋 Total jobs procesados: %d\n", totalJobsProcessed);
-    Serial.printf("║  ⚡ Ejecución directa: %d\n", totalJobsDirectAdded);
-    Serial.printf("║  📝 Encolados: %d\n", totalJobsQueued);
-    Serial.printf("║  🔄 Consolidados: %d\n", totalJobsConsolidated);
-    Serial.println("║");
-    
-    for (int c = 0; c < MAX_CHANNELS; c++) {
-        Serial.printf("║  📍 Canal %d: %s (%d jobs en cola)\n", c,
-                     channels[c].hasActiveJob() ? "OCUPADO" : "LIBRE",
-                     channels[c].jobQueue.size());
-    }
-    Serial.println("╚══════════════════════════════════════════════════════");
+
+    Serial.println("\n📊 RESUMEN:");
+    Serial.printf("   ✅ Jobs nuevos agregados: %d\n", jobsAdded);
+    Serial.printf("   🔄 Jobs consolidados: %d\n", jobsConsolidated);
+    Serial.printf("   📋 Total en cola: %d\n", jobQueue.size());
+    Serial.printf("   ⚙️  Job en ejecución: %s\n", currentJob ? currentJob->commandId.c_str() : "Ninguno");
+    Serial.println("═══════════════════════════════════════");
 }
 
-void JobScheduler::cancelJobsOnPin(int pin, const String& reason) {
-    // Use global mutex for cross-channel operation
-    bool ownMutex = xSemaphoreTake(globalMutex, pdMS_TO_TICKS(500));
-    
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        ChannelState& channel = channels[i];
-        
-        for (auto& job : channel.jobQueue) {
-            bool jobAffected = false;
-            for (auto& step : job.steps) {
-                // Only cancel steps that are actually IN_PROGRESS on this pin
-                if (step.pin == pin && step.status == STEP_IN_PROGRESS) {
-                    step.status = STEP_CANCELLED;
-                    String logEntry = JobUtils::getCurrentTimestamp() + " - " + reason;
-                    step.executionLog.push_back(logEntry);
-                    jobAffected = true;
-                    
-                    // Ensure pin is turned off safely
-                    if (pin >= 0 && pin < 40) {
-                        PWMManager::writeDuty(pin, 0);
-                        PWMManager::detachIfAttached(pin);
-                        digitalWrite(pin, HIGH);  // Inverted logic for relay board
-                    } else {
-                        Serial.printf("❌ ERROR: Pin %d inválido en cancelación\n", pin);
-                    }
-                    
-                    Serial.printf("🛑 Cancelado step IN_PROGRESS en pin %d por rutina de control\n", pin);
-                }
-                // Don't touch PENDING steps - let them run normally when their turn comes
-            }
-            
-            // Mark entire job as cancelled if any step was affected
-            if (jobAffected) {
-                job.completionType = JOB_COMPLETED_CANCELLED;
-            }
-        }
-    }
-    
-    if (ownMutex) {
-        xSemaphoreGive(globalMutex);
-    }
-}
+// ========================================
+// EMERGENCY STOP
+// ========================================
 
 void JobScheduler::emergencyStop() {
-    Serial.println("🚨 PARADA DE EMERGENCIA - JobScheduler");
-    
-    if (xSemaphoreTake(globalMutex, portMAX_DELAY)) {
-        for (int i = 0; i < MAX_CHANNELS; i++) {
-            ChannelState& channel = channels[i];
-            
-            for (auto& job : channel.jobQueue) {
-                // Mark job as cancelled
-                job.completionType = JOB_COMPLETED_CANCELLED;
-                
-                for (auto& step : job.steps) {
-                    if (step.status == STEP_IN_PROGRESS || step.status == STEP_PENDING) {
-                        step.status = STEP_CANCELLED;
-                        String logEntry = JobUtils::getCurrentTimestamp() + " - Cancelado por parada de emergencia";
-                        step.executionLog.push_back(logEntry);
-                        
-                        // Turn off the pin immediately
-                        if (step.pin >= 0 && step.pin < 40) {
-                            digitalWrite(step.pin, HIGH);  // Inverted logic for relay board
-                        } else {
-                            Serial.printf("❌ ERROR: Pin %d inválido en emergencia\n", step.pin);
-                        }
-                    }
-                }
-            }
-            
-            channel.isRunning = false;
-        }
-        
-        xSemaphoreGive(globalMutex);
+    Serial.println("🚨 PARADA DE EMERGENCIA - Deteniendo todos los jobs");
+
+    // Clear queue
+    jobQueue.clear();
+
+    // Cancel current job if any
+    if (currentJob != nullptr) {
+        Serial.printf("🛑 Cancelando job en ejecución: %s\n", currentJob->commandId.c_str());
+        currentJob = nullptr;
+        currentJobIndex = -1;
     }
+
+    // Turn off all pins (safety)
+    for (int pin = 0; pin < 40; pin++) {
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, LOW);
+        PWMManager::detachIfAttached(pin);
+    }
+
+    Serial.println("✅ Parada de emergencia completada");
 }
 
-void JobScheduler::loop() {
-    // Maintenance tasks if needed
-    // This method is called from the main loop for any housekeeping
+// ========================================
+// STATUS METHODS
+// ========================================
+
+bool JobScheduler::isBusy() {
+    return currentJob != nullptr || !jobQueue.empty();
 }
 
-bool JobScheduler::isChannelBusy(int channelId) {
-    if (channelId < 0 || channelId >= MAX_CHANNELS) return false;
-    
-    if (xSemaphoreTake(channels[channelId].channelMutex, pdMS_TO_TICKS(50))) {  // Short timeout
-        bool busy = channels[channelId].isRunning;
-        xSemaphoreGive(channels[channelId].channelMutex);
-        return busy;
-    }
-    return false;
-}
-
-int JobScheduler::getQueueSize(int channelId) {
-    if (channelId < 0 || channelId >= MAX_CHANNELS) return 0;
-    
-    if (xSemaphoreTake(channels[channelId].channelMutex, pdMS_TO_TICKS(50))) {  // Short timeout
-        int size = channels[channelId].jobQueue.size();
-        xSemaphoreGive(channels[channelId].channelMutex);
-        return size;
-    }
-    return 0;
+int JobScheduler::getQueueSize() {
+    return jobQueue.size();
 }
 
 void JobScheduler::printStatus() {
     Serial.println("📊 JobScheduler Status:");
-    for (int i = 0; i < MAX_CHANNELS; i++) {
-        Serial.printf("  Canal %d: Running=%s, Queue=%d\n", 
-                     i, isChannelBusy(i) ? "Sí" : "No", getQueueSize(i));
+    Serial.printf("   ⚙️  Job actual: %s\n", currentJob ? currentJob->commandId.c_str() : "Ninguno");
+    Serial.printf("   📋 Jobs en cola: %d\n", jobQueue.size());
+
+    if (currentJob) {
+        Serial.printf("      Step actual: %d/%d\n",
+                     currentJob->currentStepIndex + 1,
+                     currentJob->steps.size());
     }
+
+    if (!jobQueue.empty()) {
+        Serial.println("   📋 Cola:");
+        for (size_t i = 0; i < jobQueue.size() && i < 5; i++) {
+            Serial.printf("      %d. %s (%d steps)\n",
+                         (int)i + 1,
+                         jobQueue[i].commandId.c_str(),
+                         jobQueue[i].steps.size());
+        }
+        if (jobQueue.size() > 5) {
+            Serial.printf("      ... y %d más\n", jobQueue.size() - 5);
+        }
+    }
+}
+
+// ========================================
+// PIN CANCELLATION
+// ========================================
+
+void JobScheduler::cancelJobsOnPin(int pin, const String& reason) {
+    Serial.printf("🚫 Cancelando jobs que usan pin %d: %s\n", pin, reason.c_str());
+
+    int cancelledCount = 0;
+
+    // Cancel in queue
+    for (auto& job : jobQueue) {
+        bool usesPin = false;
+        for (const auto& step : job.steps) {
+            if (step.pin == pin) {
+                usesPin = true;
+                break;
+            }
+        }
+
+        if (usesPin) {
+            // Mark all steps as cancelled
+            for (auto& step : job.steps) {
+                if (step.status == STEP_PENDING || step.status == STEP_IN_PROGRESS) {
+                    step.status = STEP_CANCELLED;
+                    String logEntry = JobUtils::getCurrentTimestamp() + " - Cancelado: " + reason;
+                    step.executionLog.push_back(logEntry);
+                }
+            }
+
+            job.completionType = JOB_COMPLETED_CANCELLED;
+            cancelledCount++;
+
+            Serial.printf("   ❌ Job %s cancelado\n", job.commandId.c_str());
+        }
+    }
+
+    // Cancel current job if it uses the pin
+    if (currentJob != nullptr) {
+        bool usesPin = false;
+        for (const auto& step : currentJob->steps) {
+            if (step.pin == pin) {
+                usesPin = true;
+                break;
+            }
+        }
+
+        if (usesPin) {
+            Serial.printf("   ❌ Job en ejecución %s cancelado\n", currentJob->commandId.c_str());
+
+            for (auto& step : currentJob->steps) {
+                if (step.status == STEP_PENDING || step.status == STEP_IN_PROGRESS) {
+                    step.status = STEP_CANCELLED;
+                    String logEntry = JobUtils::getCurrentTimestamp() + " - Cancelado: " + reason;
+                    step.executionLog.push_back(logEntry);
+                }
+            }
+
+            currentJob->completionType = JOB_COMPLETED_CANCELLED;
+            cancelledCount++;
+
+            // Complete it immediately
+            completeCurrentJob();
+        }
+    }
+
+    Serial.printf("📊 Total de jobs cancelados: %d\n", cancelledCount);
 }
 
 // ========================================
@@ -696,50 +555,159 @@ void JobScheduler::printStatus() {
 // ========================================
 void JobScheduler::runHumidifierRoutine(unsigned long durationMs) {
     Serial.printf("💨 [HUMID] Iniciando rutina especializada por %lu ms (simula pulsación de botón)\n", durationMs);
-    
+
     unsigned long start = millis();
-    
+
     // Configure pins
     pinMode(PIN_HUMID_POWER, OUTPUT);
     pinMode(PIN_HUMID_RELAY, OUTPUT);
-    
+
     // === SECUENCIA DE ACTIVACIÓN (basada en firmware autónomo) ===
-    
+
     // Step 1: Activar relé maestro (PIN 14) - LÓGICA INVERTIDA
     Serial.println("💨 [HUMID] Activando relé maestro (power) - PIN 14 LOW");
     digitalWrite(PIN_HUMID_POWER, LOW);  // ACTIVO LOW (lógica invertida)
-    
+
     // Step 2: Delay de seguridad (2 segundos)
     Serial.println("💨 [HUMID] Delay de seguridad (2000ms)");
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    
+    delay(2000);
+
     // Step 3: Pulso de activación en relé (PIN 13) - simula pulsación de botón
     Serial.println("💨 [HUMID] Pulso de activación - PIN 13 LOW por 1 segundo");
     digitalWrite(PIN_HUMID_RELAY, LOW);  // ACTIVO LOW (lógica invertida) - pulso ON
-    vTaskDelay(pdMS_TO_TICKS(1000));     // Mantener pulso por 1 segundo
-    
+    delay(1000);     // Mantener pulso por 1 segundo
+
     digitalWrite(PIN_HUMID_RELAY, HIGH); // Pulso OFF
     Serial.println("💨 [HUMID] Pulso de activación completado - PIN 13 HIGH");
     Serial.println("💨 [HUMID] Humidificador activado, funcionará durante el tiempo especificado");
-    
+
     // === ESPERAR DURACIÓN ESPECIFICADA ===
-    
+
     // El humidificador ya está funcionando, solo esperamos el tiempo restante
     unsigned long remainingTime = durationMs - (millis() - start);
     if (remainingTime > 0) {
         Serial.printf("💨 [HUMID] Esperando %lu ms hasta desactivación...\n", remainingTime);
-        vTaskDelay(pdMS_TO_TICKS(remainingTime));
+        delay(remainingTime);
     }
-    
+
     // === DESACTIVACIÓN COMPLETA ===
-    
+
     // Step 4: Apagar relé maestro (power)
     Serial.println("💨 [HUMID] Desactivando relé maestro - PIN 14 HIGH");
     digitalWrite(PIN_HUMID_POWER, HIGH); // INACTIVO HIGH (lógica invertida)
-    
+
     // Step 5: Asegurar relé de pulso OFF
     digitalWrite(PIN_HUMID_RELAY, HIGH);  // INACTIVO HIGH (lógica invertida)
-    
+
     unsigned long totalTime = millis() - start;
     Serial.printf("💨 [HUMID] Rutina completada en %lu ms - humidificador desactivado\n", totalTime);
+}
+
+// ========================================
+// HEATER SPECIALIZED ROUTINE WITH TEMPERATURE MONITORING
+// ========================================
+void JobScheduler::runHeaterRoutine(unsigned long durationMs) {
+    Serial.printf("🔥 [HEATER] Iniciando rutina con monitoreo térmico por %lu ms\n", durationMs);
+    Serial.println("🔥 [HEATER] Objetivo: mantener calefactor hasta alcanzar 22.5°C promedio");
+
+    // Validate sensor manager availability
+    if (sensorManager == nullptr) {
+        Serial.println("❌ [HEATER] ERROR: SensorManager no disponible - abortando rutina");
+        return;
+    }
+
+    // Constants for temperature monitoring (from autonomous firmware)
+    const float HEATER_OFF_TEMP = 22.5f;           // Target temperature (°C)
+    const float HEATER_EMERGENCY_TEMP = 25.0f;     // Emergency shutdown temperature (°C)
+    const unsigned long MONITOR_INTERVAL = 3000;   // 3 seconds monitoring interval
+    const int TEMP_BUFFER_SIZE = 10;               // Buffer size for moving average
+
+    // Temperature buffer for moving average
+    float tempBuffer[TEMP_BUFFER_SIZE];
+    int tempBufferIndex = 0;
+    bool tempBufferFull = false;
+
+    unsigned long start = millis();
+    unsigned long lastMonitorTime = 0;
+
+    // Configure pin and turn heater ON
+    pinMode(PIN_RELAY_HEATER, OUTPUT);
+    digitalWrite(PIN_RELAY_HEATER, LOW);  // ACTIVO LOW (lógica invertida)
+    Serial.println("🔥 [HEATER] Calefactor ENCENDIDO - PIN 17 LOW");
+    Serial.println("🔥 [HEATER] Monitoreo térmico cada 3 segundos activado");
+
+    // Main monitoring loop
+    while (true) {
+        unsigned long currentTime = millis();
+        unsigned long elapsedTime = currentTime - start;
+
+        // Check if maximum duration exceeded
+        if (elapsedTime >= durationMs) {
+            Serial.printf("🔥 [HEATER] Duración máxima alcanzada (%lu ms) - apagando calefactor\n", durationMs);
+            break;
+        }
+
+        // Temperature monitoring every 3 seconds
+        if (currentTime - lastMonitorTime >= MONITOR_INTERVAL) {
+            lastMonitorTime = currentTime;
+
+            // Read current temperature
+            float currentTemp = sensorManager->readTemperature();
+
+            if (isnan(currentTemp)) {
+                Serial.println("🔥 [HEATER-MONITOR] Sensor de temperatura falló - continuando monitoreo");
+                delay(100);  // Small delay before next iteration
+                continue;
+            }
+
+            // Add temperature to buffer
+            tempBuffer[tempBufferIndex] = currentTemp;
+            tempBufferIndex = (tempBufferIndex + 1) % TEMP_BUFFER_SIZE;
+            if (!tempBufferFull && tempBufferIndex == 0) {
+                tempBufferFull = true;
+            }
+
+            // Calculate average temperature
+            float avgTemp = 0.0f;
+            int count = tempBufferFull ? TEMP_BUFFER_SIZE : tempBufferIndex;
+            if (count > 0) {
+                for (int i = 0; i < count; i++) {
+                    avgTemp += tempBuffer[i];
+                }
+                avgTemp /= count;
+            }
+
+            // === EMERGENCY SHUTDOWN (current temperature) ===
+            if (currentTemp >= HEATER_EMERGENCY_TEMP) {
+                Serial.printf("🔴 [HEATER-MONITOR] EMERGENCIA detectada: %.1f°C ≥ %.1f°C\n",
+                             currentTemp, HEATER_EMERGENCY_TEMP);
+                Serial.println("🔴 [HEATER-MONITOR] Ejecutando apagado inmediato...");
+                break;
+            }
+
+            // === TARGET SHUTDOWN (average temperature) ===
+            if (count > 0 && avgTemp >= HEATER_OFF_TEMP) {
+                Serial.printf("🔴 [HEATER-MONITOR] Objetivo alcanzado: promedio %.1f°C ≥ %.1f°C\n",
+                             avgTemp, HEATER_OFF_TEMP);
+                Serial.printf("🔴 [HEATER-MONITOR] Tiempo de calentamiento: %lu ms (%.1f segundos)\n",
+                             elapsedTime, elapsedTime / 1000.0f);
+                break;
+            }
+
+            // Periodic log every monitoring cycle
+            Serial.printf("🔥 [HEATER-MONITOR] Temp actual: %.1f°C, Promedio: %.1f°C (buffer: %d/%d)\n",
+                         currentTemp, avgTemp, count, TEMP_BUFFER_SIZE);
+        }
+
+        // Small delay to prevent tight loop
+        delay(100);
+    }
+
+    // === SHUTDOWN SEQUENCE ===
+    digitalWrite(PIN_RELAY_HEATER, HIGH);  // INACTIVO HIGH (lógica invertida)
+    Serial.println("🔥 [HEATER] Calefactor APAGADO - PIN 17 HIGH");
+
+    unsigned long totalTime = millis() - start;
+    Serial.printf("🔥 [HEATER] Rutina completada en %lu ms (%.1f segundos) - calefactor desactivado\n",
+                 totalTime, totalTime / 1000.0f);
 }

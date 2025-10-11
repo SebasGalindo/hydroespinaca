@@ -125,7 +125,10 @@ void setup() {
     
     Serial.println("🔧 Vinculando JobScheduler con MQTT...");
     jobScheduler.setMQTTHandler(&mqttHandler);
-    
+
+    Serial.println("🔧 Vinculando JobScheduler con SensorManager...");
+    jobScheduler.setSensorManager(&sensors);
+
     Serial.println("🚀 Sistema iniciado correctamente!\n");
     Serial.println("📊 Publicando telemetría cada 2 minutos");
     Serial.println("📡 Escuchando job schedules en: " + String(TOPIC_JOB_SCHEDULE));
@@ -181,22 +184,31 @@ void loop() {
         Serial.printf("🔍 Watchdog - Free heap: %u bytes\n", freeHeap);
         Serial.printf("🔗 Estado MQTT: %s\n", mqttHandler.isConnected() ? "Conectado" : "Desconectado");
         Serial.printf("📶 Estado WiFi: %s\n", mqttHandler.isWiFiConnected() ? "Conectado" : "Desconectado");
-        
+
         if (freeHeap < 10000) {
             Serial.println("🚨 Memoria crítica - reiniciando...");
             jobScheduler.emergencyStop();
             delay(1000);
             ESP.restart();
         }
-        
+
+        // 🛡️ Reinicio por fallo prolongado de WiFi (30 minutos sin conexión)
+        if (!mqttHandler.isWiFiConnected() &&
+            (currentTime - mqttHandler.getLastWifiAttemptTime() > 1800000)) { // 30 minutos sin Wi-Fi
+            Serial.println("🚨 [WDT] Reinicio por fallo prolongado de WiFi (30 min).");
+            jobScheduler.emergencyStop();
+            delay(1000);
+            ESP.restart();
+        }
+
         // Print scheduler status periodically
         jobScheduler.printStatus();
-        
+
         // Print connection diagnostics
         if (!mqttHandler.isConnected()) {
             Serial.println("⚠️  MQTT desconectado - verificando reconexión...");
         }
-        
+
         lastWatchdogTime = currentTime;
     }
     

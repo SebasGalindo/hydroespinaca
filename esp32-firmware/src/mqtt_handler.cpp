@@ -10,25 +10,21 @@ extern NTPClient timeClient;
 // Static instance for callback
 MQTTHandler* MQTTHandler::instance = nullptr;
 
-MQTTHandler::MQTTHandler(JobScheduler* scheduler) 
-    : mqttClient(secureClient), jobScheduler(scheduler), 
-      lastReconnectAttempt(0), reconnectInterval(RECONNECT_INTERVAL), reconnectAttempts(0) {
-    
+MQTTHandler::MQTTHandler(JobScheduler* scheduler)
+    : mqttClient(secureClient), jobScheduler(scheduler) {
+
     instance = this;
-    
+
     // Configure TLS/SSL
     secureClient.setCACert(MQTT_ROOT_CA);
-    
+
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
     mqttClient.setCallback(messageCallback);
     mqttClient.setKeepAlive(60);
-
-    // 👇 Aquí fuerzas el buffer real de la instancia
     mqttClient.setBufferSize(1024);
 
-    // Logs de verificación
-    Serial.printf("🔧 MQTT Buffer configurado (macro): %d bytes máximo\n", MQTT_MAX_PACKET_SIZE);
-    Serial.printf("🔧 MQTT Buffer disponible (real): %d bytes\n", mqttClient.getBufferSize());
+    Serial.printf("🔧 MQTT Buffer configurado: %d bytes máximo\n", MQTT_MAX_PACKET_SIZE);
+    Serial.printf("🔧 MQTT Buffer disponible: %d bytes\n", mqttClient.getBufferSize());
 }
 
 
@@ -39,33 +35,18 @@ void MQTTHandler::begin() {
 
 bool MQTTHandler::connectWiFi() {
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("📶 WiFi ya conectado - IP: %s\n", WiFi.localIP().toString().c_str());
         return true;
     }
-    
-    Serial.printf("📶 Conectando a WiFi: %s\n", WIFI_SSID);
-    Serial.println("🔑 Credenciales configuradas, iniciando conexión...");
-    
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
+
+    // Si la conexión no se ha iniciado, la iniciamos una sola vez (no bloqueante)
+    if (WiFi.getMode() == WIFI_MODE_NULL || WiFi.status() == WL_DISCONNECTED) {
+        Serial.printf("📶 Iniciando conexión a WiFi: %s\n", WIFI_SSID);
+        Serial.println("🔑 Credenciales configuradas, iniciando conexión...");
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
-    
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n✅ WiFi conectado exitosamente!\n");
-        Serial.printf("📍 IP asignada: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("📡 Intensidad señal: %d dBm\n", WiFi.RSSI());
-        Serial.printf("🌐 Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
-        return true;
-    } else {
-        Serial.printf("\n❌ Error conectando WiFi después de %d intentos\n", attempts);
-        Serial.printf("📊 Estado WiFi: %d\n", WiFi.status());
-        return false;
-    }
+
+    // NOTA: El monitoreo de la conexión y los reintentos se hacen en MQTTHandler::loop()
+    return false;
 }
 
 bool MQTTHandler::connectMQTT() {
@@ -119,10 +100,6 @@ bool MQTTHandler::connectMQTT() {
                           TOPIC_STATUS, 1, true, lwtPayload.c_str())) {
         Serial.println("✅ [MQTT] MQTT conectado con TLS!");
         
-        // Reset reconnect attempts on successful connection
-        reconnectAttempts = 0;
-        reconnectInterval = RECONNECT_INTERVAL;
-        
         // Subscribe to job schedule topic with QoS 1
         bool subscribeResult = mqttClient.subscribe(TOPIC_JOB_SCHEDULE, 1);
         if (subscribeResult) {
@@ -133,9 +110,9 @@ bool MQTTHandler::connectMQTT() {
         
         // Publish online status
         publishStatus("online"); // Use internal timestamp for initial connection
-        
-        // Process any buffered telemetry
-        processBufferedTelemetry();
+
+        // Process any buffered events (completions/notifications)
+        processBufferedEvents();
         
         return true;
     } else {
@@ -155,29 +132,75 @@ bool MQTTHandler::connectMQTT() {
             case 5: Serial.println("   📋 Detalles: MQTT_CONNECT_UNAUTHORIZED"); break;
             default: Serial.printf("   📋 Detalles: Estado desconocido (%d)\n", mqttState); break;
         }
-        
-        reconnectAttempts++;
-        reconnectInterval = getBackoffInterval();
-        Serial.printf("⏰ Reintento #%d programado en %lu ms\n", reconnectAttempts, reconnectInterval);
+
         return false;
     }
 }
 
 void MQTTHandler::loop() {
-    // Maintain WiFi connection
-    if (!isWiFiConnected()) {
-        connectWiFi();
-    }
-    
-    // Maintain MQTT connection with exponential backoff
-    if (!isConnected()) {
-        unsigned long now = millis();
-        if (now - lastReconnectAttempt > reconnectInterval) {
-            lastReconnectAttempt = now;
-            connectMQTT();
+    unsigned long now = millis();
+
+    // 1. WiFi connection management with exponential backoff (non-blocking)
+    if (WiFi.status() != WL_CONNECTED) {
+        // Check if it's time to retry WiFi connection
+        if (now - lastWifiReconnectAttempt >= currentWifiReconnectDelay) {
+            lastWifiReconnectAttempt = now;
+            wifiReconnectAttempts++;
+
+            Serial.printf("❌ WiFi desconectado (Estado: %d). Reintento #%d\n",
+                          WiFi.status(), wifiReconnectAttempts);
+
+            // Attempt to reconnect
+            connectWiFi();
+
+            // Exponential backoff: 1s, 2s, 4s, 8s... up to MAX
+            currentWifiReconnectDelay *= 2;
+            if (currentWifiReconnectDelay > MAX_WIFI_RECONNECT_DELAY) {
+                currentWifiReconnectDelay = MAX_WIFI_RECONNECT_DELAY;
+            }
+
+            // Critical condition: too many failed attempts
+            if (wifiReconnectAttempts > MAX_WIFI_ATTEMPTS) {
+                Serial.println("🚨 FALLO PERSISTENTE DE WIFI. Forzando ESP.restart().");
+                jobScheduler->emergencyStop();
+                delay(1000);
+                ESP.restart();
+            }
         }
+
+        // ⚠️ CRITICAL: Without WiFi, this firmware cannot operate (needs MQTT)
+        // Continue to MQTT section anyway for proper state management
     } else {
-        mqttClient.loop();
+        // WiFi connected - reset backoff counters
+        if (wifiReconnectAttempts > 0) {
+            Serial.printf("✅ WiFi reconectado. IP: %s, RSSI: %d dBm\n",
+                         WiFi.localIP().toString().c_str(), WiFi.RSSI());
+            currentWifiReconnectDelay = 1000;
+            wifiReconnectAttempts = 0;
+        }
+
+        // 2. MQTT connection management (only when WiFi is available)
+        if (!isConnected()) {
+            if (now - lastMqttReconnectAttempt > currentMqttReconnectDelay) {
+                lastMqttReconnectAttempt = now;
+
+                Serial.printf("⚠️ MQTT desconectado. Intentando reconexión...\n");
+
+                if (connectMQTT()) {
+                    // Success: reset delay
+                    currentMqttReconnectDelay = 2000;
+                } else {
+                    // Failure: exponential backoff
+                    currentMqttReconnectDelay *= 2;
+                    if (currentMqttReconnectDelay > MAX_MQTT_RECONNECT_DELAY) {
+                        currentMqttReconnectDelay = MAX_MQTT_RECONNECT_DELAY;
+                    }
+                }
+            }
+        } else {
+            // MQTT connected - process messages
+            mqttClient.loop();
+        }
     }
 }
 
@@ -209,16 +232,15 @@ bool MQTTHandler::publishReadings(DynamicJsonDocument& readings) {
     Serial.printf("📊 Buffer MQTT máximo: %d bytes\n", MQTT_MAX_PACKET_SIZE);
     
     if (!isConnected()) {
-        Serial.println("❌ MQTT desconectado - buffereando telemetría");
-        bufferTelemetry(payload);
+        Serial.println("❌ MQTT desconectado - descartando telemetría antigua");
+        Serial.println("ℹ️  Razón: Al reconectar, fuzzy-service necesita datos ACTUALES, no históricos");
         Serial.println("═══════════════════════════════════════");
         return false;
     }
-    
+
     if (payload.length() > MQTT_MAX_PACKET_SIZE) {
         Serial.printf("🚨 ERROR: JSON demasiado grande (%d > %d bytes)\n", payload.length(), MQTT_MAX_PACKET_SIZE);
-        Serial.println("📦 Buffereando para reintento con compresión");
-        bufferTelemetry(payload);
+        Serial.println("❌ Descartando telemetría (demasiado grande)");
         Serial.println("═══════════════════════════════════════");
         return false;
     }
@@ -256,9 +278,8 @@ bool MQTTHandler::publishReadings(DynamicJsonDocument& readings) {
         Serial.printf("📊 Buffer MQTT disponible: %d bytes\n", mqttClient.getBufferSize());
         Serial.printf("📊 Longitud payload: %d bytes\n", payload.length());
         Serial.printf("📊 Longitud topic: %d bytes\n", strlen(TOPIC_READINGS));
-        
-        Serial.println("📦 Buffereando telemetría para reintento");
-        bufferTelemetry(payload);
+
+        Serial.println("❌ Descartando telemetría (publish falló)");
     }
     
     Serial.println("═══════════════════════════════════════");
@@ -285,51 +306,55 @@ bool MQTTHandler::publishStatus(const String& status, String (*timestampFunction
 
 bool MQTTHandler::publishCompletion(const DynamicJsonDocument& completion) {
     Serial.println("📤 ENVIANDO COMPLETION");
-    
-    if (!isConnected()) {
-        Serial.println("❌ MQTT desconectado - no se puede enviar completion");
-        return false;
-    }
-    
+
     String payload;
     serializeJson(completion, payload);
-    
+
     Serial.printf("📄 Completion JSON (%d bytes):\n%s\n", payload.length(), payload.c_str());
     Serial.printf("🏷️  Topic: %s\n", TOPIC_COMPLETIONS);
-    
-    bool success = mqttClient.publish(TOPIC_COMPLETIONS, payload.c_str(), false); // QoS 1 would be ideal
+
+    if (!isConnected()) {
+        Serial.println("❌ MQTT desconectado - buffereando completion");
+        bufferEvent(payload, "completion");
+        return false;
+    }
+
+    bool success = mqttClient.publish(TOPIC_COMPLETIONS, payload.c_str(), false);
     if (success) {
         Serial.printf("✅ Completion enviado exitosamente: %d bytes\n", payload.length());
     } else {
-        Serial.println("❌ Error enviando completion");
+        Serial.println("❌ Error enviando completion - buffereando");
         Serial.printf("📊 Estado MQTT: %d\n", mqttClient.state());
+        bufferEvent(payload, "completion");
     }
-    
+
     return success;
 }
 
 bool MQTTHandler::publishNotification(const DynamicJsonDocument& notification) {
     Serial.println("📤 ENVIANDO NOTIFICACIÓN");
-    
-    if (!isConnected()) {
-        Serial.println("❌ MQTT desconectado - no se puede enviar notificación");
-        return false;
-    }
-    
+
     String payload;
     serializeJson(notification, payload);
-    
+
     Serial.printf("📄 Notificación JSON (%d bytes):\n%s\n", payload.length(), payload.c_str());
     Serial.printf("🏷️  Topic: %s\n", TOPIC_NOTIFICATIONS);
-    
-    bool success = mqttClient.publish(TOPIC_NOTIFICATIONS, payload.c_str(), false); // QoS 1 would be ideal
+
+    if (!isConnected()) {
+        Serial.println("❌ MQTT desconectado - buffereando notificación");
+        bufferEvent(payload, "notification");
+        return false;
+    }
+
+    bool success = mqttClient.publish(TOPIC_NOTIFICATIONS, payload.c_str(), false);
     if (success) {
         Serial.printf("✅ Notificación enviada exitosamente: %d bytes\n", payload.length());
     } else {
-        Serial.println("❌ Error enviando notificación");
+        Serial.println("❌ Error enviando notificación - buffereando");
         Serial.printf("📊 Estado MQTT: %d\n", mqttClient.state());
+        bufferEvent(payload, "notification");
     }
-    
+
     return success;
 }
 
@@ -428,43 +453,59 @@ String MQTTHandler::getCurrentTimestamp() {
     return String(isoBuffer);
 }
 
-unsigned long MQTTHandler::getBackoffInterval() {
-    // Exponential backoff: 5s, 10s, 20s, 30s (max)
-    unsigned long intervals[] = {5000, 10000, 20000, 30000};
-    int index = min(reconnectAttempts - 1, 3);
-    return intervals[index];
-}
-
-void MQTTHandler::bufferTelemetry(const String& payload) {
-    if (telemetryQueue.size() >= MAX_BUFFERED_TELEMETRY) {
+void MQTTHandler::bufferEvent(const String& payload, const String& type) {
+    if (eventQueue.size() >= MAX_BUFFERED_EVENTS) {
         // Remove oldest entry
-        telemetryQueue.pop();
-        Serial.println("📦 Buffer telemetría lleno, eliminando entrada antigua");
+        eventQueue.pop();
+        Serial.printf("📦 Buffer eventos lleno, eliminando %s antiguo\n", type.c_str());
     }
-    
-    TelemetryBuffer buffer;
+
+    EventBuffer buffer;
     buffer.payload = payload;
     buffer.timestamp = millis();
-    telemetryQueue.push(buffer);
-    
-    Serial.printf("📦 Telemetría buffereada (cola: %d)\n", telemetryQueue.size());
+    buffer.type = type;
+    eventQueue.push(buffer);
+
+    Serial.printf("📦 Evento buffereado [%s] (cola: %d/%d)\n", type.c_str(), eventQueue.size(), MAX_BUFFERED_EVENTS);
 }
 
-void MQTTHandler::processBufferedTelemetry() {
-    Serial.printf("📤 Enviando telemetría buffereada (%d entradas)\n", telemetryQueue.size());
-    
-    while (!telemetryQueue.empty() && isConnected()) {
-        TelemetryBuffer buffer = telemetryQueue.front();
-        telemetryQueue.pop();
-        
-        bool success = mqttClient.publish(TOPIC_READINGS, buffer.payload.c_str(), false);
+void MQTTHandler::processBufferedEvents() {
+    if (eventQueue.empty()) {
+        Serial.println("ℹ️  No hay eventos buffereados para procesar");
+        return;
+    }
+
+    Serial.printf("📤 Procesando eventos buffereados (%d entradas)\n", eventQueue.size());
+
+    int completionsSent = 0;
+    int notificationsSent = 0;
+    int failures = 0;
+
+    while (!eventQueue.empty() && isConnected()) {
+        EventBuffer buffer = eventQueue.front();
+        eventQueue.pop();
+
+        const char* topic = (buffer.type == "completion") ? TOPIC_COMPLETIONS : TOPIC_NOTIFICATIONS;
+
+        bool success = mqttClient.publish(topic, buffer.payload.c_str(), false);
         if (success) {
-            Serial.printf("📤 Telemetría buffereada enviada\n");
+            if (buffer.type == "completion") {
+                completionsSent++;
+            } else {
+                notificationsSent++;
+            }
+            Serial.printf("✅ %s buffereado enviado\n", buffer.type.c_str());
         } else {
-            Serial.println("❌ Error enviando telemetría buffereada");
-            break; // Stop processing if publish fails
+            Serial.printf("❌ Error enviando %s buffereado\n", buffer.type.c_str());
+            failures++;
+            // Re-queue the failed event at the end
+            eventQueue.push(buffer);
+            break; // Stop processing to avoid infinite loop
         }
-        
+
         delay(100); // Small delay between messages
     }
+
+    Serial.printf("📊 Resumen: Completions=%d, Notifications=%d, Fallos=%d, Pendientes=%d\n",
+                  completionsSent, notificationsSent, failures, eventQueue.size());
 }
