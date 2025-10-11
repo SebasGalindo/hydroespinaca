@@ -33,6 +33,11 @@ public interface IRoutineExecutionService
     /// Clears all routines for a specific ESP32 or all ESP32s.
     /// </summary>
     Task ClearAsync(string? esp32Id = null);
+
+    /// <summary>
+    /// Resets all actuators to OFF state, clears cache, and publishes reset commands to firmware.
+    /// </summary>
+    Task ResetAllActuatorsAsync(string? esp32Id = null);
 }
 
 public record RoutineExecutionStats

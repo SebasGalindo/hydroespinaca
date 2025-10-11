@@ -28,6 +28,11 @@ public interface IInternalRoutineRepository
     Task<InternalRoutine?> GetByIdAsync(string id);
 
     /// <summary>
+    /// Gets a routine by name
+    /// </summary>
+    Task<InternalRoutine?> GetByNameAsync(string name);
+
+    /// <summary>
     /// Updates a routine
     /// </summary>
     Task UpdateAsync(InternalRoutine routine);

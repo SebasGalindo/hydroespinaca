@@ -103,9 +103,14 @@ public class CommandsController : ControllerBase
     [Authorize(Policy = PolicyNames.ActuatorControl)]
     public async Task<IActionResult> ClearJobSchedule([FromQuery] string? esp32Id = null)
     {
+        // Clear all scheduled and active routines
         await _routineExecutionService.ClearAsync(esp32Id);
+
+        // Reset all actuators to OFF state and synchronize with firmware
+        await _routineExecutionService.ResetAllActuatorsAsync(esp32Id);
+
         return Ok(new { Message = esp32Id != null
-            ? $"Job schedule cleared for ESP32: {esp32Id}"
-            : "All job schedules cleared" });
+            ? $"Job schedule cleared and all actuators reset for ESP32: {esp32Id}"
+            : "All job schedules cleared and all actuators reset" });
     }
 }

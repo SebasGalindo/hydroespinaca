@@ -26,6 +26,21 @@ public class RoutineStepMapping
     public string Pin { get; set; } = default!;
     public string ActuatorId { get; set; } = default!;
     public string OutputVariableId { get; set; } = default!;
+
+    /// <summary>
+    /// Duration in seconds for this step
+    /// </summary>
+    public double Duration { get; set; }
+
+    /// <summary>
+    /// Duty cycle for PWM actuators (0-100%)
+    /// </summary>
+    public double? DutyCycle { get; set; }
+
+    /// <summary>
+    /// Power state for DIGITAL actuators
+    /// </summary>
+    public string? Power { get; set; }
 }
 
 public class RoutineResult

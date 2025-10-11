@@ -47,6 +47,13 @@ public class MongoInternalRoutineRepository : IInternalRoutineRepository
     public Task<InternalRoutine?> GetByIdAsync(string id)
         => _baseRepo.GetByIdAsync(id);
 
+    public async Task<InternalRoutine?> GetByNameAsync(string name)
+    {
+        var filter = Builders<InternalRoutineDocument>.Filter.Eq(r => r.Name, name);
+        var results = await _baseRepo.FindManyAsync(filter);
+        return results.FirstOrDefault();
+    }
+
     public Task UpdateAsync(InternalRoutine routine)
     {
         routine.UpdatedAt = DateTime.UtcNow;

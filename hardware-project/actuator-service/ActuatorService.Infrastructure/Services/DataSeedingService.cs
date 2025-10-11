@@ -298,6 +298,9 @@ private async Task SeedActuatorsAsync()
             return;
         }
 
+        // Build SystemReset routine with steps for all actuators
+        var systemResetSteps = await BuildSystemResetStepsAsync(allControlOutputs);
+
         var routines = new[]
         {
             // Recirculation routine - every 4 hours
@@ -363,6 +366,20 @@ private async Task SeedActuatorsAsync()
                 },
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
+            },
+            // SystemReset routine - manual trigger via /commands/jobs/clear
+            new InternalRoutine
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                Name = "SystemReset",
+                Description = "System routine to reset all actuators to OFF state (triggered by /commands/jobs/clear)",
+                Esp32Id = esp32Id,
+                Interval = TimeSpan.FromDays(999), // Not time-triggered, manually invoked
+                StartTime = TimeSpan.Zero,
+                IsActive = false, // Not scheduled by timer, manually triggered
+                Steps = systemResetSteps,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             }
         };
 
@@ -386,5 +403,54 @@ private async Task SeedActuatorsAsync()
 
         _logger.LogInformation("⏰ Internal Routines: Created {CreatedCount} new routines, {ExistingCount} already existed. Total: {Total}",
             createdCount, totalRoutines - createdCount, totalRoutines);
+    }
+
+    private async Task<List<InternalRoutineStep>> BuildSystemResetStepsAsync(List<ControlOutput> allControlOutputs)
+    {
+        var allActuators = await _actuatorRepository.GetAllAsync();
+        var resetSteps = new List<InternalRoutineStep>();
+
+        foreach (var actuator in allActuators)
+        {
+            // Find any control output for this actuator (prefer duration-based ones)
+            var controlOutput = allControlOutputs
+                .Where(co => co.ActuatorId == actuator.Id)
+                .OrderByDescending(co => co.Name.Contains("Duración") || co.Name.Contains("Duration"))
+                .FirstOrDefault();
+
+            if (controlOutput == null)
+            {
+                _logger.LogWarning("⚠️  No control output found for actuator {ActuatorId} ({Code}), skipping in SystemReset",
+                    actuator.Id, actuator.Code);
+                continue;
+            }
+
+            var step = new InternalRoutineStep
+            {
+                OutputVariable = controlOutput.Id,
+                Duration = 0.1, // Very short duration just to apply the reset command
+                Mode = actuator.Mode.ToString()
+            };
+
+            // For PWM actuators, use DutyCycle = 0.0 (turns off)
+            // For DIGITAL actuators, use Power = "OFF"
+            if (actuator.Mode == ActuatorMode.PWM)
+            {
+                step.DutyCycle = 0.0;
+                step.Power = null; // PWM doesn't use Power field
+            }
+            else
+            {
+                step.Power = "OFF";
+                step.DutyCycle = null; // DIGITAL doesn't use DutyCycle
+            }
+
+            resetSteps.Add(step);
+            _logger.LogDebug("🔧 Added reset step for {Code} (Pin: {Pin}, Mode: {Mode})",
+                actuator.Code, actuator.Pin, actuator.Mode);
+        }
+
+        _logger.LogInformation("🔧 Built SystemReset routine with {StepCount} steps", resetSteps.Count);
+        return resetSteps;
     }
 }

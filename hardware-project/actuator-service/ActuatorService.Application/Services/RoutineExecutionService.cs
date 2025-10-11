@@ -55,7 +55,10 @@ public class RoutineExecutionService : IRoutineExecutionService
             {
                 Pin = step.Pin,
                 ActuatorId = step.ActuatorId,
-                OutputVariableId = step.OutputVariableId
+                OutputVariableId = step.OutputVariableId,
+                Duration = step.Duration,
+                DutyCycle = step.DutyCycle,
+                Power = step.Power
             }).ToList();
 
             var jobRoutine = CreateJobRoutineDto(resolvedRoutine, commandId);
@@ -78,8 +81,8 @@ public class RoutineExecutionService : IRoutineExecutionService
                 _activeRoutines.TryAdd(commandId, activeRoutine);
                 routinesToPublish.Add(jobRoutine);
 
-                // Update actuator states to ON
-                UpdateActuatorStates(actuatorIds, PowerState.ON, commandId);
+                // Update actuator states to ON with duration and duty cycle
+                UpdateActuatorStates(stepMappings, PowerState.ON, commandId);
 
                 _logger.LogInformation("✅ Activated routine {CommandId} immediately (pins available: {Pins})",
                     commandId, string.Join(", ", pins));
@@ -133,8 +136,8 @@ public class RoutineExecutionService : IRoutineExecutionService
         // Release pin locks
         _pinLockRegistry.Release(completedRoutine.Pins);
 
-        // Update actuator states to OFF
-        UpdateActuatorStates(completedRoutine.ActuatorIds, PowerState.OFF, commandId);
+        // Update actuator states to OFF (no duration for OFF state)
+        UpdateActuatorStates(completedRoutine.StepMappings, PowerState.OFF, commandId);
 
         _logger.LogInformation("🔓 Released {Count} pins for completed routine {CommandId}: {Pins}",
             completedRoutine.Pins.Count, commandId, string.Join(", ", completedRoutine.Pins));
@@ -273,8 +276,8 @@ public class RoutineExecutionService : IRoutineExecutionService
                 _activeRoutines.TryAdd(pending.CommandId, activeRoutine);
                 activated.Add(pending.JobRoutineDto);
 
-                // Update actuator states to ON
-                UpdateActuatorStates(pending.ActuatorIds, PowerState.ON, pending.CommandId);
+                // Update actuator states to ON with duration and duty cycle
+                UpdateActuatorStates(pending.StepMappings, PowerState.ON, pending.CommandId);
 
                 _logger.LogInformation("🚀 Activated pending routine {CommandId} (pins now available: {Pins})",
                     pending.CommandId, string.Join(", ", pending.Pins));
@@ -327,12 +330,143 @@ public class RoutineExecutionService : IRoutineExecutionService
         await publisher.PublishJobScheduleAsync(jobSchedule);
     }
 
-    private void UpdateActuatorStates(IEnumerable<string> actuatorIds, PowerState state, string commandId)
+    private void UpdateActuatorStates(List<RoutineStepMapping> stepMappings, PowerState state, string commandId)
     {
-        foreach (var actuatorId in actuatorIds)
+        // Group steps by ActuatorId to calculate total duration and aggregate dutyCycle
+        var actuatorData = stepMappings
+            .GroupBy(m => m.ActuatorId)
+            .Select(g => new
+            {
+                ActuatorId = g.Key,
+                // Sum durations for all steps of this actuator
+                TotalDuration = g.Sum(m => m.Duration),
+                // Use maximum dutyCycle if multiple steps (for PWM actuators)
+                DutyCycle = g.Max(m => m.DutyCycle),
+                // Use the Power state from the first step (should be consistent)
+                Power = g.First().Power
+            })
+            .ToList();
+
+        foreach (var data in actuatorData)
         {
-            _stateMachine.UpdateState(actuatorId, state, commandId: commandId);
+            if (state == PowerState.ON)
+            {
+                // For ON state, pass the total duration and dutyCycle
+                _stateMachine.UpdateState(
+                    data.ActuatorId,
+                    state,
+                    duration: data.TotalDuration,
+                    dutyCycle: data.DutyCycle,
+                    commandId: commandId
+                );
+
+                _logger.LogDebug("🔄 Updated actuator {ActuatorId} state to ON: duration={Duration}s, dutyCycle={DutyCycle}%",
+                    data.ActuatorId, data.TotalDuration, data.DutyCycle);
+            }
+            else
+            {
+                // For OFF state, clear duration and dutyCycle
+                _stateMachine.UpdateState(
+                    data.ActuatorId,
+                    state,
+                    duration: null,
+                    dutyCycle: null,
+                    commandId: commandId
+                );
+
+                _logger.LogDebug("🔄 Updated actuator {ActuatorId} state to OFF",
+                    data.ActuatorId);
+            }
         }
+    }
+
+    public async Task ResetAllActuatorsAsync(string? esp32Id = null)
+    {
+        _logger.LogInformation("🔄 Resetting all actuators{Esp32Filter}",
+            esp32Id != null ? $" for ESP32 {esp32Id}" : "");
+
+        using var scope = _serviceProvider.CreateScope();
+        var internalRoutineRepository = scope.ServiceProvider.GetRequiredService<IInternalRoutineRepository>();
+        var routineValidationService = scope.ServiceProvider.GetRequiredService<IRoutineValidationService>();
+        var actuatorRepository = scope.ServiceProvider.GetRequiredService<IActuatorRepository>();
+
+        // Get the SystemReset routine from database
+        var systemResetRoutine = await internalRoutineRepository.GetByNameAsync("SystemReset");
+
+        if (systemResetRoutine == null)
+        {
+            _logger.LogError("❌ SystemReset routine not found in database. Run seed data first.");
+            throw new InvalidOperationException("SystemReset routine not found. Please run data seeding.");
+        }
+
+        _logger.LogInformation("📋 Found SystemReset routine with {StepCount} steps", systemResetRoutine.Steps.Count);
+
+        // Filter steps by ESP32 if specified
+        List<InternalRoutineStep> stepsToExecute;
+        if (esp32Id != null)
+        {
+            // Get actuators for this ESP32 to filter steps
+            var esp32Actuators = await actuatorRepository.GetByEsp32IdAsync(esp32Id);
+            var esp32ActuatorIds = esp32Actuators.Select(a => a.Id).ToHashSet();
+
+            // Get control outputs for filtering
+            var controlOutputRepository = scope.ServiceProvider.GetRequiredService<IControlOutputRepository>();
+            var allControlOutputs = await controlOutputRepository.GetAllAsync();
+
+            stepsToExecute = systemResetRoutine.Steps
+                .Where(step =>
+                {
+                    var controlOutput = allControlOutputs.FirstOrDefault(co => co.Id == step.OutputVariable);
+                    return controlOutput != null && esp32ActuatorIds.Contains(controlOutput.ActuatorId);
+                })
+                .ToList();
+
+            _logger.LogInformation("🔍 Filtered to {StepCount} steps for ESP32 {Esp32Id}", stepsToExecute.Count, esp32Id);
+        }
+        else
+        {
+            stepsToExecute = systemResetRoutine.Steps;
+        }
+
+        // Convert InternalRoutineStep to RoutineStepDto
+        var steps = stepsToExecute.Select(step => new RoutineStepDto
+        {
+            OutputVariable = step.OutputVariable,
+            Power = step.Power,
+            Duration = step.Duration,
+            DutyCycle = step.DutyCycle
+        }).ToList();
+
+        // Validate and resolve steps (OutputVariable -> ControlOutput -> Actuator)
+        var resolvedSteps = await routineValidationService.ValidateAndResolveStepsAsync(steps);
+
+        // Group by ESP32
+        var stepsByEsp32 = resolvedSteps.GroupBy(s => s.Esp32Id);
+
+        foreach (var esp32Group in stepsByEsp32)
+        {
+            var esp32Steps = esp32Group.ToList();
+            _logger.LogInformation("🔌 Resetting {Count} actuators for ESP32 {Esp32Id}",
+                esp32Steps.Count, esp32Group.Key);
+
+            var resolvedRoutine = new ResolvedRoutineDto
+            {
+                RoutineId = "system_reset",
+                Esp32Id = esp32Group.Key,
+                ResolvedSteps = esp32Steps
+            };
+
+            // Schedule using the same execution service (will publish via MQTT)
+            var commandIds = await ScheduleRoutinesAsync(
+                new List<ResolvedRoutineDto> { resolvedRoutine },
+                esp32Group.Key
+            );
+
+            _logger.LogInformation("📤 Published SystemReset routine for ESP32 {Esp32Id} with {StepCount} steps (CommandId: {CommandId})",
+                esp32Group.Key, esp32Steps.Count, commandIds.First());
+        }
+
+        _logger.LogInformation("🏁 Reset complete: {Count} actuators will be set to OFF", resolvedSteps.Count);
     }
 
     private static string GenerateCommandId(string routineId)

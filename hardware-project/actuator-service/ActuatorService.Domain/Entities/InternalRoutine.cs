@@ -67,9 +67,9 @@ public class InternalRoutineStep
     public string OutputVariable { get; set; } = default!;
 
     /// <summary>
-    /// Power state (ON/OFF)
+    /// Power state (ON/OFF) - Used for DIGITAL mode. Null for PWM mode.
     /// </summary>
-    public string Power { get; set; } = default!;
+    public string? Power { get; set; }
 
     /// <summary>
     /// Duration in seconds
