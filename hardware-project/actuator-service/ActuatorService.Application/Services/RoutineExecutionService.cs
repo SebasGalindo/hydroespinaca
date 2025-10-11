@@ -401,31 +401,56 @@ public class RoutineExecutionService : IRoutineExecutionService
 
         _logger.LogInformation("📋 Found SystemReset routine with {StepCount} steps", systemResetRoutine.Steps.Count);
 
-        // Filter steps by ESP32 if specified
-        List<InternalRoutineStep> stepsToExecute;
+        // Get all actuators and control outputs for filtering
+        var controlOutputRepository = scope.ServiceProvider.GetRequiredService<IControlOutputRepository>();
+        var allControlOutputs = await controlOutputRepository.GetAllAsync();
+        var allActuators = await actuatorRepository.GetAllAsync();
+
+        // Create a map of OutputVariable -> Actuator for quick lookup
+        var outputVarToActuator = allControlOutputs
+            .Join(allActuators,
+                co => co.ActuatorId,
+                a => a.Id,
+                (co, a) => new { OutputVariableId = co.Id, Actuator = a })
+            .ToDictionary(x => x.OutputVariableId, x => x.Actuator);
+
+        // Filter steps: only include ACTIVE actuators and optionally by ESP32
+        var stepsToExecute = systemResetRoutine.Steps
+            .Where(step =>
+            {
+                if (!outputVarToActuator.TryGetValue(step.OutputVariable, out var actuator))
+                {
+                    _logger.LogWarning("⚠️ OutputVariable {OutputVariableId} not found, skipping step", step.OutputVariable);
+                    return false;
+                }
+
+                // Filter out inactive actuators
+                if (actuator.Status != ActuatorStatus.Active)
+                {
+                    _logger.LogDebug("⏭️ Skipping actuator {ActuatorCode} ({ActuatorId}) - Status: {Status}",
+                        actuator.Code, actuator.Id, actuator.Status);
+                    return false;
+                }
+
+                // Filter by ESP32 if specified
+                if (esp32Id != null && actuator.Esp32Id != esp32Id)
+                {
+                    return false;
+                }
+
+                return true;
+            })
+            .ToList();
+
         if (esp32Id != null)
         {
-            // Get actuators for this ESP32 to filter steps
-            var esp32Actuators = await actuatorRepository.GetByEsp32IdAsync(esp32Id);
-            var esp32ActuatorIds = esp32Actuators.Select(a => a.Id).ToHashSet();
-
-            // Get control outputs for filtering
-            var controlOutputRepository = scope.ServiceProvider.GetRequiredService<IControlOutputRepository>();
-            var allControlOutputs = await controlOutputRepository.GetAllAsync();
-
-            stepsToExecute = systemResetRoutine.Steps
-                .Where(step =>
-                {
-                    var controlOutput = allControlOutputs.FirstOrDefault(co => co.Id == step.OutputVariable);
-                    return controlOutput != null && esp32ActuatorIds.Contains(controlOutput.ActuatorId);
-                })
-                .ToList();
-
-            _logger.LogInformation("🔍 Filtered to {StepCount} steps for ESP32 {Esp32Id}", stepsToExecute.Count, esp32Id);
+            _logger.LogInformation("🔍 Filtered to {StepCount} active steps for ESP32 {Esp32Id}",
+                stepsToExecute.Count, esp32Id);
         }
         else
         {
-            stepsToExecute = systemResetRoutine.Steps;
+            _logger.LogInformation("🔍 Filtered to {StepCount} active steps (from {TotalSteps} total)",
+                stepsToExecute.Count, systemResetRoutine.Steps.Count);
         }
 
         // Convert InternalRoutineStep to RoutineStepDto
