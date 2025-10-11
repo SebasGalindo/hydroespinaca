@@ -67,3 +67,14 @@ public class ControlOutputNotFoundException : NotFoundException
     {
     }
 }
+
+/// <summary>
+/// Exception thrown when trying to control an inactive actuator
+/// </summary>
+public class ActuatorInactiveException : ConflictException
+{
+    public ActuatorInactiveException(string actuatorId, string status)
+        : base($"No se puede ejecutar comandos sobre el actuador {actuatorId} porque su estado es '{status}'. Solo actuadores con estado 'Active' pueden ser controlados.")
+    {
+    }
+}

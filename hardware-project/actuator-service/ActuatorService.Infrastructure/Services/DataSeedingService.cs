@@ -104,6 +104,16 @@ private async Task SeedActuatorsAsync()
             Mode = ActuatorMode.DIGITAL,
             Type = ActuatorType.Heater,
             Location = "invernadero"
+        },
+        new
+        {
+            PhysicalId = "ULTRASONIC_HUMIDIFIER-001",
+            Code = "humidificador-ultrasonico",
+            Esp32Id = "6883fff7b079309f3ba4f238",
+            Pin = "14",
+            Mode = ActuatorMode.DIGITAL,
+            Type = ActuatorType.Humidifier,
+            Location = "invernadero"
         }
     };
 
@@ -148,9 +158,10 @@ private async Task SeedActuatorsAsync()
         var airPumpActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "AIR-001");
         var waterPumpActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "PUMP-001");
         var waterHeaterActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "WATER_HEATER-001");
+        var ultrasonicHumidifierActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "ULTRASONIC_HUMIDIFIER-001");
 
         if (fanActuator == null || heaterActuator == null || ledActuator == null ||
-            airPumpActuator == null || waterPumpActuator == null || waterHeaterActuator == null)
+            airPumpActuator == null || waterPumpActuator == null || waterHeaterActuator == null || ultrasonicHumidifierActuator == null)
         {
             _logger.LogWarning("Some actuators not found. Skipping control outputs seeding.");
             return;
@@ -224,6 +235,16 @@ private async Task SeedActuatorsAsync()
                 Description = "Tiempo de operación del calefactor de agua",
                 Unit = "segundos",
                 ActuatorId = waterHeaterActuator.Id,
+                MinValue = 0.0,
+                MaxValue = 3600.0
+            },
+            // Humidificador Ultrasónico (ULTRASONIC_HUMIDIFIER-001)
+            new
+            {
+                Name = "Duración de Humidificación",
+                Description = "Tiempo de operación del humidificador ultrasónico",
+                Unit = "segundos",
+                ActuatorId = ultrasonicHumidifierActuator.Id,
                 MinValue = 0.0,
                 MaxValue = 3600.0
             }

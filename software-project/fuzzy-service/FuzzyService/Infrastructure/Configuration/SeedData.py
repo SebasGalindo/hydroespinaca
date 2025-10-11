@@ -251,7 +251,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286e",
+                "reference_id": "68e99846eb24fed5c9e1cf59",
                 "terms": []
             }
         ]

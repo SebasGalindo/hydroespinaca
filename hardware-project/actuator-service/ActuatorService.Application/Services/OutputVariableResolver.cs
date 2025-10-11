@@ -54,6 +54,17 @@ public class OutputVariableResolver : IOutputVariableResolver
             throw new ActuatorNotFoundException(controlOutput.ActuatorId);
         }
 
+        // Validate actuator is active
+        if (actuator.Status != HydroEspinaca.Shared.Enums.ActuatorStatus.Active)
+        {
+            _logger.LogWarning(
+                "Attempted to control inactive actuator {ActuatorId} (Status: {Status}) via output {OutputVariableId}",
+                actuator.Id,
+                actuator.Status,
+                outputVariableId);
+            throw new ActuatorInactiveException(actuator.Id, actuator.Status.ToString());
+        }
+
         _logger.LogDebug(
             "Resolved outputVariable {OutputVariableId} to actuator {ActuatorId} (ESP32: {Esp32Id}, Pin: {Pin}, Mode: {Mode})",
             outputVariableId,
