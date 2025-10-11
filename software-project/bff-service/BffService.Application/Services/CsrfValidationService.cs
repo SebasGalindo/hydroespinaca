@@ -25,7 +25,7 @@ public class CsrfValidationService : ICsrfValidationService
     public bool ValidateCsrfToken(HttpContext context)
     {
         var csrfTokenHeader = _configuration[BffConstants.Sessions.CsrfTokenHeaderConfigKey] ?? "X-CSRF-Token";
-        
+
         // Get CSRF token from header
         if (!context.Request.Headers.TryGetValue(csrfTokenHeader, out var headerToken) || string.IsNullOrEmpty(headerToken))
         {
@@ -33,9 +33,12 @@ public class CsrfValidationService : ICsrfValidationService
             return false;
         }
 
+        // Decode URL encoding from header token (ASP.NET Core decodes cookies automatically but not headers)
+        var decodedHeaderToken = Uri.UnescapeDataString(headerToken!);
+
         // Get CSRF token from cookie (for web clients) or compare with session (for mobile clients)
         string? expectedToken = null;
-        
+
         // Try to get from cookies first (web clients)
         if (context.Request.Cookies.TryGetValue("CsrfToken", out var cookieToken))
         {
@@ -46,7 +49,7 @@ public class CsrfValidationService : ICsrfValidationService
             // For mobile clients, the token should match what's stored in the session
             // This would require session lookup - for now we'll accept any non-empty token
             // In a real implementation, you'd validate against the session store
-            expectedToken = headerToken;
+            expectedToken = decodedHeaderToken;
         }
 
         if (string.IsNullOrEmpty(expectedToken))
@@ -56,7 +59,7 @@ public class CsrfValidationService : ICsrfValidationService
         }
 
         // Compare tokens using constant-time comparison
-        return CryptographicEquals(headerToken!, expectedToken);
+        return CryptographicEquals(decodedHeaderToken, expectedToken);
     }
 
     public bool IsStateChangingOperation(string method)
