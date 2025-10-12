@@ -27,7 +27,6 @@ public class SensorAlertService : ISensorAlertService
 
     public async Task<List<SensorAlertDto>> GetBySensorIdAsync(string sensorId)
     {
-
         if (!ObjectId.TryParse(sensorId, out _))
             throw new ValidationException("Formato de ID no válido. Se esperaba una cadena hexadecimal de 24 caracteres.");
 
@@ -35,7 +34,8 @@ public class SensorAlertService : ISensorAlertService
         if (sensor is null)
             throw new SensorNotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
 
-        var list = await _repo.GetBySensorIdAsync(sensorId);
+        // Use sensor Code for querying alerts
+        var list = await _repo.GetBySensorCodeAsync(sensor.Code);
         return list.Select(SensorAlertMapper.ToDto).ToList();
     }
 

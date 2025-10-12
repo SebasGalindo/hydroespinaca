@@ -31,35 +31,35 @@ public class AlertResolutionService : IAlertResolutionService
 
         // Resolve luminosity alerts if they exist
         await ResolveSpecificAlertTypeAsync(
-            reading.SensorId, 
-            reading.VariableId, 
+            reading.SensorCode, 
+            reading.VariableCode, 
             AlertType.LuminosityQuantityInsufficient, 
             "Recovered by reading", 
             timestamp);
 
         await ResolveSpecificAlertTypeAsync(
-            reading.SensorId, 
-            reading.VariableId, 
+            reading.SensorCode, 
+            reading.VariableCode, 
             AlertType.LuminosityQualityInsufficient, 
             "Recovered by reading", 
             timestamp);
 
         // Resolve standard out-of-range alerts
         await ResolveSpecificAlertTypeAsync(
-            reading.SensorId, 
-            reading.VariableId, 
+            reading.SensorCode, 
+            reading.VariableCode, 
             AlertType.OutOfRange, 
             "Recovered by reading", 
             timestamp);
     }
 
-    public async Task ResolveInactiveSensorAlertsAsync(string sensorId, string variableId, DateTime timestamp)
+    public async Task ResolveInactiveSensorAlertsAsync(string sensorCode, string variableCode, DateTime timestamp)
     {
         await ResolveSpecificAlertTypeAsync(
-            sensorId, 
-            variableId, 
-            AlertType.InactiveSensor, 
-            "Sensor active again", 
+            sensorCode,
+            variableCode,
+            AlertType.InactiveSensor,
+            "Sensor active again",
             timestamp);
     }
 
@@ -78,18 +78,18 @@ public class AlertResolutionService : IAlertResolutionService
         await _sensorAlertRepository.UpdateAsync(alert);
 
         _logger.LogInformation("✅ Alert {AlertId} resolved: {Type} for sensor {SensorId} - {Reason}", 
-            alert.Id, alert.Type, alert.SensorId, resolutionReason);
+            alert.Id, alert.Type, alert.SensorCode, resolutionReason);
     }
 
     private async Task ResolveSpecificAlertTypeAsync(
-        string sensorId, 
-        string variableId, 
-        AlertType alertType, 
-        string resolutionReason, 
+        string sensorCode,
+        string variableCode,
+        AlertType alertType,
+        string resolutionReason,
         DateTime timestamp)
     {
         var activeAlert = await _sensorAlertRepository.GetActiveBySensorVariableAndTypeAsync(
-            sensorId, variableId, alertType);
+            sensorCode, variableCode, alertType);
 
         if (activeAlert != null)
         {

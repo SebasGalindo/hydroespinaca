@@ -8,7 +8,7 @@ public class ReadingInputValidator : AbstractValidator<ReadingInput>
     public ReadingInputValidator()
     {
         RuleFor(x => x.PhysicalId).NotEmpty().WithMessage("El identificador físico es obligatorio.");
-        RuleFor(x => x.VariableId).NotEmpty().WithMessage("El ID de la variable es obligatorio.");
+        RuleFor(x => x.VariableCode).NotEmpty().WithMessage("El código de la variable es obligatorio.");
         RuleFor(x => x.Value).NotNull().WithMessage("El valor de la lectura no puede ser nulo.");
     }
 }

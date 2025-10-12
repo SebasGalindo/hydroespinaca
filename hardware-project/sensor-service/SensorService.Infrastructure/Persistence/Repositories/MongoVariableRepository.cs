@@ -21,6 +21,12 @@ public class MongoVariableRepository : IVariableRepository
         return await _baseRepo.GetByIdAsync(id);
     }
 
+    public async Task<Variable?> GetByCodeAsync(string code)
+    {
+        var filter = Builders<VariableDocument>.Filter.Eq(v => v.Code, code);
+        return await _baseRepo.FindOneAsync(filter);
+    }
+
     public async Task<List<Variable>> GetAllAsync()
     {
         return await _baseRepo.GetAllAsync();
@@ -50,6 +56,18 @@ public class MongoVariableRepository : IVariableRepository
     public async Task<List<string>> GetNonExistingIdsAsync(IEnumerable<string> ids)
     {
         return await _baseRepo.GetNonExistingIdsAsync(ids);
+    }
+
+    public async Task<List<string>> GetNonExistingCodesAsync(IEnumerable<string> codes)
+    {
+        var codeList = codes.ToList();
+        if (!codeList.Any()) return new List<string>();
+
+        var filter = Builders<VariableDocument>.Filter.In(v => v.Code, codeList);
+        var existingVariables = await _baseRepo.FindManyAsync(filter);
+        var existingCodes = existingVariables.Select(v => v.Code).ToHashSet();
+
+        return codeList.Where(code => !existingCodes.Contains(code)).ToList();
     }
 
 }

@@ -9,6 +9,11 @@ public class VariableUpdateValidator : AbstractValidator<VariableUpdateDto>
 {
     public VariableUpdateValidator()
     {
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("El código es obligatorio.")
+            .MaximumLength(20)
+            .Matches("^[A-Z_]+$").WithMessage("El código debe contener solo letras mayúsculas y guiones bajos.");
+
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("El nombre es obligatorio.")
             .MaximumLength(100);

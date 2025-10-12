@@ -21,11 +21,11 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
 
         // Get only manual variables (critical variables that require human intervention)
         var manualVariables = await _variableRepository.GetByRegulationTypeAsync(RegulationType.Manual, cancellationToken);
-        var variableLookup = manualVariables.ToDictionary(v => v.Id, v => v);
+        var variableLookup = manualVariables.ToDictionary(v => v.Code, v => v);
 
         // Get automatic variables for contextual information
         var automaticVariables = await _variableRepository.GetByRegulationTypeAsync(RegulationType.Automatic, cancellationToken);
-        var automaticVariableLookup = automaticVariables.ToDictionary(v => v.Id, v => v);
+        var automaticVariableLookup = automaticVariables.ToDictionary(v => v.Code, v => v);
 
         if (!manualVariables.Any())
         {
@@ -39,31 +39,31 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
             };
         }
 
-        // Create a lookup for sensors by variable ID for efficient access
-        var sensorsByVariableId = sensors
-            .Where(s => s.Variables.Any(varId => variableLookup.ContainsKey(varId)))
-            .SelectMany(s => s.Variables.Where(varId => variableLookup.ContainsKey(varId))
-                .Select(varId => new { VariableId = varId, Sensor = s }))
-            .GroupBy(sv => sv.VariableId)
+        // Create a lookup for sensors by variable Code for efficient access
+        var sensorsByVariableCode = sensors
+            .Where(s => s.Variables.Any(varCode => variableLookup.ContainsKey(varCode)))
+            .SelectMany(s => s.Variables.Where(varCode => variableLookup.ContainsKey(varCode))
+                .Select(varCode => new { VariableCode = varCode, Sensor = s }))
+            .GroupBy(sv => sv.VariableCode)
             .ToDictionary(g => g.Key, g => g.Select(sv => sv.Sensor).ToList());
 
-        // Group readings by sensor ID for efficient lookup
-        var readingsBySensorId = readings
-            .GroupBy(r => r.SensorId)
+        // Group readings by sensor code for efficient lookup
+        var readingsBySensorCode = readings
+            .GroupBy(r => r.SensorCode)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // Evaluate each manual variable
         foreach (var variable in manualVariables)
         {
             var thresholdDescription = GetThresholdDescription(variable);
-            
-            if (sensorsByVariableId.TryGetValue(variable.Id, out var sensorsForVariable))
+
+            if (sensorsByVariableCode.TryGetValue(variable.Code, out var sensorsForVariable))
             {
                 // Find readings for this variable from any of its sensors
                 var variableReadings = sensorsForVariable
-                    .Where(sensor => readingsBySensorId.ContainsKey(sensor.Id))
-                    .SelectMany(sensor => readingsBySensorId[sensor.Id])
-                    .Where(reading => reading.VariableId == variable.Id)
+                    .Where(sensor => readingsBySensorCode.ContainsKey(sensor.Code))
+                    .SelectMany(sensor => readingsBySensorCode[sensor.Code])
+                    .Where(reading => reading.VariableCode == variable.Code)
                     .ToList();
 
                 if (variableReadings.Any())
@@ -108,22 +108,22 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
 
         // ✅ Collect contextual readings from automatic sensors (temperature, humidity)
         // These provide context for why the alert was triggered, but are NOT alerts themselves
-        var automaticSensorsByVariableId = sensors
-            .Where(s => s.Variables.Any(varId => automaticVariableLookup.ContainsKey(varId)))
-            .SelectMany(s => s.Variables.Where(varId => automaticVariableLookup.ContainsKey(varId))
-                .Select(varId => new { VariableId = varId, Sensor = s }))
-            .GroupBy(sv => sv.VariableId)
+        var automaticSensorsByVariableCode = sensors
+            .Where(s => s.Variables.Any(varCode => automaticVariableLookup.ContainsKey(varCode)))
+            .SelectMany(s => s.Variables.Where(varCode => automaticVariableLookup.ContainsKey(varCode))
+                .Select(varCode => new { VariableCode = varCode, Sensor = s }))
+            .GroupBy(sv => sv.VariableCode)
             .ToDictionary(g => g.Key, g => g.Select(sv => sv.Sensor).ToList());
 
         foreach (var automaticVariable in automaticVariables)
         {
-            if (automaticSensorsByVariableId.TryGetValue(automaticVariable.Id, out var sensorsForVariable))
+            if (automaticSensorsByVariableCode.TryGetValue(automaticVariable.Code, out var sensorsForVariable))
             {
                 // Find readings for this automatic variable
                 var variableReadings = sensorsForVariable
-                    .Where(sensor => readingsBySensorId.ContainsKey(sensor.Id))
-                    .SelectMany(sensor => readingsBySensorId[sensor.Id])
-                    .Where(reading => reading.VariableId == automaticVariable.Id)
+                    .Where(sensor => readingsBySensorCode.ContainsKey(sensor.Code))
+                    .SelectMany(sensor => readingsBySensorCode[sensor.Code])
+                    .Where(reading => reading.VariableCode == automaticVariable.Code)
                     .ToList();
 
                 if (variableReadings.Any())

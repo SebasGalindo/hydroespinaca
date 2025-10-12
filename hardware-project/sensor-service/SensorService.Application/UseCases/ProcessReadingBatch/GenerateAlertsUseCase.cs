@@ -32,7 +32,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
 
         foreach (var reading in readings)
         {
-            var variable = await _variableRepository.GetByIdAsync(reading.VariableId);
+            var variable = await _variableRepository.GetByCodeAsync(reading.VariableCode);
             if (variable == null) continue;
 
             // Check for luminosity-specific alerts first
@@ -46,7 +46,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
                 await _alertResolutionService.ResolveOutOfRangeAlertsAsync(reading, variable, timestamp);
                 
                 // Also resolve any inactive sensor alerts since we received a reading
-                await _alertResolutionService.ResolveInactiveSensorAlertsAsync(reading.SensorId, reading.VariableId, timestamp);
+                await _alertResolutionService.ResolveInactiveSensorAlertsAsync(reading.SensorCode, reading.VariableCode, timestamp);
             }
             else
             {
@@ -59,7 +59,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
                 await _alertResolutionService.ResolveOutOfRangeAlertsAsync(reading, variable, timestamp);
                 
                 // Also resolve any inactive sensor alerts since we received a reading
-                await _alertResolutionService.ResolveInactiveSensorAlertsAsync(reading.SensorId, reading.VariableId, timestamp);
+                await _alertResolutionService.ResolveInactiveSensorAlertsAsync(reading.SensorCode, reading.VariableCode, timestamp);
             }
 
             // Anomaly alerts (for all variables)
@@ -78,7 +78,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
 
         // Check for existing active alert of the same type
         var existingAlert = await _sensorAlertRepository.GetActiveBySensorVariableAndTypeAsync(
-            reading.SensorId, reading.VariableId, luminosityAlert.Type);
+            reading.SensorCode, reading.VariableCode, luminosityAlert.Type);
 
         if (existingAlert != null)
         {
@@ -102,7 +102,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
 
         // Check for existing active alert of the same type
         var existingAlert = await _sensorAlertRepository.GetActiveBySensorVariableAndTypeAsync(
-            reading.SensorId, reading.VariableId, alertType);
+            reading.SensorCode, reading.VariableCode, alertType);
 
         if (existingAlert != null)
         {
@@ -122,7 +122,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
     private async Task<SensorAlert?> ProcessAnomalyAlert(Reading reading, DateTime timestamp)
     {
         var lastAggregate = await _aggregateRepository
-            .GetBySensorAndVariableAsync(reading.SensorId, reading.VariableId,
+            .GetBySensorAndVariableAsync(reading.SensorCode, reading.VariableCode,
                 DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow);
 
         var latest = lastAggregate.OrderByDescending(x => x.Timestamp).FirstOrDefault();
@@ -133,7 +133,7 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
 
         // Check for existing active anomaly alert
         var existingAlert = await _sensorAlertRepository.GetActiveBySensorVariableAndTypeAsync(
-            reading.SensorId, reading.VariableId, AlertType.Anomaly);
+            reading.SensorCode, reading.VariableCode, AlertType.Anomaly);
 
         if (existingAlert != null)
         {

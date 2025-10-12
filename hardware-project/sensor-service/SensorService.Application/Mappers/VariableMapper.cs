@@ -9,6 +9,7 @@ public static class VariableMapper
     public static VariableDto ToDto(Variable v) => new()
     {
         Id = v.Id,
+        Code = v.Code,
         Name = v.Name,
         Unit = v.Unit,
         Description = v.Description,
@@ -36,6 +37,7 @@ public static class VariableMapper
 
         var variableEn =  new Variable
         {
+            Code = dto.Code,
             Name = dto.Name,
             Unit = dto.Unit,
             Description = dto.Description,
@@ -64,6 +66,7 @@ public static class VariableMapper
             regulationType = parsedRegulationType;
         }
 
+        entity.Code = dto.Code;
         entity.Name = dto.Name;
         entity.Unit = dto.Unit;
         entity.Description = dto.Description;

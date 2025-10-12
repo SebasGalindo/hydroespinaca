@@ -10,8 +10,8 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
     {
         var entity = new SensorAlert
         {
-            SensorId = doc.SensorId,
-            VariableId = doc.VariableId,
+            SensorCode = doc.SensorCode,
+            VariableCode = doc.VariableCode,
             Type = doc.Type,
             Value = doc.Value,
             Threshold = doc.Threshold,
@@ -33,8 +33,8 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
     {
         var document = new SensorAlertDocument
         {
-            SensorId = entity.SensorId,
-            VariableId = entity.VariableId,
+            SensorCode = entity.SensorCode,
+            VariableCode = entity.VariableCode,
             Type = entity.Type,
             Value = entity.Value,
             Threshold = entity.Threshold,

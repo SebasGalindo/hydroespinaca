@@ -4,6 +4,7 @@ using HydroEspinaca.Shared.Enums;
 public class Variable : IIdentifiableMutable
 {
     public string Id { get; private set; } = default!;
+    public string Code { get; set; } = default!;
     public string Name { get; set; } = default!;
     public string Unit { get; set; } = default!;
     public string Description { get; set; } = default!;

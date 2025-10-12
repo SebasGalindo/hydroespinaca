@@ -60,9 +60,9 @@ public class SensorApplicationService : ISensorService
         if (esp32Node == null)
             throw new Esp32NotFoundException(dto.Esp32Id);
 
-        var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
+        var noExistingVariable = await _variableRepository.GetNonExistingCodesAsync(dto.Variables);
         if (noExistingVariable.Any())
-            throw new InvalidOperationException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
+            throw new InvalidOperationException($"Los siguientes códigos de variables no existen: {string.Join(", ", noExistingVariable)}");
 
         var sensorEntity = SensorMapper.ToEntity(dto);
         await _repo.CreateAsync(sensorEntity);
@@ -87,9 +87,9 @@ public class SensorApplicationService : ISensorService
         if (esp32Node == null)
             throw new Esp32NotFoundException(dto.Esp32Id);
 
-        var noExistingVariable = await _variableRepository.GetNonExistingIdsAsync(dto.Variables);
+        var noExistingVariable = await _variableRepository.GetNonExistingCodesAsync(dto.Variables);
         if (noExistingVariable.Any())
-            throw new SensorDataNotFoundException($"Las siguientes variables no existen: {string.Join(", ", noExistingVariable)}");
+            throw new SensorDataNotFoundException($"Los siguientes códigos de variables no existen: {string.Join(", ", noExistingVariable)}");
 
 
         SensorMapper.MapUpdate(dto, existing);

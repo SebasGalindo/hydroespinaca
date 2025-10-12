@@ -33,27 +33,27 @@ public class GenerateInactiveSensorAlertsUseCase : IGenerateInactiveSensorAlerts
 
         var expectedSensors = allSensors
              .Where(s => s.Esp32Id == dto.Esp32Id && s.Status == SensorStatus.Active)
-            .SelectMany(s => s.Variables.Select(v => new { s.Id, s.PhysicalId, VariableId = v, s.AllowMissing }))
+            .SelectMany(s => s.Variables.Select(v => new { s.Code, s.PhysicalId, VariableCode = v, s.AllowMissing }))
             .ToList();
 
         var receivedKeys = dto.Readings
-            .Select(r => $"{r.PhysicalId}-{r.VariableId}")
+            .Select(r => $"{r.PhysicalId}-{r.VariableCode}")
             .ToHashSet();
 
         foreach (var expected in expectedSensors)
         {
-            var key = $"{expected.PhysicalId}-{expected.VariableId}";
+            var key = $"{expected.PhysicalId}-{expected.VariableCode}";
             if (!receivedKeys.Contains(key))
             {
                 // Check if sensor allows missing readings
                 if (expected.AllowMissing)
                 {
-                    _logger.LogInformation("⚠️ Sensor {SensorId} omitido en validación de inactividad (allowMissing = true)", expected.Id);
+                    _logger.LogInformation("⚠️ Sensor {SensorCode} omitido en validación de inactividad (allowMissing = true)", expected.Code);
                     continue; // Don't generate InactiveSensor alert for sensors that allow missing readings
                 }
 
                 // Get the variable to check if it's a Luminosity Index
-                var variable = await _variableRepository.GetByIdAsync(expected.VariableId);
+                var variable = await _variableRepository.GetByCodeAsync(expected.VariableCode);
                 
                 // Skip inactive sensor alerts for Luminosity Index variables
                 // because firmware filters them out when C < 3000
@@ -64,12 +64,12 @@ public class GenerateInactiveSensorAlertsUseCase : IGenerateInactiveSensorAlerts
 
                 alerts.Add(new SensorAlert
                 {
-                    SensorId = expected.Id,
-                    VariableId = expected.VariableId,
+                    SensorCode = expected.Code,
+                    VariableCode = expected.VariableCode,
                     Type = AlertType.InactiveSensor,
                     Timestamp = dto.Timestamp.DateTime,
                     Severity = AlertSeverity.Critical,
-                    Message = $"No se recibió lectura esperada de {expected.PhysicalId} - {expected.VariableId}",
+                    Message = $"No se recibió lectura esperada de {expected.PhysicalId} - {expected.VariableCode}",
                     Acknowledged = false
                 });
             }

@@ -11,6 +11,9 @@ public class VariableDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; private set; } = default!;
 
+    [BsonElement("code")]
+    public string Code { get; set; } = default!;
+
     [BsonElement("name")]
     public string Name { get; set; } = default!;
 

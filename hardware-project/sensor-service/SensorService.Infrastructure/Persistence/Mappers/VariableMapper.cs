@@ -9,6 +9,7 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
     {
         var variable = new Variable
         {
+            Code = doc.Code,
             Name = doc.Name,
             Unit = doc.Unit,
             Description = doc.Description,
@@ -28,6 +29,7 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
     {
         var document = new VariableDocument
         {
+            Code = entity.Code,
             Name = entity.Name,
             Unit = entity.Unit,
             Description = entity.Description,

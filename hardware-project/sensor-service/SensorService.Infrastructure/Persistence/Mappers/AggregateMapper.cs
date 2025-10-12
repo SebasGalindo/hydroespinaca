@@ -9,8 +9,8 @@ public class AggregateMapper : IEntityMapper<Aggregate, AggregateDocument>
     {
         var Aggregate = new Aggregate
         {
-            SensorId = doc.SensorId,
-            VariableId = doc.VariableId,
+            SensorCode = doc.SensorCode,
+            VariableCode = doc.VariableCode,
             Avg = doc.Avg,
             Min = doc.Min,
             Max = doc.Max,
@@ -25,8 +25,8 @@ public class AggregateMapper : IEntityMapper<Aggregate, AggregateDocument>
     {
         var document = new AggregateDocument
         {
-            SensorId = entity.SensorId,
-            VariableId = entity.VariableId,
+            SensorCode = entity.SensorCode,
+            VariableCode = entity.VariableCode,
             Avg = entity.Avg,
             Min = entity.Min,
             Max = entity.Max,

@@ -48,11 +48,16 @@ public static class ServiceCollectionInfrastructureExtensions
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
         services.AddScoped<IVariableMigrationService, VariableMigrationService>();
+        services.AddScoped<IVariableSeedService, VariableSeedService>();
+        services.AddScoped<ISensorSeedService, SensorSeedService>();
 
         // ✅ CRITICAL: Singleton to maintain in-memory alert state across requests
         // IMPORTANT: In production with multiple replicas, migrate to Redis/Distributed Cache
         services.AddSingleton<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
         services.AddHttpClient<CriticalAlertNotificationService>(); // Only for HttpClient injection
+
+        // Database initialization service - runs on startup
+        services.AddHostedService<DatabaseInitializationService>();
 
         return services;
     }

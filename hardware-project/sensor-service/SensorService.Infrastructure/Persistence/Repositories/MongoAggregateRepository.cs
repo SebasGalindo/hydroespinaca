@@ -28,11 +28,11 @@ public class MongoAggregateRepository : IAggregateRepository
         await _baseRepo.CreateAsync(aggregate);
     }
 
-    public async Task<List<Aggregate>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
+    public async Task<List<Aggregate>> GetBySensorAndVariableAsync(string sensorCode, string variableCode, DateTime from, DateTime to)
     {
         var filter = Builders<AggregateDocument>.Filter.And(
-            Builders<AggregateDocument>.Filter.Eq(x => x.SensorId, sensorId),
-            Builders<AggregateDocument>.Filter.Eq(x => x.VariableId, variableId),
+            Builders<AggregateDocument>.Filter.Eq(x => x.SensorCode, sensorCode),
+            Builders<AggregateDocument>.Filter.Eq(x => x.VariableCode, variableCode),
             Builders<AggregateDocument>.Filter.Gte(x => x.Timestamp, from),
             Builders<AggregateDocument>.Filter.Lte(x => x.Timestamp, to)
         );
@@ -40,11 +40,11 @@ public class MongoAggregateRepository : IAggregateRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorId, string variableId, DateTime timestamp)
+    public async Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorCode, string variableCode, DateTime timestamp)
     {
         var filter = Builders<AggregateDocument>.Filter.And(
-            Builders<AggregateDocument>.Filter.Eq(x => x.SensorId, sensorId),
-            Builders<AggregateDocument>.Filter.Eq(x => x.VariableId, variableId),
+            Builders<AggregateDocument>.Filter.Eq(x => x.SensorCode, sensorCode),
+            Builders<AggregateDocument>.Filter.Eq(x => x.VariableCode, variableCode),
             Builders<AggregateDocument>.Filter.Eq(x => x.Timestamp, timestamp)
         );
 

@@ -5,6 +5,6 @@ namespace SensorService.Domain.Interfaces;
 public interface IAggregateRepository
 {
     Task CreateAsync(Aggregate aggregate);
-    Task<List<Aggregate>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to);
-    Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorId, string variableId, DateTime timestamp);
+    Task<List<Aggregate>> GetBySensorAndVariableAsync(string sensorCode, string variableCode, DateTime from, DateTime to);
+    Task<Aggregate?> GetBySensorAndVariableAndTimestampAsync(string sensorCode, string variableCode, DateTime timestamp);
 }

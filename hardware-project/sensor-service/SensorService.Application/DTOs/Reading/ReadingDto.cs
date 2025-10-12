@@ -2,8 +2,8 @@
 
 public class ReadingDto
 {
-    public string SensorId { get; set; } = default!;
-    public string VariableId { get; set; } = default!;
+    public string SensorCode { get; set; } = default!;
+    public string VariableCode { get; set; } = default!;
     public double Value { get; set; }
     public DateTime Timestamp { get; set; }
 }

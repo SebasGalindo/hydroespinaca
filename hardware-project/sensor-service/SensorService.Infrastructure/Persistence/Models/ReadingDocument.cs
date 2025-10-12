@@ -10,11 +10,11 @@ public class ReadingDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; private set; } = default!;
 
-    [BsonElement("sensorId")]
-    public string SensorId { get; set; } = default!;
+    [BsonElement("sensorCode")]
+    public string SensorCode { get; set; } = default!;
 
-    [BsonElement("variableId")]
-    public string VariableId { get; set; } = default!;
+    [BsonElement("variableCode")]
+    public string VariableCode { get; set; } = default!;
 
     [BsonElement("value")]
     public double Value { get; set; }

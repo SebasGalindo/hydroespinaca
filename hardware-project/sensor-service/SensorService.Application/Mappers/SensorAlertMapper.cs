@@ -9,7 +9,8 @@ public static class SensorAlertMapper
     public static SensorAlertDto ToDto(SensorAlert alert) => new()
     {
         Id = alert.Id,
-        SensorId = alert.SensorId,
+        SensorCode = alert.SensorCode,
+        VariableCode = alert.VariableCode,
         Type = alert.Type.ToString(),
         Value = alert.Value,
         Threshold = alert.Threshold,
@@ -29,7 +30,8 @@ public static class SensorAlertMapper
 
         var sensorAlert = new SensorAlert
         {
-            SensorId = dto.SensorId,
+            SensorCode = dto.SensorCode,
+            VariableCode = dto.VariableCode,
             Type = alertType,
             Value = dto.Value,
             Threshold = dto.Threshold,

@@ -9,8 +9,8 @@ public static class AggregateMapper
     {
         return new AggregateDto
         {
-            SensorId = entity.SensorId,
-            VariableId = entity.VariableId,
+            SensorCode = entity.SensorCode,
+            VariableCode = entity.VariableCode,
             Avg = entity.Avg,
             Min = entity.Min,
             Max = entity.Max,

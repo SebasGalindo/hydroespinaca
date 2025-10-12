@@ -17,8 +17,8 @@ public class AlertCalculationService : IAlertCalculationService
             return new SensorAlert
             {
                 Type = AlertType.OutOfRange,
-                SensorId = reading.SensorId,
-                VariableId = reading.VariableId,
+                SensorCode = reading.SensorCode,
+                VariableCode = reading.VariableCode,
                 Value = value,
                 Threshold = physicalThreshold,
                 Timestamp = timestamp,
@@ -35,8 +35,8 @@ public class AlertCalculationService : IAlertCalculationService
             return new SensorAlert
             {
                 Type = AlertType.OutOfRange,
-                SensorId = reading.SensorId,
-                VariableId = reading.VariableId,
+                SensorCode = reading.SensorCode,
+                VariableCode = reading.VariableCode,
                 Value = value,
                 Threshold = variable.OptimalMin,
                 Timestamp = timestamp,
@@ -52,8 +52,8 @@ public class AlertCalculationService : IAlertCalculationService
             return new SensorAlert
             {
                 Type = AlertType.OutOfRange,
-                SensorId = reading.SensorId,
-                VariableId = reading.VariableId,
+                SensorCode = reading.SensorCode,
+                VariableCode = reading.VariableCode,
                 Value = value,
                 Threshold = variable.OptimalMax.Value,
                 Timestamp = timestamp,
@@ -76,8 +76,8 @@ public class AlertCalculationService : IAlertCalculationService
 
         return new SensorAlert
         {
-            SensorId = reading.SensorId,
-            VariableId = reading.VariableId,
+            SensorCode = reading.SensorCode,
+            VariableCode = reading.VariableCode,
             Type = AlertType.Anomaly,
             Value = reading.Value,
             Threshold = latestAggregate.Avg,
@@ -100,8 +100,8 @@ public class AlertCalculationService : IAlertCalculationService
                 return new SensorAlert
                 {
                     Type = AlertType.LuminosityQuantityInsufficient,
-                    SensorId = reading.SensorId,
-                    VariableId = reading.VariableId,
+                    SensorCode = reading.SensorCode,
+                    VariableCode = reading.VariableCode,
                     Value = value,
                     Threshold = variable.OptimalMin,
                     Timestamp = timestamp,
@@ -119,8 +119,8 @@ public class AlertCalculationService : IAlertCalculationService
                 return new SensorAlert
                 {
                     Type = AlertType.LuminosityQualityInsufficient,
-                    SensorId = reading.SensorId,
-                    VariableId = reading.VariableId,
+                    SensorCode = reading.SensorCode,
+                    VariableCode = reading.VariableCode,
                     Value = value,
                     Threshold = variable.OptimalMin,
                     Timestamp = timestamp,

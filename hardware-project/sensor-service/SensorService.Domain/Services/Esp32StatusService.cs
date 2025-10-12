@@ -46,7 +46,7 @@ public class Esp32StatusService : IEsp32StatusService
         {
             var esp32IdStr = group.Key;
             var esp32Id = Esp32Id.Create(esp32IdStr);
-            var sensorIds = group.Select(s => s.Id!).ToList();
+            var sensorCodes = group.Select(s => s.Code).ToList();
 
             var esp32Node = allEsp32Nodes.FirstOrDefault(n => n.Id == esp32IdStr);
             if (esp32Node is null)
@@ -55,7 +55,7 @@ public class Esp32StatusService : IEsp32StatusService
                 continue;
             }
 
-            var lastReading = await _readingRepository.GetLatestBySensorIdsAsync(sensorIds);
+            var lastReading = await _readingRepository.GetLatestBySensorCodesAsync(sensorCodes);
             var lastSensorTime = lastReading?.Timestamp ?? DateTime.MinValue;
             var lastSeenTime = esp32Node.LastSeen;
 

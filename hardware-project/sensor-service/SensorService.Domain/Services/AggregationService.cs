@@ -7,17 +7,17 @@ namespace SensorService.Domain.Services;
 public class AggregationService : IAggregationService
 {
     public Aggregate CreateAggregate(
-        string sensorId,
-        string variableId,
+        string sensorCode,
+        string variableCode,
         TimeWindow window,
         AggregateData data)
     {
-        var aggregateId = GenerateAggregateId(sensorId, variableId, window.End);
+        var aggregateId = GenerateAggregateId(sensorCode, variableCode, window.End);
 
         var aggregate = new Aggregate
         {
-            SensorId = sensorId,
-            VariableId = variableId,
+            SensorCode = sensorCode,
+            VariableCode = variableCode,
             Avg = data.Average,
             Min = data.Min,
             Max = data.Max,
@@ -29,8 +29,8 @@ public class AggregationService : IAggregationService
 
     }
 
-    private static string GenerateAggregateId(string sensorId, string variableId, DateTime timestamp)
+    private static string GenerateAggregateId(string sensorCode, string variableCode, DateTime timestamp)
     {
-        return $"{sensorId}-{variableId}-{timestamp:yyyyMMddHHmm}";
+        return $"{sensorCode}-{variableCode}-{timestamp:yyyyMMddHHmm}";
     }
 }

@@ -10,8 +10,8 @@ public class ReadingMapper : IEntityMapper<Reading, ReadingDocument>
     {
         var entity = new Reading
         {
-            SensorId = doc.SensorId,
-            VariableId = doc.VariableId,
+            SensorCode = doc.SensorCode,
+            VariableCode = doc.VariableCode,
             Value = doc.Value,
             Timestamp = doc.Timestamp
         };
@@ -24,8 +24,8 @@ public class ReadingMapper : IEntityMapper<Reading, ReadingDocument>
     {
         var document = new ReadingDocument
         {
-            SensorId = entity.SensorId,
-            VariableId = entity.VariableId,
+            SensorCode = entity.SensorCode,
+            VariableCode = entity.VariableCode,
             Value = entity.Value,
             Timestamp = entity.Timestamp
         };

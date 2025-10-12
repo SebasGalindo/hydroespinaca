@@ -5,5 +5,5 @@ namespace SensorService.Domain.Interfaces;
 
 public interface IAggregationService
 {
-    Aggregate CreateAggregate(string sensorId, string variableId, TimeWindow window, AggregateData data);
+    Aggregate CreateAggregate(string sensorCode, string variableCode, TimeWindow window, AggregateData data);
 }

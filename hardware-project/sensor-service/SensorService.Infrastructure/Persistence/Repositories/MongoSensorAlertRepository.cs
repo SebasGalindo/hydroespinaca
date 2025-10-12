@@ -27,9 +27,9 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.GetByIdAsync(id);
     }
 
-    public async Task<List<SensorAlert>> GetBySensorIdAsync(string sensorId)
+    public async Task<List<SensorAlert>> GetBySensorCodeAsync(string sensorCode)
     {
-        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorId, sensorId);
+        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorCode, sensorCode);
         return await _baseRepo.FindManyAsync(filter);
     }
 
@@ -38,10 +38,10 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         await _baseRepo.UpdateAsync(sensorAlert);
     }
 
-    public async Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorId, AlertType type)
+    public async Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorCode, AlertType type)
     {
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorId, sensorId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorCode, sensorCode),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false)
         );
@@ -49,11 +49,11 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.FindOneAsync(filter);
     }
 
-    public async Task<SensorAlert?> GetActiveBySensorVariableAndTypeAsync(string sensorId, string variableId, AlertType type)
+    public async Task<SensorAlert?> GetActiveBySensorVariableAndTypeAsync(string sensorCode, string variableCode, AlertType type)
     {
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorId, sensorId),
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.VariableId, variableId),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorCode, sensorCode),
+            Builders<SensorAlertDocument>.Filter.Eq(a => a.VariableCode, variableCode),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
@@ -69,15 +69,15 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return (int)result.DeletedCount;
     }
 
-    public async Task<int> CountActiveAlertsBySensorsAsync(IEnumerable<string> sensorIds, CancellationToken cancellationToken = default)
+    public async Task<int> CountActiveAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default)
     {
-        var sensorIdList = sensorIds.ToList();
+        var sensorCodeList = sensorCodes.ToList();
 
-        if (!sensorIdList.Any())
+        if (!sensorCodeList.Any())
             return 0;
 
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.In(a => a.SensorId, sensorIdList),
+            Builders<SensorAlertDocument>.Filter.In(a => a.SensorCode, sensorCodeList),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
         );
@@ -96,15 +96,15 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         await _baseRepo.UpdateAsync(alert);
     }
 
-    public async Task<List<SensorAlert>> GetUnsentEmailAlertsBySensorsAsync(IEnumerable<string> sensorIds, CancellationToken cancellationToken = default)
+    public async Task<List<SensorAlert>> GetUnsentEmailAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default)
     {
-        var sensorIdList = sensorIds.ToList();
+        var sensorCodeList = sensorCodes.ToList();
 
-        if (!sensorIdList.Any())
+        if (!sensorCodeList.Any())
             return new List<SensorAlert>();
 
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.In(a => a.SensorId, sensorIdList),
+            Builders<SensorAlertDocument>.Filter.In(a => a.SensorCode, sensorCodeList),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.EmailSentAt, null)

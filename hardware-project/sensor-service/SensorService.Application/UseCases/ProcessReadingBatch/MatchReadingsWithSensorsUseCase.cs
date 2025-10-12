@@ -32,30 +32,30 @@ public class MatchReadingsWithSensorsUseCase : IMatchReadingsWithSensorsUseCase
 
         foreach (var reading in dto.Readings)
         {
-            _logger.LogDebug("📈 Processing reading: PhysicalId='{PhysicalId}', VariableId='{VariableId}', Value={Value}", 
-                reading.PhysicalId, reading.VariableId, reading.Value);
+            _logger.LogDebug("📈 Processing reading: PhysicalId='{PhysicalId}', VariableCode='{VariableCode}', Value={Value}",
+                reading.PhysicalId, reading.VariableCode, reading.Value);
 
             var matchedSensor = allSensors.FirstOrDefault(s =>
                 s.PhysicalId == reading.PhysicalId &&
-                s.Variables.Contains(reading.VariableId));
+                s.Variables.Contains(reading.VariableCode));
 
             if (matchedSensor != null)
             {
-                _logger.LogInformation("✅ Matched reading: PhysicalId='{PhysicalId}' -> SensorId='{SensorId}'", 
-                    reading.PhysicalId, matchedSensor.Id);
+                _logger.LogInformation("✅ Matched reading: PhysicalId='{PhysicalId}' -> SensorCode='{SensorCode}'",
+                    reading.PhysicalId, matchedSensor.Code);
 
                 matchedReadings.Add(new Reading
                 {
-                    SensorId = matchedSensor.Id!,
-                    VariableId = reading.VariableId,
+                    SensorCode = matchedSensor.Code,
+                    VariableCode = reading.VariableCode,
                     Value = reading.Value,
                     Timestamp = dto.Timestamp.UtcDateTime
                 });
             }
             else
             {
-                _logger.LogWarning("❌ No matching sensor found for PhysicalId='{PhysicalId}', VariableId='{VariableId}'", 
-                    reading.PhysicalId, reading.VariableId);
+                _logger.LogWarning("❌ No matching sensor found for PhysicalId='{PhysicalId}', VariableCode='{VariableCode}'",
+                    reading.PhysicalId, reading.VariableCode);
             }
         }
 

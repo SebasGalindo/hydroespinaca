@@ -7,16 +7,16 @@ public static class ReadingMapper
 {
     public static Reading ToEntity(ReadingDto dto) => new()
     {
-        SensorId = dto.SensorId,
-        VariableId = dto.VariableId,
+        SensorCode = dto.SensorCode,
+        VariableCode = dto.VariableCode,
         Value = dto.Value,
         Timestamp = dto.Timestamp
     };
 
     public static ReadingDto ToDto(Reading entity) => new()
     {
-        SensorId = entity.SensorId,
-        VariableId = entity.VariableId,
+        SensorCode = entity.SensorCode,
+        VariableCode = entity.VariableCode,
         Value = entity.Value,
         Timestamp = entity.Timestamp
     };

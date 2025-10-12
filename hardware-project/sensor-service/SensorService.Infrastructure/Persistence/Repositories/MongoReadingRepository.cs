@@ -22,11 +22,11 @@ public class MongoReadingRepository : IReadingRepository
         await _baseRepo.CreateAsync(reading);
     }
 
-    public async Task<List<Reading>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
+    public async Task<List<Reading>> GetBySensorAndVariableAsync(string sensorCode, string variableCode, DateTime from, DateTime to)
     {
         var filter = Builders<ReadingDocument>.Filter.And(
-            Builders<ReadingDocument>.Filter.Eq(x => x.SensorId, sensorId),
-            Builders<ReadingDocument>.Filter.Eq(x => x.VariableId, variableId),
+            Builders<ReadingDocument>.Filter.Eq(x => x.SensorCode, sensorCode),
+            Builders<ReadingDocument>.Filter.Eq(x => x.VariableCode, variableCode),
             Builders<ReadingDocument>.Filter.Gte(x => x.Timestamp, from),
             Builders<ReadingDocument>.Filter.Lte(x => x.Timestamp, to)
         );
@@ -41,9 +41,9 @@ public class MongoReadingRepository : IReadingRepository
         return (int)result.DeletedCount;
     }
 
-    public async Task<Reading?> GetLatestBySensorIdsAsync(List<string> sensorIds)
+    public async Task<Reading?> GetLatestBySensorCodesAsync(List<string> sensorCodes)
     {
-        var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorId, sensorIds);
+        var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorCode, sensorCodes);
         var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
         return await _baseRepo.FindLastOneAsync(filter, sort);
     }
