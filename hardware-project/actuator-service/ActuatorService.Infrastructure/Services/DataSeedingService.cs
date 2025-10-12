@@ -150,101 +150,157 @@ private async Task SeedActuatorsAsync()
 
     private async Task SeedControlOutputsAsync()
     {
-        // Primero obtener los actuadores por PhysicalId para obtener sus IDs
+        // Get all actuators first to map ActuatorCode -> ActuatorId
         var allActuators = await _actuatorRepository.GetAllAsync();
-        var fanActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "FAN-001");
-        var heaterActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "HEATER-001");
-        var ledActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "LED-001");
-        var airPumpActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "AIR-001");
-        var waterPumpActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "PUMP-001");
-        var waterHeaterActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "WATER_HEATER-001");
-        var ultrasonicHumidifierActuator = allActuators.FirstOrDefault(a => a.PhysicalId == "ULTRASONIC_HUMIDIFIER-001");
+        var actuatorsByCode = allActuators.ToDictionary(a => a.Code, a => a.Id);
 
-        if (fanActuator == null || heaterActuator == null || ledActuator == null ||
-            airPumpActuator == null || waterPumpActuator == null || waterHeaterActuator == null || ultrasonicHumidifierActuator == null)
-        {
-            _logger.LogWarning("Some actuators not found. Skipping control outputs seeding.");
-            return;
-        }
-
+        // Define control outputs with stable codes (no dependency on actuator IDs)
         var controlOutputs = new[]
         {
-            // Ventilador (FAN-001) - 2 variables
+            // Ventilador (Code: Ventiladores) - 2 variables
             new
             {
+                Code = "OUTPUT_VENTILADOR_POTENCIA",
                 Name = "Potencia del Ventilador",
                 Description = "Control de potencia PWM del ventilador principal",
                 Unit = "porcentaje",
-                ActuatorId = fanActuator.Id,
+                ActuatorCode = "Ventiladores",
                 MinValue = 0.0,
                 MaxValue = 100.0
             },
             new
             {
+                Code = "OUTPUT_VENTILADOR_DURACION",
                 Name = "Duración de Ventilación",
                 Description = "Tiempo de operación del ventilador",
                 Unit = "segundos",
-                ActuatorId = fanActuator.Id,
+                ActuatorCode = "Ventiladores",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Calefactor de Aire (HEATER-001)
+            // Calefactor de Aire (Code: termoventilador)
             new
             {
+                Code = "OUTPUT_CALEFACTOR_AIRE_CONTROL",
+                Name = "Control Calefactor Aire",
+                Description = "Control ON/OFF del calefactor de aire",
+                Unit = "binary",
+                ActuatorCode = "termoventilador",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_CALEFACTOR_AIRE_DURACION",
                 Name = "Duración de Calefacción de Aire",
                 Description = "Tiempo de operación del calefactor de aire",
                 Unit = "segundos",
-                ActuatorId = heaterActuator.Id,
+                ActuatorCode = "termoventilador",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Luz (LED-001)
+            // Luz (Code: luz-amplio-espectro)
             new
             {
+                Code = "OUTPUT_LUZ_CONTROL",
+                Name = "Control Luz",
+                Description = "Control ON/OFF de la luz LED",
+                Unit = "binary",
+                ActuatorCode = "luz-amplio-espectro",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_LUZ_DURACION",
                 Name = "Duración de Luz",
                 Description = "Tiempo de iluminación",
                 Unit = "segundos",
-                ActuatorId = ledActuator.Id,
+                ActuatorCode = "luz-amplio-espectro",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Bomba de Aire (AIR-001)
+            // Bomba de Aire (Code: piedra-difusora)
             new
             {
+                Code = "OUTPUT_BOMBA_AIRE_CONTROL",
+                Name = "Control Bomba Aireación",
+                Description = "Control ON/OFF de la bomba de aire",
+                Unit = "binary",
+                ActuatorCode = "piedra-difusora",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_BOMBA_AIRE_DURACION",
                 Name = "Duración de Aireación",
                 Description = "Tiempo de operación de la bomba de aire",
                 Unit = "segundos",
-                ActuatorId = airPumpActuator.Id,
+                ActuatorCode = "piedra-difusora",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Bomba de Agua (PUMP-001)
+            // Bomba de Agua (Code: bomba-agua)
             new
             {
+                Code = "OUTPUT_BOMBA_RIEGO_CONTROL",
+                Name = "Control Bomba Riego",
+                Description = "Control ON/OFF de la bomba de agua",
+                Unit = "binary",
+                ActuatorCode = "bomba-agua",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_BOMBA_RIEGO_DURACION",
                 Name = "Duración de Riego",
                 Description = "Tiempo de operación de la bomba de agua",
                 Unit = "segundos",
-                ActuatorId = waterPumpActuator.Id,
+                ActuatorCode = "bomba-agua",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Calefactor de Agua (WATER_HEATER-001)
+            // Calefactor de Agua (Code: calefactor-agua)
             new
             {
+                Code = "OUTPUT_CALEFACTOR_AGUA_CONTROL",
+                Name = "Control Calefactor Agua",
+                Description = "Control ON/OFF del calefactor de agua",
+                Unit = "binary",
+                ActuatorCode = "calefactor-agua",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_CALEFACTOR_AGUA_DURACION",
                 Name = "Duración de Calefacción de Agua",
                 Description = "Tiempo de operación del calefactor de agua",
                 Unit = "segundos",
-                ActuatorId = waterHeaterActuator.Id,
+                ActuatorCode = "calefactor-agua",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             },
-            // Humidificador Ultrasónico (ULTRASONIC_HUMIDIFIER-001)
+            // Humidificador Ultrasónico (Code: humidificador-ultrasonico)
             new
             {
+                Code = "OUTPUT_HUMIDIFICADOR_CONTROL",
+                Name = "Control Humidificador",
+                Description = "Control ON/OFF del humidificador ultrasónico",
+                Unit = "binary",
+                ActuatorCode = "humidificador-ultrasonico",
+                MinValue = 0.0,
+                MaxValue = 1.0
+            },
+            new
+            {
+                Code = "OUTPUT_HUMIDIFICADOR_DURACION",
                 Name = "Duración de Humidificación",
                 Description = "Tiempo de operación del humidificador ultrasónico",
                 Unit = "segundos",
-                ActuatorId = ultrasonicHumidifierActuator.Id,
+                ActuatorCode = "humidificador-ultrasonico",
                 MinValue = 0.0,
                 MaxValue = 3600.0
             }
@@ -255,18 +311,28 @@ private async Task SeedActuatorsAsync()
 
         foreach (var outputData in controlOutputs)
         {
-            // Check if control output already exists for this actuator and name
-            var existingOutputs = await _controlOutputRepository.GetByActuatorIdAsync(outputData.ActuatorId);
-            var existing = existingOutputs.FirstOrDefault(co => co.Name == outputData.Name);
+            // Check if control output already exists by Code (idempotent)
+            var allOutputs = await _controlOutputRepository.GetAllAsync();
+            var existing = allOutputs.FirstOrDefault(co => co.Code == outputData.Code);
 
             if (existing == null)
             {
+                // Find the actuator ID by ActuatorCode
+                if (!actuatorsByCode.TryGetValue(outputData.ActuatorCode, out var actuatorId))
+                {
+                    _logger.LogWarning("⚠️  Actuator with Code '{ActuatorCode}' not found, skipping control output {Code}",
+                        outputData.ActuatorCode, outputData.Code);
+                    continue;
+                }
+
                 var controlOutput = new ControlOutput
                 {
+                    Code = outputData.Code,
                     Name = outputData.Name,
                     Description = outputData.Description,
                     Unit = outputData.Unit,
-                    ActuatorId = outputData.ActuatorId,
+                    ActuatorCode = outputData.ActuatorCode,
+                    ActuatorId = actuatorId, // Assign the generated ID from actuator
                     MinValue = outputData.MinValue,
                     MaxValue = outputData.MaxValue,
                     LastModified = DateTime.UtcNow
@@ -274,8 +340,8 @@ private async Task SeedActuatorsAsync()
 
                 await _controlOutputRepository.AddAsync(controlOutput);
                 createdCount++;
-                _logger.LogInformation("Created control output: {Name} for actuator {ActuatorId}",
-                    outputData.Name, outputData.ActuatorId);
+                _logger.LogInformation("✅ Created control output: {Code} - {Name} (Actuator: {ActuatorCode}, ActuatorId: {ActuatorId})",
+                    outputData.Code, outputData.Name, outputData.ActuatorCode, actuatorId);
             }
         }
 
@@ -388,9 +454,8 @@ private async Task SeedActuatorsAsync()
 
         foreach (var routine in routines)
         {
-            // Check if routine already exists by name
-            var existingRoutines = await _internalRoutineRepository.GetActiveRoutinesAsync();
-            var existing = existingRoutines.FirstOrDefault(r => r.Name == routine.Name);
+            // Check if routine already exists by name (regardless of active status)
+            var existing = await _internalRoutineRepository.GetByNameAsync(routine.Name);
 
             if (existing == null)
             {
