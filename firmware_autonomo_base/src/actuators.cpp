@@ -20,9 +20,9 @@ void ActuatorController::begin() {
     pinMode(PIN_FAN, OUTPUT);
     pinMode(PIN_HEATER_WATER, OUTPUT);
 
-    // ⚠️ PINES HUMIDIFICADOR DESHABILITADOS (relé maestro defectuoso - PIN 14)
-    // pinMode(PIN_HUMID_RELAY, OUTPUT);
-    // pinMode(PIN_HUMID_POWER, OUTPUT);
+    // PINES HUMIDIFICADOR  (PIN 14)
+    pinMode(PIN_HUMID_RELAY, OUTPUT);
+    pinMode(PIN_HUMID_POWER, OUTPUT);
 
     // Inicializar todos los relés en estado APAGADO (HIGH por lógica invertida)
     digitalWrite(PIN_RELAY_HEATER, HIGH);
@@ -32,9 +32,9 @@ void ActuatorController::begin() {
     digitalWrite(PIN_FAN, LOW);  // Fan is non-inverted: LOW = OFF
     digitalWrite(PIN_HEATER_WATER, HIGH);
 
-    // ⚠️ HUMIDIFICADOR DESHABILITADO (relé maestro defectuoso - PIN 14)
-    // digitalWrite(PIN_HUMID_RELAY, HIGH);
-    // digitalWrite(PIN_HUMID_POWER, HIGH);
+    // HUMIDIFICADOR  (PIN 14)
+    digitalWrite(PIN_HUMID_RELAY, HIGH);
+    digitalWrite(PIN_HUMID_POWER, HIGH);
     
     Serial.println("✅ Actuadores inicializados - Todos apagados");
 }

@@ -156,7 +156,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(tempValue)) {
         JsonObject tempReading = readings.createNestedObject();
         tempReading["physicalId"] = "DHT22-A1"; // DHT22 sensor physical ID
-        tempReading["variableId"] = "688970ab7f02137645d58398"; // Temperature MongoDB ObjectId
+        tempReading["variableCode"] = "T_AMB"; // Temperature MongoDB ObjectId
         tempReading["value"] = tempValue;
         validReadings++;
         Serial.printf("%.1f°C ✅\n", tempValue);
@@ -170,7 +170,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(humidityValue)) {
         JsonObject humidityReading = readings.createNestedObject();
         humidityReading["physicalId"] = "DHT22-A1"; // DHT22 sensor physical ID
-        humidityReading["variableId"] = "688970af7f02137645d58399"; // Humidity MongoDB ObjectId
+        humidityReading["variableCode"] = "HUM"; // Humidity MongoDB ObjectId
         humidityReading["value"] = humidityValue;
         validReadings++;
         Serial.printf("%.1f%% ✅\n", humidityValue);
@@ -188,7 +188,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
         if (!isnan(lux)) {
             JsonObject luxReading = readings.createNestedObject();
             luxReading["physicalId"] = "BH1750-A1"; // BH1750 sensor physical ID
-            luxReading["variableId"] = "688970837f02137645d58395"; // Light Lux MongoDB ObjectId
+            luxReading["variableCode"] = "LUMINOSITY"; // Light Lux MongoDB ObjectId
             luxReading["value"] = lux;
             validReadings++;
             Serial.printf("%.0f lux ✅\n", lux);
@@ -206,7 +206,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(phValue)) {
         JsonObject phReading = readings.createNestedObject();
         phReading["physicalId"] = "SEN0161-A1"; // pH sensor physical ID
-        phReading["variableId"] = "688970a27f02137645d58396"; // pH MongoDB ObjectId
+        phReading["variableCode"] = "PH"; // pH MongoDB ObjectId
         phReading["value"] = phValue;
         validReadings++;
         Serial.printf("%.2f pH ✅\n", phValue);
@@ -220,7 +220,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(ecValue)) {
         JsonObject ecReading = readings.createNestedObject();
         ecReading["physicalId"] = "TDS-A1"; // TDS sensor physical ID (hardware ID remains same)
-        ecReading["variableId"] = "688970a77f02137645d58397"; // EC MongoDB ObjectId 
+        ecReading["variableCode"] = "EC"; // EC MongoDB ObjectId 
         ecReading["value"] = ecValue;
         validReadings++;
         Serial.printf("%.2f mS/cm ✅\n", ecValue);
@@ -234,7 +234,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(waterTempValue)) {
         JsonObject waterTempReading = readings.createNestedObject();
         waterTempReading["physicalId"] = "NTC-A1"; // NTC water sensor physical ID
-        waterTempReading["variableId"] = "68bb4d8cbdcb66fc5738f9af"; // NTC MongoDB ObjectId
+        waterTempReading["variableCode"] = "T_WAT"; // NTC MongoDB ObjectId
         waterTempReading["value"] = waterTempValue;
         validReadings++;
         Serial.printf("%.1f°C ✅\n", waterTempValue);
@@ -248,7 +248,7 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     if (!isnan(waterLevelValue)) {
         JsonObject waterLevelReading = readings.createNestedObject();
         waterLevelReading["physicalId"] = "HC-SR04-A1"; // Ultrasonido sensor physical ID
-        waterLevelReading["variableId"] = "68d1d07307c249cda4c369b0"; // Water Level MongoDB ObjectId
+        waterLevelReading["variableCode"] = "WL"; // Water Level MongoDB ObjectId
         waterLevelReading["value"] = waterLevelValue;
         validReadings++;
         Serial.printf("%.2f cm ✅\n", waterLevelValue);

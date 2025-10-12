@@ -155,6 +155,18 @@ enum LightState {
     LIGHT_ON                       // Encendida (lux insuficiente dentro del horario)
 };
 
+// MÁQUINA DE ESTADOS PARA SECUENCIA DE ENCENDIDO DEL HUMIDIFICADOR
+enum HumidifierSequenceState {
+    HUMID_SEQ_IDLE,                // Inactivo - sin secuencia en progreso
+    HUMID_SEQ_MASTER_ON,           // Relé maestro encendido, esperando 2s
+    HUMID_SEQ_PULSE_ON,            // Pulso de activación ON, esperando 1s
+    HUMID_SEQ_COMPLETE             // Secuencia completa, pulso apagado
+};
+
+// Tiempos de la secuencia del humidificador
+#define HUMID_MASTER_DELAY_MS 2000   // 2 segundos de espera después de activar maestro
+#define HUMID_PULSE_DURATION_MS 1000 // 1 segundo de duración del pulso
+
 struct SensorReadings {
     float temperature;
     float humidity;
@@ -254,9 +266,11 @@ struct ControlState {
     LightState lightState;                 // Estado actual de la luz (ON/OFF)
     unsigned long lightOnStartTime;        // Timestamp cuando se encendió la luz
     
-    // HUMIDIFICADOR: Control simplificado con secuencia inmediata
-    bool humidifierMasterActive;         // Relé maestro (PIN 14) activo
-    unsigned long humidifierStartTime;   // Tiempo de inicio del ciclo
+    // HUMIDIFICADOR: Control con secuencia de encendido no bloqueante
+    bool humidifierMasterActive;                // Relé maestro (PIN 14) activo
+    unsigned long humidifierStartTime;          // Tiempo de inicio del ciclo
+    HumidifierSequenceState humidifierSeqState; // Estado de la secuencia de encendido
+    unsigned long humidifierSeqTimestamp;       // Timestamp para transiciones de secuencia
 
     // ========================================
     // VALIDACIÓN DE EFECTIVIDAD DEL HUMIDIFICADOR
@@ -346,6 +360,13 @@ private:
     void updateAirStoneControl();         // Controlador central de aireación
     void setAirStoneMode(AirStoneMode newMode, const char* reason);
     
+    // ========================================
+    // SECUENCIA DE ENCENDIDO DEL HUMIDIFICADOR (NO BLOQUEANTE)
+    // ========================================
+    void startHumidifierSequence(float humidity, float temperature);  // Iniciar secuencia
+    void updateHumidifierSequence();                                  // Actualizar máquina de estados
+    bool canStartHumidifierSequence();                                // Validar si puede iniciar
+
     // ========================================
     // RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
     // ========================================

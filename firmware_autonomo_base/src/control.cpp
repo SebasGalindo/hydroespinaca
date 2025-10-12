@@ -17,19 +17,19 @@ AutonomousController::AutonomousController(SensorManager* sensorManager, NTPClie
 
 void AutonomousController::begin() {
     Serial.println("🤖 [CTRL] Iniciando controlador autónomo para espinaca DWC");
-    
+
     // Inicializar configuraciones de variables de control
     initializeVariableConfigs();
-    
+
     // Inicializar timestamps
     unsigned long now = millis();
     state.lastControlCycle = now;
-    
+
     // NUEVA LÓGICA: Inicializar cronogramas independientes
     state.airStoneMode = AIR_MODE_IDLE;              // Modo inicial: Idle
     state.recirculationActive = false;               // Recirculación inactiva
     state.autonomousAirActive = false;               // Aireación autónoma inactiva
-    
+
     // ========================================
     // INICIALIZAR RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
     // ========================================
@@ -37,15 +37,21 @@ void AutonomousController::begin() {
     state.extraRecirculationStartTime = 0;
     state.lastExtraRecirculationTime = 0;            // Nunca se ha ejecutado
     state.lastWaterHeaterState = false;              // Calefactor inicialmente apagado
-    
+
+    // ========================================
+    // INICIALIZAR MÁQUINA DE ESTADOS DEL HUMIDIFICADOR
+    // ========================================
+    state.humidifierSeqState = HUMID_SEQ_IDLE;       // Secuencia inactiva
+    state.humidifierSeqTimestamp = 0;
+
     // Inicializar cronogramas
     initializeRecirculationSchedule();
     initializeAutonomousAirSchedule();
-    
+
     // NUEVA LÓGICA: Inicializar máquina de estados de luz artificial
     state.lightState = LIGHT_OFF;
     state.lightOnStartTime = 0;
-    
+
     // Asegurar que todos los actuadores empiecen apagados
     ActuatorController::emergencyStop();
     
@@ -68,7 +74,13 @@ void AutonomousController::begin() {
 
 void AutonomousController::loop() {
     unsigned long now = millis();
-    
+
+    // ========================================
+    // MÁQUINA DE ESTADOS DEL HUMIDIFICADOR (NO BLOQUEANTE)
+    // ========================================
+    // Se ejecuta cada loop para manejar la secuencia de encendido
+    updateHumidifierSequence();
+
     // ========================================
     // CRONOGRAMAS INDEPENDIENTES - VALIDACIÓN INMEDIATA
     // ========================================
@@ -303,31 +315,32 @@ void AutonomousController::controlTemperature() {
     float temp = state.averageReadings.temperature;
     
     // ========================================
-    // CALEFACTOR AIRE CON PARCHE DE SEGURIDAD
+    // CALEFACTOR AIRE CON CORRECCIÓN DE SEGURIDAD CRÍTICA
     // ========================================
     if (state.heater.isOn) {
         // Calefactor encendido: usar nuevos umbrales de seguridad
         if (temp >= HEATER_OFF_TEMP && canTurnHeaterOff()) {
-            setActuatorState(state.heater, false, "calefactor_aire");
+            // CRÍTICO: Usar setActuatorStateImmediate para apagar INMEDIATAMENTE el hardware
+            setActuatorStateImmediate(state.heater, false, "calefactor_aire");
             state.heaterOffStartTime = millis();
             state.heaterFastMonitoringActive = false;  // Detener monitoreo rápido
 
-            // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
-            // if (state.humidifierMasterActive) {
-            //     state.humidifierMasterActive = false;
-            //     state.humidifier.isOn = false;
-            //     state.windowValidationActive = false;
-            //     ActuatorController::turnHumidifierMasterOff();
-            //     ActuatorController::turnHumidifierRelayOff();
-            //     Serial.println("💧 [CTRL] Humidificador APAGADO - sincronizado con calefactor OFF");
-            // }
+            if (state.humidifierMasterActive) {
+                state.humidifierMasterActive = false;
+                state.humidifier.isOn = false;
+                state.windowValidationActive = false;
+                ActuatorController::turnHumidifierMasterOff();
+                ActuatorController::turnHumidifierRelayOff();
+                Serial.println("💧 [CTRL] Humidificador APAGADO - sincronizado con calefactor OFF");
+            }
 
             logControlDecision("Temperatura", temp, "calefactor aire OFF - umbral seguridad 22.5°C");
         }
     } else {
         // Calefactor apagado: usar nuevos umbrales de seguridad
         if (temp <= HEATER_ON_TEMP && canTurnHeaterOn()) {
-            setActuatorState(state.heater, true, "calefactor_aire");
+            // CRÍTICO: Usar setActuatorStateImmediate para encender INMEDIATAMENTE el hardware
+            setActuatorStateImmediate(state.heater, true, "calefactor_aire");
             state.heaterOnStartTime = millis();
             state.heaterFastMonitoringActive = true;   // Iniciar monitoreo rápido
             state.lastHeaterMonitorTime = millis();
@@ -335,27 +348,25 @@ void AutonomousController::controlTemperature() {
             state.heaterTempBufferIndex = 0;
             state.heaterTempBufferFull = false;
 
-            // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
-            // unsigned long now = millis();
-            // if (state.waterLevelOk && !state.humidifierLocked && !state.humidifierMasterActive) {
-            //     float humidity = state.averageReadings.humidity;
-            //     if (!isnan(humidity) && humidity <= HUMIDITY_MAX) {
-            //         state.humidifierMasterActive = true;
-            //         state.humidifierStartTime = now;
-            //         state.humidityAtStart = humidity;
-            //         state.temperatureAtStart = temp;
-            //         state.humidifierWindowStart = now;
-            //         state.windowValidationActive = true;
-            //         ActuatorController::turnHumidifierMasterOn();
-            //         delay(2000);
-            //         ActuatorController::turnHumidifierRelayOn();
-            //         delay(1000);
-            //         ActuatorController::turnHumidifierRelayOff();
-            //         Serial.printf("💧 [CTRL] Humidificador ACTIVADO - sincronizado con calefactor ON (H=%.1f%%)\n", humidity);
-            //     }
-            // }
-
             logControlDecision("Temperatura", temp, "calefactor aire ON - umbral seguridad 17.0°C - MONITOREO RÁPIDO INICIADO");
+
+            // SINCRONIZACIÓN CON HUMIDIFICADOR: Activar cuando se enciende calefactor
+            // El calefactor seca el aire, por lo que el humidificador es complementario
+            if (state.averageReadings.valid && !isnan(state.averageReadings.humidity)) {
+                float humidity = state.averageReadings.humidity;
+                // Activar humidificador si la humedad está por debajo del máximo
+                // No esperar a que baje hasta el mínimo - activar proactivamente
+                if (humidity <= HUMIDITY_MAX && !state.humidifierMasterActive) {
+                    Serial.printf("💨 [HEATER-SYNC] Activando humidificador con calefactor (H=%.1f%% ≤ %.1f%%)\n",
+                                 humidity, HUMIDITY_MAX);
+                    startHumidifierSequence(humidity, temp);
+                } else if (state.humidifierMasterActive) {
+                    Serial.println("💨 [HEATER-SYNC] Humidificador ya activo - no se requiere acción");
+                } else {
+                    Serial.printf("💨 [HEATER-SYNC] Humedad alta (%.1f%% > %.1f%%) - humidificador no necesario\n",
+                                 humidity, HUMIDITY_MAX);
+                }
+            }
         }
     }
     
@@ -383,11 +394,6 @@ void AutonomousController::controlTemperature() {
 
 // NUEVA LÓGICA: Control de humedad con debounce y reposo
 void AutonomousController::controlHumidity() {
-    // ⚠️ PARCHE TEMPORAL: HUMIDIFICADOR DESHABILITADO
-    // Relé maestro del humidificador (PIN 14) está defectuoso y produce zumbido
-    // TODO: Remover este return cuando se reemplace el relé
-    return;
-
     if (!state.averageReadings.valid) return;
 
     float humidity = state.averageReadings.humidity;
@@ -522,41 +528,10 @@ void AutonomousController::controlHumidity() {
             return;
         }
 
-        Serial.printf("💨 [HUMID] Iniciando secuencia completa humidificador (H=%.1f%% ≤ %.1f%%)\n",
+        // Llamar a la secuencia de encendido no bloqueante
+        Serial.printf("💨 [HUMID] Activando humidificador por humedad baja (H=%.1f%% ≤ %.1f%%)\n",
                      humidity, HUMIDITY_MIN - HUMIDITY_HYSTERESIS);
-
-        // Marcar como activo antes de comenzar la secuencia
-        state.humidifierMasterActive = true;
-        state.humidifierStartTime = now;
-        state.humidifier.isOn = true;
-        state.humidifier.lastChangeTime = now;
-
-        // INICIAR VENTANA DE VALIDACIÓN
-        state.windowValidationActive = true;
-        state.humidifierWindowStart = now;
-        state.humidityAtStart = humidity;
-        state.temperatureAtStart = temperature;
-        Serial.printf("🔍 [HUMID] Ventana de validación iniciada: HR inicial=%.1f%%, T inicial=%.1f°C\n",
-                     state.humidityAtStart, state.temperatureAtStart);
-        Serial.printf("🔍 [HUMID] Requiere incremento ≥%.1f%% en %d min (o reset si T sube >%.1f°C)\n",
-                     HUMID_MIN_DELTA, HUMID_WINDOW_MINUTES, HUMID_TEMP_RESET_THRESHOLD);
-
-        // 1. Activar relé maestro (PIN 14)
-        ActuatorController::turnHumidifierMasterOn();
-        Serial.println("💨 [HUMID] Relé maestro ON");
-
-        // 2. Esperar delay de seguridad (2 segundos)
-        delay(2000);
-
-        // 3. Pulso en relé de activación (1 segundo ON, luego OFF)
-        ActuatorController::turnHumidifierRelayOn();
-        Serial.println("💨 [HUMID] Relé activación ON (pulso)");
-        delay(1000);
-
-        ActuatorController::turnHumidifierRelayOff();
-        Serial.println("💨 [HUMID] Relé activación OFF - secuencia completa ejecutada");
-
-        logControlDecision("Humedad", humidity, "humidificador activado con validación de efectividad");
+        startHumidifierSequence(humidity, temperature);
         return;
     }
 
@@ -709,7 +684,13 @@ bool AutonomousController::isRecirculationScheduleTime() {
     if (currentMinutes >= state.nextRecirculationTime) {
         // Si perdimos la ventana (más de 5 min tarde), recalcular próximo horario
         if (currentMinutes > state.nextRecirculationTime + 5) {
-            Serial.printf("🌊 [RECIRCULACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+            // Throttling de logs: solo imprimir cada 30 segundos
+            static unsigned long lastMissedWindowLog = 0;
+            unsigned long now = millis();
+            if (now - lastMissedWindowLog >= 30000) {
+                Serial.printf("🌊 [RECIRCULACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+                lastMissedWindowLog = now;
+            }
 
             // Recalcular basándose en múltiplos de 2h desde 00:00
             unsigned long hoursSinceMidnight = currentMinutes / 60;
@@ -717,9 +698,13 @@ bool AutonomousController::isRecirculationScheduleTime() {
             nextHour = nextHour % 24; // Wrap 24h
 
             state.nextRecirculationTime = nextHour * 60;
-            Serial.printf("🌊 [RECIRCULACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
-                          state.nextRecirculationTime / 60, state.nextRecirculationTime % 60,
-                          state.nextRecirculationTime);
+
+            // Throttling de logs: solo imprimir cuando se recalcula
+            if (now - lastMissedWindowLog < 1000) { // Si acabamos de imprimir el anterior
+                Serial.printf("🌊 [RECIRCULACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
+                              state.nextRecirculationTime / 60, state.nextRecirculationTime % 60,
+                              state.nextRecirculationTime);
+            }
 
             return false; // No activar ahora, esperar al próximo ciclo
         }
@@ -734,16 +719,18 @@ bool AutonomousController::isRecirculationScheduleTime() {
 unsigned long AutonomousController::getCurrentMinutes() {
     if (!timeClient->isTimeSet()) {
         // Fallback: usar millis() como aproximación (reinicia cada boot)
-        return (millis() / 1000) / 60;  // millis -> segundos -> minutos
+        // Aplicar módulo 1440 (24h * 60min) para simular reinicio diario
+        unsigned long minutesSinceBoot = (millis() / 1000) / 60;
+        return minutesSinceBoot % 1440;  // Wrap cada 24 horas
     }
-    
+
     // Usar hora real de NTP (Colombia UTC-5)
     int hours = timeClient->getHours();
     int minutes = timeClient->getMinutes();
-    
+
     // Convertir a Colombia (UTC-5)
     hours = (hours - 5 + 24) % 24;
-    
+
     return (hours * 60) + minutes;
 }
 
@@ -836,29 +823,39 @@ void AutonomousController::initializeAutonomousAirSchedule() {
 bool AutonomousController::isAutonomousAirScheduleTime() {
     if (state.autonomousAirActive) return false; // Ya está activa
     if (state.airStoneMode != AIR_MODE_IDLE && state.airStoneMode != AIR_MODE_AUTONOMOUS) return false; // No disponible
-    
+
     unsigned long currentMinutes = getCurrentMinutes();
-    
+
     // CORREGIDO: Verificar si es hora de activar (amplia tolerancia para recuperarse)
     if (currentMinutes >= state.nextAutonomousAirTime) {
         // Si perdimos la ventana (más de 5 min tarde), recalcular próximo horario
         if (currentMinutes > state.nextAutonomousAirTime + 5) {
-            Serial.printf("💨 [AIREACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+            // Throttling de logs: solo imprimir cada 30 segundos
+            static unsigned long lastMissedWindowLog = 0;
+            unsigned long now = millis();
+            if (now - lastMissedWindowLog >= 30000) {
+                Serial.printf("💨 [AIREACIÓN] Ventana perdida - recalculando desde minuto %lu\n", currentMinutes);
+                lastMissedWindowLog = now;
+            }
 
             // Recalcular basándose en múltiplos de 30 desde 00:00
             unsigned long nextCycle = ((currentMinutes / 30) + 1) * 30;
             nextCycle = nextCycle % 1440; // Wrap 24h usando modulo
 
             state.nextAutonomousAirTime = nextCycle;
-            Serial.printf("💨 [AIREACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
-                          nextCycle / 60, nextCycle % 60, nextCycle);
+
+            // Throttling de logs: solo imprimir cuando se recalcula
+            if (now - lastMissedWindowLog < 1000) { // Si acabamos de imprimir el anterior
+                Serial.printf("💨 [AIREACIÓN] Nuevo próximo horario: %02ld:%02ld (minuto %ld)\n",
+                              nextCycle / 60, nextCycle % 60, nextCycle);
+            }
 
             return false; // No activar ahora, esperar al próximo ciclo
         }
-        
+
         return true; // Dentro de ventana válida (0-5 min después)
     }
-    
+
     return false; // Aún no es hora
 }
 
@@ -1529,15 +1526,14 @@ void AutonomousController::heaterSafetyTurnOff(const char* reason) {
     // CRÍTICO: Apagar calefactor INMEDIATAMENTE (hardware + estado lógico)
     setActuatorStateImmediate(state.heater, false, "calefactor_aire");
 
-    // ⚠️ SINCRONIZACIÓN DESHABILITADA (parche temporal - relé defectuoso)
-    // if (state.humidifierMasterActive) {
-    //     state.humidifierMasterActive = false;
-    //     state.humidifier.isOn = false;
-    //     state.windowValidationActive = false;
-    //     ActuatorController::turnHumidifierMasterOff();
-    //     ActuatorController::turnHumidifierRelayOff();
-    //     Serial.println("💧 [SAFETY] Humidificador APAGADO - sincronizado con apagado de seguridad del calefactor");
-    // }
+    if (state.humidifierMasterActive) {
+        state.humidifierMasterActive = false;
+        state.humidifier.isOn = false;
+        state.windowValidationActive = false;
+        ActuatorController::turnHumidifierMasterOff();
+        ActuatorController::turnHumidifierRelayOff();
+        Serial.println("💧 [SAFETY] Humidificador APAGADO - sincronizado con apagado de seguridad del calefactor");
+    }
 
     // Actualizar estados del monitoreo rápido
     state.heaterOffStartTime = currentTime;
@@ -1660,7 +1656,139 @@ void AutonomousController::handleExtraRecirculation() {
         
         Serial.println("✅ [EXTRA-RECIRCULATION] COMPLETADA - bomba apagada");
         Serial.printf("   ⏱️  Duración: %lu segundos\n", elapsedTime / 1000);
-        
+
         logRoutineAction("recirculación-extra", "COMPLETADA");
+    }
+}
+
+// ========================================
+// SECUENCIA DE ENCENDIDO DEL HUMIDIFICADOR (NO BLOQUEANTE)
+// ========================================
+
+bool AutonomousController::canStartHumidifierSequence() {
+    unsigned long now = millis();
+
+    // Validación 1: Nivel de agua OK
+    if (!state.waterLevelOk) {
+        return false;
+    }
+
+    // Validación 2: No está bloqueado por inefectividad
+    if (state.humidifierLocked) {
+        return false;
+    }
+
+    // Validación 3: No hay secuencia en progreso
+    if (state.humidifierSeqState != HUMID_SEQ_IDLE) {
+        return false;
+    }
+
+    // Validación 4: No está ya activo
+    if (state.humidifierMasterActive) {
+        return false;
+    }
+
+    // Validación 5: Tiempo de reposo cumplido
+    if (!canActivateAfterRest(state.humidifier, state.humidityConfig.restTimeMs)) {
+        return false;
+    }
+
+    // Validación 6: Cooldown obligatorio después de tiempo máximo
+    if (state.humidifier.lastRestTime > 0) {
+        unsigned long timeSinceRest = now - state.humidifier.lastRestTime;
+        if (timeSinceRest < HUMID_COOLDOWN_MS) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void AutonomousController::startHumidifierSequence(float humidity, float temperature) {
+    if (!canStartHumidifierSequence()) {
+        Serial.println("⚠️ [HUMID-SEQ] No se puede iniciar secuencia - validaciones fallidas");
+        return;
+    }
+
+    unsigned long now = millis();
+
+    Serial.printf("💨 [HUMID-SEQ] Iniciando secuencia (H=%.1f%%, T=%.1f°C)\n", humidity, temperature);
+
+    // Marcar como activo
+    state.humidifierMasterActive = true;
+    state.humidifierStartTime = now;
+    state.humidifier.isOn = true;
+    state.humidifier.lastChangeTime = now;
+
+    // Iniciar ventana de validación
+    state.windowValidationActive = true;
+    state.humidifierWindowStart = now;
+    state.humidityAtStart = humidity;
+    state.temperatureAtStart = temperature;
+
+    Serial.printf("🔍 [HUMID-SEQ] Ventana validación: HR=%.1f%%, T=%.1f°C, requiere ≥%.1f%% en %d min\n",
+                 state.humidityAtStart, state.temperatureAtStart,
+                 HUMID_MIN_DELTA, HUMID_WINDOW_MINUTES);
+
+    // PASO 1: Activar relé maestro
+    ActuatorController::turnHumidifierMasterOn();
+    Serial.println("💨 [HUMID-SEQ] PASO 1/3: Relé maestro ON");
+
+    // Transición a estado MASTER_ON
+    state.humidifierSeqState = HUMID_SEQ_MASTER_ON;
+    state.humidifierSeqTimestamp = now;
+
+    Serial.printf("⏱️  [HUMID-SEQ] Esperando %d ms antes del pulso...\n", HUMID_MASTER_DELAY_MS);
+}
+
+void AutonomousController::updateHumidifierSequence() {
+    // Solo procesar si hay una secuencia activa
+    if (state.humidifierSeqState == HUMID_SEQ_IDLE) {
+        return;
+    }
+
+    unsigned long now = millis();
+    unsigned long elapsed = now - state.humidifierSeqTimestamp;
+
+    switch (state.humidifierSeqState) {
+        case HUMID_SEQ_MASTER_ON:
+            // Esperar 2 segundos después de activar maestro
+            if (elapsed >= HUMID_MASTER_DELAY_MS) {
+                // PASO 2: Activar pulso de activación
+                ActuatorController::turnHumidifierRelayOn();
+                Serial.println("💨 [HUMID-SEQ] PASO 2/3: Pulso activación ON");
+
+                state.humidifierSeqState = HUMID_SEQ_PULSE_ON;
+                state.humidifierSeqTimestamp = now;
+
+                Serial.printf("⏱️  [HUMID-SEQ] Pulso durante %d ms...\n", HUMID_PULSE_DURATION_MS);
+            }
+            break;
+
+        case HUMID_SEQ_PULSE_ON:
+            // Esperar 1 segundo del pulso
+            if (elapsed >= HUMID_PULSE_DURATION_MS) {
+                // PASO 3: Desactivar pulso
+                ActuatorController::turnHumidifierRelayOff();
+                Serial.println("💨 [HUMID-SEQ] PASO 3/3: Pulso activación OFF");
+
+                state.humidifierSeqState = HUMID_SEQ_COMPLETE;
+
+                Serial.println("✅ [HUMID-SEQ] Secuencia COMPLETADA - humidificador activado");
+                logControlDecision("Humedad", state.humidityAtStart,
+                                  "humidificador activado con secuencia no bloqueante");
+            }
+            break;
+
+        case HUMID_SEQ_COMPLETE:
+            // Retornar a IDLE
+            state.humidifierSeqState = HUMID_SEQ_IDLE;
+            break;
+
+        default:
+            // Estado inválido - resetear
+            Serial.println("⚠️ [HUMID-SEQ] Estado inválido - reseteando a IDLE");
+            state.humidifierSeqState = HUMID_SEQ_IDLE;
+            break;
     }
 }
