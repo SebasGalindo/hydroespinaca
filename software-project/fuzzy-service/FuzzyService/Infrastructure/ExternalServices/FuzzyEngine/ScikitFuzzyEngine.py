@@ -88,8 +88,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             # Procesar cada variable de entrada
             for variable in input_variables:
                 try:
-                    # Obtener el valor crisp del sensor
-                    sensor_value = sensor_readings[variable.reference_id]
+                    # Obtener el valor crisp del sensor usando reference_code
+                    sensor_value = sensor_readings[variable.reference_code]
                     
                     # Paso 3.2: Cargar términos con sus funciones de membresía
                     variable_terms = self._get_variable_terms(variable, terms)
@@ -109,12 +109,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 except Exception as e:
                     self.logger.error(f"Error procesando variable {variable.name}: {e}")
                     continue
-            
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            self.logger.info(
-                f"Fuzzificación completada: {len(results)} variables procesadas en {processing_time:.2f}ms"
-            )
-            
+
             return results
             
         except Exception as e:
@@ -122,39 +117,32 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             raise ValidationError(f"Error en proceso de fuzzificación: {str(e)}")
     
     def _identify_input_variables(
-        self, 
-        variables: List[FuzzyVariable], 
+        self,
+        variables: List[FuzzyVariable],
         sensor_readings: Dict[str, float]
     ) -> List[FuzzyVariable]:
-        """Paso 3.1: Identifica variables de entrada vinculadas a sensor IDs."""
+        """Paso 3.1: Identifica variables de entrada vinculadas a sensor codes."""
         input_variables = []
-        sensor_ids = set(sensor_readings.keys())
-        
+        sensor_codes = set(sensor_readings.keys())
+
         for variable in variables:
             # Solo variables de entrada
             if variable.variable_type != "input":
                 continue
 
-            # Que tengan reference_id vinculado a un sensor
-            if variable.reference_id and variable.reference_id in sensor_ids:
+            # Que tengan reference_code vinculado a un sensor
+            if variable.reference_code and variable.reference_code in sensor_codes:
                 input_variables.append(variable)
-                self.logger.debug(
-                    f"Variable de entrada identificada: {variable.name} -> sensor {variable.reference_id}"
-                )
-        
+
         return input_variables
     
     def _get_variable_terms(self, variable: FuzzyVariable, all_terms: List[FuzzyTerm]) -> List[FuzzyTerm]:
         """Paso 3.2: Obtiene los términos asociados a una variable."""
         variable_terms = [
-            term for term in all_terms 
+            term for term in all_terms
             if term.variable_id == variable.id
         ]
-        
-        self.logger.debug(
-            f"Términos encontrados para {variable.name}: {[t.label for t in variable_terms]}"
-        )
-        
+
         return variable_terms
     
     async def _calculate_membership_degrees(
@@ -169,7 +157,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         try:
             result = FuzzificationResult(
                 variable_name=variable.name,
-                sensor_id=variable.reference_id,
+                sensor_id=variable.reference_code,  # Usar reference_code (código estable del sensor)
                 crisp_value=crisp_value,
                 variable_id=str(variable.id)
             )
@@ -186,27 +174,18 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                     membership_degree = self._calculate_term_membership(
                         term, crisp_value, universe
                     )
-                    
+
                     if membership_degree > 0.0:  # Solo términos activos
                         result.add_term_activation(term.label, membership_degree)
-                        self.logger.debug(
-                            f"Término activo: {term.label} = {membership_degree:.3f} "
-                            f"para valor {crisp_value}"
-                        )
-                        
+
                 except Exception as e:
                     self.logger.error(f"Error calculando membresía para término {term.label}: {e}")
                     continue
-            
+
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
             result.processing_time_ms = processing_time
-            
+
             if result.activated_terms:
-                dominant_term, max_degree = result.get_dominant_term()
-                self.logger.info(
-                    f"Variable {variable.name}: valor {crisp_value} -> "
-                    f"término dominante '{dominant_term}' ({max_degree:.3f})"
-                )
                 return result
             else:
                 self.logger.warning(
@@ -340,12 +319,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result),
                 "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000
             }
-            
-            self.logger.info(
-                f"Evaluación fuzzy completada: {len(fuzzification_results)} variables fuzzificadas, "
-                f"{rule_evaluation_result.rules_activated} reglas activadas"
-            )
-            
+
             return response
             
         except Exception as e:
@@ -409,7 +383,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             "Calefactor Aire": "Duración de Calefacción de Aire",
             "Calefactor Agua": "Duración de Calefacción de Agua",
             "Bomba Riego": "Duración de Riego",
-            "Bomba Aireacion": "Duración de Aireación",
+            "Bomba Aireación": "Duración de Aireación",
+            "Humidificador": "Duración de Humidificación",
             "Luz": "Duración de Luz"
         }
 
@@ -478,6 +453,10 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                          # Construir output_value con el formato esperado
                          command = routine.get("command", {})
                          variable_name = routine.get("variable_name", "")
+
+                         # Skip variables de duración (se manejarán por actuator_code)
+                         if "Duración" in variable_name or "DURACION" in variable_name.upper():
+                             continue
 
                          output_dict = {
                              "actuator_id": variable_id,
@@ -709,15 +688,15 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             try:
                 if power_term.variable_id:
                     variable = await variable_repository.get_by_id(power_term.variable_id)
-                    if variable and variable.reference_id:
-                        # reference_id es el ObjectId del control_output en actuator-service
-                        output_variable_id = variable.reference_id
+                    if variable and variable.reference_code:
+                        # reference_code es el código estable del control_output en actuator-service
+                        output_variable_id = variable.reference_code
                         self.logger.debug(
                             f"Output variable encontrada: {variable.name} → control_output: {output_variable_id}"
                         )
                     else:
                         self.logger.error(
-                            f"Variable {power_term.variable_id} no encontrada o sin reference_id"
+                            f"Variable {power_term.variable_id} no encontrada o sin reference_code"
                         )
                         return None
                 else:
@@ -1017,29 +996,17 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             # Crear índice de reglas por ID
             rules_by_id = {str(rule.id): rule for rule in fuzzy_rules}
 
-            self.logger.info(
-                f"defuzzify_from_consequents: "
-                f"{len(fuzzy_rules)} reglas totales, "
-                f"{len(rule_evaluation_result.get_activated_rules())} reglas activadas, "
-                f"{len(output_variables)} variables de salida"
-            )
-
             # Agrupar contribuciones por variable de salida
             contributions_by_variable = {}  # variable_id -> List[(term, firing_strength, aggregation_method)]
 
             for rule_result in rule_evaluation_result.get_activated_rules():
-                self.logger.debug(f"Procesando regla activada: {rule_result.rule_id}, firing={rule_result.firing_strength}")
-
                 if rule_result.firing_strength <= 0:
-                    self.logger.debug(f"Regla {rule_result.rule_id} tiene firing_strength <= 0, saltando")
                     continue
 
                 rule = rules_by_id.get(str(rule_result.rule_id))
                 if not rule:
                     self.logger.warning(f"Regla {rule_result.rule_id} no encontrada en rules_by_id")
                     continue
-
-                self.logger.debug(f"Regla {rule.name}: has_consequents={rule.has_consequents()}, len={len(rule.consequents)}")
 
                 if not rule.has_consequents():
                     self.logger.warning(
@@ -1169,23 +1136,14 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 threshold = variable.defuzzification_threshold
                 if crisp_value >= threshold:
                     command = {"power": "ON"}
-                    self.logger.debug(
-                        f"DIGITAL {variable.name}: {crisp_value:.2f} >= {threshold} → ON"
-                    )
                 else:
                     command = {"power": "OFF"}
-                    self.logger.debug(
-                        f"DIGITAL {variable.name}: {crisp_value:.2f} < {threshold} → OFF"
-                    )
                 return command
 
             elif variable.actuator_type == "PWM":
                 # Valor continuo (clamped 0-100)
                 duty_cycle = max(0.0, min(100.0, crisp_value))
                 command = {"dutyCycle": round(duty_cycle, 2)}
-                self.logger.debug(
-                    f"PWM {variable.name}: {crisp_value:.2f} → dutyCycle {duty_cycle:.2f}"
-                )
                 return command
 
             else:
@@ -1229,11 +1187,9 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             ValidationError: Si hay problemas en cualquier paso
         """
         start_time = datetime.now()
-        
+
         try:
             # Paso 1: Fuzzificación de entradas
-            self.logger.info(f"Iniciando evaluación completa del sistema {system.name}")
-            
             fuzzification_results = await self.fuzzify_sensor_readings(
                 variables=variables,
                 terms=terms,
@@ -1276,13 +1232,26 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 crisp_value = defuzzified_values.get(variable_id)
 
                 if crisp_value is not None:
-                    command = await self.apply_actuator_logic(variable, crisp_value)
-                    routines_payload.append({
-                        "variable_id": variable_id,
-                        "variable_name": variable.name,
-                        "crisp_value": crisp_value,
-                        "command": command
-                    })
+                    # Las variables de duración no necesitan command, solo el crisp_value
+                    is_duration = "DURACION" in (variable.reference_code or "").upper() or "Duración" in variable.name
+
+                    if is_duration:
+                        # Variable de duración: solo guardar el valor en segundos
+                        routines_payload.append({
+                            "variable_id": variable_id,
+                            "variable_name": variable.name,
+                            "crisp_value": crisp_value,
+                            "command": {}  # Sin command para duraciones
+                        })
+                    else:
+                        # Variable de control: generar command (power/dutyCycle)
+                        command = await self.apply_actuator_logic(variable, crisp_value)
+                        routines_payload.append({
+                            "variable_id": variable_id,
+                            "variable_name": variable.name,
+                            "crisp_value": crisp_value,
+                            "command": command
+                        })
             
             # Construir respuesta completa
             total_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -1298,13 +1267,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 "total_processing_time_ms": total_time,
                 "status": "completed"
             }
-            
-            self.logger.info(
-                f"Evaluación completa finalizada: {len(fuzzification_results)} variables fuzzificadas, "
-                f"{rule_evaluation_result.rules_activated} reglas activadas, "
-                f"{len(routines_payload)} rutinas defuzzificadas en {total_time:.2f}ms"
-            )
-            
+
             return result
             
         except Exception as e:

@@ -76,11 +76,16 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             "description": v.description,
             # Persist lower-case strings for compatibility with entity
             "variable_type": v.variable_type.value if isinstance(v.variable_type, FuzzyVariableType) else str(v.variable_type),
-            "reference_id": v.reference_id,
             "terms": [str(t) for t in v.terms],
             "created_at": created_at,
             "updated_at": updated_at,
         }
+        # Incluir reference_code (código estable)
+        if v.reference_code is not None:
+            doc["reference_code"] = v.reference_code
+        # Incluir actuator_code (agrupación de variables de salida)
+        if v.actuator_code is not None:
+            doc["actuator_code"] = v.actuator_code
         # Incluir actuator_type solo si está definido
         if v.actuator_type is not None:
             doc["actuator_type"] = v.actuator_type
@@ -124,7 +129,8 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             defuzzification_threshold=doc.get("defuzzification_threshold", 50.0),
             universe_min=doc.get("universe_min"),
             universe_max=doc.get("universe_max"),
-            reference_id=doc.get("reference_id", ""),
+            reference_code=doc.get("reference_code"),  # Código estable
+            actuator_code=doc.get("actuator_code"),    # Agrupación de variables de salida
             terms=[FuzzyTermId(str(t)) for t in (doc.get("terms") or [])],
             created_at=doc.get("created_at"),
             updated_at=doc.get("updated_at"),
@@ -201,11 +207,22 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
                 "name": fuzzy_variable.name,
                 "description": fuzzy_variable.description,
                 "variable_type": vtype_value,
-                "reference_id": fuzzy_variable.reference_id,
                 "terms": [str(t) for t in fuzzy_variable.terms],
                 "updated_at": datetime.now(timezone.utc),
             }
         }
+        # Incluir campos opcionales si están presentes
+        if fuzzy_variable.reference_code is not None:
+            update_doc["$set"]["reference_code"] = fuzzy_variable.reference_code
+        if fuzzy_variable.actuator_code is not None:
+            update_doc["$set"]["actuator_code"] = fuzzy_variable.actuator_code
+        if fuzzy_variable.actuator_type is not None:
+            update_doc["$set"]["actuator_type"] = fuzzy_variable.actuator_type
+        if fuzzy_variable.universe_min is not None:
+            update_doc["$set"]["universe_min"] = fuzzy_variable.universe_min
+        if fuzzy_variable.universe_max is not None:
+            update_doc["$set"]["universe_max"] = fuzzy_variable.universe_max
+        update_doc["$set"]["defuzzification_threshold"] = fuzzy_variable.defuzzification_threshold
         res = await self._coll.update_one({"_id": key}, update_doc)
         if res.matched_count == 0:
             _logger.warning("FuzzyVariable not found for update: id=%s", str(fuzzy_variable.id))

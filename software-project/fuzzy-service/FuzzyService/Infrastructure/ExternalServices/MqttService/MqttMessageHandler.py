@@ -101,7 +101,7 @@ class MqttMessageHandler:
         """Transforma las lecturas del payload en objetos SensorReading.
 
         Args:
-            readings: Lista de objetos con variableId y value, o diccionario sensor_id -> valor
+            readings: Lista de objetos con variableCode y value, o diccionario sensor_id -> valor
             timestamp: Timestamp del batch
             esp32_id: ID del ESP32 que envió las lecturas
             received_at: Timestamp de cuando se recibió el mensaje
@@ -111,10 +111,10 @@ class MqttMessageHandler:
         """
         sensor_readings = []
         
-        # Formato lista ESP32: [{'variableId': '...', 'value': 19}, ...]
+        # Formato lista ESP32: [{'variableCode': '...', 'value': 19}, ...]
         if isinstance(readings, list):
             for reading_obj in readings:
-                sensor_id = reading_obj.get('variableId')
+                sensor_id = reading_obj.get('variableCode')
                 value = reading_obj.get('value')
                 self._process_single_reading(sensor_readings, sensor_id, value, timestamp, esp32_id, received_at)
         else:

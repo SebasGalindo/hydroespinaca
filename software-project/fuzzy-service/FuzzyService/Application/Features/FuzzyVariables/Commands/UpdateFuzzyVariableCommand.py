@@ -17,7 +17,12 @@ class UpdateFuzzyVariableCommand(BaseModel, Command):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     description: Optional[str] = Field(default=None, max_length=500)
     variable_type: Optional[str] = Field(default=None, description="'input' o 'output'")
-    reference_id: Optional[str] = Field(default=None, min_length=1, description="ID de variable en sensor-service (input) o control_output en actuator-service (output)")
+    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable de variable en sensor-service (input) o control_output en actuator-service (output)")
+    actuator_code: Optional[str] = Field(default=None, min_length=1, description="Código del actuador para agrupar variables de salida")
+    actuator_type: Optional[str] = Field(default=None, description="Tipo de actuador: 'PWM' o 'DIGITAL'")
+    defuzzification_threshold: Optional[float] = Field(default=None, ge=0, le=100, description="Umbral para actuadores DIGITAL")
+    universe_min: Optional[float] = Field(default=None, description="Valor mínimo del universo de discurso")
+    universe_max: Optional[float] = Field(default=None, description="Valor máximo del universo de discurso")
     terms: Optional[List[str]] = Field(default=None, description="IDs de términos asociados; si se pasa, reemplaza el listado")
 
     # Resultado

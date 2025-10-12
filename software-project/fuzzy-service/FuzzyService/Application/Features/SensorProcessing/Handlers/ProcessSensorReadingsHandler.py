@@ -61,19 +61,14 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         if not fuzzy_system:
             raise EntityNotFoundError("No se encontró un sistema fuzzy activo")
 
-        _logger.info(f"Sistema fuzzy encontrado: {fuzzy_system.name} (ID: {fuzzy_system.id})")
-
         # 2. Cargar variables de entrada del sistema
         input_variables = await self._load_input_variables(fuzzy_system)
-        _logger.info(f"Variables de entrada cargadas: {len(input_variables)}")
 
         # 3. Cargar variables de salida del sistema
         output_variables = await self._load_output_variables(fuzzy_system)
-        _logger.info(f"Variables de salida cargadas: {len(output_variables)}")
 
         # 4. Cargar reglas del sistema
         rules = await self._load_rules(fuzzy_system)
-        _logger.info(f"Reglas cargadas: {len(rules)}")
 
         # 5. Mapear lecturas a variables de entrada usando reference_id
         input_data = await self._map_readings_to_variables(request.readings, input_variables)
@@ -81,8 +76,6 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         if not input_data:
             _logger.warning("No se encontraron variables de entrada que coincidan con las lecturas")
             return
-
-        _logger.info(f"Variables de entrada mapeadas: {len(input_data)}")
 
         # 6. Ejecutar evaluación fuzzy
         fuzzy_evaluation = await self._execute_fuzzy_evaluation(
@@ -118,20 +111,9 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             repo: IFuzzySystemRepository = di[IFuzzySystemRepository]
             systems = await repo.get_all()  # type: ignore[attr-defined]
 
-            _logger.info(f"📊 Total sistemas encontrados: {len(systems)}")
-
             # Buscar el primer sistema activo
             for system in systems:
-                _logger.info(
-                    f"🔍 Sistema: {system.name}, "
-                    f"status={system.status}, "
-                    f"type(status)={type(system.status)}, "
-                    f"status.value={system.status.value if hasattr(system.status, 'value') else 'N/A'}, "
-                    f"comparación con ACTIVE: {system.status == FuzzySystemStatus.ACTIVE}"
-                )
-
                 if system.status == FuzzySystemStatus.ACTIVE:
-                    _logger.info(f"✅ Sistema activo encontrado: {system.name} (ID: {system.id})")
                     return system
 
             _logger.warning("⚠️ No se encontró ningún sistema con status=ACTIVE")
@@ -212,7 +194,7 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         readings: List[SensorReading],
         variables: List[FuzzyVariable]
     ) -> Dict[str, float]:
-        """Mapea lecturas de sensores a variables de entrada usando reference_id.
+        """Mapea lecturas de sensores a variables de entrada usando reference_code.
 
         Args:
             readings: Lecturas de sensores
@@ -221,27 +203,27 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
         Returns:
             Diccionario {variable_id: valor}
         """
-        # Crear un índice de variables por reference_id
-        variables_by_ref_id = {
-            str(var.reference_id): var
+        # Crear un índice de variables por reference_code (código estable del sensor)
+        variables_by_ref_code = {
+            str(var.reference_code): var
             for var in variables
-            if var.reference_id
+            if var.reference_code
         }
 
         input_data = {}
 
         for reading in readings:
-            sensor_id = str(reading.sensor_id)
+            sensor_code = str(reading.sensor_id)  # sensor_id contiene el variableCode (ej: "T_AMB")
 
-            if sensor_id in variables_by_ref_id:
-                variable = variables_by_ref_id[sensor_id]
+            if sensor_code in variables_by_ref_code:
+                variable = variables_by_ref_code[sensor_code]
                 input_data[str(variable.id)] = reading.value
                 _logger.debug(
-                    f"Mapeado: {variable.name} (ref={sensor_id}) = {reading.value}"
+                    f"Mapeado: {variable.name} (reference_code={sensor_code}) = {reading.value}"
                 )
             else:
                 _logger.debug(
-                    f"Lectura ignorada: sensor_id={sensor_id} no coincide con ninguna variable"
+                    f"Lectura ignorada: sensor_code={sensor_code} no coincide con ninguna variable (disponibles: {list(variables_by_ref_code.keys())})"
                 )
 
         return input_data
@@ -274,15 +256,14 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
 
             # Cargar variables de entrada completas
             input_variables = []
-            sensor_readings_by_ref_id = {}  # {reference_id: valor}
+            sensor_readings_by_ref_code = {}  # {reference_code: valor}
 
             for var_id, value in input_data.items():
                 var = await input_var_repo.get_by_id(FuzzyVariableId(var_id))  # type: ignore[attr-defined]
                 if var:
                     input_variables.append(var)
-                    # Mapear a reference_id para el fuzzy engine
-                    sensor_readings_by_ref_id[str(var.reference_id)] = value
-                    _logger.debug(f"Mapeado para evaluación: {var.name} (fuzzy_id={var_id}, ref_id={var.reference_id}) = {value}")
+                    # Mapear a reference_code para el fuzzy engine
+                    sensor_readings_by_ref_code[str(var.reference_code)] = value
 
             # Combinar todas las variables
             all_variables = input_variables + output_variables
@@ -295,31 +276,18 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     all_terms.extend(terms)
 
             # Ejecutar evaluación completa
-            _logger.info("Ejecutando evaluación fuzzy completa...")
             result = await fuzzy_engine.complete_fuzzy_evaluation(
                 system=fuzzy_system,
                 variables=all_variables,
                 terms=all_terms,
                 rules=rules,
-                sensor_readings=sensor_readings_by_ref_id  # Usar reference_ids, no fuzzy variable IDs
+                sensor_readings=sensor_readings_by_ref_code  # Usar reference_codes, no fuzzy variable IDs
             )
 
             # Extraer resultados de la evaluación
             rule_evaluation = result.get("rule_evaluation", {})
             activated_rules_data = rule_evaluation.get("activated_rules", [])
-
-            _logger.debug(f"📊 rule_evaluation keys: {rule_evaluation.keys()}")
-            _logger.debug(f"📊 activated_rules_data count: {len(activated_rules_data)}")
-
-            # Log detallado de cada regla activada
-            for i, rd in enumerate(activated_rules_data):
-                _logger.debug(
-                    f"  Regla {i+1}: rule_id={rd.get('rule_id')}, "
-                    f"firing_strength={rd.get('firing_strength')}, "
-                    f"outputs={len(rd.get('output_values', []))}"
-                )
-                for j, ov in enumerate(rd.get('output_values', [])):
-                    _logger.debug(f"    Output {j+1}: {ov}")
+            routines_payload = result.get("routines_payload", [])
 
             # Convertir a formato de dominio (RuleActivation)
             activated_rules = []
@@ -350,13 +318,13 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
 
             # Crear input_values para la evaluación
             input_values = [
-                InputValue(sensor_id=ref_id, value=value)
-                for ref_id, value in sensor_readings_by_ref_id.items()
+                InputValue(sensor_id=ref_code, value=value)
+                for ref_code, value in sensor_readings_by_ref_code.items()
             ]
 
             # Unificar output_values (emparejar Control+Duración) ANTES de guardar
             unified_activated_rules = self._unify_output_values_in_rules(
-                activated_rules, output_variables
+                activated_rules, output_variables, routines_payload
             )
 
             fuzzy_evaluation = FuzzyEvaluation(
@@ -364,11 +332,6 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                 timestamp=datetime.now(timezone.utc),
                 inputs=input_values,
                 activated_rules=unified_activated_rules
-            )
-
-            _logger.info(
-                f"Evaluación completada. Reglas activadas: {len(unified_activated_rules)}, "
-                f"Total outputs unificados: {sum(len(r.output_values) for r in unified_activated_rules)}"
             )
 
             return fuzzy_evaluation
@@ -395,13 +358,15 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
     def _unify_output_values_in_rules(
         self,
         activated_rules: List[RuleActivation],
-        output_variables: List[FuzzyVariable]
+        output_variables: List[FuzzyVariable],
+        routines_payload: List[Dict[str, Any]]
     ) -> List[RuleActivation]:
         """Unifica output_values emparejando Control+Duración en cada regla.
 
         Args:
             activated_rules: Reglas activadas con output_values separados
             output_variables: Lista de variables de salida
+            routines_payload: Variables defuzzificadas con crisp_value
 
         Returns:
             Lista de RuleActivation con output_values unificados
@@ -413,18 +378,19 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             # Emparejar Control + Duración para esta regla
             pairs = self._pair_control_duration_variables(
                 rule_activation.output_values,
-                output_vars_dict
+                output_vars_dict,
+                routines_payload
             )
 
             # Crear OutputValues unificados
             unified_outputs = []
             for pair in pairs:
                 control_val = pair["control_val"]
-                duration_val = pair["duration_val"]
+                duration_seconds = pair["duration_seconds"]
 
                 # Determinar duración final
-                if duration_val and duration_val.duration > 0:
-                    final_duration = float(duration_val.duration)
+                if duration_seconds is not None and duration_seconds > 0:
+                    final_duration = float(duration_seconds)
                 else:
                     # Fallback a duración del control
                     final_duration = float(control_val.duration) if control_val.duration > 0 else 0.5
@@ -457,92 +423,87 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
     def _pair_control_duration_variables(
         self,
         output_values: List[OutputValue],
-        output_variables_dict: Dict[str, FuzzyVariable]
+        output_variables_dict: Dict[str, FuzzyVariable],
+        routines_payload: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Empareja variables de Control con Duración.
+        """Empareja variables de Control con Duración usando actuator_code.
 
         Args:
-            output_values: Valores defuzzificados
+            output_values: Valores defuzzificados de control
             output_variables_dict: Dict de variables por ID
+            routines_payload: Variables defuzzificadas con crisp_value (incluye duraciones)
 
         Returns:
             Lista de pares {control_id, control_val, duration_val}
         """
         values_by_id = {str(ov.actuator_id): ov for ov in output_values}
+
+        # Crear índice de duraciones por variable_id desde routines_payload
+        durations_by_id = {}
+        for routine in routines_payload:
+            var_id = routine.get("variable_id")
+            var_name = routine.get("variable_name", "")
+            if "Duración" in var_name or "DURACION" in var_name.upper():
+                durations_by_id[var_id] = routine.get("crisp_value", 0.5)
+
         pairs = []
-        processed_duration_ids = set()
 
-        _logger.debug(f"🔍 Emparejando variables. values_by_id keys: {list(values_by_id.keys())}")
-        _logger.debug(f"🔍 Variables disponibles: {[(vid, var.name) for vid, var in output_variables_dict.items()]}")
+        # Debug: mostrar output_values recibidos
+        _logger.info(f"🔍 Output values recibidos del motor fuzzy: {len(output_values)}")
+        for ov in output_values:
+            var = output_variables_dict.get(str(ov.actuator_id))
+            var_name = var.name if var else "UNKNOWN"
+            _logger.info(f"  - {var_name} (ID: {ov.actuator_id}): power={ov.power}, duty={ov.dutyCycle}, duration={ov.duration}")
 
-        for var_id, output_val in values_by_id.items():
-            var = output_variables_dict.get(var_id)
-            if not var:
-                _logger.debug(f"⚠️ Variable no encontrada para ID: {var_id}")
-                continue
+        # Agrupar variables por actuator_code
+        variables_by_actuator = {}
+        for var_id, var in output_variables_dict.items():
+            if var.actuator_code:  # Usar actuator_code para agrupar
+                if var.actuator_code not in variables_by_actuator:
+                    variables_by_actuator[var.actuator_code] = {}
 
-            var_name = str(var.name)  # Asegurar que sea string
+                # Identificar tipo de variable
+                is_control = var.actuator_type in ["PWM", "DIGITAL"] and ("Control" in var.name or "Potencia" in var.name) and "Duración" not in var.name
+                is_duration = "Duración" in var.name or "Duration" in var.name
 
-            _logger.debug(f"📝 Procesando variable: {var_name} (ID: {var_id})")
-
-            # Detectar variable de Control o Potencia
-            is_control = var_name.startswith("Control ")
-            is_potencia = "Potencia" in var_name
-
-            if is_control or is_potencia:
-                # Extraer nombre del actuador
                 if is_control:
-                    actuator_name = var_name.replace("Control ", "")
+                    variables_by_actuator[var.actuator_code]["control"] = (var_id, var)
+                elif is_duration:
+                    variables_by_actuator[var.actuator_code]["duration"] = (var_id, var)
+
+        _logger.info(f"📊 Variables agrupadas por actuator_code: {len(variables_by_actuator)} actuadores")
+
+        # Emparejar por actuator_code
+        for actuator_code, group_vars in variables_by_actuator.items():
+            control_info = group_vars.get("control")
+            duration_info = group_vars.get("duration")
+
+            if control_info:
+                control_id, control_var = control_info
+                control_val = values_by_id.get(control_id)
+
+                duration_val = None
+                duration_seconds = None
+                if duration_info:
+                    duration_id, duration_var = duration_info
+                    duration_crisp_value = durations_by_id.get(duration_id)
+
+                    if duration_crisp_value is not None:
+                        # Guardar el valor de duración en segundos (no como OutputValue)
+                        duration_seconds = float(duration_crisp_value)
+                        _logger.info(f"  ✅ {actuator_code}: Control '{control_var.name}' + Duración '{duration_var.name}' ({duration_seconds:.1f}s)")
+                    else:
+                        _logger.warning(f"  ⚠️  {actuator_code}: Control encontrado pero Duración sin valor defuzzificado")
                 else:
-                    actuator_name = var_name.replace("Potencia del ", "").replace("Potencia de ", "").replace("Potencia ", "")
+                    _logger.warning(f"  ⚠️  {actuator_code}: Control encontrado pero NO hay variable Duración definida")
 
-                # Mapeo de nombres de actuadores a sus nombres de duración
-                # Esto maneja las inconsistencias de nomenclatura
-                duration_mappings = {
-                    "Ventilador": "Duración de Ventilación",
-                    "Calefactor Aire": "Duración de Calefacción de Aire",
-                    "Calefactor Agua": "Duración de Calefacción de Agua",
-                    "Bomba Riego": "Duración de Riego",
-                    "Bomba Aireacion": "Duración de Aireación",
-                    "Luz": "Duración de Luz"
-                }
+                if control_val:
+                    pairs.append({
+                        "control_id": control_id,
+                        "control_val": control_val,
+                        "duration_seconds": duration_seconds  # Usar valor directo, no OutputValue
+                    })
 
-                # Intentar primero con el mapeo específico
-                duration_var_name = duration_mappings.get(actuator_name)
-
-                # Si no está en el mapeo, usar el formato genérico
-                if not duration_var_name:
-                    duration_var_name = f"Duración de {actuator_name}"
-
-                _logger.debug(f"🔍 Buscando duración: '{duration_var_name}' para actuador '{actuator_name}'")
-
-                duration_var_id = None
-
-                for dvid, dvar in output_variables_dict.items():
-                    dvar_name = str(dvar.name)
-                    _logger.debug(f"  Comparando con: '{dvar_name}'")
-                    if dvar_name == duration_var_name:
-                        duration_var_id = dvid
-                        _logger.debug(f"✅ Duración encontrada: {duration_var_name} (ID: {dvid})")
-                        break
-
-                duration_val = values_by_id.get(duration_var_id) if duration_var_id else None
-
-                if not duration_val:
-                    _logger.warning(f"⚠️ No se encontró valor de duración para '{duration_var_name}' (actuador: '{actuator_name}')")
-
-                pairs.append({
-                    "control_id": var_id,
-                    "control_val": output_val,
-                    "duration_val": duration_val
-                })
-
-                if duration_var_id:
-                    processed_duration_ids.add(duration_var_id)
-            else:
-                _logger.debug(f"⏭️ Variable '{var_name}' no es Control ni Potencia, saltando")
-
-        _logger.debug(f"✅ Emparejamiento completado. Pares generados: {len(pairs)}")
         return pairs
 
     async def _send_to_actuator_service(
@@ -591,9 +552,9 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     elif control_val.dutyCycle is not None:
                         is_on = (control_val.dutyCycle > 0.0)
 
-                    # Construir step con reference_id (apunta al control_output en actuator-service)
+                    # Construir step con reference_code (código del control_output en actuator-service)
                     step_dict = {
-                        "outputVariable": str(control_var.reference_id)
+                        "outputVariable": str(control_var.reference_code)
                     }
 
                     # Aplicar reglas según estado
@@ -614,13 +575,6 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     elif control_val.dutyCycle is not None:
                         step_dict["dutyCycle"] = float(control_val.dutyCycle)
 
-                    _logger.debug(
-                        f"Step creado: {control_var.name} "
-                        f"(fuzzy_id={pair['control_id']}, ref_id={control_var.reference_id}), "
-                        f"power={step_dict.get('power')}, duty={step_dict.get('dutyCycle')}, "
-                        f"duration={step_dict['duration']}"
-                    )
-
                     steps.append(StepPayload(**step_dict))
 
                 if steps:
@@ -630,6 +584,7 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     ))
 
             if routines:
+                # Log payload para debugging (temporal)
                 routines_dict = [
                     {
                         "routineId": r.routineId,
@@ -646,13 +601,11 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     for r in routines
                 ]
                 _logger.info(
-                    f"Payload a enviar (emparejado y filtrado):\n{json.dumps(routines_dict, indent=2)}"
+                    f"📤 Payload enviado al actuator-service:\n{json.dumps(routines_dict, indent=2)}"
                 )
 
                 mediator: Medyator = di[Medyator]
                 await mediator.send(SendRoutinesToActuatorCommand(routines=routines))
-
-                _logger.info(f"Payload enviado. Rutinas: {len(routines)}")
             else:
                 _logger.warning("No se generaron rutinas tras filtrado OFF")
 

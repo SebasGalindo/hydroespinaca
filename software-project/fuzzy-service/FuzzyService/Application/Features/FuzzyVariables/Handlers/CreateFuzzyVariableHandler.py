@@ -15,13 +15,11 @@ from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, Invalid
 
 
 class CreateFuzzyVariableHandler(CommandHandler[CreateFuzzyVariableCommand]):
-    """Handler para crear una nueva variable difusa con validación de reference_id."""
+    """Handler para crear una nueva variable difusa."""
 
     async def __call__(self, request: CreateFuzzyVariableCommand) -> None:
         variable_repo: IFuzzyVariableRepository = di[IFuzzyVariableRepository]
         system_repo: IFuzzySystemRepository = di[IFuzzySystemRepository]
-        sensor_service: ISensorService = di[ISensorService]
-        actuator_service: IActuatorService = di[IActuatorService]
 
         # Validar que el sistema fuzzy existe
         system_id = FuzzySystemId(request.system_id)
@@ -29,32 +27,17 @@ class CreateFuzzyVariableHandler(CommandHandler[CreateFuzzyVariableCommand]):
         if not system:
             raise EntityNotFoundError(f"Sistema fuzzy con ID {request.system_id} no encontrado")
 
-        # Validar reference_id según el tipo de variable
-        if request.variable_type == "input":
-            # Validar contra sensor-service mediante GET /api/variables/{id}
-            exists = await sensor_service.validate_variable_exists(request.reference_id)
-            if not exists:
-                raise InvalidReferenceException(
-                    reference_id=request.reference_id,
-                    service="sensor-service /api/variables/{id}",
-                    variable_type=request.variable_type
-                )
-        elif request.variable_type == "output":
-            # Validar contra actuator-service mediante GET /api/outputs/{id}
-            exists = await actuator_service.validate_output_exists(request.reference_id)
-            if not exists:
-                raise InvalidReferenceException(
-                    reference_id=request.reference_id,
-                    service="actuator-service /api/outputs/{id}",
-                    variable_type=request.variable_type
-                )
-
         # Crear la variable
         entity = FuzzyVariable(
             name=request.name,
             description=request.description or "",
             variable_type=request.variable_type,
-            reference_id=request.reference_id,
+            reference_code=request.reference_code,
+            actuator_code=request.actuator_code,
+            actuator_type=request.actuator_type,
+            defuzzification_threshold=request.defuzzification_threshold,
+            universe_min=request.universe_min,
+            universe_max=request.universe_max,
             terms=[FuzzyTermId(t) for t in (request.terms or [])],
         )
 

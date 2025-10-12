@@ -10,20 +10,33 @@ from ..Common import DomainBaseModel
 class FuzzyVariable(DomainBaseModel):
     """Entidad del dominio que representa una variable difusa.
 
-    Estructura actualizada con reference_id:
+    Estructura actualizada con reference_code (identificador estable):
     {
       "_id": { "$oid": "var_temp_air" },
       "name": "Temperatura del aire",
       "description": "Variable que representa la temperatura del aire en el invernadero",
       "variable_type": "input|output",
-      "reference_id": { "$oid": "sensor_001" } o { "$oid": "control_output_001" },
+      "reference_code": "T_AMB",  # Código estable del sensor (sensor-service)
+      "reference_id": { "$oid": "..." },  # [DEPRECATED] MongoDB ID volátil
       "terms": [ { "$oid": "term_temp_low" }, ... ],
       "createdAt": "2025-01-27T23:39:17.917+00:00",
       "updatedAt": "2025-01-27T23:39:17.917+00:00"
     }
 
-    - Si variable_type = "input": reference_id apunta a variables en sensor-service
-    - Si variable_type = "output": reference_id apunta a control_outputs en actuator-service
+    Relaciones entre servicios (usando códigos estables):
+    - Si variable_type = "input": reference_code mapea a Code de sensor-service
+      Ejemplo: "T_AMB", "HUM", "LUMINOSITY", etc.
+    - Si variable_type = "output": reference_code mapea a Code de actuator-service ControlOutput
+      Ejemplo: "OUTPUT_VENTILADOR_POTENCIA", "OUTPUT_LUZ_CONTROL", etc.
+
+    Agrupación de variables de salida (actuator_code):
+    - Para outputs, actuator_code agrupa las 2 variables que controlan el mismo actuador
+    - Ejemplo: actuator_code="Ventiladores" agrupa:
+      * "Potencia del Ventilador" (reference_code="OUTPUT_VENTILADOR_POTENCIA")
+      * "Duración de Ventilación" (reference_code="OUTPUT_VENTILADOR_DURACION")
+    - Esto permite emparejar Control+Duración sin depender de coincidencias de nombres
+
+    IMPORTANTE: reference_id está deprecado. Usar reference_code para nuevas integraciones.
     """
 
     # Propiedades de identificación
@@ -41,7 +54,12 @@ class FuzzyVariable(DomainBaseModel):
     universe_max: Optional[float] = None  # Máximo del universo de discurso
 
     # Relaciones
-    reference_id: str = ""  # ID de variable en sensor-service o control_output en actuator-service (OBLIGATORIO)
+    reference_code: Optional[str] = None  # Código estable de variable/output (ej: "T_AMB", "OUTPUT_VENTILADOR_POTENCIA")
+
+    # Agrupación de variables por actuador (solo para outputs)
+    # Ejemplo: "Ventiladores" agrupa "Potencia del Ventilador" + "Duración de Ventilación"
+    actuator_code: Optional[str] = None
+
     terms: List[FuzzyTermId] = Field(default_factory=list)
 
     # Metadatos básicos
@@ -74,13 +92,6 @@ class FuzzyVariable(DomainBaseModel):
         if v not in valid_types:
             raise ValueError(f"Tipo de variable inválido: {v}. Debe ser uno de: {valid_types}")
         return v
-
-    @field_validator("reference_id")
-    @classmethod
-    def _validate_reference_id(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("El reference_id no puede estar vacío")
-        return v.strip()
 
     @field_validator("actuator_type")
     @classmethod

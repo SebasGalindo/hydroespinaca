@@ -27,8 +27,15 @@ class FuzzyVariableDto(BaseModel):
     # Configuración de la variable
     variable_type: str = Field(default="input", description="Tipo de variable: 'input' o 'output'")
 
+    # Configuración de actuadores (solo para outputs)
+    actuator_type: Optional[str] = Field(default=None, description="Tipo de actuador: 'PWM' o 'DIGITAL' (solo para outputs)")
+    defuzzification_threshold: float = Field(default=50.0, ge=0, le=100, description="Umbral de defuzzificación para actuadores DIGITAL")
+    universe_min: Optional[float] = Field(default=None, description="Valor mínimo del universo de discurso")
+    universe_max: Optional[float] = Field(default=None, description="Valor máximo del universo de discurso")
+
     # Relaciones
-    reference_id: str = Field(..., min_length=1, description="ID de referencia: variable en sensor-service (input) o control_output en actuator-service (output)")
+    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable: variable code en sensor-service (input) o control_output code en actuator-service (output)")
+    actuator_code: Optional[str] = Field(default=None, min_length=1, description="Código del actuador para agrupar variables de salida (control + duración)")
     terms: List[str] = Field(default_factory=list, description="IDs de términos lingüísticos asociados")
 
     # Metadatos
@@ -74,7 +81,12 @@ class FuzzyVariableDto(BaseModel):
             name=entity.name,
             description=entity.description,
             variable_type=entity.variable_type,
-            reference_id=entity.reference_id,
+            actuator_type=entity.actuator_type,
+            defuzzification_threshold=entity.defuzzification_threshold,
+            universe_min=entity.universe_min,
+            universe_max=entity.universe_max,
+            reference_code=entity.reference_code,
+            actuator_code=entity.actuator_code,
             terms=[str(t) for t in entity.terms],
             created_at=entity.created_at,
             updated_at=entity.updated_at,
@@ -87,7 +99,12 @@ class FuzzyVariableDto(BaseModel):
             name=self.name,
             description=self.description or "",
             variable_type=self.variable_type,
-            reference_id=self.reference_id,
+            actuator_type=self.actuator_type,
+            defuzzification_threshold=self.defuzzification_threshold,
+            universe_min=self.universe_min,
+            universe_max=self.universe_max,
+            reference_code=self.reference_code,
+            actuator_code=self.actuator_code,
             terms=[FuzzyTermId(t) for t in self.terms],
             created_at=self.created_at,
             updated_at=self.updated_at,

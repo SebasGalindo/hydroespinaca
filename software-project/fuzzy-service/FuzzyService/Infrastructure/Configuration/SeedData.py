@@ -43,49 +43,43 @@ class SeedDataConfig:
         return [
             # INPUT VARIABLES
             {
-                "_id": "68e05364d86d6edc39982870",
                 "name": "Luminosity",
                 "description": "Luminosidad medida por sensor BH1750 (lux)",
                 "type": "input",
-                "reference_id": "688970837f02137645d58395",
+                "reference_code": "LUMINOSITY",
                 "defuzzification_threshold": 50,
                 "terms": []  # Se llenarán con IDs de términos creados
             },
             {
-                "_id": "68e05364d86d6edc39982871",
                 "name": "Ambient Temperature",
                 "description": "Temperatura ambiente del invernadero",
                 "type": "input",
-                "reference_id": "688970ab7f02137645d58398",
+                "reference_code": "T_AMB",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982872",
                 "name": "Humidity",
                 "description": "Humedad relativa del ambiente",
                 "type": "input",
-                "reference_id": "688970af7f02137645d58399",
+                "reference_code": "HUM",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982873",
                 "name": "Water Temperature",
                 "description": "Temperatura del agua del sistema",
                 "type": "input",
-                "reference_id": "68bb4d8cbdcb66fc5738f9af",
+                "reference_code": "T_WAT",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828D8",
                 "name": "Water Level",
                 "description": "Nivel de agua en el reservorio (seguridad crítica)",
                 "type": "input",
-                "reference_id": "68d1d07307c249cda4c369b0",
+                "reference_code": "WL",
                 "terms": []
             },
             # OUTPUT VARIABLES
             {
-                "_id": "68e05364d86d6edc39982875",
                 "name": "Potencia del Ventilador",
                 "description": "Control de potencia del ventilador (PWM)",
                 "type": "output",
@@ -93,12 +87,12 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,  # No aplica para PWM, pero se incluye por consistencia
-                "reference_id": "68e04314d86d6edc39982869",
+                "reference_code": "OUTPUT_VENTILADOR_POTENCIA",
+                "actuator_code": "Ventiladores",
                 "terms": []
             },
             # VARIABLES DE CONTROL (DIGITAL) - Opción B: Rediseño completo
             {
-                "_id": "68e05364d86d6edc398828B0",
                 "name": "Control Calefactor Aire",
                 "description": "Control ON/OFF del calefactor de aire",
                 "type": "output",
@@ -106,11 +100,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,  # OFF si <50, ON si >=50
-                "reference_id": "68e04314d86d6edc3998286b",
+                "reference_code": "OUTPUT_CALEFACTOR_AIRE_CONTROL",
+                "actuator_code": "termoventilador",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828B1",
                 "name": "Control Calefactor Agua",
                 "description": "Control ON/OFF del calefactor de agua",
                 "type": "output",
@@ -118,11 +112,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286f",
+                "reference_code": "OUTPUT_CALEFACTOR_AGUA_CONTROL",
+                "actuator_code": "calefactor-agua",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828B2",
                 "name": "Control Luz",
                 "description": "Control ON/OFF de la luz de amplio espectro",
                 "type": "output",
@@ -130,11 +124,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04314d86d6edc3998286c",
+                "reference_code": "OUTPUT_LUZ_CONTROL",
+                "actuator_code": "luz-amplio-espectro",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828B3",
                 "name": "Control Humidificador",
                 "description": "Control ON/OFF del humidificador",
                 "type": "output",
@@ -142,11 +136,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286e",
+                "reference_code": "OUTPUT_HUMIDIFICADOR_CONTROL",
+                "actuator_code": "humidificador-ultrasonico",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828B4",
                 "name": "Control Bomba Aireación",
                 "description": "Control ON/OFF de la bomba de aireación",
                 "type": "output",
@@ -154,11 +148,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286d",
+                "reference_code": "OUTPUT_BOMBA_AIRE_CONTROL",
+                "actuator_code": "piedra-difusora",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc398828B5",
                 "name": "Control Bomba Riego",
                 "description": "Control ON/OFF de la bomba de riego",
                 "type": "output",
@@ -166,12 +160,12 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286e",
+                "reference_code": "OUTPUT_BOMBA_RIEGO_CONTROL",
+                "actuator_code": "bomba-agua",
                 "terms": []
             },
             # VARIABLES DE DURACIÓN (DIGITAL)
             {
-                "_id": "68e05364d86d6edc39982876",
                 "name": "Duración de Ventilación",
                 "description": "Duración de activación del ventilador (segundos)",
                 "type": "output",
@@ -179,11 +173,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,  # 1 hora máximo
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04314d86d6edc3998286a",
+                "reference_code": "OUTPUT_VENTILADOR_DURACION",
+                "actuator_code": "Ventiladores",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982877",
                 "name": "Duración de Calefacción de Aire",
                 "description": "Duración de calefacción del aire (segundos)",
                 "type": "output",
@@ -191,11 +185,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04314d86d6edc3998286b",
+                "reference_code": "OUTPUT_CALEFACTOR_AIRE_DURACION",
+                "actuator_code": "termoventilador",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982878",
                 "name": "Duración de Luz",
                 "description": "Duración de luz artificial (segundos)",
                 "type": "output",
@@ -203,11 +197,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04314d86d6edc3998286c",
+                "reference_code": "OUTPUT_LUZ_DURACION",
+                "actuator_code": "luz-amplio-espectro",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc39982879",
                 "name": "Duración de Aireación",
                 "description": "Duración de aireación del agua (segundos)",
                 "type": "output",
@@ -215,11 +209,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286d",
+                "reference_code": "OUTPUT_BOMBA_AIRE_DURACION",
+                "actuator_code": "piedra-difusora",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc3998287a",
                 "name": "Duración de Riego",
                 "description": "Duración del riego (segundos)",
                 "type": "output",
@@ -227,11 +221,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286e",
+                "reference_code": "OUTPUT_BOMBA_RIEGO_DURACION",
+                "actuator_code": "bomba-agua",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc3998287b",
                 "name": "Duración de Calefacción de Agua",
                 "description": "Duración de calefacción del agua (segundos)",
                 "type": "output",
@@ -239,11 +233,11 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e04315d86d6edc3998286f",
+                "reference_code": "OUTPUT_CALEFACTOR_AGUA_DURACION",
+                "actuator_code": "calefactor-agua",
                 "terms": []
             },
             {
-                "_id": "68e05364d86d6edc3998287c",
                 "name": "Duración de Humidificación",
                 "description": "Duración de humidificación (segundos)",
                 "type": "output",
@@ -251,7 +245,8 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_id": "68e99846eb24fed5c9e1cf59",
+                "reference_code": "OUTPUT_HUMIDIFICADOR_DURACION",
+                "actuator_code": "humidificador-ultrasonico",
                 "terms": []
             }
         ]
@@ -1376,6 +1371,29 @@ async def _create_variables_and_terms(repo_variable, repo_term):
     from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable
     from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm
 
+    # Mapping of variable names to old predefined IDs (for backward compatibility with terms config)
+    VARIABLE_NAME_TO_OLD_ID = {
+        "Luminosity": "68e05364d86d6edc39982870",
+        "Ambient Temperature": "68e05364d86d6edc39982871",
+        "Humidity": "68e05364d86d6edc39982872",
+        "Water Temperature": "68e05364d86d6edc39982873",
+        "Water Level": "68e05364d86d6edc398828D8",
+        "Potencia del Ventilador": "68e05364d86d6edc39982875",
+        "Control Calefactor Aire": "68e05364d86d6edc398828B0",
+        "Control Calefactor Agua": "68e05364d86d6edc398828B1",
+        "Control Luz": "68e05364d86d6edc398828B2",
+        "Control Humidificador": "68e05364d86d6edc398828B3",
+        "Control Bomba Aireación": "68e05364d86d6edc398828B4",
+        "Control Bomba Riego": "68e05364d86d6edc398828B5",
+        "Duración de Ventilación": "68e05364d86d6edc39982876",
+        "Duración de Calefacción de Aire": "68e05364d86d6edc39982877",
+        "Duración de Luz": "68e05364d86d6edc39982878",
+        "Duración de Aireación": "68e05364d86d6edc39982879",
+        "Duración de Riego": "68e05364d86d6edc3998287a",
+        "Duración de Calefacción de Agua": "68e05364d86d6edc3998287b",
+        "Duración de Humidificación": "68e05364d86d6edc3998287c",
+    }
+
     variables_map = {}
     created_variable_ids = {}  # Map: predefined_id -> actual_created_id
     created_term_ids = {}  # Map: predefined_term_id -> actual_created_term_id
@@ -1398,18 +1416,24 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 universe_min=var_config.get("universe_min"),
                 universe_max=var_config.get("universe_max"),
                 defuzzification_threshold=var_config.get("defuzzification_threshold", 50.0),
-                reference_id=var_config["reference_id"],
+                reference_code=var_config.get("reference_code"),
+                actuator_code=var_config.get("actuator_code"),
                 terms=[]  # Empty initially
             )
 
             created_var = await repo_variable.create(variable)  # type: ignore[attr-defined]
             variables_map[var_name] = created_var
-            created_variable_ids[var_config["_id"]] = str(created_var.id)
+
+            # Map old predefined ID to actual MongoDB ID for backward compatibility
+            old_id = VARIABLE_NAME_TO_OLD_ID.get(var_name)
+            if old_id:
+                created_variable_ids[old_id] = str(created_var.id)
 
             _logger.info(
-                "Seed: created variable '%s' (predefined_id=%s, actual_id=%s)",
+                "Seed: created variable '%s' (reference_code=%s, actuator_code=%s, actual_id=%s)",
                 var_config["name"],
-                var_config["_id"],
+                var_config.get("reference_code", "N/A"),
+                var_config.get("actuator_code", "N/A"),
                 str(created_var.id)
             )
         else:
@@ -1457,7 +1481,11 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 )
 
             variables_map[var_name] = existing_var
-            created_variable_ids[var_config["_id"]] = str(existing_var.id)
+
+            # Map old predefined ID to actual MongoDB ID for backward compatibility
+            old_id = VARIABLE_NAME_TO_OLD_ID.get(var_name)
+            if old_id:
+                created_variable_ids[old_id] = str(existing_var.id)
 
     # STEP 2: Create all terms using actual variable IDs
     _logger.info("STEP 2: Creating fuzzy terms (using actual variable IDs)...")

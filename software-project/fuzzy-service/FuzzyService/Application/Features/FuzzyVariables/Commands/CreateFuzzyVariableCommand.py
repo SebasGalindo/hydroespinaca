@@ -15,10 +15,15 @@ class CreateFuzzyVariableCommand(BaseModel, Command):
     name: str = Field(..., min_length=1, max_length=100)
     variable_type: str = Field(..., description="'input' o 'output'")
     system_id: str = Field(..., description="ID del sistema fuzzy al que pertenece la variable")
-    reference_id: str = Field(..., min_length=1, description="ID de variable en sensor-service (input) o control_output en actuator-service (output)")
 
     # Datos opcionales
     description: Optional[str] = Field(default=None, max_length=500)
+    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable de variable en sensor-service (input) o control_output en actuator-service (output)")
+    actuator_code: Optional[str] = Field(default=None, min_length=1, description="Código del actuador para agrupar variables de salida (control + duración)")
+    actuator_type: Optional[str] = Field(default=None, description="Tipo de actuador: 'PWM' o 'DIGITAL' (solo para outputs)")
+    defuzzification_threshold: float = Field(default=50.0, ge=0, le=100, description="Umbral para actuadores DIGITAL")
+    universe_min: Optional[float] = Field(default=None, description="Valor mínimo del universo de discurso")
+    universe_max: Optional[float] = Field(default=None, description="Valor máximo del universo de discurso")
     terms: List[str] = Field(default_factory=list, description="IDs de términos asociados")
 
     # Resultado (excluido del modelo de entrada/salida)
