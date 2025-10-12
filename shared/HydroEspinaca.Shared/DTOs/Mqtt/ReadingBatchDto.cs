@@ -19,8 +19,8 @@ public class ReadingInput
     [JsonPropertyName("physicalId")]
     public string PhysicalId { get; set; } = default!;
 
-    [JsonPropertyName("variableId")]
-    public string VariableId { get; set; } = default!;
+    [JsonPropertyName("variableCode")]
+    public string VariableCode { get; set; } = default!;
 
     [JsonPropertyName("value")]
     public double Value { get; set; }
