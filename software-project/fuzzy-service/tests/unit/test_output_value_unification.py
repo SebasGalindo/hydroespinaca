@@ -22,15 +22,20 @@ class TestOutputValueUnification:
         control_var_id = str(FuzzyVariableId.generate())
         duration_var_id = str(FuzzyVariableId.generate())
         actuator_id = str(ActuatorId.generate())
+        actuator_code = "VENT_01"
 
         control_var = MagicMock(spec=FuzzyVariable)
         control_var.id = FuzzyVariableId(control_var_id)
         control_var.name = "Control Ventilador"
         control_var.reference_id = actuator_id
+        control_var.actuator_code = actuator_code
+        control_var.actuator_type = "DIGITAL"
 
         duration_var = MagicMock(spec=FuzzyVariable)
         duration_var.id = FuzzyVariableId(duration_var_id)
         duration_var.name = "Duración de Ventilación"
+        duration_var.actuator_code = actuator_code
+        duration_var.actuator_type = "DIGITAL"
 
         output_variables = [control_var, duration_var]
 
@@ -55,9 +60,18 @@ class TestOutputValueUnification:
 
         activated_rules = [rule_activation]
 
+        # Create routines_payload with duration data
+        routines_payload = [
+            {
+                "variable_id": duration_var_id,
+                "variable_name": "Duración de Ventilación",
+                "crisp_value": 30.0
+            }
+        ]
+
         # Act
         unified_rules = handler._unify_output_values_in_rules(
-            activated_rules, output_variables
+            activated_rules, output_variables, routines_payload
         )
 
         # Assert
@@ -88,18 +102,26 @@ class TestOutputValueUnification:
         control_vent = MagicMock(spec=FuzzyVariable)
         control_vent.id = FuzzyVariableId(control_vent_id)
         control_vent.name = "Control Ventilador"
+        control_vent.actuator_code = "VENT_01"
+        control_vent.actuator_type = "DIGITAL"
 
         duration_vent = MagicMock(spec=FuzzyVariable)
         duration_vent.id = FuzzyVariableId(duration_vent_id)
         duration_vent.name = "Duración de Ventilación"
+        duration_vent.actuator_code = "VENT_01"
+        duration_vent.actuator_type = "DIGITAL"
 
         control_bomba = MagicMock(spec=FuzzyVariable)
         control_bomba.id = FuzzyVariableId(control_bomba_id)
         control_bomba.name = "Control Bomba Riego"
+        control_bomba.actuator_code = "BOMBA_01"
+        control_bomba.actuator_type = "DIGITAL"
 
         duration_bomba = MagicMock(spec=FuzzyVariable)
         duration_bomba.id = FuzzyVariableId(duration_bomba_id)
         duration_bomba.name = "Duración de Riego"
+        duration_bomba.actuator_code = "BOMBA_01"
+        duration_bomba.actuator_type = "DIGITAL"
 
         output_variables = [control_vent, duration_vent, control_bomba, duration_bomba]
 
@@ -119,9 +141,23 @@ class TestOutputValueUnification:
 
         activated_rules = [rule_activation]
 
+        # Create routines_payload with duration data
+        routines_payload = [
+            {
+                "variable_id": duration_vent_id,
+                "variable_name": "Duración de Ventilación",
+                "crisp_value": 25.0
+            },
+            {
+                "variable_id": duration_bomba_id,
+                "variable_name": "Duración de Riego",
+                "crisp_value": 60.0
+            }
+        ]
+
         # Act
         unified_rules = handler._unify_output_values_in_rules(
-            activated_rules, output_variables
+            activated_rules, output_variables, routines_payload
         )
 
         # Assert
@@ -157,14 +193,19 @@ class TestOutputValueUnification:
 
         control_var_id = str(FuzzyVariableId.generate())
         duration_var_id = str(FuzzyVariableId.generate())
+        actuator_code = "PWM_VENT_01"
 
         control_var = MagicMock(spec=FuzzyVariable)
         control_var.id = FuzzyVariableId(control_var_id)
         control_var.name = "Potencia del Ventilador"
+        control_var.actuator_code = actuator_code
+        control_var.actuator_type = "PWM"
 
         duration_var = MagicMock(spec=FuzzyVariable)
         duration_var.id = FuzzyVariableId(duration_var_id)
         duration_var.name = "Duración de Ventilación"
+        duration_var.actuator_code = actuator_code
+        duration_var.actuator_type = "PWM"
 
         output_variables = [control_var, duration_var]
 
@@ -189,9 +230,18 @@ class TestOutputValueUnification:
 
         activated_rules = [rule_activation]
 
+        # Create routines_payload with duration data
+        routines_payload = [
+            {
+                "variable_id": duration_var_id,
+                "variable_name": "Duración de Ventilación",
+                "crisp_value": 45.0
+            }
+        ]
+
         # Act
         unified_rules = handler._unify_output_values_in_rules(
-            activated_rules, output_variables
+            activated_rules, output_variables, routines_payload
         )
 
         # Assert
@@ -212,10 +262,13 @@ class TestOutputValueUnification:
         handler = ProcessSensorReadingsHandler()
 
         control_var_id = str(FuzzyVariableId.generate())
+        actuator_code = "VENT_SOLO"
 
         control_var = MagicMock(spec=FuzzyVariable)
         control_var.id = FuzzyVariableId(control_var_id)
         control_var.name = "Control Ventilador"
+        control_var.actuator_code = actuator_code
+        control_var.actuator_type = "DIGITAL"
 
         # Only control variable, no duration variable
         output_variables = [control_var]
@@ -235,9 +288,12 @@ class TestOutputValueUnification:
 
         activated_rules = [rule_activation]
 
+        # Empty routines_payload (no duration data)
+        routines_payload = []
+
         # Act
         unified_rules = handler._unify_output_values_in_rules(
-            activated_rules, output_variables
+            activated_rules, output_variables, routines_payload
         )
 
         # Assert
@@ -257,14 +313,19 @@ class TestOutputValueUnification:
 
         control_var_id = str(FuzzyVariableId.generate())
         duration_var_id = str(FuzzyVariableId.generate())
+        actuator_code = "VENT_STRENGTH"
 
         control_var = MagicMock(spec=FuzzyVariable)
         control_var.id = FuzzyVariableId(control_var_id)
         control_var.name = "Control Ventilador"
+        control_var.actuator_code = actuator_code
+        control_var.actuator_type = "DIGITAL"
 
         duration_var = MagicMock(spec=FuzzyVariable)
         duration_var.id = FuzzyVariableId(duration_var_id)
         duration_var.name = "Duración de Ventilación"
+        duration_var.actuator_code = actuator_code
+        duration_var.actuator_type = "DIGITAL"
 
         output_variables = [control_var, duration_var]
 
@@ -282,9 +343,18 @@ class TestOutputValueUnification:
 
         activated_rules = [rule_activation]
 
+        # Create routines_payload with duration data
+        routines_payload = [
+            {
+                "variable_id": duration_var_id,
+                "variable_name": "Duración de Ventilación",
+                "crisp_value": 20.0
+            }
+        ]
+
         # Act
         unified_rules = handler._unify_output_values_in_rules(
-            activated_rules, output_variables
+            activated_rules, output_variables, routines_payload
         )
 
         # Assert

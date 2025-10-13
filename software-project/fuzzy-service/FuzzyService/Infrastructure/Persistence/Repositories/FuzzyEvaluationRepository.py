@@ -38,7 +38,7 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             await self._coll.create_index([("inputs.sensor_id", 1)], name="ix_inputs_sensor")
             await self._coll.create_index([("activated_rules.ruleId", 1)], name="ix_activations_rule")
             await self._coll.create_index([("activated_rules.firingStrength", -1)], name="ix_activations_strength_desc")
-            await self._coll.create_index([("activated_rules.output_values.actuator_id", 1)], name="ix_outputs_actuator")
+            await self._coll.create_index([("activated_rules.output_values.reference_code", 1)], name="ix_outputs_reference")
             _logger.info("FuzzyEvaluation indexes ensured.")
         except Exception:
             _logger.exception("Failed ensuring indexes for FuzzyEvaluation")
@@ -72,12 +72,11 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             output_values = []
             for ov in (ra.output_values or []):
                 output_dict = {
-                    "actuator_id": str(ov.actuator_id),
+                    "reference_code": ov.reference_code,
                     "duration": float(ov.duration),
                 }
-                # Incluir power o dutyCycle según lo que esté definido
                 if ov.power is not None:
-                    output_dict["power"] = ov.power  # Mantener como string "ON"/"OFF"
+                    output_dict["power"] = ov.power
                 elif ov.dutyCycle is not None:
                     output_dict["dutyCycle"] = float(ov.dutyCycle)
 
@@ -213,10 +212,10 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
         sensor_id = filters.get("sensor_id")
         if sensor_id:
             query["inputs.sensor_id"] = str(sensor_id)
-        # Actuator filter
-        actuator_id = filters.get("actuator_id")
-        if actuator_id:
-            query["activated_rules.output_values.actuator_id"] = str(actuator_id)
+        # Reference code filter
+        reference_code = filters.get("reference_code")
+        if reference_code:
+            query["activated_rules.output_values.reference_code"] = str(reference_code)
         # Firing strength range
         min_fs = filters.get("min_firing_strength")
         max_fs = filters.get("max_firing_strength")

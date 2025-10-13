@@ -25,6 +25,7 @@ from FuzzyService.Domain.Entities.fuzzy_evaluation import FuzzyEvaluation, Input
 from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendRoutinesToActuatorCommand import (
     SendRoutinesToActuatorCommand, RoutinePayload, StepPayload
 )
+from FuzzyService.Application.Services.CommandAggregator import CommandAggregator
 from medyator import Medyator
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyVariableId, FuzzyRuleId
 from FuzzyService.Domain.Enums.EntityStatus import FuzzySystemStatus
@@ -289,19 +290,25 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
             activated_rules_data = rule_evaluation.get("activated_rules", [])
             routines_payload = result.get("routines_payload", [])
 
-            # Convertir a formato de dominio (RuleActivation)
+            # Crear input_values para la evaluación
+            input_values = [
+                InputValue(sensor_id=ref_code, value=value)
+                for ref_code, value in sensor_readings_by_ref_code.items()
+            ]
+
+            # Crear RuleActivation por cada regla activada
             activated_rules = []
             for rule_data in activated_rules_data:
                 rule_id = rule_data.get("rule_id")
                 firing_strength = rule_data.get("firing_strength", 0.0)
                 output_values_data = rule_data.get("output_values", [])
 
-                # Convertir output_values a OutputValue
+                # Convertir output_values a OutputValue con reference_code
                 output_values = []
                 for ov in output_values_data:
                     try:
                         output_values.append(OutputValue(
-                            actuator_id=ov.get("actuator_id"),
+                            reference_code=ov.get("reference_code"),
                             power=ov.get("power"),
                             dutyCycle=ov.get("dutyCycle"),
                             duration=ov.get("duration", 0.5)
@@ -316,22 +323,11 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
                     output_values=output_values
                 ))
 
-            # Crear input_values para la evaluación
-            input_values = [
-                InputValue(sensor_id=ref_code, value=value)
-                for ref_code, value in sensor_readings_by_ref_code.items()
-            ]
-
-            # Unificar output_values (emparejar Control+Duración) ANTES de guardar
-            unified_activated_rules = self._unify_output_values_in_rules(
-                activated_rules, output_variables, routines_payload
-            )
-
             fuzzy_evaluation = FuzzyEvaluation(
                 system_id=fuzzy_system.id,
                 timestamp=datetime.now(timezone.utc),
                 inputs=input_values,
-                activated_rules=unified_activated_rules
+                activated_rules=activated_rules
             )
 
             return fuzzy_evaluation
@@ -353,261 +349,62 @@ class ProcessSensorReadingsHandler(CommandHandler[ProcessSensorReadingsCommand])
 
         except Exception as e:
             _logger.error(f"Error al guardar evaluación: {e}")
-            # No lanzamos excepción para no interrumpir el flujo
 
-    def _unify_output_values_in_rules(
-        self,
-        activated_rules: List[RuleActivation],
-        output_variables: List[FuzzyVariable],
-        routines_payload: List[Dict[str, Any]]
-    ) -> List[RuleActivation]:
-        """Unifica output_values emparejando Control+Duración en cada regla.
-
-        Args:
-            activated_rules: Reglas activadas con output_values separados
-            output_variables: Lista de variables de salida
-            routines_payload: Variables defuzzificadas con crisp_value
-
-        Returns:
-            Lista de RuleActivation con output_values unificados
-        """
-        output_vars_dict = {str(v.id): v for v in output_variables}
-        unified_rules = []
-
-        for rule_activation in activated_rules:
-            # Emparejar Control + Duración para esta regla
-            pairs = self._pair_control_duration_variables(
-                rule_activation.output_values,
-                output_vars_dict,
-                routines_payload
-            )
-
-            # Crear OutputValues unificados
-            unified_outputs = []
-            for pair in pairs:
-                control_val = pair["control_val"]
-                duration_seconds = pair["duration_seconds"]
-
-                # Determinar duración final
-                if duration_seconds is not None and duration_seconds > 0:
-                    final_duration = float(duration_seconds)
-                else:
-                    # Fallback a duración del control
-                    final_duration = float(control_val.duration) if control_val.duration > 0 else 0.5
-
-                # Crear OutputValue unificado
-                unified_output = OutputValue(
-                    actuator_id=control_val.actuator_id,
-                    power=control_val.power,
-                    dutyCycle=control_val.dutyCycle,
-                    duration=final_duration
-                )
-                unified_outputs.append(unified_output)
-
-            # Crear RuleActivation con outputs unificados
-            unified_rule = RuleActivation(
-                rule_id=rule_activation.rule_id,
-                firing_strength=rule_activation.firing_strength,
-                output_values=unified_outputs
-            )
-            unified_rules.append(unified_rule)
-
-        _logger.info(
-            f"Output values unificados: {len(activated_rules)} reglas, "
-            f"total outputs antes={sum(len(r.output_values) for r in activated_rules)}, "
-            f"después={sum(len(r.output_values) for r in unified_rules)}"
-        )
-
-        return unified_rules
-
-    def _pair_control_duration_variables(
-        self,
-        output_values: List[OutputValue],
-        output_variables_dict: Dict[str, FuzzyVariable],
-        routines_payload: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Empareja variables de Control con Duración usando actuator_code.
-
-        Args:
-            output_values: Valores defuzzificados de control
-            output_variables_dict: Dict de variables por ID
-            routines_payload: Variables defuzzificadas con crisp_value (incluye duraciones)
-
-        Returns:
-            Lista de pares {control_id, control_val, duration_val}
-        """
-        values_by_id = {str(ov.actuator_id): ov for ov in output_values}
-
-        # Crear índice de duraciones por variable_id desde routines_payload
-        durations_by_id = {}
-        for routine in routines_payload:
-            var_id = routine.get("variable_id")
-            var_name = routine.get("variable_name", "")
-            if "Duración" in var_name or "DURACION" in var_name.upper():
-                durations_by_id[var_id] = routine.get("crisp_value", 0.5)
-
-        pairs = []
-
-        # Debug: mostrar output_values recibidos
-        _logger.info(f"🔍 Output values recibidos del motor fuzzy: {len(output_values)}")
-        for ov in output_values:
-            var = output_variables_dict.get(str(ov.actuator_id))
-            var_name = var.name if var else "UNKNOWN"
-            _logger.info(f"  - {var_name} (ID: {ov.actuator_id}): power={ov.power}, duty={ov.dutyCycle}, duration={ov.duration}")
-
-        # Agrupar variables por actuator_code
-        variables_by_actuator = {}
-        for var_id, var in output_variables_dict.items():
-            if var.actuator_code:  # Usar actuator_code para agrupar
-                if var.actuator_code not in variables_by_actuator:
-                    variables_by_actuator[var.actuator_code] = {}
-
-                # Identificar tipo de variable
-                is_control = var.actuator_type in ["PWM", "DIGITAL"] and ("Control" in var.name or "Potencia" in var.name) and "Duración" not in var.name
-                is_duration = "Duración" in var.name or "Duration" in var.name
-
-                if is_control:
-                    variables_by_actuator[var.actuator_code]["control"] = (var_id, var)
-                elif is_duration:
-                    variables_by_actuator[var.actuator_code]["duration"] = (var_id, var)
-
-        _logger.info(f"📊 Variables agrupadas por actuator_code: {len(variables_by_actuator)} actuadores")
-
-        # Emparejar por actuator_code
-        for actuator_code, group_vars in variables_by_actuator.items():
-            control_info = group_vars.get("control")
-            duration_info = group_vars.get("duration")
-
-            if control_info:
-                control_id, control_var = control_info
-                control_val = values_by_id.get(control_id)
-
-                duration_val = None
-                duration_seconds = None
-                if duration_info:
-                    duration_id, duration_var = duration_info
-                    duration_crisp_value = durations_by_id.get(duration_id)
-
-                    if duration_crisp_value is not None:
-                        # Guardar el valor de duración en segundos (no como OutputValue)
-                        duration_seconds = float(duration_crisp_value)
-                        _logger.info(f"  ✅ {actuator_code}: Control '{control_var.name}' + Duración '{duration_var.name}' ({duration_seconds:.1f}s)")
-                    else:
-                        _logger.warning(f"  ⚠️  {actuator_code}: Control encontrado pero Duración sin valor defuzzificado")
-                else:
-                    _logger.warning(f"  ⚠️  {actuator_code}: Control encontrado pero NO hay variable Duración definida")
-
-                if control_val:
-                    pairs.append({
-                        "control_id": control_id,
-                        "control_val": control_val,
-                        "duration_seconds": duration_seconds  # Usar valor directo, no OutputValue
-                    })
-
-        return pairs
 
     async def _send_to_actuator_service(
         self,
         fuzzy_evaluation: FuzzyEvaluation,
         output_variables: List[FuzzyVariable]
     ) -> None:
-        """Envía payload al actuator service con emparejamiento Control+Duración.
+        """Envía comandos al actuator service en el nuevo formato.
 
         Args:
-            fuzzy_evaluation: Evaluación fuzzy
+            fuzzy_evaluation: Evaluación fuzzy con reglas activadas
             output_variables: Lista de variables de salida
         """
         try:
-            # Crear diccionario de variables por ID para consultas rápidas
-            output_vars_dict = {str(v.id): v for v in output_variables}
+            if not fuzzy_evaluation.activated_rules:
+                _logger.warning("No hay reglas activadas")
+                return
 
-            routines = []
-
+            # Recolectar todos los output_values de todas las reglas
+            all_output_values = []
             for rule_activation in fuzzy_evaluation.activated_rules:
-                if not rule_activation.output_values:
-                    continue
+                all_output_values.extend(rule_activation.output_values)
 
-                # Emparejar Control + Duración
-                pairs = self._pair_control_duration_variables(
-                    rule_activation.output_values,
-                    output_vars_dict
-                )
+            if not all_output_values:
+                _logger.warning("No se generaron output_values")
+                return
 
-                steps = []
+            _logger.debug(
+                f"Recolectados {len(all_output_values)} output_values de "
+                f"{len(fuzzy_evaluation.activated_rules)} reglas activadas"
+            )
 
-                for pair in pairs:
-                    control_val = pair["control_val"]
-                    duration_val = pair["duration_val"]
+            # Agregar comandos usando el CommandAggregator para consolidar duplicados
+            aggregator = CommandAggregator(aggregation_method="max")
+            commands = aggregator.aggregate_commands(all_output_values)
 
-                    # Obtener la variable de control para extraer su reference_id
-                    control_var = output_vars_dict.get(pair["control_id"])
-                    if not control_var:
-                        _logger.warning(f"Variable de control no encontrada: {pair['control_id']}")
-                        continue
+            _logger.info(
+                f"Comandos consolidados: {len(all_output_values)} output_values → "
+                f"{len(commands)} comandos únicos"
+            )
 
-                    # Determinar si es ON o OFF
-                    is_on = False
-                    if control_val.power is not None:
-                        is_on = (control_val.power == "ON")
-                    elif control_val.dutyCycle is not None:
-                        is_on = (control_val.dutyCycle > 0.0)
-
-                    # Construir step con reference_code (código del control_output en actuator-service)
-                    step_dict = {
-                        "outputVariable": str(control_var.reference_code)
-                    }
-
-                    # Aplicar reglas según estado
-                    if is_on:
-                        # ON: usar duración calculada de la variable de Duración
-                        if duration_val and duration_val.duration > 0:
-                            step_dict["duration"] = float(duration_val.duration)
-                        else:
-                            # Fallback: usar duración del control si existe
-                            step_dict["duration"] = float(control_val.duration) if control_val.duration > 0 else 0.5
-                    else:
-                        # OFF: duración instantánea (0.0)
-                        step_dict["duration"] = 0.0
-
-                    # Agregar power o dutyCycle
-                    if control_val.power is not None:
-                        step_dict["power"] = control_val.power
-                    elif control_val.dutyCycle is not None:
-                        step_dict["dutyCycle"] = float(control_val.dutyCycle)
-
-                    steps.append(StepPayload(**step_dict))
-
-                if steps:
-                    routines.append(RoutinePayload(
-                        routineId=str(rule_activation.rule_id),
-                        steps=steps
-                    ))
-
-            if routines:
-                # Log payload para debugging (temporal)
-                routines_dict = [
-                    {
-                        "routineId": r.routineId,
-                        "steps": [
-                            {
-                                "outputVariable": s.outputVariable,
-                                **({"power": s.power} if s.power is not None else {}),
-                                **({"dutyCycle": s.dutyCycle} if s.dutyCycle is not None else {}),
-                                "duration": s.duration
-                            }
-                            for s in r.steps
-                        ]
-                    }
-                    for r in routines
-                ]
+            if commands:
+                # Log payload para debugging
                 _logger.info(
-                    f"📤 Payload enviado al actuator-service:\n{json.dumps(routines_dict, indent=2)}"
+                    f"📤 Comandos enviados al actuator-service:\n"
+                    f"{json.dumps({'commands': commands}, indent=2)}"
                 )
 
+                # Enviar al actuator service con el nuevo formato
                 mediator: Medyator = di[Medyator]
-                await mediator.send(SendRoutinesToActuatorCommand(routines=routines))
+                from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendCommandsToActuatorCommand import (
+                    SendCommandsToActuatorCommand
+                )
+                await mediator.send(SendCommandsToActuatorCommand(commands=commands))
             else:
-                _logger.warning("No se generaron rutinas tras filtrado OFF")
+                _logger.warning("No se generaron comandos tras la agregación")
 
         except Exception as e:
-            _logger.error(f"Error al enviar payload: {e}")
+            _logger.error(f"Error al enviar comandos: {e}", exc_info=True)

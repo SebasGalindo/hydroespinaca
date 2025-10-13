@@ -33,7 +33,6 @@ class CreateFuzzyVariableHandler(CommandHandler[CreateFuzzyVariableCommand]):
             description=request.description or "",
             variable_type=request.variable_type,
             reference_code=request.reference_code,
-            actuator_code=request.actuator_code,
             actuator_type=request.actuator_type,
             defuzzification_threshold=request.defuzzification_threshold,
             universe_min=request.universe_min,

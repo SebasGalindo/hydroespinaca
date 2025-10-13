@@ -34,8 +34,7 @@ class FuzzyVariableDto(BaseModel):
     universe_max: Optional[float] = Field(default=None, description="Valor máximo del universo de discurso")
 
     # Relaciones
-    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable: variable code en sensor-service (input) o control_output code en actuator-service (output)")
-    actuator_code: Optional[str] = Field(default=None, min_length=1, description="Código del actuador para agrupar variables de salida (control + duración)")
+    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable que mapea directamente al código del actuador")
     terms: List[str] = Field(default_factory=list, description="IDs de términos lingüísticos asociados")
 
     # Metadatos
@@ -86,7 +85,6 @@ class FuzzyVariableDto(BaseModel):
             universe_min=entity.universe_min,
             universe_max=entity.universe_max,
             reference_code=entity.reference_code,
-            actuator_code=entity.actuator_code,
             terms=[str(t) for t in entity.terms],
             created_at=entity.created_at,
             updated_at=entity.updated_at,
@@ -104,7 +102,6 @@ class FuzzyVariableDto(BaseModel):
             universe_min=self.universe_min,
             universe_max=self.universe_max,
             reference_code=self.reference_code,
-            actuator_code=self.actuator_code,
             terms=[FuzzyTermId(t) for t in self.terms],
             created_at=self.created_at,
             updated_at=self.updated_at,

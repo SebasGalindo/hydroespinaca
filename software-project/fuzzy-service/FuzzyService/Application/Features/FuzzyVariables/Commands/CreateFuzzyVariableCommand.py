@@ -18,8 +18,7 @@ class CreateFuzzyVariableCommand(BaseModel, Command):
 
     # Datos opcionales
     description: Optional[str] = Field(default=None, max_length=500)
-    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable de variable en sensor-service (input) o control_output en actuator-service (output)")
-    actuator_code: Optional[str] = Field(default=None, min_length=1, description="Código del actuador para agrupar variables de salida (control + duración)")
+    reference_code: Optional[str] = Field(default=None, min_length=1, description="Código estable que mapea directamente al código del actuador")
     actuator_type: Optional[str] = Field(default=None, description="Tipo de actuador: 'PWM' o 'DIGITAL' (solo para outputs)")
     defuzzification_threshold: float = Field(default=50.0, ge=0, le=100, description="Umbral para actuadores DIGITAL")
     universe_min: Optional[float] = Field(default=None, description="Valor mínimo del universo de discurso")

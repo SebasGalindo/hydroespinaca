@@ -16,27 +16,19 @@ class FuzzyVariable(DomainBaseModel):
       "name": "Temperatura del aire",
       "description": "Variable que representa la temperatura del aire en el invernadero",
       "variable_type": "input|output",
-      "reference_code": "T_AMB",  # Código estable del sensor (sensor-service)
-      "reference_id": { "$oid": "..." },  # [DEPRECATED] MongoDB ID volátil
+      "reference_code": "T_AMB",
       "terms": [ { "$oid": "term_temp_low" }, ... ],
       "createdAt": "2025-01-27T23:39:17.917+00:00",
       "updatedAt": "2025-01-27T23:39:17.917+00:00"
     }
 
-    Relaciones entre servicios (usando códigos estables):
-    - Si variable_type = "input": reference_code mapea a Code de sensor-service
-      Ejemplo: "T_AMB", "HUM", "LUMINOSITY", etc.
-    - Si variable_type = "output": reference_code mapea a Code de actuator-service ControlOutput
-      Ejemplo: "OUTPUT_VENTILADOR_POTENCIA", "OUTPUT_LUZ_CONTROL", etc.
+    Relaciones entre servicios (usando reference_code):
+    - Si variable_type = "input": reference_code mapea a code de sensor-service
+      Ejemplo: "T_AMB", "HUM", "LUMINOSITY"
+    - Si variable_type = "output": reference_code mapea directamente al code del actuator
+      Ejemplo: "Ventiladores", "CalefactorAgua", "Humidificador"
 
-    Agrupación de variables de salida (actuator_code):
-    - Para outputs, actuator_code agrupa las 2 variables que controlan el mismo actuador
-    - Ejemplo: actuator_code="Ventiladores" agrupa:
-      * "Potencia del Ventilador" (reference_code="OUTPUT_VENTILADOR_POTENCIA")
-      * "Duración de Ventilación" (reference_code="OUTPUT_VENTILADOR_DURACION")
-    - Esto permite emparejar Control+Duración sin depender de coincidencias de nombres
-
-    IMPORTANTE: reference_id está deprecado. Usar reference_code para nuevas integraciones.
+    Para outputs, las variables de un mismo actuador comparten el mismo reference_code.
     """
 
     # Propiedades de identificación
@@ -53,12 +45,8 @@ class FuzzyVariable(DomainBaseModel):
     universe_min: Optional[float] = None  # Mínimo del universo de discurso
     universe_max: Optional[float] = None  # Máximo del universo de discurso
 
-    # Relaciones
-    reference_code: Optional[str] = None  # Código estable de variable/output (ej: "T_AMB", "OUTPUT_VENTILADOR_POTENCIA")
-
-    # Agrupación de variables por actuador (solo para outputs)
-    # Ejemplo: "Ventiladores" agrupa "Potencia del Ventilador" + "Duración de Ventilación"
-    actuator_code: Optional[str] = None
+    # Código estable que mapea a sensor o actuator code
+    reference_code: Optional[str] = None
 
     terms: List[FuzzyTermId] = Field(default_factory=list)
 
@@ -186,11 +174,11 @@ class FuzzyVariable(DomainBaseModel):
         self.variable_type = new_type
         self.updated_at = datetime.now(timezone.utc)
 
-    def update_reference_id(self, reference_id: str):
-        """Actualiza el reference_id que apunta a sensor-service o actuator-service."""
-        if not reference_id or not reference_id.strip():
-            raise ValueError("El reference_id no puede estar vacío")
-        self.reference_id = reference_id.strip()
+    def update_reference_code(self, reference_code: str):
+        """Actualiza el reference_code que apunta a sensor code o actuator code."""
+        if not reference_code or not reference_code.strip():
+            raise ValueError("El reference_code no puede estar vacío")
+        self.reference_code = reference_code.strip()
         self.updated_at = datetime.now(timezone.utc)
 
     # -------------------------
@@ -210,7 +198,7 @@ class FuzzyVariable(DomainBaseModel):
 
     def has_reference(self) -> bool:
         """Verifica si la variable tiene una referencia externa válida."""
-        return self.reference_id is not None and len(self.reference_id.strip()) > 0
+        return self.reference_code is not None and len(self.reference_code.strip()) > 0
 
     # -------------------------
     # Serialización utilitaria
@@ -221,7 +209,7 @@ class FuzzyVariable(DomainBaseModel):
             "name": self.name,
             "description": self.description,
             "variable_type": self.variable_type,
-            "reference_id": self.reference_id,
+            "reference_code": self.reference_code,
             "terms": [str(tid) for tid in self.terms],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
@@ -232,7 +220,6 @@ class FuzzyVariable(DomainBaseModel):
             result["universe_min"] = self.universe_min
         if self.universe_max is not None:
             result["universe_max"] = self.universe_max
-        # Siempre incluir defuzzification_threshold (tiene valor default)
         result["defuzzification_threshold"] = self.defuzzification_threshold
         return result
 

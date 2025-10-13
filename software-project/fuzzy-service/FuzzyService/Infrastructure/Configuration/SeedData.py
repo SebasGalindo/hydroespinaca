@@ -87,11 +87,10 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,  # No aplica para PWM, pero se incluye por consistencia
-                "reference_code": "OUTPUT_VENTILADOR_POTENCIA",
-                "actuator_code": "Ventiladores",
+                "reference_code": "Ventiladores",
                 "terms": []
             },
-            # VARIABLES DE CONTROL (DIGITAL) - Opción B: Rediseño completo
+            # VARIABLES DE CONTROL (DIGITAL)
             {
                 "name": "Control Calefactor Aire",
                 "description": "Control ON/OFF del calefactor de aire",
@@ -100,8 +99,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,  # OFF si <50, ON si >=50
-                "reference_code": "OUTPUT_CALEFACTOR_AIRE_CONTROL",
-                "actuator_code": "termoventilador",
+                "reference_code": "termoventilador",
                 "terms": []
             },
             {
@@ -112,8 +110,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_CALEFACTOR_AGUA_CONTROL",
-                "actuator_code": "calefactor-agua",
+                "reference_code": "calefactor-agua",
                 "terms": []
             },
             {
@@ -124,8 +121,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_LUZ_CONTROL",
-                "actuator_code": "luz-amplio-espectro",
+                "reference_code": "luz-amplio-espectro",
                 "terms": []
             },
             {
@@ -136,8 +132,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_HUMIDIFICADOR_CONTROL",
-                "actuator_code": "humidificador-ultrasonico",
+                "reference_code": "humidificador-ultrasonico",
                 "terms": []
             },
             {
@@ -148,8 +143,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_BOMBA_AIRE_CONTROL",
-                "actuator_code": "piedra-difusora",
+                "reference_code": "piedra-difusora",
                 "terms": []
             },
             {
@@ -160,8 +154,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 100.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_BOMBA_RIEGO_CONTROL",
-                "actuator_code": "bomba-agua",
+                "reference_code": "bomba-agua",
                 "terms": []
             },
             # VARIABLES DE DURACIÓN (DIGITAL)
@@ -173,8 +166,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,  # 1 hora máximo
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_VENTILADOR_DURACION",
-                "actuator_code": "Ventiladores",
+                "reference_code": "Ventiladores",
                 "terms": []
             },
             {
@@ -185,8 +177,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_CALEFACTOR_AIRE_DURACION",
-                "actuator_code": "termoventilador",
+                "reference_code": "termoventilador",
                 "terms": []
             },
             {
@@ -197,8 +188,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_LUZ_DURACION",
-                "actuator_code": "luz-amplio-espectro",
+                "reference_code": "luz-amplio-espectro",
                 "terms": []
             },
             {
@@ -209,8 +199,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_BOMBA_AIRE_DURACION",
-                "actuator_code": "piedra-difusora",
+                "reference_code": "piedra-difusora",
                 "terms": []
             },
             {
@@ -221,8 +210,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_BOMBA_RIEGO_DURACION",
-                "actuator_code": "bomba-agua",
+                "reference_code": "bomba-agua",
                 "terms": []
             },
             {
@@ -233,8 +221,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_CALEFACTOR_AGUA_DURACION",
-                "actuator_code": "calefactor-agua",
+                "reference_code": "calefactor-agua",
                 "terms": []
             },
             {
@@ -245,8 +232,7 @@ class SeedDataConfig:
                 "universe_min": 0.0,
                 "universe_max": 3600.0,
                 "defuzzification_threshold": 50.0,
-                "reference_code": "OUTPUT_HUMIDIFICADOR_DURACION",
-                "actuator_code": "humidificador-ultrasonico",
+                "reference_code": "humidificador-ultrasonico",
                 "terms": []
             }
         ]
@@ -1417,7 +1403,6 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 universe_max=var_config.get("universe_max"),
                 defuzzification_threshold=var_config.get("defuzzification_threshold", 50.0),
                 reference_code=var_config.get("reference_code"),
-                actuator_code=var_config.get("actuator_code"),
                 terms=[]  # Empty initially
             )
 
@@ -1430,10 +1415,9 @@ async def _create_variables_and_terms(repo_variable, repo_term):
                 created_variable_ids[old_id] = str(created_var.id)
 
             _logger.info(
-                "Seed: created variable '%s' (reference_code=%s, actuator_code=%s, actual_id=%s)",
+                "Seed: created variable '%s' (reference_code=%s, actual_id=%s)",
                 var_config["name"],
                 var_config.get("reference_code", "N/A"),
-                var_config.get("actuator_code", "N/A"),
                 str(created_var.id)
             )
         else:

@@ -194,8 +194,11 @@ def configure_application_di() -> None:
     # Actuator Integration handlers
     from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendRoutinesToActuatorCommand import SendRoutinesToActuatorCommand
     from FuzzyService.Application.Features.ActuatorIntegration.Handlers.SendRoutinesToActuatorHandler import SendRoutinesToActuatorHandler
-    
+    from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendCommandsToActuatorCommand import SendCommandsToActuatorCommand
+    from FuzzyService.Application.Features.ActuatorIntegration.Handlers.SendCommandsToActuatorHandler import SendCommandsToActuatorHandler
+
     di[SendRoutinesToActuatorCommand] = SendRoutinesToActuatorHandler()
+    di[SendCommandsToActuatorCommand] = SendCommandsToActuatorHandler()
 
     # FuzzyEngine Service - Domain service implementation
     from FuzzyService.Domain.Interfaces.IFuzzyEngine import IFuzzyEngine

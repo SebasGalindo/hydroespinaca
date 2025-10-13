@@ -7,7 +7,6 @@ from ..ValueObjects import (
     FuzzyEvaluationId,
     FuzzySystemId,
     FuzzyRuleId,
-    ActuatorId,
 )
 from ..Enums import PowerRange, DurationRange
 from ..Utils import extract_oid, parse_timestamp_utc
@@ -53,34 +52,30 @@ class OutputValue(DomainBaseModel):
     """
     Valor de salida de una evaluación fuzzy.
 
-    Contiene información sobre el actuador a controlar, la potencia/duty cycle,
-    y la duración de la acción.
+    Contiene información sobre el actuador a controlar mediante reference_code
+    (el code del actuador), la potencia/duty cycle, y la duración de la acción.
 
     Los campos power y dutyCycle son mutuamente exclusivos:
     - power: "ON" o "OFF" para actuadores digitales
     - dutyCycle: valor 0-100 para actuadores PWM
-
-    El campo power tiene prioridad si ambos están definidos.
     """
-    actuator_id: ActuatorId | str
-    power: Optional[str] = None  # "ON" | "OFF" para actuadores digitales
-    dutyCycle: Optional[float] = None  # 0-100 para actuadores PWM
+    reference_code: str
+    power: Optional[str] = None
+    dutyCycle: Optional[float] = None
     duration: float | int
 
-    # Configuración por defecto basada en enums
     DEFAULT_DURATION_RANGE: ClassVar[DurationRange] = DurationRange.SECONDS_5_60
 
-    @field_validator("actuator_id", mode="before")
+    @field_validator("reference_code")
     @classmethod
-    def _coerce_actuator_id(cls, v):
-        if isinstance(v, dict):
-            v = extract_oid(v)
-        return v
+    def _validate_reference_code(cls, v: str) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("reference_code debe ser un string no vacío")
+        return v.strip()
 
     @field_validator("power")
     @classmethod
     def _validate_power(cls, v: Optional[str]) -> Optional[str]:
-        """Valida que power sea 'ON' o 'OFF' si está definido."""
         if v is not None and v not in ["ON", "OFF"]:
             raise ValueError("power debe ser 'ON' o 'OFF'")
         return v
@@ -88,7 +83,6 @@ class OutputValue(DomainBaseModel):
     @field_validator("dutyCycle")
     @classmethod
     def _validate_duty_cycle(cls, v: Optional[float]) -> Optional[float]:
-        """Valida que dutyCycle esté entre 0 y 100 si está definido."""
         if v is not None:
             if not isinstance(v, (int, float)):
                 raise ValueError("dutyCycle debe ser numérico")
@@ -106,24 +100,18 @@ class OutputValue(DomainBaseModel):
 
     @model_validator(mode="after")
     def _validate_ranges_and_exclusivity(self):
-        """Valida rangos y que power/dutyCycle sean mutuamente exclusivos."""
-        # Validar que al menos uno esté definido
         if self.power is None and self.dutyCycle is None:
             raise ValueError("Debe definirse power o dutyCycle")
-
-        # Validar duración
         dmin, dmax = self.DEFAULT_DURATION_RANGE.min, self.DEFAULT_DURATION_RANGE.max
         if not (dmin <= float(self.duration) <= dmax):
             raise ValueError(f"duration fuera de rango permitido [{dmin}, {dmax}]")
-
         return self
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
-            "actuator_id": str(self.actuator_id),
+            "reference_code": self.reference_code,
             "duration": float(self.duration),
         }
-        # Incluir solo el campo definido (power tiene prioridad)
         if self.power is not None:
             result["power"] = self.power
         elif self.dutyCycle is not None:
@@ -132,12 +120,11 @@ class OutputValue(DomainBaseModel):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OutputValue":
-        aid_raw = data.get("actuator_id")
-        if aid_raw is None:
-            aid_raw = data.get("actuator")
-        aid = extract_oid(aid_raw) if not isinstance(aid_raw, str) else aid_raw
+        ref_code = data.get("reference_code")
+        if ref_code is None:
+            ref_code = data.get("actuator_id")
         return cls(
-            actuator_id=aid or "",
+            reference_code=ref_code or "",
             power=data.get("power"),
             dutyCycle=data.get("dutyCycle"),
             duration=data.get("duration"),
