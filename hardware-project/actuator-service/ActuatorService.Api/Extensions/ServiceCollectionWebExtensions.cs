@@ -17,7 +17,7 @@ public static class ServiceCollectionWebExtensions
             configuration,
             "actuator-service",
             "Actuator Service API",
-            typeof(RoutineCommandValidator).Assembly
+            typeof(ExecuteCommandsValidator).Assembly
         );
 
         // Safety rules configuration

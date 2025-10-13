@@ -62,7 +62,9 @@ public class InternalRoutine : IIdentifiableMutable
 public class InternalRoutineStep
 {
     /// <summary>
-    /// OutputVariable ID from control_outputs collection
+    /// Actuator code (e.g., "BombaRiego", "Ventiladores")
+    /// Previously was OutputVariable ID from control_outputs collection
+    /// Now directly references Actuator.Code
     /// </summary>
     public string OutputVariable { get; set; } = default!;
 

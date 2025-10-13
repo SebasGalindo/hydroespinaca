@@ -27,18 +27,16 @@ public static class ServiceCollectionExtensions
         // Mappers
         services.AddScoped<IEntityMapper<Actuator, ActuatorDocument>, ActuatorMapper>();
         services.AddScoped<IEntityMapper<RoutineCommand, RoutineCommandDocument>, RoutineCommandMapper>();
-        services.AddScoped<IEntityMapper<ControlOutput, ControlOutputDocument>, ControlOutputMapper>();
         services.AddScoped<IEntityMapper<InternalRoutine, InternalRoutineDocument>, InternalRoutineMapper>();
         services.AddScoped<IEntityMapper<ActuatorCooldown, ActuatorCooldownDocument>, ActuatorCooldownMapper>();
 
         // Repositories
         services.AddScoped<IActuatorRepository, MongoActuatorRepository>();
         services.AddScoped<IRoutineCommandRepository, MongoRoutineCommandRepository>();
-        services.AddScoped<IControlOutputRepository, MongoControlOutputRepository>();
         services.AddScoped<IInternalRoutineRepository, MongoInternalRoutineRepository>();
 
         // MQTT Publisher
-        services.AddScoped<IRoutineCommandPublisher, MqttRoutineCommandPublisher>();
+        services.AddSingleton<IRoutineCommandPublisher, MqttRoutineCommandPublisher>();
         services.AddSingleton<IMqttClientService, MqttClientService>();
 
         // Background Services

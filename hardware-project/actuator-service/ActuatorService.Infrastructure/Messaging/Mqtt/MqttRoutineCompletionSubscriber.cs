@@ -1,4 +1,5 @@
 using ActuatorService.Application.Interfaces;
+using ActuatorService.Application.Services;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
@@ -69,8 +70,8 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
 
         using var scope = _serviceProvider.CreateScope();
         var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
-        var routineExecutionService = scope.ServiceProvider.GetRequiredService<IRoutineExecutionService>();
-        var stateMachine = scope.ServiceProvider.GetRequiredService<IActuatorStateMachine>();
+        var commandExecutionService = scope.ServiceProvider.GetService<ICommandExecutionService>();
+        var routineExecutionService = scope.ServiceProvider.GetService<IRoutineExecutionService>();
 
         try
         {
@@ -107,12 +108,19 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
 
             await routineCommandRepository.UpdateAsync(routineCommand);
 
-            // Notify execution service that routine completed
+            // Notify execution service that command/routine completed
             // This will:
             // 1. Release pin locks
             // 2. Update actuator states to OFF
-            // 3. Activate pending routines that were waiting for these pins
-            await routineExecutionService.OnRoutineCompletedAsync(completion.CommandId);
+            // 3. Activate pending commands/routines that were waiting for these pins
+            if (commandExecutionService != null)
+            {
+                await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
+            }
+            else if (routineExecutionService != null)
+            {
+                await routineExecutionService.OnRoutineCompletedAsync(completion.CommandId);
+            }
 
             _logger.LogInformation("✅ Processed completion for routine {CommandId} with status: {Status}",
                 completion.CommandId, completion.Status);

@@ -55,8 +55,8 @@ public class InternalRoutineScheduler : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IInternalRoutineRepository>();
-        var routineValidationService = scope.ServiceProvider.GetRequiredService<IRoutineValidationService>();
-        var routineExecutionService = scope.ServiceProvider.GetRequiredService<IRoutineExecutionService>();
+        var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
+        var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
 
         var routines = await repository.GetActiveRoutinesAsync();
         var now = DateTime.UtcNow;
@@ -72,7 +72,7 @@ public class InternalRoutineScheduler : BackgroundService
                     _logger.LogInformation("⏰ Triggering internal routine: {RoutineName} (ID: {RoutineId})",
                         routine.Name, routine.Id);
 
-                    await ExecuteRoutineAsync(routine, routineValidationService, routineExecutionService);
+                    await ExecuteRoutineAsync(routine, actuatorCodeResolver, commandExecutionService);
 
                     // Update last execution time
                     await repository.UpdateLastExecutedAtAsync(routine.Id, now);
@@ -119,51 +119,63 @@ public class InternalRoutineScheduler : BackgroundService
 
     private async Task ExecuteRoutineAsync(
         InternalRoutine routine,
-        IRoutineValidationService validationService,
-        IRoutineExecutionService executionService)
+        IActuatorCodeResolver actuatorCodeResolver,
+        ICommandExecutionService commandExecutionService)
     {
-        // Convert InternalRoutineStep to RoutineStepDto (same format as fuzzy-service)
-        var steps = routine.Steps.Select(step => new RoutineStepDto
-        {
-            OutputVariable = step.OutputVariable,
-            Power = step.Power,
-            Duration = step.Duration,
-            DutyCycle = step.DutyCycle
-        }).ToList();
+        // Convert InternalRoutineStep to individual commands
+        // OutputVariable now contains ActuatorCode (e.g., "BombaRiego", "Ventiladores")
+        var resolvedCommands = new List<ResolvedCommandDto>();
 
-        // Validate and resolve steps (OutputVariable -> ControlOutput -> Actuator)
-        var resolvedSteps = await validationService.ValidateAndResolveStepsAsync(steps);
-
-        // Ensure all steps belong to the same ESP32
-        var esp32Ids = resolvedSteps.Select(s => s.Esp32Id).Distinct().ToList();
-        if (esp32Ids.Count > 1)
+        foreach (var step in routine.Steps)
         {
-            throw new InvalidOperationException(
-                $"Internal routine '{routine.Name}' contains steps from multiple ESP32 devices: {string.Join(", ", esp32Ids)}");
+            try
+            {
+                // Resolve actuator by code (OutputVariable now stores ActuatorCode)
+                var actuator = await actuatorCodeResolver.ResolveAsync(step.OutputVariable);
+
+                if (actuator == null)
+                {
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} not found for routine {RoutineName}, skipping step",
+                        step.OutputVariable, routine.Name);
+                    continue;
+                }
+
+                // Validate that actuator belongs to the configured ESP32
+                if (actuator.Esp32Id != routine.Esp32Id)
+                {
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} belongs to ESP32 {ActualEsp32}, but routine {RoutineName} is configured for ESP32 {ConfiguredEsp32}",
+                        step.OutputVariable, actuator.Esp32Id, routine.Name, routine.Esp32Id);
+                    continue;
+                }
+
+                resolvedCommands.Add(new ResolvedCommandDto
+                {
+                    ActuatorCode = step.OutputVariable,
+                    ActuatorId = actuator.Id,
+                    Esp32Id = actuator.Esp32Id,
+                    Pin = actuator.Pin,
+                    Mode = actuator.Mode,
+                    Power = step.Power,
+                    DutyCycle = step.DutyCycle,
+                    Duration = step.Duration
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolving actuator {ActuatorCode} for routine {RoutineName}",
+                    step.OutputVariable, routine.Name);
+            }
         }
 
-        if (esp32Ids.Count() == 0)
+        if (resolvedCommands.Count == 0)
         {
-            throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid steps");
+            throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid commands after resolution");
         }
 
-        var esp32Id = esp32Ids.First();
+        // Schedule individual commands (respects pin locks and queuing)
+        await commandExecutionService.ScheduleCommandsAsync(resolvedCommands, routine.Esp32Id);
 
-        // Verify it matches the configured ESP32
-        if (esp32Id != routine.Esp32Id)
-        {
-            _logger.LogWarning("⚠️ Routine {RoutineName} configured for ESP32 {ConfiguredEsp32} but resolved to {ActualEsp32}",
-                routine.Name, routine.Esp32Id, esp32Id);
-        }
-
-        var resolvedRoutine = new ResolvedRoutineDto
-        {
-            RoutineId = $"internal_{routine.Name.ToLower()}",
-            Esp32Id = esp32Id,
-            ResolvedSteps = resolvedSteps
-        };
-
-        // Schedule using the same execution service (respects pin locks)
-        await executionService.ScheduleRoutinesAsync(new List<ResolvedRoutineDto> { resolvedRoutine }, esp32Id);
+        _logger.LogDebug("📤 Scheduled {CommandCount} commands for internal routine {RoutineName}",
+            resolvedCommands.Count, routine.Name);
     }
 }

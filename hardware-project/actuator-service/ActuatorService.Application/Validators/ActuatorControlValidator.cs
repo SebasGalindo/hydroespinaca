@@ -1,45 +1,25 @@
 using FluentValidation;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
-using HydroEspinaca.Shared.Utils;
 
 namespace ActuatorService.Application.Validators;
 
-public class RoutineCommandValidator : AbstractValidator<RoutineCommandDto>
+public class ActuatorControlValidator : AbstractValidator<ActuatorControlDto>
 {
-    public RoutineCommandValidator()
+    public ActuatorControlValidator()
     {
-        RuleFor(x => x.RoutineId)
+        RuleFor(x => x.ActuatorCode)
             .NotEmpty()
-            .WithMessage("RoutineId es requerido");
-
-        RuleFor(x => x.Steps)
-            .NotEmpty()
-            .WithMessage("Se requiere al menos un paso");
-
-        RuleForEach(x => x.Steps)
-            .SetValidator(new RoutineStepValidator());
-    }
-}
-
-public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
-{
-    public RoutineStepValidator()
-    {
-        RuleFor(x => x.OutputVariable)
-            .NotEmpty()
-            .WithMessage("OutputVariable (Control Output ID) es requerido")
-            .Must(ObjectIdHelper.IsValidObjectId)
-            .WithMessage("OutputVariable debe ser un ObjectId válido");
+            .WithMessage("ActuatorCode es requerido");
 
         RuleFor(x => x)
-            .Must(step => IsValidDuration(step))
+            .Must(cmd => IsValidDuration(cmd))
             .WithMessage("Duration debe ser mayor a 0 segundos, excepto para comandos de control (power=Off o dutyCycle=0) que pueden tener duration=0");
 
         // Ensure that either Power (for digital) or DutyCycle (for PWM) is provided, but not both
         RuleFor(x => x)
             .Must(HaveValidControlParameters)
-            .WithMessage("El paso debe tener 'power' (para DIGITAL) o 'dutyCycle' (para PWM), pero no ambos");
+            .WithMessage("El comando debe tener 'power' (para DIGITAL) o 'dutyCycle' (para PWM), pero no ambos");
 
         When(x => x.Power != null, () => {
             RuleFor(x => x.Power)
@@ -54,30 +34,43 @@ public class RoutineStepValidator : AbstractValidator<RoutineStepDto>
         });
     }
 
-    private bool HaveValidControlParameters(RoutineStepDto step)
+    private bool HaveValidControlParameters(ActuatorControlDto cmd)
     {
-        bool hasPower = !string.IsNullOrEmpty(step.Power);
-        bool hasDutyCycle = step.DutyCycle.HasValue;
+        bool hasPower = !string.IsNullOrEmpty(cmd.Power);
+        bool hasDutyCycle = cmd.DutyCycle.HasValue;
 
         // Must have exactly one of them
         return hasPower ^ hasDutyCycle;
     }
-    
-    private bool IsValidDuration(RoutineStepDto step)
+
+    private bool IsValidDuration(ActuatorControlDto cmd)
     {
         // Duration must be >= 0 for all cases
-        if (step.Duration < 0)
+        if (cmd.Duration < 0)
             return false;
-            
+
         // Duration = 0 is only allowed for control commands (power=Off or dutyCycle=0)
-        if (step.Duration == 0)
+        if (cmd.Duration == 0)
         {
-            bool isControlCommand = (step.Power == ActuatorConstants.PowerStates.Off) || 
-                                  (step.DutyCycle == ActuatorConstants.Validation.MinDutyCycle);
+            bool isControlCommand = (cmd.Power == ActuatorConstants.PowerStates.Off) ||
+                                  (cmd.DutyCycle == ActuatorConstants.Validation.MinDutyCycle);
             return isControlCommand;
         }
-        
+
         // Duration > 0 is always valid
         return true;
+    }
+}
+
+public class ExecuteCommandsValidator : AbstractValidator<ExecuteCommandsDto>
+{
+    public ExecuteCommandsValidator()
+    {
+        RuleFor(x => x.Commands)
+            .NotEmpty()
+            .WithMessage("Se requiere al menos un comando");
+
+        RuleForEach(x => x.Commands)
+            .SetValidator(new ActuatorControlValidator());
     }
 }

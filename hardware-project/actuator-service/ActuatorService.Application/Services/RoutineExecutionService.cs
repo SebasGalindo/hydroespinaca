@@ -387,8 +387,9 @@ public class RoutineExecutionService : IRoutineExecutionService
 
         using var scope = _serviceProvider.CreateScope();
         var internalRoutineRepository = scope.ServiceProvider.GetRequiredService<IInternalRoutineRepository>();
-        var routineValidationService = scope.ServiceProvider.GetRequiredService<IRoutineValidationService>();
+        var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
         var actuatorRepository = scope.ServiceProvider.GetRequiredService<IActuatorRepository>();
+        var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
 
         // Get the SystemReset routine from database
         var systemResetRoutine = await internalRoutineRepository.GetByNameAsync("SystemReset");
@@ -401,27 +402,23 @@ public class RoutineExecutionService : IRoutineExecutionService
 
         _logger.LogInformation("📋 Found SystemReset routine with {StepCount} steps", systemResetRoutine.Steps.Count);
 
-        // Get all actuators and control outputs for filtering
-        var controlOutputRepository = scope.ServiceProvider.GetRequiredService<IControlOutputRepository>();
-        var allControlOutputs = await controlOutputRepository.GetAllAsync();
+        // Get all actuators for filtering
         var allActuators = await actuatorRepository.GetAllAsync();
 
-        // Create a map of OutputVariable -> Actuator for quick lookup
-        var outputVarToActuator = allControlOutputs
-            .Join(allActuators,
-                co => co.ActuatorId,
-                a => a.Id,
-                (co, a) => new { OutputVariableId = co.Id, Actuator = a })
-            .ToDictionary(x => x.OutputVariableId, x => x.Actuator);
+        // Resolve and filter steps
+        var resolvedCommands = new List<ResolvedCommandDto>();
 
-        // Filter steps: only include ACTIVE actuators and optionally by ESP32
-        var stepsToExecute = systemResetRoutine.Steps
-            .Where(step =>
+        foreach (var step in systemResetRoutine.Steps)
+        {
+            try
             {
-                if (!outputVarToActuator.TryGetValue(step.OutputVariable, out var actuator))
+                // Resolve actuator by code (OutputVariable now stores ActuatorCode)
+                var actuator = await actuatorCodeResolver.ResolveAsync(step.OutputVariable);
+
+                if (actuator == null)
                 {
-                    _logger.LogWarning("⚠️ OutputVariable {OutputVariableId} not found, skipping step", step.OutputVariable);
-                    return false;
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} not found, skipping step", step.OutputVariable);
+                    continue;
                 }
 
                 // Filter out inactive actuators
@@ -429,69 +426,68 @@ public class RoutineExecutionService : IRoutineExecutionService
                 {
                     _logger.LogDebug("⏭️ Skipping actuator {ActuatorCode} ({ActuatorId}) - Status: {Status}",
                         actuator.Code, actuator.Id, actuator.Status);
-                    return false;
+                    continue;
                 }
 
                 // Filter by ESP32 if specified
                 if (esp32Id != null && actuator.Esp32Id != esp32Id)
                 {
-                    return false;
+                    continue;
                 }
 
-                return true;
-            })
-            .ToList();
+                resolvedCommands.Add(new ResolvedCommandDto
+                {
+                    ActuatorCode = step.OutputVariable,
+                    ActuatorId = actuator.Id,
+                    Esp32Id = actuator.Esp32Id,
+                    Pin = actuator.Pin,
+                    Mode = actuator.Mode,
+                    Power = step.Power,
+                    DutyCycle = step.DutyCycle,
+                    Duration = step.Duration
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolving actuator {ActuatorCode} for SystemReset",
+                    step.OutputVariable);
+            }
+        }
 
         if (esp32Id != null)
         {
-            _logger.LogInformation("🔍 Filtered to {StepCount} active steps for ESP32 {Esp32Id}",
-                stepsToExecute.Count, esp32Id);
+            _logger.LogInformation("🔍 Filtered to {CommandCount} active commands for ESP32 {Esp32Id}",
+                resolvedCommands.Count, esp32Id);
         }
         else
         {
-            _logger.LogInformation("🔍 Filtered to {StepCount} active steps (from {TotalSteps} total)",
-                stepsToExecute.Count, systemResetRoutine.Steps.Count);
+            _logger.LogInformation("🔍 Filtered to {CommandCount} active commands (from {TotalSteps} total)",
+                resolvedCommands.Count, systemResetRoutine.Steps.Count);
         }
 
-        // Convert InternalRoutineStep to RoutineStepDto
-        var steps = stepsToExecute.Select(step => new RoutineStepDto
+        if (resolvedCommands.Count == 0)
         {
-            OutputVariable = step.OutputVariable,
-            Power = step.Power,
-            Duration = step.Duration,
-            DutyCycle = step.DutyCycle
-        }).ToList();
+            _logger.LogWarning("⚠️ No actuators to reset");
+            return;
+        }
 
-        // Validate and resolve steps (OutputVariable -> ControlOutput -> Actuator)
-        var resolvedSteps = await routineValidationService.ValidateAndResolveStepsAsync(steps);
+        // Group commands by ESP32
+        var commandsByEsp32 = resolvedCommands.GroupBy(c => c.Esp32Id);
 
-        // Group by ESP32
-        var stepsByEsp32 = resolvedSteps.GroupBy(s => s.Esp32Id);
-
-        foreach (var esp32Group in stepsByEsp32)
+        foreach (var esp32Group in commandsByEsp32)
         {
-            var esp32Steps = esp32Group.ToList();
+            var esp32Commands = esp32Group.ToList();
             _logger.LogInformation("🔌 Resetting {Count} actuators for ESP32 {Esp32Id}",
-                esp32Steps.Count, esp32Group.Key);
+                esp32Commands.Count, esp32Group.Key);
 
-            var resolvedRoutine = new ResolvedRoutineDto
-            {
-                RoutineId = "system_reset",
-                Esp32Id = esp32Group.Key,
-                ResolvedSteps = esp32Steps
-            };
+            // Send immediate reset commands (bypass queue, no pin locking)
+            await commandExecutionService.SendImmediateResetCommandsAsync(esp32Commands, esp32Group.Key);
 
-            // Schedule using the same execution service (will publish via MQTT)
-            var commandIds = await ScheduleRoutinesAsync(
-                new List<ResolvedRoutineDto> { resolvedRoutine },
-                esp32Group.Key
-            );
-
-            _logger.LogInformation("📤 Published SystemReset routine for ESP32 {Esp32Id} with {StepCount} steps (CommandId: {CommandId})",
-                esp32Group.Key, esp32Steps.Count, commandIds.First());
+            _logger.LogInformation("📤 Published {CommandCount} immediate SystemReset commands for ESP32 {Esp32Id}",
+                esp32Commands.Count, esp32Group.Key);
         }
 
-        _logger.LogInformation("🏁 Reset complete: {Count} actuators will be set to OFF", resolvedSteps.Count);
+        _logger.LogInformation("🏁 Reset complete: {Count} actuators scheduled to OFF", resolvedCommands.Count);
     }
 
     private static string GenerateCommandId(string routineId)

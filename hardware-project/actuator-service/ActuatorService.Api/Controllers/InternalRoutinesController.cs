@@ -12,16 +12,16 @@ namespace ActuatorService.Api.Controllers;
 public class InternalRoutinesController : ControllerBase
 {
     private readonly IInternalRoutineRepository _repository;
-    private readonly IControlOutputRepository _controlOutputRepository;
+    private readonly IActuatorRepository _actuatorRepository;
     private readonly ILogger<InternalRoutinesController> _logger;
 
     public InternalRoutinesController(
         IInternalRoutineRepository repository,
-        IControlOutputRepository controlOutputRepository,
+        IActuatorRepository actuatorRepository,
         ILogger<InternalRoutinesController> logger)
     {
         _repository = repository;
-        _controlOutputRepository = controlOutputRepository;
+        _actuatorRepository = actuatorRepository;
         _logger = logger;
     }
 
@@ -64,15 +64,16 @@ public class InternalRoutinesController : ControllerBase
     [Authorize(Policy = PolicyNames.CommandCreate)]
     public async Task<IActionResult> Create([FromBody] CreateInternalRoutineDto dto)
     {
-        // Validate that all OutputVariables exist
+        // Validate that all OutputVariables (ActuatorCodes) exist
+        var allActuators = await _actuatorRepository.GetAllAsync();
         foreach (var step in dto.Steps)
         {
-            var controlOutput = await _controlOutputRepository.GetByIdAsync(step.OutputVariable);
-            if (controlOutput == null)
+            var actuator = allActuators.FirstOrDefault(a => a.Code == step.OutputVariable);
+            if (actuator == null)
             {
                 return BadRequest(new
                 {
-                    Message = $"OutputVariable '{step.OutputVariable}' not found in control_outputs collection"
+                    Message = $"Actuator with code '{step.OutputVariable}' not found"
                 });
             }
         }
@@ -138,15 +139,16 @@ public class InternalRoutinesController : ControllerBase
 
         if (dto.Steps != null)
         {
-            // Validate OutputVariables
+            // Validate OutputVariables (ActuatorCodes)
+            var allActuators = await _actuatorRepository.GetAllAsync();
             foreach (var step in dto.Steps)
             {
-                var controlOutput = await _controlOutputRepository.GetByIdAsync(step.OutputVariable);
-                if (controlOutput == null)
+                var actuator = allActuators.FirstOrDefault(a => a.Code == step.OutputVariable);
+                if (actuator == null)
                 {
                     return BadRequest(new
                     {
-                        Message = $"OutputVariable '{step.OutputVariable}' not found in control_outputs collection"
+                        Message = $"Actuator with code '{step.OutputVariable}' not found"
                     });
                 }
             }
