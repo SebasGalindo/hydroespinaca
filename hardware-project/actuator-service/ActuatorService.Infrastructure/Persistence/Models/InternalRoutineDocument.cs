@@ -23,15 +23,8 @@ public class InternalRoutineDocument : IIdentifiableMutable
     [BsonElement("interval")]
     public TimeSpan Interval { get; set; }
 
-    [BsonElement("start_time")]
-    public TimeSpan StartTime { get; set; }
-
     [BsonElement("steps")]
     public List<InternalRoutineStepDocument> Steps { get; set; } = new();
-
-    [BsonElement("last_executed_at")]
-    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-    public DateTime? LastExecutedAt { get; set; }
 
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;

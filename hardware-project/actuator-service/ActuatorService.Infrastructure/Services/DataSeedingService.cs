@@ -160,10 +160,9 @@ public class DataSeedingService
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
                 Name = "Recirculation",
-                Description = "Routine to circulate nutrient solution every 4 hours",
+                Description = "Routine to circulate nutrient solution every 2 hours",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromHours(2),
-                StartTime = TimeSpan.Zero, // Start at midnight
                 IsActive = true,
                 Steps = new List<InternalRoutineStep>
                 {
@@ -203,7 +202,6 @@ public class DataSeedingService
                 Description = "Short routine for air circulation every 30 minutes",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromMinutes(30),
-                StartTime = TimeSpan.Zero, // Start at midnight
                 IsActive = true,
                 Steps = new List<InternalRoutineStep>
                 {
@@ -227,7 +225,6 @@ public class DataSeedingService
                 Description = "System routine to reset all actuators to OFF state (triggered by /commands/jobs/clear)",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromDays(999), // Not time-triggered, manually invoked
-                StartTime = TimeSpan.Zero,
                 IsActive = false, // Not scheduled by timer, manually triggered
                 Steps = systemResetSteps,
                 CreatedAt = DateTime.UtcNow,

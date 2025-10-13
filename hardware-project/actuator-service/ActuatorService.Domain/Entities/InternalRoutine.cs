@@ -5,6 +5,7 @@ namespace ActuatorService.Domain.Entities;
 /// <summary>
 /// Represents a system-internal recurring routine that executes at fixed intervals.
 /// These routines are independent of the fuzzy-service and are scheduled based on time.
+/// Execution is deterministic, calculated from 00:00 local time without persisted state.
 /// </summary>
 public class InternalRoutine : IIdentifiableMutable
 {
@@ -18,25 +19,15 @@ public class InternalRoutine : IIdentifiableMutable
     public string Esp32Id { get; set; } = default!;
 
     /// <summary>
-    /// Interval between executions (e.g., 4 hours, 30 minutes)
+    /// Interval between executions (e.g., 02:00:00 for 2 hours, 00:30:00 for 30 minutes)
+    /// Execution times are calculated from 00:00 local time (America/Bogota)
     /// </summary>
     public TimeSpan Interval { get; set; }
-
-    /// <summary>
-    /// Time of day when the routine should start (e.g., 00:00 for midnight)
-    /// Used to calculate the first execution time each day
-    /// </summary>
-    public TimeSpan StartTime { get; set; }
 
     /// <summary>
     /// Steps to execute in this routine (using outputVariable like fuzzy routines)
     /// </summary>
     public List<InternalRoutineStep> Steps { get; set; } = new();
-
-    /// <summary>
-    /// Last time this routine was executed (UTC)
-    /// </summary>
-    public DateTime? LastExecutedAt { get; set; }
 
     /// <summary>
     /// Whether this routine is currently active

@@ -44,15 +44,15 @@ public class CommandsController : ControllerBase
         var stats = await _commandExecutionService.GetStatsAsync();
 
         var internalRoutines = await _internalRoutineRepository.GetActiveRoutinesAsync();
-        var now = DateTime.UtcNow;
 
         var internalRoutinesInfo = internalRoutines.Select(r => new
         {
             r.Name,
             r.Description,
             Interval = r.Interval.ToString(@"hh\:mm\:ss"),
-            r.LastExecutedAt,
-            NextExecutionEstimate = CalculateNextExecution(r, now),
+            NextExecutionEstimate = r.IsActive
+                ? InternalRoutineScheduler.GetNextExecution(r.Interval, "America/Bogota")
+                : (DateTime?)null,
             r.IsActive
         }).ToList();
 
@@ -62,20 +62,6 @@ public class CommandsController : ControllerBase
             Stats = stats,
             InternalRoutines = internalRoutinesInfo
         });
-    }
-
-    private DateTime? CalculateNextExecution(Domain.Entities.InternalRoutine routine, DateTime now)
-    {
-        if (!routine.IsActive)
-            return null;
-
-        if (routine.LastExecutedAt == null)
-        {
-            var todayStart = now.Date + routine.StartTime;
-            return todayStart > now ? todayStart : todayStart.Add(routine.Interval);
-        }
-
-        return routine.LastExecutedAt.Value.Add(routine.Interval);
     }
 
     [HttpDelete("jobs/clear")]

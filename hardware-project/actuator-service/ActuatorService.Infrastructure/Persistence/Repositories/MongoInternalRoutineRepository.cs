@@ -27,16 +27,6 @@ public class MongoInternalRoutineRepository : IInternalRoutineRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task UpdateLastExecutedAtAsync(string id, DateTime timestamp)
-    {
-        var filter = Builders<InternalRoutineDocument>.Filter.Eq(r => r.Id, id);
-        var update = Builders<InternalRoutineDocument>.Update
-            .Set(r => r.LastExecutedAt, timestamp)
-            .Set(r => r.UpdatedAt, DateTime.UtcNow);
-
-        await _collection.UpdateOneAsync(filter, update);
-    }
-
     public Task AddAsync(InternalRoutine routine)
     {
         routine.CreatedAt = DateTime.UtcNow;

@@ -1,4 +1,5 @@
 using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Services;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Extensions;
@@ -85,7 +86,6 @@ public class InternalRoutinesController : ControllerBase
             Description = dto.Description,
             Esp32Id = dto.Esp32Id,
             Interval = dto.Interval,
-            StartTime = dto.StartTime,
             IsActive = dto.IsActive,
             Steps = dto.Steps.Select(s => new InternalRoutineStep
             {
@@ -130,9 +130,6 @@ public class InternalRoutinesController : ControllerBase
 
         if (dto.Interval.HasValue)
             routine.Interval = dto.Interval.Value;
-
-        if (dto.StartTime.HasValue)
-            routine.StartTime = dto.StartTime.Value;
 
         if (dto.IsActive.HasValue)
             routine.IsActive = dto.IsActive.Value;
@@ -193,22 +190,12 @@ public class InternalRoutinesController : ControllerBase
 
     private InternalRoutineDto MapToDto(InternalRoutine routine)
     {
-        var now = DateTime.UtcNow;
         DateTime? nextExecution = null;
 
         if (routine.IsActive)
         {
-            if (routine.LastExecutedAt == null)
-            {
-                // First execution: calculate from today's start time
-                var todayStart = now.Date + routine.StartTime;
-                nextExecution = todayStart > now ? todayStart : todayStart.Add(routine.Interval);
-            }
-            else
-            {
-                // Next execution based on last execution + interval
-                nextExecution = routine.LastExecutedAt.Value.Add(routine.Interval);
-            }
+            // Use deterministic calculation from InternalRoutineScheduler
+            nextExecution = InternalRoutineScheduler.GetNextExecution(routine.Interval, "America/Bogota");
         }
 
         return new InternalRoutineDto
@@ -218,7 +205,6 @@ public class InternalRoutinesController : ControllerBase
             Description = routine.Description,
             Esp32Id = routine.Esp32Id,
             Interval = routine.Interval,
-            StartTime = routine.StartTime,
             Steps = routine.Steps.Select(s => new InternalRoutineStepDto
             {
                 OutputVariable = s.OutputVariable,
@@ -227,7 +213,6 @@ public class InternalRoutinesController : ControllerBase
                 DutyCycle = s.DutyCycle,
                 Mode = s.Mode
             }).ToList(),
-            LastExecutedAt = routine.LastExecutedAt,
             NextExecutionEstimate = nextExecution,
             IsActive = routine.IsActive,
             CreatedAt = routine.CreatedAt,
