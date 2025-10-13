@@ -12,12 +12,14 @@ namespace ActuatorService.Application.Services;
 /// <summary>
 /// Background service that schedules and executes internal recurring routines.
 /// Checks every minute if any routine should be triggered based on their interval and last execution time.
+/// Uses Colombia timezone (America/Bogota, UTC-5) for scheduling.
 /// </summary>
 public class InternalRoutineScheduler : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<InternalRoutineScheduler> _logger;
     private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(1);
+    private static readonly TimeZoneInfo ColombiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
 
     public InternalRoutineScheduler(
         IServiceProvider serviceProvider,
@@ -25,6 +27,14 @@ public class InternalRoutineScheduler : BackgroundService
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Gets current time in Colombia timezone
+    /// </summary>
+    private DateTime GetColombiaTime()
+    {
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ColombiaTimeZone);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -59,25 +69,71 @@ public class InternalRoutineScheduler : BackgroundService
         var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
 
         var routines = await repository.GetActiveRoutinesAsync();
-        var now = DateTime.UtcNow;
+        var nowColombia = GetColombiaTime();
+        var nowUtc = DateTime.UtcNow;
 
-        _logger.LogDebug("🔍 Checking {Count} active internal routines", routines.Count);
+        _logger.LogDebug("🔍 Checking {Count} active internal routines at {ColombiaTime} (Colombia), {UtcTime} (UTC)",
+            routines.Count, nowColombia.ToString("yyyy-MM-dd HH:mm:ss"), nowUtc.ToString("yyyy-MM-dd HH:mm:ss"));
 
+        // Determine which routines should run
+        var routinesToRun = new List<InternalRoutine>();
         foreach (var routine in routines)
+        {
+            if (ShouldRun(routine, nowColombia, nowUtc))
+            {
+                routinesToRun.Add(routine);
+            }
+        }
+
+        if (!routinesToRun.Any())
+        {
+            _logger.LogDebug("⏸️ No routines to execute at this time");
+            return;
+        }
+
+        // Check for conflicts: Recirculation has priority over Aeration
+        var recirculationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Recirculation");
+        var aerationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Aeration");
+
+        if (recirculationRoutine != null && aerationRoutine != null)
+        {
+            // Conflict detected: both should run at the same time
+            _logger.LogWarning("⚠️ Routine conflict detected at {ColombiaTime}: Both Recirculation and Aeration scheduled",
+                nowColombia.ToString("HH:mm"));
+            _logger.LogInformation("🔝 Recirculation has priority - Aeration will be skipped");
+
+            // Remove Aeration from execution list
+            routinesToRun.Remove(aerationRoutine);
+
+            _logger.LogWarning("⛔ Aeration skipped due to Recirculation priority at {ColombiaTime}",
+                nowColombia.ToString("HH:mm"));
+        }
+
+        // Execute remaining routines
+        foreach (var routine in routinesToRun)
         {
             try
             {
-                if (ShouldRun(routine, now))
+                var isPriorityRoutine = routine.Name == "Recirculation";
+                var priorityTag = isPriorityRoutine ? " (priority routine)" : "";
+
+                _logger.LogInformation("⏰ Triggering internal routine: {RoutineName}{PriorityTag} at {ColombiaTime}",
+                    routine.Name, priorityTag, nowColombia.ToString("HH:mm"));
+
+                await ExecuteRoutineAsync(routine, actuatorCodeResolver, commandExecutionService);
+
+                // Update last execution time in UTC
+                await repository.UpdateLastExecutedAtAsync(routine.Id, nowUtc);
+
+                if (isPriorityRoutine)
                 {
-                    _logger.LogInformation("⏰ Triggering internal routine: {RoutineName} (ID: {RoutineId})",
-                        routine.Name, routine.Id);
-
-                    await ExecuteRoutineAsync(routine, actuatorCodeResolver, commandExecutionService);
-
-                    // Update last execution time
-                    await repository.UpdateLastExecutedAtAsync(routine.Id, now);
-
-                    _logger.LogInformation("✅ Internal routine {RoutineName} scheduled successfully", routine.Name);
+                    _logger.LogInformation("✅ Recirculation triggered successfully (priority routine) at {ColombiaTime}",
+                        nowColombia.ToString("HH:mm"));
+                }
+                else
+                {
+                    _logger.LogInformation("✅ Internal routine {RoutineName} scheduled successfully at {ColombiaTime}",
+                        routine.Name, nowColombia.ToString("HH:mm"));
                 }
             }
             catch (Exception ex)
@@ -88,30 +144,71 @@ public class InternalRoutineScheduler : BackgroundService
         }
     }
 
-    private bool ShouldRun(InternalRoutine routine, DateTime now)
+    private bool ShouldRun(InternalRoutine routine, DateTime nowColombia, DateTime nowUtc)
     {
+        // Convert last execution from UTC to Colombia time
+        DateTime? lastExecutedColombia = routine.LastExecutedAt.HasValue
+            ? TimeZoneInfo.ConvertTimeFromUtc(routine.LastExecutedAt.Value, ColombiaTimeZone)
+            : null;
+
         // If never executed, check if we're past the start time today
-        if (routine.LastExecutedAt == null)
+        if (lastExecutedColombia == null)
         {
-            var todayStart = now.Date + routine.StartTime;
-            var shouldRunFirstTime = now >= todayStart;
+            var todayStart = nowColombia.Date + routine.StartTime;
+            var shouldRunFirstTime = nowColombia >= todayStart;
 
             if (shouldRunFirstTime)
             {
-                _logger.LogDebug("⭐ Routine {RoutineName} has never run and is past start time", routine.Name);
+                _logger.LogDebug("⭐ Routine {RoutineName} has never run and is past start time {StartTime} (Colombia time)",
+                    routine.Name, todayStart.ToString("HH:mm"));
             }
 
             return shouldRunFirstTime;
         }
 
+        // Calculate time since last execution (using Colombia time)
+        var timeSinceLastExecution = nowColombia - lastExecutedColombia.Value;
+
         // Check if enough time has passed since last execution
-        var timeSinceLastExecution = now - routine.LastExecutedAt.Value;
-        var shouldRunAgain = timeSinceLastExecution >= routine.Interval;
+        // We add a small tolerance (30 seconds) to avoid missing executions due to timing precision
+        var shouldRunAgain = timeSinceLastExecution >= routine.Interval.Subtract(TimeSpan.FromSeconds(30));
 
         if (shouldRunAgain)
         {
-            _logger.LogDebug("🔄 Routine {RoutineName} interval elapsed (last: {LastExecution}, interval: {Interval})",
-                routine.Name, routine.LastExecutedAt, routine.Interval);
+            _logger.LogDebug("🔄 Routine {RoutineName} interval elapsed - Last: {LastExecution} (Colombia), Interval: {Interval}, Elapsed: {Elapsed}",
+                routine.Name,
+                lastExecutedColombia.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                routine.Interval,
+                timeSinceLastExecution.ToString(@"hh\:mm\:ss"));
+
+            // Additional validation: ensure we're on the correct time boundary
+            // For example, Recirculation (2h interval) should run at 00:00, 02:00, 04:00, etc.
+            if (routine.Name == "Recirculation")
+            {
+                // Should run every 2 hours starting from midnight
+                var hoursSinceStartTime = (nowColombia.TimeOfDay - routine.StartTime).TotalHours;
+                var isOnBoundary = Math.Abs(hoursSinceStartTime % routine.Interval.TotalHours) < 0.02; // Within ~1 minute tolerance
+
+                if (isOnBoundary)
+                {
+                    _logger.LogDebug("✅ Recirculation on time boundary: {CurrentTime} (Colombia)", nowColombia.ToString("HH:mm"));
+                }
+
+                return isOnBoundary;
+            }
+            else if (routine.Name == "Aeration")
+            {
+                // Should run every 30 minutes starting from midnight
+                var minutesSinceStartTime = (nowColombia.TimeOfDay - routine.StartTime).TotalMinutes;
+                var isOnBoundary = Math.Abs(minutesSinceStartTime % routine.Interval.TotalMinutes) < 1.5; // Within ~1.5 minute tolerance
+
+                if (isOnBoundary)
+                {
+                    _logger.LogDebug("✅ Aeration on time boundary: {CurrentTime} (Colombia)", nowColombia.ToString("HH:mm"));
+                }
+
+                return isOnBoundary;
+            }
         }
 
         return shouldRunAgain;

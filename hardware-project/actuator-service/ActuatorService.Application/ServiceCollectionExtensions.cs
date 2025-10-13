@@ -37,6 +37,9 @@ public static class ServiceCollectionExtensions
         // Advanced behavior rules (refactored to work with actuator codes)
         services.AddScoped<AdvancedBehaviorRulesService>();
 
+        // Internal routine scheduler (background service for time-based routines)
+        services.AddHostedService<InternalRoutineScheduler>();
+
         // Validators
         services.AddScoped<IValidator<ExecuteCommandsDto>, ExecuteCommandsValidator>();
         services.AddScoped<IValidator<ActuatorControlDto>, ActuatorControlValidator>();

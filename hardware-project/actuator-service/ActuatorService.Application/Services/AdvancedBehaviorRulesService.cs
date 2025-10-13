@@ -138,43 +138,6 @@ public class AdvancedBehaviorRulesService
                         cooldownDuration);
                 }
             }
-
-            // Full Spectrum Light: Time restrictions
-            if (actuator.Code == "Luz de Espectro Completo")
-            {
-                var localTime = now.AddHours(-5); // Colombia UTC-5
-                var currentHour = localTime.Hour;
-
-                // Auto-off after 18:00
-                if (currentHour >= _config.FullSpectrumLight.AllowedEndHour)
-                {
-                    _logger.LogWarning("⚠️ Full spectrum light ON after allowed hours. Auto-off triggered.");
-
-                    _stateMachine.UpdateState(actuator.Id, PowerState.OFF, commandId: "time_restriction");
-
-                    var cooldownDuration = TimeSpan.FromMinutes(_config.FullSpectrumLight.CooldownMinutes);
-                    await _pinBlockManager.BlockForAsync(
-                        actuator.Id,
-                        cooldownDuration,
-                        "Auto-off: fuera de horario permitido");
-                }
-
-                // Max continuous time
-                var maxTime = TimeSpan.FromHours(_config.FullSpectrumLight.MaxContinuousOnHours);
-                if (onDuration > maxTime)
-                {
-                    _logger.LogWarning("⚠️ Full spectrum light exceeded max time: {Duration:hh\\:mm\\:ss}",
-                        onDuration);
-
-                    _stateMachine.UpdateState(actuator.Id, PowerState.OFF, commandId: "max_time_violation");
-
-                    var cooldownDuration = TimeSpan.FromMinutes(_config.FullSpectrumLight.CooldownMinutes);
-                    await _pinBlockManager.BlockForAsync(
-                        actuator.Id,
-                        cooldownDuration,
-                        "Auto-off: tiempo máximo continuo excedido");
-                }
-            }
         }
     }
 

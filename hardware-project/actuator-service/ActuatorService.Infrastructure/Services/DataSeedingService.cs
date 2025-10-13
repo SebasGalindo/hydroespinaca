@@ -162,7 +162,7 @@ public class DataSeedingService
                 Name = "Recirculation",
                 Description = "Routine to circulate nutrient solution every 4 hours",
                 Esp32Id = esp32Id,
-                Interval = TimeSpan.FromHours(4),
+                Interval = TimeSpan.FromHours(2),
                 StartTime = TimeSpan.Zero, // Start at midnight
                 IsActive = true,
                 Steps = new List<InternalRoutineStep>

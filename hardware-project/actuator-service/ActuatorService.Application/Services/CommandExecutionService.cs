@@ -136,7 +136,7 @@ public class CommandExecutionService : ICommandExecutionService
         if (!_activeCommands.TryRemove(commandId, out var completedCommand))
         {
             _logger.LogWarning("⚠️ Completed command {CommandId} not found in active commands", commandId);
-            return;
+            throw new InvalidOperationException($"Command {commandId} not found in active commands");
         }
 
         // Release pin lock
@@ -349,7 +349,7 @@ public class CommandExecutionService : ICommandExecutionService
 
     public async Task SendImmediateResetCommandsAsync(List<ResolvedCommandDto> commands, string esp32Id)
     {
-        _logger.LogInformation("⚡ Sending {Count} immediate reset commands for ESP32 {Esp32Id} (bypassing queue)",
+        _logger.LogInformation("⚡ Sending {Count} immediate reset commands for ESP32 {Esp32Id}",
             commands.Count, esp32Id);
 
         var jobRoutines = new List<JobRoutineDto>();
@@ -358,22 +358,38 @@ public class CommandExecutionService : ICommandExecutionService
         {
             var commandId = GenerateCommandId($"reset_{command.ActuatorCode}");
 
-            // Create MQTT payload (no pin locking, direct publish)
+            // Register command in active commands for MQTT confirmation tracking
+            var activeCommand = new ActiveCommand
+            {
+                CommandId = commandId,
+                ActuatorId = command.ActuatorId,
+                ActuatorCode = command.ActuatorCode,
+                Esp32Id = command.Esp32Id,
+                Pin = command.Pin,
+                StartTime = DateTime.UtcNow,
+                Power = command.Power,
+                DutyCycle = command.DutyCycle,
+                Duration = command.Duration
+            };
+
+            _activeCommands[commandId] = activeCommand;
+
+            // Create MQTT payload (no pin locking for reset commands)
             var jobRoutine = CreateJobRoutineDto(command, commandId);
             jobRoutines.Add(jobRoutine);
 
             // Update actuator state to OFF immediately
             _stateMachine.UpdateState(command.ActuatorId, PowerState.OFF, 0, null, commandId);
 
-            _logger.LogDebug("⚡ Immediate reset command {CommandId} for {ActuatorCode} - state set to OFF",
+            _logger.LogDebug("⚡ Reset command {CommandId} scheduled for {ActuatorCode} - state set to OFF, awaiting firmware confirmation",
                 commandId, command.ActuatorCode);
         }
 
-        // Publish all reset commands immediately to MQTT
+        // Publish all reset commands to MQTT and job schedule
         if (jobRoutines.Any())
         {
             await PublishJobScheduleAsync(esp32Id, jobRoutines);
-            _logger.LogInformation("📤 Published {Count} immediate reset commands to MQTT", jobRoutines.Count);
+            _logger.LogInformation("📤 Published {Count} reset commands to MQTT and job schedule - awaiting confirmations", jobRoutines.Count);
         }
     }
 

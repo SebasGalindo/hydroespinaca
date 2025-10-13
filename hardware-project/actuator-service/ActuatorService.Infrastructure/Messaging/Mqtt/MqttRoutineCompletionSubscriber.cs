@@ -69,13 +69,11 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
         }
 
         using var scope = _serviceProvider.CreateScope();
-        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
-        var commandExecutionService = scope.ServiceProvider.GetService<ICommandExecutionService>();
-        var routineExecutionService = scope.ServiceProvider.GetService<IRoutineExecutionService>();
+        var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
 
         try
         {
-            _logger.LogDebug("📨 Received routine completion on topic: {Topic}", topic);
+            _logger.LogDebug("📨 Received command completion on topic: {Topic}", topic);
 
             var completion = JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase);
 
@@ -84,54 +82,28 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
                 _logger.LogWarning("⚠️ Received null completion data from topic: {Topic}", topic);
                 return;
             }
-            Console.WriteLine($"Received routine completion: {JsonSerializer.Serialize(completion, JsonConstants.SerializerOptions.CamelCase)}");
-            
-            // Update routine command in database
-            var routineCommand = await routineCommandRepository.GetByCommandIdAsync(completion.CommandId);
-            
-            if (routineCommand == null)
-            {
-                _logger.LogWarning("⚠️ Routine command not found for CommandId: {CommandId}", completion.CommandId);
-                return;
-            }
 
-            // Update the routine command with completion data
-            routineCommand.StatusGeneral = completion.Status;
-            routineCommand.FinishedAt = completion.FinishedAt;
-            routineCommand.Results = completion.Steps?.Select(step => new Domain.Entities.RoutineResult
-            {
-                Pin = step.Pin.ToString(),
-                Status = step.Status,
-                ExecutionLog = step.ExecutionLog
-            }).ToList();
-            
+            _logger.LogDebug("📦 Received command completion: CommandId={CommandId}, Status={Status}, Steps={StepCount}",
+                completion.CommandId, completion.Status, completion.Steps?.Count ?? 0);
 
-            await routineCommandRepository.UpdateAsync(routineCommand);
+            // Process command completion (releases pin, updates state, activates pending)
+            await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
 
-            // Notify execution service that command/routine completed
-            // This will:
-            // 1. Release pin locks
-            // 2. Update actuator states to OFF
-            // 3. Activate pending commands/routines that were waiting for these pins
-            if (commandExecutionService != null)
-            {
-                await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
-            }
-            else if (routineExecutionService != null)
-            {
-                await routineExecutionService.OnRoutineCompletedAsync(completion.CommandId);
-            }
-
-            _logger.LogInformation("✅ Processed completion for routine {CommandId} with status: {Status}",
+            _logger.LogInformation("✅ Processed command completion for {CommandId} with status: {Status}",
                 completion.CommandId, completion.Status);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            _logger.LogWarning("⚠️ Command {CommandId} not found in active commands",
+                JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase)?.CommandId ?? "unknown");
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "❌ Failed to deserialize routine completion from topic: {Topic}, Payload: {Payload}", topic, payload);
+            _logger.LogError(ex, "❌ Failed to deserialize command completion from topic: {Topic}, Payload: {Payload}", topic, payload);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error processing routine completion from topic: {Topic}", topic);
+            _logger.LogError(ex, "❌ Error processing command completion from topic: {Topic}", topic);
         }
     }
 }
