@@ -1,0 +1,159 @@
+/* All @import rules must be at the very top of the file */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Icons&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Consolas:wght@400;500;600;700;800&display=swap'); 
+@import "tailwindcss";
+
+@theme {
+  /* Colores personalizados del proyecto */
+  --color-hidro-green-primary: #166534;
+  --color-hidro-green-light: #BEEEBE;
+  --color-hidro-green-bg: #dcfce7;
+  --color-hidro-green-bg-light: #f0fdf4;
+  --color-hidro-green-hover: #A8E6A8;
+  
+  /* Colores de overlay */
+  --color-overlay-dark: rgba(0, 0, 0, 0.5);
+  
+  /* Colores del sistema */
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+  --color-hidro-green: #16a34a;
+  --color-hidro-gray: #6b7280;
+  --color-hidro-success: #10b981;
+  --color-hidro-warning: #f59e0b;
+  --color-hidro-error: #ef4444;
+  --color-hidro-info: #3b82f6;
+  
+  /* Colores para modo oscuro */
+  --color-background-dark: #0a0a0a;
+  --color-foreground-dark: #ededed;
+  
+  /* Imágenes de fondo */
+  --bg-hidroespinaca: url('/images/hidroespinaca-bg.jpg');
+}
+
+/* Now, other rules like @layer and style definitions can follow */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .font-inter {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .font-material {
+    font-family: 'Material Icons', sans-serif;
+  }
+  
+  .font-consolas {
+    font-family: 'Consolas', monospace;
+  }
+  
+  .hidro-gradient {
+    background: linear-gradient(135deg, theme(--color-hidro-green-bg) 0%, theme(--color-hidro-green-bg-light) 100%);
+  }
+  
+  /* Clases para reemplazar estilos inline */
+  .chart-container {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .modal-overlay {
+    background-color: theme(--color-overlay-dark);
+  }
+  
+  .backdrop-blur-xs {
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px); /* para Safari */
+  }
+
+  .bg-hidroespinaca {
+    background-image: theme(--bg-hidroespinaca);
+  }
+
+  .btn-hidro-add {
+    background-color: theme(--color-hidro-green-light);
+    color: theme(--color-hidro-green-primary);
+  }
+  
+  .btn-hidro-add:hover {
+    background-color: theme(--color-hidro-green-hover);
+  }
+  
+  .icon-hidro-green {
+    color: theme(--color-hidro-green-primary);
+  }
+  
+  .hidro-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 transition-all duration-200;
+  }
+  
+  .hidro-card:hover {
+    @apply shadow-md border-gray-300;
+  }
+  
+  .hidro-button {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .hidro-button-primary {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+  }
+  
+  .hidro-button-secondary {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+  }
+  
+  .status-indicator {
+    @apply w-2 h-2 rounded-sm;
+  }
+  
+  /* Estilos mejorados para selectboxes y textos */
+  .hidro-select {
+    @apply w-full px-3 py-2 border border-gray-400 rounded-md shadow-sm bg-white text-gray-900 font-medium;
+    @apply focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600;
+    @apply hover:border-gray-500 transition-colors duration-200;
+  }
+  
+  .hidro-select option {
+    @apply text-gray-900 bg-white font-medium;
+  }
+  
+  .hidro-label {
+    @apply block text-sm font-semibold text-gray-800 mb-2;
+  }
+  
+  .hidro-text-primary {
+    @apply text-gray-900 font-medium;
+  }
+  
+  .hidro-text-secondary {
+    @apply text-gray-700 font-medium;
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE y Edge */
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none; /* Chrome, Safari y Opera */
+  }
+
+}
+
+body {
+  color: theme(--color-foreground);
+  background: theme(--color-background);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: theme(--color-foreground-dark);
+    background: theme(--color-background-dark);
+  }
+}

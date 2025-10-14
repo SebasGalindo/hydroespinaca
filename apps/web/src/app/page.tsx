@@ -1,0 +1,129 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import MainLayout from '@/components/layout/MainLayout';
+import { useAuthStore } from '@hidroespinaca/shared';
+
+export default function HomePage() {
+  const { isAuthenticated } = useAuthStore();
+
+  return (
+    <MainLayout>
+      {/* Hero Section */}
+      <section className="bg-green-50 py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                Soluciones inteligentes para cultivos hidropónicos
+              </h1>
+              <p className="text-lg text-gray-600 mb-8">
+                Optimiza tus cultivos con nuestra plataforma de monitoreo y control para sistemas hidropónicos.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                {isAuthenticated ? (
+                  <Link 
+                    href="/dashboard" 
+                    className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition duration-300 text-center"
+                  >
+                    Ir al Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link 
+                      href="/login" 
+                      className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition duration-300 text-center"
+                    >
+                      Iniciar sesión
+                    </Link>
+                    <Link 
+                      href="/signup" 
+                      className="bg-white text-green-600 border border-green-600 px-6 py-3 rounded-md hover:bg-green-50 transition duration-300 text-center"
+                    >
+                      Registrarse
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="relative h-64 md:h-96 rounded-lg overflow-hidden shadow-xl">
+              <div 
+                  className="absolute inset-0 bg-cover bg-center bg-hidroespinaca-svg"
+                ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Características principales</h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Nuestra plataforma ofrece herramientas avanzadas para el monitoreo y control de tus cultivos hidropónicos.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo en tiempo real</h3>
+              <p className="text-gray-600">
+                Supervisa los parámetros críticos de tus cultivos en tiempo real, incluyendo pH, temperatura, humedad y niveles de nutrientes.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Control automatizado</h3>
+              <p className="text-gray-600">
+                Automatiza el control de tus sistemas hidropónicos con reglas personalizables y alertas inteligentes.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Análisis de datos</h3>
+              <p className="text-gray-600">
+                Obtén insights valiosos con análisis detallados y reportes personalizados sobre el rendimiento de tus cultivos.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-green-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-6">¿Listo para optimizar tus cultivos hidropónicos?</h2>
+          <p className="text-xl text-green-100 mb-8 max-w-3xl mx-auto">
+            Únete a nuestra plataforma y lleva tus cultivos al siguiente nivel con tecnología de vanguardia.
+          </p>
+          <Link 
+            href={isAuthenticated ? "/dashboard" : "/signup"} 
+            className="bg-white text-green-600 px-8 py-3 rounded-md hover:bg-green-50 transition duration-300 inline-block font-medium"
+          >
+            {isAuthenticated ? "Ir al Dashboard" : "Comenzar ahora"}
+          </Link>
+        </div>
+      </section>
+    </MainLayout>
+  );
+}
