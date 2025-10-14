@@ -1,0 +1,25 @@
+{
+  "name": "@hidroespinaca/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configuración compartida de ESLint para el monorepo",
+  "main": "index.js",
+  "files": [
+    "base.js",
+    "nextjs.js",
+    "react-native.js",
+    "node.js"
+  ],
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint-config-next": "^15.0.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-import": "^2.30.0"
+  },
+  "peerDependencies": {
+    "eslint": "^8.0.0 || ^9.0.0",
+    "typescript": ">=4.0.0"
+  }
+}
