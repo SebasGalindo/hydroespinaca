@@ -18,6 +18,7 @@ WORKDIR /workspace
 # Copy package.json files and pnpm workspace config
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
+COPY tools/ ./tools/
 
 # Copy package.json files for all workspaces
 COPY apps/web/package.json ./apps/web/
@@ -54,6 +55,7 @@ WORKDIR /workspace
 # Copy package.json files and pnpm workspace config
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
+COPY tools/ ./tools/
 
 # Copy package.json files for all workspaces
 COPY apps/web/package.json ./apps/web/
@@ -82,6 +84,7 @@ COPY --from=deps /workspace/packages/shared/node_modules ./packages/shared/node_
 # Copy package.json files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
+COPY tools/ ./tools/
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 
@@ -123,6 +126,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy package.json files (needed for pnpm workspace resolution)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
+COPY tools/ ./tools/
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 
