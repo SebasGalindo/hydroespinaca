@@ -88,6 +88,7 @@ export * from './crud';
 export * from './sensorTypes';
 export * from './fuzzyTypes';
 export * from './systemStatus';
+export * from './common';
 
 // Exportar tipos de autenticación
 export * from './auth';

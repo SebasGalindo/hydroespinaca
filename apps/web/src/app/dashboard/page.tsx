@@ -8,6 +8,7 @@ import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
 import { systemStatusService } from '@hydroespinaca/shared';
 import type { SystemStatusResponse, ReadingItem } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
+import { IconType } from '@hydroespinaca/shared/types/common';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -117,8 +118,9 @@ export default function DashboardPage() {
   };
 
   // Mapeo de tipos de iconos según el nombre de la variable
-  const getIconType = (name: string): string => {
+  const getIconType = (name: string): IconType => {
     const lowerName = name.toLowerCase();
+
     if (lowerName.includes('temperatura') && lowerName.includes('agua')) return 'water';
     if (lowerName.includes('temperatura')) return 'temperature';
     if (lowerName.includes('humedad')) return 'humidity';
@@ -126,7 +128,8 @@ export default function DashboardPage() {
     if (lowerName.includes('conductividad') || lowerName.includes('ec')) return 'electric';
     if (lowerName.includes('nivel')) return 'ruler';
     if (lowerName.includes('ph')) return 'ph';
-    return 'temperature';
+
+    return 'temperature'; // default seguro
   };
 
   if (isLoading && !systemStatus) {

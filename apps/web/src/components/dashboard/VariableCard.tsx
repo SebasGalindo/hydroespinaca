@@ -1,8 +1,10 @@
 import React from 'react';
-import { 
-  CheckIcon, 
-  AlertTriangleIcon, 
-  XIcon, 
+import { IconType } from '@hydroespinaca/shared/types/common';
+
+import {
+  CheckIcon,
+  AlertTriangleIcon,
+  XIcon,
   EditIcon,
   TemperatureIcon,
   HumidityIcon,
@@ -13,12 +15,13 @@ import {
   WaterIcon
 } from '@/components/ui/icons/Icons';
 
+
 interface VariableCardProps {
   title: string;
   value: string;
   optimal?: string;
   subtitle?: string;
-  iconType: 'temperature' | 'humidity' | 'ph' | 'light' | 'sun' | 'electric' | 'ruler' | 'water';
+  iconType: IconType;
   status: 'optimal' | 'warning' | 'error' | 'manual';
   className?: string;
 }
@@ -46,7 +49,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
         return 'text-gray-600';
     }
   };
-  
+
   const getStatusIcon = () => {
     switch (status) {
       case 'optimal':
@@ -61,7 +64,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
         return null;
     }
   };
-  
+
   const getVariableIcon = () => {
     const iconProps = { size: 20, color: '#6b7280' };
     switch (iconType) {
