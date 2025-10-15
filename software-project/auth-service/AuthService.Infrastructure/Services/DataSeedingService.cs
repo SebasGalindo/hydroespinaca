@@ -66,7 +66,7 @@ public class DataSeedingService
             }
 
             // Verify admin password
-            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "Admin123!");
+            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "dF^J`c'662:W");
             if (!adminPasswordValid)
             {
                 return false;
@@ -86,7 +86,7 @@ public class DataSeedingService
             }
 
             // Verify test user password
-            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "User123!");
+            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "N16'+4a597|V!");
             if (!userPasswordValid)
             {
                 return false;
@@ -321,7 +321,7 @@ public class DataSeedingService
     private async Task SeedAdminUserAsync()
     {
         const string adminEmail = "admin@demo.com";
-        const string adminPassword = "Admin123!";
+        const string adminPassword = "dF^J`c'662:W";
 
 
         var existingUser = await _userRepository.FindByEmailAsync(adminEmail);
@@ -368,7 +368,7 @@ public class DataSeedingService
     private async Task SeedTestUserAsync()
     {
         const string userEmail = "user@demo.com";
-        const string userPassword = "User123!";
+        const string userPassword = "N16'+4a597|V!";
 
 
         var existingUser = await _userRepository.FindByEmailAsync(userEmail);

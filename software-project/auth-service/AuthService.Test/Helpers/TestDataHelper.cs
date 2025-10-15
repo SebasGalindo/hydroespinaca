@@ -94,7 +94,7 @@ public static class TestDataHelper
         return new LoginRequestModel
         {
             Email = email ?? "admin@demo.com",
-            Password = password ?? "Admin123!"
+            Password = password ?? "dF^J`c'662:W"
         };
     }
 

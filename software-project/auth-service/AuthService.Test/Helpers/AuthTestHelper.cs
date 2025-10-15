@@ -119,7 +119,7 @@ public class AuthTestHelper : IDisposable
                 await VerifyUserHasPermissionsAsync("user@demo.com", requiredPermissions);
             }
 
-            var loginRequest = TestDataHelper.CreateLoginRequest("user@demo.com", "User123!");
+            var loginRequest = TestDataHelper.CreateLoginRequest("user@demo.com", "N16'+4a597|V!");
             Console.WriteLine($"[AuthTestHelper] Attempting user login with email: user@demo.com");
 
             var response = await _client.PostAsync("/api/auth/login",
@@ -255,7 +255,7 @@ public class AuthTestHelper : IDisposable
             var userRole = await roleRepository.FindByCodeAsync("role_user");
             if (userRole != null)
             {
-                var hashedPassword = passwordHasher.Hash("User123!");
+                var hashedPassword = passwordHasher.Hash("N16'+4a597|V!");
                 var testUser = new User(
                     new Email("user@demo.com"),
                     new HashedPassword(hashedPassword),
@@ -301,7 +301,7 @@ public class AuthTestHelper : IDisposable
                     // Test password verification for admin user
                     if (email == "admin@demo.com")
                     {
-                        var testPassword = "Admin123!";
+                        var testPassword = "dF^J`c'662:W";
                         var verifyResult = passwordHasher.Verify(user.Password.Value, testPassword);
                         Console.WriteLine($"[AuthTestHelper] DIAGNOSTIC: Password verification for admin user with '{testPassword}': {verifyResult}");
                         

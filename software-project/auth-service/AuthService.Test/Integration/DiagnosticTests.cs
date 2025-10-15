@@ -53,7 +53,7 @@ public class DiagnosticTests : IClassFixture<IntegrationTestBase>, IAsyncLifetim
 
         // Test admin login directly
         var adminLoginRequest = TestDataHelper.CreateLoginRequest();
-        Console.WriteLine($"Testing admin login with: admin@demo.com / Admin123!");
+        Console.WriteLine($"Testing admin login with: admin@demo.com / dF^J`c'662:W");
 
         var adminResponse = await _client.PostAsync("/api/auth/login",
             new StringContent(JsonSerializer.Serialize(adminLoginRequest), Encoding.UTF8, "application/json"));
@@ -63,7 +63,7 @@ public class DiagnosticTests : IClassFixture<IntegrationTestBase>, IAsyncLifetim
         Console.WriteLine($"Admin login content: {adminContent}");
 
         // Test isolated login method
-        var isolatedResult = await _authHelper.TestLoginIsolatedAsync("admin@demo.com", "Admin123!");
+        var isolatedResult = await _authHelper.TestLoginIsolatedAsync("admin@demo.com", "dF^J`c'662:W");
         Console.WriteLine($"Isolated login result: {isolatedResult}");
 
         // Check if validation endpoint works
