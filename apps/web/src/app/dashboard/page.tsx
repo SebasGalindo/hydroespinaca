@@ -9,6 +9,7 @@ import { systemStatusService } from '@hydroespinaca/shared';
 import type { SystemStatusResponse, ReadingItem } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
 import { IconType } from '@hydroespinaca/shared/types/common';
+import { logout } from '@/lib/session';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -29,9 +30,12 @@ export default function DashboardPage() {
       setError(err.message || 'Error al cargar los datos del sistema');
 
       // Si es error 401, redirigir a login
-      if (err.message?.includes('Unauthorized')) {
+     if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
+        console.warn('Sesión inválida o expirada, redirigiendo al login...');
+        await logout(); // limpia cookies, storage, etc.
         router.push('/login');
       }
+      
     } finally {
       setIsLoading(false);
     }

@@ -105,9 +105,13 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/login');
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
   };
+
 
   const handlePopoverToggle = (label: string, event: React.MouseEvent<HTMLButtonElement>) => {
     if (!isExpanded) {
@@ -153,9 +157,8 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
     <>
       {/* Desktop Navigation */}
       <aside
-        className={`hidden lg:flex lg:flex-col fixed left-0 top-0 h-full bg-white border-r border-gray-200 z-50 transition-all duration-300 ease-in-out ${
-          isExpanded ? 'w-64' : 'w-16'
-        }`}
+        className={`hidden lg:flex lg:flex-col fixed left-0 top-0 h-full bg-white border-r border-gray-200 z-50 transition-all duration-300 ease-in-out ${isExpanded ? 'w-64' : 'w-16'
+          }`}
       >
         {/* Header con Logo y Botón Colapsar */}
         <div className="h-16 border-b border-gray-200 flex items-center justify-center px-3">
@@ -214,11 +217,10 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                             handlePopoverToggle(item.label, e);
                           }
                         }}
-                        className={`relative w-full flex items-center px-4 py-3 text-left transition-colors duration-200 ${
-                          itemActive
+                        className={`relative w-full flex items-center px-4 py-3 text-left transition-colors duration-200 ${itemActive
                             ? 'text-green-600 bg-green-50 border-r-2 border-green-600'
                             : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                        } ${!isExpanded && popoverOpen === item.label ? 'bg-green-50' : ''}`}
+                          } ${!isExpanded && popoverOpen === item.label ? 'bg-green-50' : ''}`}
                       >
                         <IconComponent size={20} className="flex-shrink-0" />
                         {isExpanded && (
@@ -226,9 +228,8 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                             <span className="ml-3 font-medium whitespace-nowrap">{item.label}</span>
                             <ChevronRightIcon
                               size={16}
-                              className={`ml-auto transition-transform duration-200 flex-shrink-0 ${
-                                groupExpanded ? 'rotate-90' : ''
-                              }`}
+                              className={`ml-auto transition-transform duration-200 flex-shrink-0 ${groupExpanded ? 'rotate-90' : ''
+                                }`}
                             />
                           </>
                         )}
@@ -240,25 +241,23 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                           {item.children.map((child) => {
                             const ChildIconComponent = child.icon;
                             const childActive = isActive(child.href);
-                            
+
                             return (
                               <li key={child.href}>
                                 <Link
                                   href={child.href}
-                                  className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${
-                                    childActive
+                                  className={`flex items-center px-4 py-2 text-sm transition-colors duration-200 ${childActive
                                       ? 'text-green-600 bg-green-50 border-r-2 border-green-600'
                                       : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-                                  }`}
+                                    }`}
                                 >
                                   <ChildIconComponent size={16} className="flex-shrink-0" />
                                   <span className="ml-3 whitespace-nowrap">{child.label}</span>
                                   {child.status && (
-                                    <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
-                                      child.status === 'Conectado' 
-                                        ? 'bg-green-100 text-green-600' 
+                                    <span className={`ml-auto text-xs px-2 py-1 rounded-full ${child.status === 'Conectado'
+                                        ? 'bg-green-100 text-green-600'
                                         : 'bg-red-100 text-red-600'
-                                    }`}>
+                                      }`}>
                                       {child.status}
                                     </span>
                                   )}
@@ -273,11 +272,10 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                     /* Regular navigation item */
                     <Link
                       href={item.href}
-                      className={`flex items-center px-4 py-3 transition-colors duration-200 ${
-                        itemActive
+                      className={`flex items-center px-4 py-3 transition-colors duration-200 ${itemActive
                           ? 'text-green-600 bg-green-50 border-r-2 border-green-600'
                           : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                      }`}
+                        }`}
                     >
                       <IconComponent size={20} className="flex-shrink-0" />
                       {isExpanded && (
@@ -323,11 +321,10 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                           <Link
                             href={child.href}
                             onClick={handlePopoverClose}
-                            className={`flex items-center px-3 py-2 text-sm transition-colors duration-200 ${
-                              childActive
+                            className={`flex items-center px-3 py-2 text-sm transition-colors duration-200 ${childActive
                                 ? 'text-green-600 bg-green-50'
                                 : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             <ChildIconComponent size={16} className="flex-shrink-0" />
                             <span className="ml-3 whitespace-nowrap">{child.label}</span>
@@ -426,9 +423,8 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
             <div className="flex flex-col items-center">
               <button
                 onClick={handleUserMenuToggle}
-                className={`w-10 h-10 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-700 transition-colors ${
-                  userMenuOpen ? 'ring-2 ring-green-300' : ''
-                }`}
+                className={`w-10 h-10 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-700 transition-colors ${userMenuOpen ? 'ring-2 ring-green-300' : ''
+                  }`}
                 title="Menú de usuario"
                 aria-label="Abrir menú de usuario"
               >
@@ -462,7 +458,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                 </button>
               </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto">
               {/* Main mobile items */}
               <div className="p-4 space-y-2">
@@ -471,15 +467,14 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${
-                      pathname === item.href ? 'bg-green-50 text-green-600' : ''
-                    }`}
+                    className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${pathname === item.href ? 'bg-green-50 text-green-600' : ''
+                      }`}
                   >
                     <item.icon size={20} className="mr-3" />
                     <span className="text-sm font-medium">{item.label}</span>
                   </Link>
                 ))}
-                
+
                 {/* More Options button - opens full sidebar */}
                 <button
                   onClick={() => {
@@ -492,7 +487,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                   <span className="text-sm font-medium">Más opciones</span>
                   <ChevronRightIcon size={16} className="ml-auto" />
                 </button>
-                
+
 
               </div>
             </div>
@@ -504,7 +499,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
           <>
             {/* Overlay */}
             <div className="fixed inset-0 z-40 bg-transparent backdrop-blur-xs" onClick={() => setMobileMoreOpen(false)} />
-            
+
             {/* Full Sidebar */}
             <div className="fixed left-0 top-0 h-full w-100 bg-white shadow-lg z-50 transform transition-transform overflow-y-auto scrollbar-hidden">
               <div className="p-4 border-b border-gray-200">
@@ -518,7 +513,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto">
                 <div className="p-4 space-y-2">
                   {navigationItems.map((item) => {
@@ -533,22 +528,20 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                           <>
                             <button
                               onClick={() => toggleGroup(item.label)}
-                              className={`w-full flex items-center px-4 py-3 rounded-md text-left transition-colors ${
-                                itemActive
+                              className={`w-full flex items-center px-4 py-3 rounded-md text-left transition-colors ${itemActive
                                   ? 'text-green-600 bg-green-50'
                                   : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                              }`}
+                                }`}
                             >
                               <IconComponent size={20} className="mr-3" />
                               <span className="text-sm font-medium">{item.label}</span>
-                              <ChevronRightIcon 
-                                size={16} 
-                                className={`ml-auto transition-transform ${
-                                  groupExpanded ? 'rotate-90' : ''
-                                }`} 
+                              <ChevronRightIcon
+                                size={16}
+                                className={`ml-auto transition-transform ${groupExpanded ? 'rotate-90' : ''
+                                  }`}
                               />
                             </button>
-                            
+
                             {groupExpanded && item.children && (
                               <div className="ml-8 space-y-1">
                                 {item.children.map((child) => (
@@ -556,18 +549,16 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                                     key={child.href}
                                     href={child.href}
                                     onClick={() => setMobileMoreOpen(false)}
-                                    className={`flex items-center px-4 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded transition-colors ${
-                                      pathname === child.href ? 'bg-green-50 text-green-600' : ''
-                                    }`}
+                                    className={`flex items-center px-4 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded transition-colors ${pathname === child.href ? 'bg-green-50 text-green-600' : ''
+                                      }`}
                                   >
                                     <child.icon size={14} className="mr-2" />
                                     <span>{child.label}</span>
                                     {child.status && (
-                                      <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
-                                        child.status === 'Conectado' 
-                                          ? 'bg-green-100 text-green-600' 
+                                      <span className={`ml-auto text-xs px-2 py-1 rounded-full ${child.status === 'Conectado'
+                                          ? 'bg-green-100 text-green-600'
                                           : 'bg-red-100 text-red-600'
-                                      }`}>
+                                        }`}>
                                         {child.status}
                                       </span>
                                     )}
@@ -580,9 +571,8 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                           <Link
                             href={item.href}
                             onClick={() => setMobileMoreOpen(false)}
-                            className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${
-                              pathname === item.href ? 'bg-green-50 text-green-600' : ''
-                            }`}
+                            className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${pathname === item.href ? 'bg-green-50 text-green-600' : ''
+                              }`}
                           >
                             <IconComponent size={20} className="mr-3" />
                             <span className="text-sm font-medium">{item.label}</span>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useVariableStore, useActuatorStore, useSensorStore, useReadingsStore, useAuthStore } from '@hydroespinaca/shared';
+import { logout } from '@/lib/session';
 
 export function StoreInitializer() {
   const [isClient, setIsClient] = useState(false);
@@ -35,13 +36,15 @@ export function StoreInitializer() {
   // Redirect to login if session check completed and user is not authenticated
   useEffect(() => {
     if (sessionChecked && !isLoading && !isAuthenticated) {
-      // Only redirect if we're not already on a public page
       const publicPaths = ['/', '/login', '/forgot-password', '/reset-password'];
-      if (!publicPaths.includes(pathname)) {
+      if (pathname && !publicPaths.includes(pathname)) {
+        console.warn('Sesión inválida detectada. Redirigiendo al login...');
+        logout(); // limpia cookies o tokens viejos
         router.push('/login');
       }
     }
   }, [sessionChecked, isLoading, isAuthenticated, pathname, router]);
+
 
   // Initialize other stores only after successful authentication
   useEffect(() => {
