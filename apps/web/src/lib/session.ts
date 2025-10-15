@@ -2,6 +2,7 @@
  * Session utilities for client-side session management
  * Interacts with BFF /session endpoint
  */
+import { apiGet, apiPost } from './api';
 
 export interface SessionData {
   userId: string;
@@ -16,29 +17,18 @@ export interface SessionData {
  */
 export async function fetchSession(): Promise<SessionData | null> {
   try {
-    const response = await fetch('/api/session', {
-      method: 'GET',
-      credentials: 'include', // Importante: envía cookies (SessionId)
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      // 401 Unauthorized significa que no hay sesión activa
-      if (response.status === 401) {
-        return null;
-      }
-      throw new Error(`Session check failed: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiGet<any>('/session');
+    
     return {
       userId: data.userId || data.id,
       userRole: data.role || data.userRole,
       email: data.email,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // 401 Unauthorized significa que no hay sesión activa
+    if (error.status === 401) {
+      return null;
+    }
     console.error('Error fetching session:', error);
     return null;
   }
@@ -60,15 +50,8 @@ export async function hasActiveSession(): Promise<boolean> {
  */
 export async function logout(): Promise<boolean> {
   try {
-    const response = await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return response.ok;
+    await apiPost('/auth/logout');
+    return true;
   } catch (error) {
     console.error('Error during logout:', error);
     return false;

@@ -364,6 +364,33 @@ services:
     environment:
       - NODE_ENV=${COMPOSE_PROFILE:-development}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+
+  # Development version with volume mount for HMR
+  web-app-dev:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: development
+    container_name: web-app
+    depends_on:
+      bff-service:
+        condition: service_healthy
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     volumes:
       - .:/workspace:cached
 
@@ -377,7 +404,6 @@ services:
       - espinaca-net
     profiles:
       - development
-      - production
 
 volumes:
   mqtt_data:

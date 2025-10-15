@@ -1,4 +1,5 @@
 import type { SystemStatusResponse } from '../types/systemStatus';
+import { getApiUrl } from '../utils/apiConfig';
 
 /**
  * Service for fetching system status from the BFF
@@ -7,16 +8,9 @@ export class SystemStatusService {
   private baseUrl: string;
 
   constructor() {
-    // Determine base URL from environment or window.location
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      this.baseUrl = process.env.NEXT_PUBLIC_API_URL;
-    } else if (typeof window !== 'undefined' && window.location) {
-      // Use bracket notation to avoid TypeScript DOM type dependency
-      const origin = (window.location as any)['origin'];
-      this.baseUrl = origin ? `${origin}/api` : 'http://localhost/api';
-    } else {
-      this.baseUrl = 'http://localhost/api';
-    }
+    // Use centralized API URL configuration
+    // This handles environment variables correctly across platforms
+    this.baseUrl = getApiUrl();
   }
 
   /**
