@@ -17,22 +17,22 @@ public class ProxyController : ControllerBase
 {
     private readonly ISessionService _sessionService;
     private readonly IProxyService _proxyService;
-    private readonly IAuthService _authService;
+    private readonly ISessionTokenService _sessionTokenService;
     private readonly IConfiguration _configuration;
     private readonly ICsrfValidationService _csrfValidationService;
     private readonly ILogger<ProxyController> _logger;
 
     public ProxyController(
-        ISessionService sessionService, 
+        ISessionService sessionService,
         IProxyService proxyService,
-        IAuthService authService,
+        ISessionTokenService sessionTokenService,
         IConfiguration configuration,
         ICsrfValidationService csrfValidationService,
         ILogger<ProxyController> logger)
     {
         _sessionService = sessionService;
         _proxyService = proxyService;
-        _authService = authService;
+        _sessionTokenService = sessionTokenService;
         _configuration = configuration;
         _csrfValidationService = csrfValidationService;
         _logger = logger;
@@ -128,11 +128,8 @@ public class ProxyController : ControllerBase
                 // Get the session with tokens
                 try
                 {
-                    var session = await GetSessionWithTokens(sessionId, cancellationToken);
-                    if (session != null)
-                    {
-                        accessToken = session.AccessToken;
-                    }
+                    var session = await _sessionTokenService.GetSessionWithValidTokensAsync(sessionId, cancellationToken);
+                    accessToken = session.AccessToken;
                 }
                 catch (Exception ex)
                 {
@@ -198,59 +195,7 @@ public class ProxyController : ControllerBase
                 return pathWithoutProxy.Substring(serviceRoute.Length);
             }
         }
-        
+
         return pathWithoutProxy;
-    }
-
-    private async Task<Domain.Entities.Session?> GetSessionWithTokens(string sessionId, CancellationToken cancellationToken)
-    {
-        // Get the full session with all token information
-        var session = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
-        if (session == null)
-        {
-            _logger.LogWarning("Session not found: {SessionId}", sessionId);
-            throw new SessionNotFoundException(sessionId);
-        }
-        
-        if (!session.HasValidTokens())
-        {
-            _logger.LogWarning("Session has invalid tokens: {SessionId}", sessionId);
-            throw new InvalidTokenException("Session tokens are invalid");
-        }
-
-        // Check if the access token is expired and needs refreshing
-        if (session.IsExpired() && session.CanRefresh())
-        {
-            _logger.LogInformation("Access token expired for session {SessionId}, attempting refresh", sessionId);
-            
-            // Use the auth service to refresh the token
-            var newTokenInfo = await _authService.RefreshTokenAsync(session.RefreshToken, cancellationToken);
-            
-            // Update the session with the new tokens
-            session.UpdateAccessToken(newTokenInfo.AccessToken, newTokenInfo.ExpiresAt);
-            
-            // If we got a new refresh token, update that too
-            if (!string.IsNullOrEmpty(newTokenInfo.RefreshToken))
-            {
-                session.SetTokens(
-                    newTokenInfo.AccessToken, 
-                    newTokenInfo.RefreshToken, 
-                    newTokenInfo.ExpiresAt, 
-                    newTokenInfo.RefreshTokenExpiresAt
-                );
-            }
-            
-            // Save the updated session
-            await _sessionService.UpdateSessionAsync(session, cancellationToken);
-            
-            _logger.LogInformation("Successfully refreshed tokens for session: {SessionId}", sessionId);
-        }
-        else if (session.IsExpired())
-        {
-            _logger.LogWarning("Session {SessionId} is expired and cannot be refreshed", sessionId);
-            throw new SessionExpiredException(sessionId);
-        }
-
-        return session;
     }
 }
