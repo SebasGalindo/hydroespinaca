@@ -123,24 +123,30 @@ RUN apk add --no-cache dumb-init curl
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy package.json files (needed for pnpm workspace resolution)
+# Copy workspace configuration files FIRST
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json ./
 COPY tools/ ./tools/
+
+# Copy package.json for all workspace packages
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built shared package from builder
+# Copy the COMPLETE built shared package (dist + package.json)
+# This must be done BEFORE installing dependencies so pnpm can resolve the workspace
 COPY --from=builder --chown=nextjs:nodejs /workspace/packages/shared/dist ./packages/shared/dist
-COPY --from=builder --chown=nextjs:nodejs /workspace/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=nextjs:nodejs /workspace/packages/shared/package.json ./packages/shared/package.json
+
+# Install production dependencies INCLUDING workspace dependencies
+# Use --filter to install only dependencies for web app and its workspace deps
+# The ... notation includes all dependencies (transitive)
+RUN pnpm install --prod --frozen-lockfile --filter @hidroespinaca/web...
 
 # Copy Next.js production build artifacts
 COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next ./apps/web/.next
 COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/next.config.js ./apps/web/
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/next.config.js ./apps/web/next.config.js
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/package.json ./apps/web/package.json
 
 # Set working directory to web app
 WORKDIR /workspace/apps/web
