@@ -365,7 +365,7 @@ services:
       - "3000:3000"  # Expose for direct access (optional)
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     volumes:
       # Mount source code for hot reload in development only
       - .:/workspace:cached
