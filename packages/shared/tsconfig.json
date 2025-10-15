@@ -23,7 +23,8 @@
   },
   "include": [
     "src/**/*",
-    "src/types/global.d.ts"
+    "src/types/global.d.ts",
+    "env.d.ts"
   ],
   "exclude": [
     "node_modules",
