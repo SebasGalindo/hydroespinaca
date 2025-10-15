@@ -2,7 +2,7 @@
 // Basado en globals.css y shared/styles/colors.ts
 
 export const colors = {
-  // Paleta principal Hidro Espinaca
+  // Paleta principal HydroEspinaca
   primary: {
     50: '#f0fdf4',
     100: '#dcfce7',

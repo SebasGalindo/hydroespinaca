@@ -14,6 +14,9 @@ const distDir = 'dist';
 // Modules to build (besides main index)
 const modules = ['hooks', 'store', 'utils', 'types', 'api', 'icons'];
 
+// Types-only modules (skip JS bundle generation, only generate .d.ts)
+const typesOnlyModules = ['types'];
+
 // External dependencies for both platforms
 const commonExternal = [
   ...Object.keys(pkg.dependencies || {}),
@@ -227,14 +230,20 @@ function createNativeDtsConfig(moduleName) {
 const allModules = ['index', ...modules];
 
 for (const mod of allModules) {
-  // Web JS builds
-  const webJsConfig = createWebJsConfig(mod);
-  if (webJsConfig) buildConfigs.push(webJsConfig);
+  const isTypesOnly = typesOnlyModules.includes(mod);
 
-  // Native JS builds
-  const nativeJsConfig = createNativeJsConfig(mod);
-  if (nativeJsConfig) buildConfigs.push(nativeJsConfig);
+  // Skip JS builds for types-only modules (they would generate empty chunks)
+  if (!isTypesOnly) {
+    // Web JS builds
+    const webJsConfig = createWebJsConfig(mod);
+    if (webJsConfig) buildConfigs.push(webJsConfig);
 
+    // Native JS builds
+    const nativeJsConfig = createNativeJsConfig(mod);
+    if (nativeJsConfig) buildConfigs.push(nativeJsConfig);
+  }
+
+  // Always generate TypeScript definitions (even for types-only modules)
   // Web TypeScript definitions
   const webDtsConfig = createWebDtsConfig(mod);
   if (webDtsConfig) buildConfigs.push(webDtsConfig);

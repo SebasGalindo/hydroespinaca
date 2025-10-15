@@ -1,6 +1,6 @@
 # API Layer - Capa de Abstracción de API
 
-Este directorio contiene la capa de abstracción para todas las comunicaciones con el backend de la aplicación Hidro Espinaca.
+Este directorio contiene la capa de abstracción para todas las comunicaciones con el backend de la aplicación HydroEspinaca.
 
 ## Arquitectura de API
 

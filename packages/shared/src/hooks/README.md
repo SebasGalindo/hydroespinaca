@@ -1,6 +1,6 @@
 # Custom Hooks - Hooks Personalizados
 
-Este directorio contiene todos los hooks personalizados de React para la aplicación Hidro Espinaca, proporcionando lógica reutilizable y gestión de estado especializada.
+Este directorio contiene todos los hooks personalizados de React para la aplicación HydroEspinaca, proporcionando lógica reutilizable y gestión de estado especializada.
 
 ## Arquitectura de Hooks
 

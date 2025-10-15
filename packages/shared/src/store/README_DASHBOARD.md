@@ -49,7 +49,7 @@ interface ChartVariable {
 ### Importar el Store
 
 ```typescript
-import { useDashboardStore, CHART_VARIABLES } from '@hidroespinaca/shared';
+import { useDashboardStore, CHART_VARIABLES } from '@hydroespinaca/shared';
 ```
 
 ### Obtener Variables Disponibles

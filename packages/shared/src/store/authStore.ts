@@ -210,6 +210,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
     } catch (error) {
+      // Session is invalid or expired
+      // Clean up session to ensure cookies/tokens are cleared
+      if (error instanceof ApiError && error.status === 401) {
+        // 401 means session is invalid - clear it properly
+        try {
+          // For mobile, clear stored tokens
+          if (platform === 'mobile') {
+            await SessionStorage.clearSession();
+          }
+
+          // For web, try to call logout to clear cookies
+          // This will fail with 401 but that's ok - the server will still clear cookies
+          if (platform === 'web') {
+            try {
+              await authService.logout('web');
+            } catch {
+              // Ignore logout errors - session is already invalid
+            }
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
       // No valid session found
       set({
         user: null,

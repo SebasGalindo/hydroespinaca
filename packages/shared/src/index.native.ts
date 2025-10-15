@@ -1,5 +1,5 @@
 /**
- * React Native entry point for @hidroespinaca/shared
+ * React Native entry point for @hydroespinaca/shared
  * Includes all features including native-specific dependencies
  */
 
@@ -58,6 +58,7 @@ export * from './tokens';
 export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
+export { SystemStatusService, systemStatusService } from './api/systemStatusService';
 
 // Export components
 export * from './components/WelcomeMessage';

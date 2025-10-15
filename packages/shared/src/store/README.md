@@ -1,6 +1,6 @@
 # Store Management - Gestión de Estado Global
 
-Este directorio contiene todos los stores de Zustand para la gestión del estado global de la aplicación Hidro Espinaca.
+Este directorio contiene todos los stores de Zustand para la gestión del estado global de la aplicación HydroEspinaca.
 
 ## Arquitectura de Estado
 

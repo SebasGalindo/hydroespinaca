@@ -2315,7 +2315,7 @@ const validateLoginCredentials = (email, password) => {
 // Design tokens de colores extraídos de la aplicación web
 // Basado en globals.css y shared/styles/colors.ts
 const colors = {
-    // Paleta principal Hidro Espinaca
+    // Paleta principal HydroEspinaca
     primary: {
         50: '#f0fdf4',
         100: '#dcfce7',

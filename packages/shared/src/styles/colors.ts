@@ -1,5 +1,5 @@
 export const colors = {
-  // Colores principales de Hidro Espinaca
+  // Colores principales de HydroEspinaca
   primary: {
     50: '#f0fdf4',
     100: '#dcfce7', 

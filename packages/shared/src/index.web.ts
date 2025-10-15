@@ -1,5 +1,5 @@
 /**
- * Web-only entry point for @hidroespinaca/shared
+ * Web-only entry point for @hydroespinaca/shared
  * Excludes React Native specific dependencies
  */
 
@@ -57,6 +57,7 @@ export * from './tokens';
 export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
+export { SystemStatusService, systemStatusService } from './api/systemStatusService';
 
 // Export components (platform agnostic)
 export * from './components/WelcomeMessage';

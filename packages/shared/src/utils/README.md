@@ -1,6 +1,6 @@
 # Utilities - Funciones Utilitarias
 
-Este directorio contiene todas las funciones utilitarias y helpers de la aplicación Hidro Espinaca, proporcionando funcionalidades comunes y reutilizables.
+Este directorio contiene todas las funciones utilitarias y helpers de la aplicación HydroEspinaca, proporcionando funcionalidades comunes y reutilizables.
 
 ## Arquitectura de Utilidades
 

@@ -87,6 +87,7 @@ export interface IndividualReading {
 export * from './crud';
 export * from './sensorTypes';
 export * from './fuzzyTypes';
+export * from './systemStatus';
 
 // Exportar tipos de autenticación
 export * from './auth';

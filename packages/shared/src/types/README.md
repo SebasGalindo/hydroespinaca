@@ -1,6 +1,6 @@
 # Types - Definiciones de Tipos TypeScript
 
-Este directorio contiene todas las definiciones de tipos, interfaces y enums de TypeScript para la aplicación Hidro Espinaca, proporcionando un sistema de tipos robusto y consistente.
+Este directorio contiene todas las definiciones de tipos, interfaces y enums de TypeScript para la aplicación HydroEspinaca, proporcionando un sistema de tipos robusto y consistente.
 
 ## Arquitectura de Tipos
 
@@ -1792,7 +1792,7 @@ export interface ImportResult<T = any> {
 
 ```typescript
 /**
- * Declaraciones globales para la aplicación Hidro Espinaca
+ * Declaraciones globales para la aplicación HydroEspinaca
  */
 
 // Extensiones de tipos globales
@@ -1906,7 +1906,7 @@ declare module 'some-library-without-types' {
  */
 export const APP_CONSTANTS = {
   /** Nombre de la aplicación */
-  APP_NAME: 'Hidro Espinaca',
+  APP_NAME: 'HydroEspinaca',
   /** Versión de la aplicación */
   VERSION: '1.0.0',
   /** Configuración de API */
