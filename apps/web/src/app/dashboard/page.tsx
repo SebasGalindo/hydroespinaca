@@ -97,25 +97,25 @@ export default function DashboardPage() {
     );
   };
 
-  const getStatusForReading = (reading: ReadingItem | undefined): 'optimal' | 'warning' | 'critical' => {
-    if (!reading) return 'optimal';
-
-    if (reading.value >= reading.optimalMin && reading.value <= reading.optimalMax) {
-      return 'optimal';
-    }
-
-    const rangeSize = reading.optimalMax - reading.optimalMin;
-    const tolerance = rangeSize * 0.1;
-
+  const getStatusForReading = (reading?: ReadingItem): 'optimal' | 'warning' | 'critical' => {
     if (
-      reading.value >= reading.optimalMin - tolerance &&
-      reading.value <= reading.optimalMax + tolerance
+      !reading ||
+      reading.value == null ||
+      reading.optimalMin == null ||
+      reading.optimalMax == null
     ) {
-      return 'warning';
+      return 'critical';
     }
 
+    const { value, optimalMin, optimalMax } = reading;
+    const range = optimalMax - optimalMin;
+    const tolerance = range * 0.1;
+
+    if (value >= optimalMin && value <= optimalMax) return 'optimal';
+    if (value >= optimalMin - tolerance && value <= optimalMax + tolerance) return 'warning';
     return 'critical';
   };
+
 
   // Mapeo de tipos de iconos según el nombre de la variable
   const getIconType = (name: string): IconType => {
