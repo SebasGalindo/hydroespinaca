@@ -167,4 +167,10 @@ public class BaseMongoRepository<TEntity, TDocument> where TEntity : IIdentifiab
         return ids.Except(existing).ToList();
     }
 
+    public async Task<List<TEntity>> AggregateAsync(BsonDocument[] pipeline)
+    {
+        var result = await _collection.Aggregate<TDocument>(pipeline).ToListAsync();
+        return result.Select(_mapper.ToEntity).ToList();
+    }
+
 }

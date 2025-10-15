@@ -3,12 +3,6 @@ namespace HydroEspinaca.Shared.DTOs.Actuator;
 public class JobScheduleDto
 {
     public string Esp32Id { get; set; } = default!;
-    public List<JobChannelDto> JobSchedule { get; set; } = new();
-}
-
-public class JobChannelDto
-{
-    public int Channel { get; set; }
     public List<JobRoutineDto> Queue { get; set; } = new();
 }
 
@@ -31,12 +25,6 @@ public class JobStepDto
 public class JobStatusDto
 {
     public string Esp32Id { get; set; } = default!;
-    public List<ChannelStatusDto> Channels { get; set; } = new();
-}
-
-public class ChannelStatusDto
-{
-    public int Channel { get; set; }
     public List<QueuedCommandDto> Queue { get; set; } = new();
 }
 
