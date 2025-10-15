@@ -19,7 +19,7 @@ export function detectPlatform(): 'web' | 'mobile' | 'unknown' {
 export function isDevelopmentMode(): boolean {
   if (typeof process !== 'undefined' && process.env) {
     const nodeEnv = process.env.NODE_ENV;
-    if (nodeEnv === 'development' || nodeEnv === 'dev') {
+    if (nodeEnv === 'development') {
       return true;
     }
   }
