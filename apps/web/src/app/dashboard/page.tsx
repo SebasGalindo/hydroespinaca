@@ -97,14 +97,14 @@ export default function DashboardPage() {
     );
   };
 
-  const getStatusForReading = (reading?: ReadingItem): 'optimal' | 'warning' | 'critical' => {
+  const getStatusForReading = (reading?: ReadingItem): 'optimal' | 'warning' | 'error' => {
     if (
       !reading ||
       reading.value == null ||
       reading.optimalMin == null ||
       reading.optimalMax == null
     ) {
-      return 'critical';
+      return 'error';
     }
 
     const { value, optimalMin, optimalMax } = reading;
@@ -113,8 +113,9 @@ export default function DashboardPage() {
 
     if (value >= optimalMin && value <= optimalMax) return 'optimal';
     if (value >= optimalMin - tolerance && value <= optimalMax + tolerance) return 'warning';
-    return 'critical';
+    return 'error';
   };
+
 
 
   // Mapeo de tipos de iconos según el nombre de la variable
