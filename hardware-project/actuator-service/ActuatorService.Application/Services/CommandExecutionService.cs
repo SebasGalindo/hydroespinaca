@@ -55,12 +55,26 @@ public class CommandExecutionService : ICommandExecutionService
         _logger.LogInformation("📋 Scheduling {Count} commands for ESP32 {Esp32Id}", commands.Count, esp32Id);
 
         var scheduledCommandIds = new List<string>();
+        var rejectedCommands = new List<string>();
         var commandsToPublish = new List<JobRoutineDto>();
 
         foreach (var command in commands)
         {
             var commandId = GenerateCommandId(command.ActuatorCode);
             var pins = new List<string> { command.Pin };
+
+            // Check if pin already has 1 running + 1 pending (maximum allowed)
+            var hasRunning = _activeCommands.Values.Any(c => c.Pin == command.Pin && c.Esp32Id == esp32Id);
+            var hasPending = _pendingCommands.Values.Any(c => c.Pin == command.Pin && c.Esp32Id == esp32Id);
+
+            if (hasRunning && hasPending)
+            {
+                // Reject: pin already has 1 running + 1 pending (max limit reached)
+                _logger.LogWarning("❌ Rejected command {CommandId} for {ActuatorCode} - pin {Pin} already has 1 running + 1 pending command (max limit)",
+                    commandId, command.ActuatorCode, command.Pin);
+                rejectedCommands.Add($"{command.ActuatorCode} (pin {command.Pin})");
+                continue;
+            }
 
             // Try to acquire pin lock
             if (_pinLockRegistry.TryLock(pins, commandId))
@@ -93,7 +107,7 @@ public class CommandExecutionService : ICommandExecutionService
             }
             else
             {
-                // Pin locked - add to pending queue
+                // Pin locked - add to pending queue (only if not already at limit)
                 var pendingCommand = new PendingCommand
                 {
                     CommandId = commandId,
@@ -123,8 +137,14 @@ public class CommandExecutionService : ICommandExecutionService
             await PublishJobScheduleAsync(esp32Id, commandsToPublish);
         }
 
-        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending",
-            _activeCommands.Count, _pendingCommands.Count);
+        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending, {Rejected} rejected",
+            _activeCommands.Count, _pendingCommands.Count, rejectedCommands.Count);
+
+        if (rejectedCommands.Any())
+        {
+            _logger.LogWarning("⚠️ Rejected commands due to queue limit (1 running + 1 pending max): {RejectedCommands}",
+                string.Join(", ", rejectedCommands));
+        }
 
         return scheduledCommandIds;
     }
@@ -240,14 +260,7 @@ public class CommandExecutionService : ICommandExecutionService
         var jobSchedule = new JobScheduleDto
         {
             Esp32Id = esp32Id,
-            JobSchedule = new List<JobChannelDto>
-            {
-                new JobChannelDto
-                {
-                    Channel = 0, // All commands use single virtual channel
-                    Queue = jobRoutines
-                }
-            }
+            Queue = jobRoutines
         };
 
         await _mqttPublisher.PublishJobScheduleAsync(jobSchedule);
@@ -277,14 +290,7 @@ public class CommandExecutionService : ICommandExecutionService
         var status = new JobStatusDto
         {
             Esp32Id = targetEsp32Id,
-            Channels = new List<ChannelStatusDto>
-            {
-                new ChannelStatusDto
-                {
-                    Channel = 0, // All commands use single virtual channel
-                    Queue = allCommands
-                }
-            }
+            Queue = allCommands
         };
 
         return Task.FromResult(status);

@@ -11,10 +11,12 @@ namespace SensorService.Api.Controllers;
 public class ReadingsController : ControllerBase
 {
     private readonly IReadingService _service;
+    private readonly ILatestReadingsService _latestReadingsService;
 
-    public ReadingsController(IReadingService service)
+    public ReadingsController(IReadingService service, ILatestReadingsService latestReadingsService)
     {
         _service = service;
+        _latestReadingsService = latestReadingsService;
     }
 
     [HttpGet("{sensorId}/{variableId}")]
@@ -22,6 +24,18 @@ public class ReadingsController : ControllerBase
     public async Task<IActionResult> GetBySensorAndVariable(string sensorId, string variableId, [FromQuery] DateTime from, [FromQuery] DateTime to)
     {
         var result = await _service.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
+        return Ok(result);
+    }
+
+    [HttpGet("latest")]
+    [Authorize(Policy = PolicyNames.ReadingRead)]
+    public async Task<IActionResult> GetLatestReadings()
+    {
+        var result = await _latestReadingsService.GetEnrichedLatestReadingsAsync();
+
+        if (result is null)
+            return NotFound("No latest readings available");
+
         return Ok(result);
     }
 }

@@ -67,7 +67,7 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
         }
 
         using var scope = _serviceProvider.CreateScope();
-        var jobScheduleStateManager = scope.ServiceProvider.GetRequiredService<IJobScheduleStateManager>();
+        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
 
         try
         {
@@ -81,19 +81,19 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
                 return;
             }
 
-            _logger.LogInformation("📬 Processing notification: {Decision} for channel {ChannelId}, affected: {AffectedCommand}, target: {TargetCommand}", 
-                notification.Decision, notification.ChannelId, notification.AffectedCommand, notification.TargetCommand);
+            _logger.LogInformation("📬 Processing notification: {Decision}, affected: {AffectedCommand}, target: {TargetCommand}",
+                notification.Decision, notification.AffectedCommand, notification.TargetCommand);
 
             switch (notification.Decision.ToLowerInvariant())
             {
                 case var decision when decision == ActuatorConstants.FirmwareDecisions.Consolidated.ToLowerInvariant():
-                    await HandleConsolidatedNotification(jobScheduleStateManager, notification);
+                    await HandleConsolidatedNotification(routineCommandRepository, notification);
                     break;
                 case var decision when decision == ActuatorConstants.FirmwareDecisions.Queued.ToLowerInvariant():
-                    await HandleQueuedNotification(jobScheduleStateManager, notification);
+                    await HandleQueuedNotification(notification);
                     break;
                 default:
-                    _logger.LogWarning("⚠️ Unknown notification decision: {Decision}. Valid options: {ValidDecisions}", 
+                    _logger.LogWarning("⚠️ Unknown notification decision: {Decision}. Valid options: {ValidDecisions}",
                         notification.Decision, string.Join(", ", ActuatorConstants.FirmwareDecisions.ValidDecisions));
                     break;
             }
@@ -108,17 +108,10 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
         }
     }
 
-    private async Task HandleConsolidatedNotification(IJobScheduleStateManager stateManager, RoutineNotificationDto notification)
+    private async Task HandleConsolidatedNotification(IRoutineCommandRepository routineCommandRepository, RoutineNotificationDto notification)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
-        var stateMachine = scope.ServiceProvider.GetRequiredService<IActuatorStateMachine>();
-
         _logger.LogInformation("🔄 Handling consolidated notification: removing {AffectedCommand}, updating {TargetCommand}",
             notification.AffectedCommand, notification.TargetCommand);
-
-        // Remove the affected command from in-memory queue
-        stateManager.RemoveCompletedRoutine(notification.AffectedCommand);
 
         // Remove the affected command from database
         var affectedCommand = await routineCommandRepository.GetByCommandIdAsync(notification.AffectedCommand);
@@ -128,8 +121,14 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
             _logger.LogInformation("🗑️ Deleted consolidated routine command {CommandId} from database", notification.AffectedCommand);
         }
 
-        // Update the target command status
-        stateManager.UpdateCommandStatus(notification.TargetCommand, ActuatorConstants.CommandStatuses.Running);
+        // Update the target command status to running
+        var targetCommand = await routineCommandRepository.GetByCommandIdAsync(notification.TargetCommand);
+        if (targetCommand != null)
+        {
+            targetCommand.StatusGeneral = HydroEspinaca.Shared.Enums.RoutineCommandStatus.IN_PROGRESS;
+            await routineCommandRepository.UpdateAsync(targetCommand);
+            _logger.LogInformation("📝 Updated target command {CommandId} status to IN_PROGRESS", notification.TargetCommand);
+        }
 
         // Note: Actuator state remains ON (no state change needed for consolidation)
         _logger.LogDebug("📊 Actuator state remains ON (consolidation does not change state)");
@@ -137,13 +136,13 @@ public class MqttRoutineNotificationSubscriber : BackgroundService
         _logger.LogInformation("✅ Consolidated notification processed successfully");
     }
 
-    private async Task HandleQueuedNotification(IJobScheduleStateManager stateManager, RoutineNotificationDto notification)
+    private Task HandleQueuedNotification(RoutineNotificationDto notification)
     {
         _logger.LogInformation("📋 Handling queued notification: maintaining order for {TargetCommand}", notification.TargetCommand);
-        
+
         // For queued decisions, we maintain the current job schedule order
         // The firmware has decided to queue the command, so we don't change anything
         _logger.LogInformation("✅ Queued notification processed successfully - no changes to job schedule");
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

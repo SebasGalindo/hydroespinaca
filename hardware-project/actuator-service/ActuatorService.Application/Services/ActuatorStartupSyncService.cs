@@ -89,26 +89,19 @@ public class ActuatorStartupSyncService
         var jobSchedule = new JobScheduleDto
         {
             Esp32Id = esp32Id,
-            JobSchedule = new List<JobChannelDto>
+            Queue = new List<JobRoutineDto>
             {
-                new JobChannelDto
+                new JobRoutineDto
                 {
-                    Channel = 0,
-                    Queue = new List<JobRoutineDto>
+                    CommandId = $"startup-shutdown-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    BaseId = "system-init",
+                    Steps = actuators.Select(a => new JobStepDto
                     {
-                        new JobRoutineDto
-                        {
-                            CommandId = $"startup-shutdown-{DateTime.UtcNow:yyyyMMddHHmmss}",
-                            BaseId = "system-init",
-                            Steps = actuators.Select(a => new JobStepDto
-                            {
-                                Pin = a.Pin,
-                                Mode = a.Mode.ToString(),
-                                Power = PowerState.OFF.ToString(),
-                                Duration = 0.1 // Minimal duration to ensure command is processed
-                            }).ToList()
-                        }
-                    }
+                        Pin = a.Pin,
+                        Mode = a.Mode.ToString(),
+                        Power = PowerState.OFF.ToString(),
+                        Duration = 0.1 // Minimal duration to ensure command is processed
+                    }).ToList()
                 }
             }
         };

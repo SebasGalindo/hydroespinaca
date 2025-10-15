@@ -426,12 +426,30 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     private static string GenerateSubject(CriticalAlertData alertData)
     {
         var alertReadings = alertData.AlertReadings.ToList();
-        
+
         if (alertReadings.Count == 1)
         {
             return $"⚠️ Alerta de sensor - {alertReadings.First().Name} crítico";
         }
-        
+
         return "⚠️ Alerta de sensor - Variables críticas fuera de rango";
+    }
+
+    /// <summary>
+    /// Clear all in-memory caches. Use for testing/debugging when alerts collection is manually deleted.
+    /// </summary>
+    public void ClearAllCaches()
+    {
+        lock (_alertStateLock)
+        {
+            var activeCount = _activeAlerts.Count;
+            var cooldownCount = _lastEmailSentCache.Count;
+
+            _activeAlerts.Clear();
+            _lastEmailSentCache.Clear();
+
+            _logger.LogWarning("🗑️ Cleared all in-memory caches: {ActiveAlerts} active alerts, {CooldownCache} cooldown entries",
+                activeCount, cooldownCount);
+        }
     }
 }

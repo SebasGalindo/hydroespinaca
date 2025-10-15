@@ -14,7 +14,6 @@ public class RoutineCommand : IIdentifiableMutable
     public RoutineCommandStatus StatusGeneral { get; set; } = RoutineCommandStatus.SCHEDULED;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }
-    public int? Channel { get; set; }                         // Channel assignment (1-3)
     public List<RoutineStepMapping>? StepMappings { get; set; }  // Maps Pin → ActuatorId for state tracking
     public List<RoutineResult>? Results { get; set; }
 

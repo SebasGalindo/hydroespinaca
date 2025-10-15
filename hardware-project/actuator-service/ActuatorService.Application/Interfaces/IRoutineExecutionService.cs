@@ -5,7 +5,7 @@ namespace ActuatorService.Application.Interfaces;
 
 /// <summary>
 /// Manages the execution lifecycle of routines with pin-based locking.
-/// Handles concurrent execution without fixed channel limits.
+/// Handles concurrent execution with max 1 running + 1 pending per pin.
 /// </summary>
 public interface IRoutineExecutionService
 {

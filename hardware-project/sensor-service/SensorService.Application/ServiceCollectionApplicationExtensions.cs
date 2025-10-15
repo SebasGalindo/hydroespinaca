@@ -14,6 +14,7 @@ public static class ServiceCollectionApplicationExtensions
         // Application Services
         services.AddScoped<ISensorService, SensorApplicationService>();
         services.AddScoped<IReadingService, ReadingService>();
+        services.AddScoped<ILatestReadingsService, LatestReadingsService>();
         services.AddScoped<ISensorAlertService, SensorAlertService>();
         services.AddScoped<IAggregateService, AggregateService>();
         services.AddScoped<IVariableService, VariableService>();
@@ -21,7 +22,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IEsp32AlertService, Esp32AlertService>();
         services.AddScoped<IUpdateEsp32LastSeenUseCase , UpdateEsp32LastSeenUseCase>();
         services.AddScoped<ICriticalAlertApplicationService, CriticalAlertApplicationService>();
-        
+
         // Use Cases
         services.AddScoped<MqttMessageDispatcher>();
         return services;

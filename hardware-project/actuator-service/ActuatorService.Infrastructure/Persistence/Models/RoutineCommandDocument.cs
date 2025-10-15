@@ -17,7 +17,6 @@ public class RoutineCommandDocument : IIdentifiableMutable
     public RoutineCommandStatus StatusGeneral { get; set; } = default!;
     public DateTime CreatedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
-    public int? Channel { get; set; }
     public List<RoutineResultDocument>? Results { get; set; }
     
     public void SetId(string id) => Id = id;

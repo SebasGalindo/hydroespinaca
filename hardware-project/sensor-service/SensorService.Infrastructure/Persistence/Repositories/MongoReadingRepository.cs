@@ -1,8 +1,8 @@
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
-using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
 
@@ -46,5 +46,30 @@ public class MongoReadingRepository : IReadingRepository
         var filter = Builders<ReadingDocument>.Filter.In(r => r.SensorCode, sensorCodes);
         var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
         return await _baseRepo.FindLastOneAsync(filter, sort);
+    }
+
+    public async Task<List<Reading>> GetLatestReadingsByVariableAsync()
+    {
+        // Aggregate pipeline to get the latest reading for each variableCode
+        var pipeline = new[]
+        {
+            // Sort by timestamp descending to get latest first
+            new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
+
+            // Group by variableCode and take the first (latest) document
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", "$variableCode" },
+                { "latestReading", new BsonDocument("$first", "$$ROOT") }
+            }),
+
+            // Replace root with the latest reading document
+            new BsonDocument("$replaceRoot", new BsonDocument("newRoot", "$latestReading")),
+
+            // Sort by variableCode for consistent ordering
+            new BsonDocument("$sort", new BsonDocument("variableCode", 1))
+        };
+
+        return await _baseRepo.AggregateAsync(pipeline);
     }
 }

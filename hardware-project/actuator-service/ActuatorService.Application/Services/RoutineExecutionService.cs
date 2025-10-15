@@ -14,7 +14,7 @@ namespace ActuatorService.Application.Services;
 
 /// <summary>
 /// Manages routine execution with dynamic pin-based locking.
-/// No fixed channel limits - routines execute concurrently when pins are available.
+/// Routines execute concurrently when pins are available (max 1 running + 1 pending per pin).
 /// </summary>
 public class RoutineExecutionService : IRoutineExecutionService
 {
@@ -43,6 +43,7 @@ public class RoutineExecutionService : IRoutineExecutionService
             resolvedRoutines.Count, esp32Id);
 
         var scheduledCommandIds = new List<string>();
+        var rejectedRoutines = new List<string>();
         var routinesToPublish = new List<JobRoutineDto>();
 
         foreach (var resolvedRoutine in resolvedRoutines)
@@ -50,6 +51,29 @@ public class RoutineExecutionService : IRoutineExecutionService
             var commandId = GenerateCommandId(resolvedRoutine.RoutineId);
             var pins = resolvedRoutine.ResolvedSteps.Select(s => s.Pin).Distinct().ToList();
             var actuatorIds = resolvedRoutine.ResolvedSteps.Select(s => s.ActuatorId).Distinct().ToList();
+
+            // Check if any pin already has 1 running + 1 pending (maximum allowed)
+            var rejectRoutine = false;
+            foreach (var pin in pins)
+            {
+                var hasRunning = _activeRoutines.Values.Any(r => r.Pins.Contains(pin) && r.Esp32Id == esp32Id);
+                var hasPending = _pendingRoutines.Values.Any(r => r.Pins.Contains(pin) && r.Esp32Id == esp32Id);
+
+                if (hasRunning && hasPending)
+                {
+                    // Reject: pin already has 1 running + 1 pending (max limit reached)
+                    _logger.LogWarning("❌ Rejected routine {CommandId} - pin {Pin} already has 1 running + 1 pending routine (max limit)",
+                        commandId, pin);
+                    rejectedRoutines.Add($"{resolvedRoutine.RoutineId} (pin {pin})");
+                    rejectRoutine = true;
+                    break;
+                }
+            }
+
+            if (rejectRoutine)
+            {
+                continue;
+            }
 
             var stepMappings = resolvedRoutine.ResolvedSteps.Select(step => new RoutineStepMapping
             {
@@ -89,7 +113,7 @@ public class RoutineExecutionService : IRoutineExecutionService
             }
             else
             {
-                // Pins locked - add to pending queue
+                // Pins locked - add to pending queue (only if not already at limit)
                 var pendingRoutine = new PendingRoutine
                 {
                     CommandId = commandId,
@@ -117,8 +141,14 @@ public class RoutineExecutionService : IRoutineExecutionService
             await PublishJobScheduleAsync(esp32Id, routinesToPublish);
         }
 
-        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending",
-            _activeRoutines.Count, _pendingRoutines.Count);
+        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending, {Rejected} rejected",
+            _activeRoutines.Count, _pendingRoutines.Count, rejectedRoutines.Count);
+
+        if (rejectedRoutines.Any())
+        {
+            _logger.LogWarning("⚠️ Rejected routines due to queue limit (1 running + 1 pending max): {RejectedRoutines}",
+                string.Join(", ", rejectedRoutines));
+        }
 
         return scheduledCommandIds;
     }
@@ -164,18 +194,11 @@ public class RoutineExecutionService : IRoutineExecutionService
         var status = new JobStatusDto
         {
             Esp32Id = esp32Id ?? "all",
-            Channels = new List<ChannelStatusDto>
+            Queue = allRoutines.Select(r => new QueuedCommandDto
             {
-                new ChannelStatusDto
-                {
-                    Channel = 0, // Single virtual channel representing all routines
-                    Queue = allRoutines.Select(r => new QueuedCommandDto
-                    {
-                        CommandId = r.CommandId,
-                        Status = r.Status
-                    }).ToList()
-                }
-            }
+                CommandId = r.CommandId,
+                Status = r.Status
+            }).ToList()
         };
 
         return Task.FromResult(status);
@@ -317,14 +340,7 @@ public class RoutineExecutionService : IRoutineExecutionService
         var jobSchedule = new JobScheduleDto
         {
             Esp32Id = esp32Id,
-            JobSchedule = new List<JobChannelDto>
-            {
-                new JobChannelDto
-                {
-                    Channel = 0, // Single virtual channel
-                    Queue = routines
-                }
-            }
+            Queue = routines
         };
 
         await publisher.PublishJobScheduleAsync(jobSchedule);

@@ -17,7 +17,6 @@ public class RoutineCommandMapper : IEntityMapper<RoutineCommand, RoutineCommand
             StatusGeneral = doc.StatusGeneral,
             CreatedAt = doc.CreatedAt,
             FinishedAt = doc.FinishedAt,
-            Channel = doc.Channel,
             Results = doc.Results?.Select(r => new RoutineResult
             {
                 Pin = r.Pin,
@@ -39,7 +38,6 @@ public class RoutineCommandMapper : IEntityMapper<RoutineCommand, RoutineCommand
             StatusGeneral = entity.StatusGeneral,
             CreatedAt = entity.CreatedAt,
             FinishedAt = entity.FinishedAt,
-            Channel = entity.Channel,
             Results = entity.Results?.Select(r => new RoutineResultDocument
             {
                 Pin = r.Pin,
