@@ -89,7 +89,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/shared/ ./packages/shared/
 
 # Build shared package first
-RUN pnpm --filter @hidroespinaca/shared build
+RUN pnpm --filter @hydroespinaca/shared build
 
 # Copy web app source code
 COPY apps/web/ ./apps/web/

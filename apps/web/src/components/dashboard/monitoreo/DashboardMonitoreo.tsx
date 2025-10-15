@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useSensorStore } from '@hidroespinaca/shared';
+import { useSensorStore } from '@hydroespinaca/shared';
 import MetricsGrid from './MetricsGrid';
 import TimeSeriesChart from './charts/TimeSeriesChart';
 import HeatmapChart from './charts/HeatmapChart';
@@ -11,47 +11,22 @@ import TimeRangeSelector from './TimeRangeSelector';
 import ExportControls from './ExportControls';
 
 // Re-export types for backward compatibility
-export type { SensorData, MetricData } from '@hidroespinaca/shared';
+export type { SensorData, MetricData } from '@hydroespinaca/shared';
 
 const DashboardMonitoreo: React.FC = () => {
   const {
     sensorData,
     currentMetrics,
     timeRange,
-    isRealTime,
     loading,
     setTimeRange,
-    setIsRealTime,
-    generateMockData,
-    addSensorDataPoint
+    generateMockData
   } = useSensorStore();
 
   // Inicializar datos al montar el componente
   useEffect(() => {
     generateMockData();
   }, [generateMockData]);
-
-  // Actualización en tiempo real
-  useEffect(() => {
-    if (!isRealTime) return;
-
-    const interval = setInterval(() => {
-      const newDataPoint = {
-        timestamp: new Date().toISOString(),
-        temperature: 24 + Math.sin(Date.now() / 100000) * 2 + Math.random() * 0.5,
-        humidity: 65 + Math.cos(Date.now() / 80000) * 10 + Math.random() * 2,
-        ph: 6.5 + Math.sin(Date.now() / 120000) * 0.3 + Math.random() * 0.1,
-        light: 800 + Math.sin(Date.now() / 60000) * 200 + Math.random() * 50,
-        conductivity: 1.2 + Math.sin(Date.now() / 90000) * 0.2 + Math.random() * 0.05
-      };
-
-      addSensorDataPoint(newDataPoint);
-    }, 30000); // Actualizar cada 30 segundos
-
-    return () => clearInterval(interval);
-  }, [isRealTime, addSensorDataPoint]);
-
-  // currentMetrics is now managed by the store
 
   if (loading) {
     return (
@@ -67,29 +42,14 @@ const DashboardMonitoreo: React.FC = () => {
   return (
     <main className="space-y-6" role="main" aria-label="Visualización de datos">
       {/* Header */}
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900 font-inter">Visualización de Datos</h1>
-        <p className="text-gray-600 mt-2 font-inter">Explora el entorno del invernadero a través de gráficos y diagramas interactivos. Selecciona variables y aplica filtros para analizar puntos de datos específicos.</p>
-      </div>
 
       {/* Controles superiores */}
       <section className="flex flex-wrap flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <TimeRangeSelector 
-            value={timeRange} 
+          <TimeRangeSelector
+            value={timeRange}
             onChange={setTimeRange}
           />
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700 font-inter">
-              <input
-                type="checkbox"
-                checked={isRealTime}
-                onChange={(e) => setIsRealTime(e.target.checked)}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              Tiempo real
-            </label>
-          </div>
         </div>
         <ExportControls data={sensorData} timeRange={timeRange} />
       </section>

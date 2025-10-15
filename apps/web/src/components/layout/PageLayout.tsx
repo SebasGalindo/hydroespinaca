@@ -1,7 +1,6 @@
 'use client';
 
-import React, { ReactNode, useState } from 'react';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import React, { ReactNode, useState, useEffect } from 'react';
 import SideNavigation from '@/components/layout/SideNavigation';
 import BottomNavigation from '@/components/layout/BottomNavigation';
 
@@ -10,7 +9,6 @@ interface PageLayoutProps {
   title?: string;
   subtitle?: string;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-  showHeader?: boolean;
   showBottomNav?: boolean;
   className?: string;
 }
@@ -20,18 +18,33 @@ const PageLayout: React.FC<PageLayoutProps> = ({
   title,
   subtitle,
   maxWidth = 'xl',
-  showHeader = true,
   showBottomNav = true,
   className = ''
 }) => {
-  const [sidebarToggle, setSidebarToggle] = useState(false);
+  // Inicializar el estado del sidebar con valor por defecto
+  // Se sincroniza con localStorage después del montaje del componente
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const handleToggleSidebar = () => {
-    setSidebarToggle(!sidebarToggle);
-  };
+  // Cargar el estado del sidebar desde localStorage después del montaje (cliente)
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarExpanded');
+      if (saved !== null) {
+        setSidebarExpanded(JSON.parse(saved));
+      }
+    }
+  }, []);
 
-  // CAMBIO 1: La función ahora solo abre el menú, no lo alterna.
+  // Guardar el estado del sidebar en localStorage cuando cambie (solo después del montaje)
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined') {
+      localStorage.setItem('sidebarExpanded', JSON.stringify(sidebarExpanded));
+    }
+  }, [sidebarExpanded, mounted]);
+
   const handleMoreClick = () => {
     setIsMobileMoreOpen(true);
   };
@@ -47,31 +60,26 @@ const PageLayout: React.FC<PageLayoutProps> = ({
     }
   };
 
-  // CAMBIO 2: Las clases de margen ahora son dinámicas y responden al estado `sidebarToggle`.
-  const contentMarginClass = sidebarToggle ? 'lg:ml-64' : 'lg:ml-16';
+  const contentMarginClass = sidebarExpanded ? 'lg:ml-64' : 'lg:ml-16';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
       {/* Side Navigation */}
-      <SideNavigation 
-        toggleTrigger={sidebarToggle} 
-        isMobileMoreOpen={isMobileMoreOpen} 
-        setMobileMoreOpen={setIsMobileMoreOpen} 
+      <SideNavigation
+        isExpanded={sidebarExpanded}
+        onToggleExpand={setSidebarExpanded}
+        isMobileMoreOpen={isMobileMoreOpen}
+        setMobileMoreOpen={setIsMobileMoreOpen}
       />
-      
-      {/* Contenedor principal para el contenido que se desplaza */}
+
+      {/* Contenedor principal para el contenido */}
       <div className={`transition-all duration-300 ease-in-out ${contentMarginClass}`}>
-        {/* Header */}
-        {showHeader && (
-          <DashboardHeader onToggleSidebar={handleToggleSidebar} />
-        )}
-        
         {/* Main Content */}
-        <main className={`px-4 pb-20 lg:pb-8 ${showHeader ? 'pt-0' : 'pt-6'} ${className}`} role="main">
+        <main className={`px-4 py-6 pb-20 lg:pb-8 ${className}`} role="main">
           <div className={`${getMaxWidthClass()} mx-auto`}>
             {/* Título principal */}
             {(title || subtitle) && (
-              <header className="text-center mb-8 pt-6">
+              <header className="text-center mb-8">
                 {title && (
                   <h1 className="text-2xl lg:text-3xl font-bold text-green-800 mb-2 font-inter">
                     {title}
@@ -84,18 +92,14 @@ const PageLayout: React.FC<PageLayoutProps> = ({
                 )}
               </header>
             )}
-            
+
             {/* Contenido */}
             {children}
           </div>
         </main>
       </div>
-      
-      {/* Bottom Navigation */}
-      {/* CAMBIO 3 (EL MÁS IMPORTANTE): Se renderiza condicionalmente basado en isMobileMoreOpen */}
-      {showBottomNav && !isMobileMoreOpen && (
-        <BottomNavigation onMoreClick={handleMoreClick} />
-      )}
+
+      {/* Bottom Navigation - Deshabilitado para móvil (solo Dashboard accesible vía sidebar) */}
     </div>
   );
 };

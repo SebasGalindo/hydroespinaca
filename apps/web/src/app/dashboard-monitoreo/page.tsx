@@ -6,9 +6,9 @@ import PageLayout from '@/components/layout/PageLayout';
 
 export default function DashboardMonitoreoPage() {
   return (
-    <PageLayout 
-      title="Dashboard de Monitoreo"
-      subtitle="Análisis en tiempo real de variables del cultivo hidropónico"
+    <PageLayout
+      title="Analisis de Datos Hidropónicos"
+      subtitle="Explora el entorno del invernadero a través de gráficos y diagramas interactivos. Selecciona variables y aplica filtros para analizar puntos de datos específicos."
       maxWidth="full"
     >
       <DashboardMonitoreo />

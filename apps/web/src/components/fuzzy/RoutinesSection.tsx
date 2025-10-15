@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { SimpleFuzzyRoutine, SimpleFuzzyTerm, SimpleFuzzyVariable } from '@hidroespinaca/shared';
+import { SimpleFuzzyRoutine, SimpleFuzzyTerm, SimpleFuzzyVariable } from '@hydroespinaca/shared';
 
 interface RoutinesSectionProps {
   routines: SimpleFuzzyRoutine[];

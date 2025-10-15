@@ -9,7 +9,7 @@ import {
   SimpleFuzzyRule, 
   SimpleFuzzyRoutine,
   useFuzzyStore 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 
 import PageLayout from '@/components/layout/PageLayout';
 import Button from '@/components/ui/Button';

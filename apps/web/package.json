@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@hidroespinaca/shared": "workspace:*",
+    "@hydroespinaca/shared": "workspace:*",
     "@types/plotly.js": "^3.0.3",
     "next": "^15.5.3",
     "plotly.js": "^2.35.2",

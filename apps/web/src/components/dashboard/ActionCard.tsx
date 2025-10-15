@@ -47,20 +47,20 @@ const ActionCard: React.FC<ActionCardProps> = ({
   };
 
   return (
-    <article className="hidro-card p-6">
+    <article className="hidro-card p-6 flex flex-col justify-between h-full">
       <header className="flex items-center mb-4">
         <div className="flex-shrink-0 mr-4">
           {getIcon()}
         </div>
         <h3 className="text-lg font-semibold text-gray-900 font-inter">{title}</h3>
       </header>
-      
-      <div className="mb-6">
+
+      <div className="mb-6 flex-grow">
         <p className="text-gray-600 text-sm leading-relaxed font-inter">
           {description}
         </p>
       </div>
-      
+
       <footer>
         <button className={`${getButtonClass()} w-full font-inter`}>
           {buttonText}

@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
   const path = url.pathname;
 
   // Rutas públicas (no requieren autenticación)
-  const publicPaths = ['/', '/login'];
+  const publicPaths = ['/', '/login', '/forgot-password', '/reset-password'];
   const isPublicPath = publicPaths.includes(path);
 
   // Rutas estáticas de Next.js (excluir del middleware)

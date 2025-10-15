@@ -12,7 +12,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Section from '@/components/ui/Section';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { useActuatorStore, ActuadorData } from '@hidroespinaca/shared';
+import { useActuatorStore, ActuadorData } from '@hydroespinaca/shared';
 
 // Data is now managed by the store
 

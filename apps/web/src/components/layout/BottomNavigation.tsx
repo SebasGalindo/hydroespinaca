@@ -3,12 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  ChartIcon, 
-  BookIcon, 
-  TrendingUpIcon, 
-  BrainIcon, 
-  PlusIcon, 
+import {
+  ChartIcon,
+  BookIcon,
+  TrendingUpIcon,
+  BrainIcon,
   MenuIcon
 } from '@/components/ui/icons/Icons';
 
@@ -43,12 +42,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onMoreClick }) => {
       icon: BrainIcon,
       label: 'Sistemas Fuzzy',
       active: pathname === '/dashboard/sistemas-fuzzy'
-    },
-    {
-      href: '/dashboard/nueva-variable',
-      icon: PlusIcon,
-      label: 'Crear Variable',
-      active: pathname === '/dashboard/nueva-variable'
     }
   ];
 

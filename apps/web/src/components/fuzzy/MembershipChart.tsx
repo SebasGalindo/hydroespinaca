@@ -2,7 +2,7 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
-import { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hidroespinaca/shared';
+import { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hydroespinaca/shared';
 
 // Importación dinámica de Plotly para evitar problemas de SSR
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });

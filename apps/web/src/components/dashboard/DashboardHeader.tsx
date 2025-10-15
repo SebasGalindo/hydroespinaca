@@ -34,18 +34,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) =>
               <span className="text-white font-bold text-lg">H</span>
             </button>
             <Link href="/dashboard" className="flex-shrink-0 flex items-center">
-              <span className="text-green-600 font-bold text-xl font-inter whitespace-nowrap min-w-[140px]">Hidro Espinaca</span>
+              <span className="text-green-600 font-bold text-xl font-inter whitespace-nowrap min-w-[140px]">HydroEspinaca</span>
             </Link>
           </div>
 
           {/* Notificaciones + Usuario */}
           <div className="flex items-center space-x-4">
-            
-            {/* Icono de notificaciones */}
-            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200">
-              <BellIcon size={24} />
-            </button>
-            
             {/* Usuario */}
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center">

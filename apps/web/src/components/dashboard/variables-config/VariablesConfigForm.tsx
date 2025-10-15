@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useVariableStore } from '@hidroespinaca/shared';
+import { useVariableStore } from '@hydroespinaca/shared';
 import VariableCard from './VariableCard';
 import VariablesTable from './VariablesTable';
 import VariableForm from './VariableForm';
@@ -11,7 +11,7 @@ import Section from '@/components/ui/Section';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 
-import type { VariableData } from '@hidroespinaca/shared';
+import type { VariableData } from '@hydroespinaca/shared';
 
 // Data is now managed by the store
 

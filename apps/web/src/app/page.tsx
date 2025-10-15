@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
-import { useAuthStore } from '@hidroespinaca/shared';
+import { useAuthStore } from '@hydroespinaca/shared';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuthStore();
@@ -19,38 +19,14 @@ export default function HomePage() {
                 Soluciones inteligentes para cultivos hidropónicos
               </h1>
               <p className="text-lg text-gray-600 mb-8">
-                Optimiza tus cultivos con nuestra plataforma de monitoreo y control para sistemas hidropónicos.
+                Gestiona tus cultivos con nuestra plataforma de monitoreo y control para sistemas hidropónicos.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                {isAuthenticated ? (
-                  <Link 
-                    href="/dashboard" 
-                    className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition duration-300 text-center"
-                  >
-                    Ir al Dashboard
-                  </Link>
-                ) : (
-                  <>
-                    <Link 
-                      href="/login" 
-                      className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition duration-300 text-center"
-                    >
-                      Iniciar sesión
-                    </Link>
-                    <Link 
-                      href="/signup" 
-                      className="bg-white text-green-600 border border-green-600 px-6 py-3 rounded-md hover:bg-green-50 transition duration-300 text-center"
-                    >
-                      Registrarse
-                    </Link>
-                  </>
-                )}
-              </div>
             </div>
             <div className="relative h-64 md:h-96 rounded-lg overflow-hidden shadow-xl">
-              <div 
-                  className="absolute inset-0 bg-cover bg-center bg-hidroespinaca-svg"
-                ></div>
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: 'url(/images/hidroespinaca-bg.jpg)' }}
+              ></div>
             </div>
           </div>
         </div>
@@ -74,9 +50,9 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo en tiempo real</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo</h3>
               <p className="text-gray-600">
-                Supervisa los parámetros críticos de tus cultivos en tiempo real, incluyendo pH, temperatura, humedad y niveles de nutrientes.
+                Supervisa los parámetros críticos de tus cultivos.
               </p>
             </div>
 
@@ -102,26 +78,10 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Análisis de datos</h3>
               <p className="text-gray-600">
-                Obtén insights valiosos con análisis detallados y reportes personalizados sobre el rendimiento de tus cultivos.
+                Obtén insights valiosos con análisis detallados y reportes personalizados sobre el estado de tus cultivos.
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-green-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">¿Listo para optimizar tus cultivos hidropónicos?</h2>
-          <p className="text-xl text-green-100 mb-8 max-w-3xl mx-auto">
-            Únete a nuestra plataforma y lleva tus cultivos al siguiente nivel con tecnología de vanguardia.
-          </p>
-          <Link 
-            href={isAuthenticated ? "/dashboard" : "/signup"} 
-            className="bg-white text-green-600 px-8 py-3 rounded-md hover:bg-green-50 transition duration-300 inline-block font-medium"
-          >
-            {isAuthenticated ? "Ir al Dashboard" : "Comenzar ahora"}
-          </Link>
         </div>
       </section>
     </MainLayout>

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Table from '@/components/ui/Table';
-import { IndividualReading } from '@hidroespinaca/shared';
+import { IndividualReading } from '@hydroespinaca/shared';
 
 interface ReadingsTableProps {
   individualReadings: IndividualReading[];

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useReadingsStore } from '@hidroespinaca/shared';
+import { useReadingsStore } from '@hydroespinaca/shared';
 import SummaryTable from '@/components/dashboard/lecturas/SummaryTable';
 import ReadingsTable from '@/components/dashboard/lecturas/ReadingsTable';
 import FilterControls from '@/components/dashboard/lecturas/FilterControls';
@@ -9,7 +9,7 @@ import PageLayout from '@/components/layout/PageLayout';
 import Section from '@/components/ui/Section';
 
 // Re-export types for backward compatibility
-export type { SensorSummary, IndividualReading } from '@hidroespinaca/shared';
+export type { SensorSummary, IndividualReading } from '@hydroespinaca/shared';
 
 export default function LecturasPage() {
   // Local filter state
@@ -53,9 +53,9 @@ export default function LecturasPage() {
   }, [individualReadings, selectedDate, selectedTime, selectedSensor, filterValue]);
 
   return (
-    <PageLayout 
+    <PageLayout
       title="Lecturas de Sensores"
-      subtitle="Monitoreo en tiempo real de las variables del cultivo"
+      subtitle="Monitoreo de las variables del cultivo"
       maxWidth="xl"
     >
       <Section 

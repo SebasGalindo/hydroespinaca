@@ -3,22 +3,23 @@
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  ChartIcon, 
-  BookIcon, 
-  TrendingUpIcon, 
-  BrainIcon, 
-  PlusIcon, 
-  SettingsIcon, 
-  HistoryIcon,
+import {
+  ChartIcon,
+  BookIcon,
+  TrendingUpIcon,
+  BrainIcon,
+  SettingsIcon,
   ChevronRightIcon,
   BoltIcon,
   ListIcon,
-  ExpandIcon,
-  CollapseIcon,
-  WifiIcon,
-  MenuIcon
+  PlantIcon,
+  MenuIcon,
+  PowerIcon,
+  UserIcon,
+  ChevronDownIcon
 } from '@/components/ui/icons/Icons';
+import { useAuthStore } from '@hydroespinaca/shared';
+import { useRouter } from 'next/navigation';
 
 interface NavigationItem {
   href: string;
@@ -29,24 +30,36 @@ interface NavigationItem {
 }
 
 interface SideNavigationProps {
-  toggleTrigger: boolean;
+  isExpanded: boolean;
+  onToggleExpand: (expanded: boolean) => void;
   isMobileMoreOpen: boolean;
   setMobileMoreOpen: (isOpen: boolean) => void;
 }
 
-const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobileMoreOpen, setMobileMoreOpen }) => {
+const SideNavigation: React.FC<SideNavigationProps> = ({
+  isExpanded,
+  onToggleExpand,
+  isMobileMoreOpen,
+  setMobileMoreOpen
+}) => {
   const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isPermanentlyExpanded, setIsPermanentlyExpanded] = useState(false);
+  const router = useRouter();
+  const { logout, user } = useAuthStore();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  // State para el menú del usuario cuando está contraído
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userMenuPosition, setUserMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const navigationItems: NavigationItem[] = [
-    { href: '/dashboard', label: 'Info-Main', icon: ChartIcon },
+    { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
     { href: '/dashboard/lecturas', label: 'Lecturas', icon: BookIcon },
-    { href: '/dashboard-monitoreo', label: 'Dashboard', icon: TrendingUpIcon },
+    { href: '/dashboard-monitoreo', label: 'Análisis de datos', icon: TrendingUpIcon },
     { href: '/dashboard/sistemas-fuzzy', label: 'Sistemas Fuzzy', icon: BrainIcon },
-    { href: '/dashboard/nueva-variable', label: 'Crear Variable Manual', icon: PlusIcon },
     {
       href: '/dashboard/listas',
       label: 'Listas',
@@ -58,66 +71,23 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
         { href: '/dashboard/reglas-fuzzy', label: 'Reglas Fuzzy', icon: BrainIcon },
       ]
     },
-    {
-      href: '/dashboard/sistema',
-      label: 'Estado del Sistema',
-      icon: WifiIcon,
-      children: [
-        { href: '/dashboard/sistema/api', label: 'API Principal', icon: WifiIcon, status: 'Conectado' },
-        { href: '/dashboard/sistema/database', label: 'Base de Datos', icon: WifiIcon, status: 'Conectado' },
-        { href: '/dashboard/sistema/sensors', label: 'Sensores IoT', icon: WifiIcon, status: 'Desconectado' },
-      ]
-    },
-    { href: '/dashboard/ajustes', label: 'Ajustes', icon: SettingsIcon },
-    { href: '/dashboard/historial', label: 'Historial', icon: HistoryIcon },
   ];
 
-  const mobileMainItems = navigationItems.slice(0, 5); // Info-Main, Lecturas, Dashboard, Lógica Fuzzy, Crear Variable
-  const mobileMoreItems = navigationItems.slice(5, -2); // Listas, Estado del Sistema (sin Ajustes e Historial)
+  // En móvil solo se muestra el Dashboard principal
+  const mobileMainItems = navigationItems.slice(0, 1); // Solo Dashboard
+  const mobileMoreItems = navigationItems.slice(1); // Resto de items
 
   const toggleGroup = (label: string) => {
-    setExpandedGroups(prev => 
-      prev.includes(label) 
+    setExpandedGroups(prev =>
+      prev.includes(label)
         ? prev.filter(group => group !== label)
         : [...prev, label]
     );
   };
 
-  const handleMouseEnter = () => {
-    if (!isPermanentlyExpanded) {
-      setIsExpanded(true);
-    }
+  const toggleSidebar = () => {
+    onToggleExpand(!isExpanded);
   };
-
-  const handleMouseLeave = (event: React.MouseEvent) => {
-    // Si el ratón se va por el borde izquierdo extremo de la ventana, no hagas nada.
-    if (event.clientX <= 0) {
-      return;
-    }
-    
-    if (!isPermanentlyExpanded) {
-      setIsExpanded(false);
-    }
-  };
-
-  const togglePermanentExpansion = useCallback(() => {
-    setIsPermanentlyExpanded((prev) => {
-      const next = !prev;
-      setIsExpanded(next);
-      return next;
-    });
-  }, []);
-
-  // Effect to handle external toggle trigger
-  React.useEffect(() => {
-    if (toggleTrigger !== undefined) {
-      setIsPermanentlyExpanded((prev) => {
-        const next = !prev;
-        setIsExpanded(next);
-        return next;
-      });
-    }
-  }, [toggleTrigger]);
 
   const isActive = (href: string) => {
     if (!pathname) return false;
@@ -134,30 +104,92 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
     return isActive(item.href);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const handlePopoverToggle = (label: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!isExpanded) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setPopoverPosition({
+        top: rect.top,
+        left: rect.right + 8 // 8px gap from sidebar
+      });
+      setPopoverOpen(popoverOpen === label ? null : label);
+    }
+  };
+
+  const handlePopoverClose = () => {
+    setPopoverOpen(null);
+  };
+
+  const handleUserMenuToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuHeight = 140; // Altura aproximada del menú
+
+    // Calcular posición centrada verticalmente con el botón
+    let topPosition = rect.top + (rect.height / 2) - (menuHeight / 2);
+
+    // Asegurar que no se salga por arriba
+    topPosition = Math.max(8, topPosition);
+
+    // Asegurar que no se salga por abajo
+    const maxTop = window.innerHeight - menuHeight - 8;
+    topPosition = Math.min(topPosition, maxTop);
+
+    setUserMenuPosition({
+      top: topPosition,
+      left: rect.right + 8 // 8px gap from sidebar
+    });
+    setUserMenuOpen(!userMenuOpen);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuOpen(false);
+  };
+
   return (
     <>
       {/* Desktop Navigation */}
-      <aside 
-        className={`hidden lg:block fixed left-0 top-0 h-full bg-white border-r border-gray-200 z-50 transition-all duration-300 ease-in-out overflow-x-hidden scrollbar-hidden ${
-          isExpanded || isPermanentlyExpanded ? 'w-80' : 'w-16'
+      <aside
+        className={`hidden lg:flex lg:flex-col fixed left-0 top-0 h-full bg-white border-r border-gray-200 z-50 transition-all duration-300 ease-in-out ${
+          isExpanded ? 'w-64' : 'w-16'
         }`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
-
-        {/* Toggle button */}
-        <div className="p-4 border-b border-gray-200">
-          <button
-            onClick={togglePermanentExpansion}
-            className="w-full flex items-center justify-center p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded transition-colors"
-            title={isPermanentlyExpanded ? 'Colapsar menú' : 'Expandir menú'}
-          >
-            {isPermanentlyExpanded ? (
-              <CollapseIcon size={20} />
-            ) : (
-              <ExpandIcon size={20} />
-            )}
-          </button>
+        {/* Header con Logo y Botón Colapsar */}
+        <div className="h-16 border-b border-gray-200 flex items-center justify-center px-3">
+          {isExpanded ? (
+            <div className="flex items-center justify-between w-full">
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <PlantIcon size={24} color="#16a34a" />
+                <span className="text-green-600 font-bold text-lg whitespace-nowrap">
+                  HydroEspinaca
+                </span>
+              </Link>
+              <button
+                onClick={toggleSidebar}
+                className="p-2 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded transition-colors"
+                title="Colapsar menú"
+                aria-label="Colapsar menú lateral"
+              >
+                <ChevronRightIcon size={20} />
+              </button>
+            </div>
+          ) : (
+            <div
+              className="relative w-full h-full flex items-center justify-center cursor-pointer"
+              onMouseEnter={() => setIsLogoHovered(true)}
+              onMouseLeave={() => setIsLogoHovered(false)}
+              onClick={toggleSidebar}
+            >
+              {isLogoHovered ? (
+                <ChevronRightIcon size={24} className="text-green-600 rotate-180" />
+              ) : (
+                <PlantIcon size={28} color="#16a34a" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -175,19 +207,25 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
                     <>
                       {/* Parent item with children */}
                       <button
-                        onClick={() => toggleGroup(item.label)}
-                        className={`w-full flex items-center px-4 py-3 text-left transition-colors duration-200 ${
+                        onClick={(e) => {
+                          if (isExpanded) {
+                            toggleGroup(item.label);
+                          } else {
+                            handlePopoverToggle(item.label, e);
+                          }
+                        }}
+                        className={`relative w-full flex items-center px-4 py-3 text-left transition-colors duration-200 ${
                           itemActive
                             ? 'text-green-600 bg-green-50 border-r-2 border-green-600'
                             : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                        }`}
+                        } ${!isExpanded && popoverOpen === item.label ? 'bg-green-50' : ''}`}
                       >
                         <IconComponent size={20} className="flex-shrink-0" />
-                        {(isExpanded || isPermanentlyExpanded) && (
+                        {isExpanded && (
                           <>
                             <span className="ml-3 font-medium whitespace-nowrap">{item.label}</span>
-                            <ChevronRightIcon 
-                              size={16} 
+                            <ChevronRightIcon
+                              size={16}
                               className={`ml-auto transition-transform duration-200 flex-shrink-0 ${
                                 groupExpanded ? 'rotate-90' : ''
                               }`}
@@ -195,9 +233,9 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
                           </>
                         )}
                       </button>
-                      
+
                       {/* Children items */}
-                      {(isExpanded || isPermanentlyExpanded) && groupExpanded && item.children && (
+                      {isExpanded && groupExpanded && item.children && (
                         <ul className="ml-4 mt-1 space-y-1">
                           {item.children.map((child) => {
                             const ChildIconComponent = child.icon;
@@ -242,7 +280,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
                       }`}
                     >
                       <IconComponent size={20} className="flex-shrink-0" />
-                      {(isExpanded || isPermanentlyExpanded) && (
+                      {isExpanded && (
                         <span className="ml-3 font-medium whitespace-nowrap">{item.label}</span>
                       )}
                     </Link>
@@ -252,6 +290,153 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
             })}
           </ul>
         </nav>
+
+        {/* Floating Popover for Collapsed Submenus */}
+        {!isExpanded && popoverOpen && (
+          <>
+            {/* Overlay to close popover */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={handlePopoverClose}
+            />
+            {/* Popover content */}
+            {navigationItems
+              .filter(item => item.label === popoverOpen && item.children)
+              .map(item => (
+                <div
+                  key={item.label}
+                  className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px] animate-in fade-in slide-in-from-left-2 duration-200"
+                  style={{
+                    top: `${popoverPosition.top}px`,
+                    left: `${popoverPosition.left}px`,
+                  }}
+                >
+                  <div className="px-3 py-2 border-b border-gray-200">
+                    <p className="text-sm font-semibold text-gray-700">{item.label}</p>
+                  </div>
+                  <ul className="py-1">
+                    {item.children?.map(child => {
+                      const ChildIconComponent = child.icon;
+                      const childActive = isActive(child.href);
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            onClick={handlePopoverClose}
+                            className={`flex items-center px-3 py-2 text-sm transition-colors duration-200 ${
+                              childActive
+                                ? 'text-green-600 bg-green-50'
+                                : 'text-gray-700 hover:text-green-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <ChildIconComponent size={16} className="flex-shrink-0" />
+                            <span className="ml-3 whitespace-nowrap">{child.label}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+          </>
+        )}
+
+        {/* Floating User Menu for Collapsed Sidebar */}
+        {!isExpanded && userMenuOpen && (
+          <>
+            {/* Overlay to close menu */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={handleUserMenuClose}
+            />
+            {/* User menu content */}
+            <div
+              className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[220px] animate-in fade-in scale-in-95 duration-200"
+              style={{
+                top: `${userMenuPosition.top}px`,
+                left: `${userMenuPosition.left}px`,
+              }}
+            >
+              <div className="px-3 py-2 border-b border-gray-200">
+                <p className="text-sm font-semibold text-gray-700">
+                  {user?.name || 'Usuario'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {user?.role || 'Administrador'}
+                </p>
+              </div>
+              <ul className="py-1">
+                <li>
+                  <Link
+                    href="/dashboard/perfil"
+                    onClick={handleUserMenuClose}
+                    className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="mr-3">👤</span>
+                    <span>Configuración de usuario</span>
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
+                      handleUserMenuClose();
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <span className="mr-3">🚪</span>
+                    <span>Cerrar sesión</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </>
+        )}
+
+        {/* User Profile Section */}
+        <div className="border-t border-gray-200 p-3">
+          {isExpanded ? (
+            <div className="flex items-center justify-between">
+              <Link
+                href="/dashboard/perfil"
+                className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <UserIcon size={20} color="white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.name || 'Usuario'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.role || 'Administrador'}
+                  </p>
+                </div>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <PowerIcon size={20} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <button
+                onClick={handleUserMenuToggle}
+                className={`w-10 h-10 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-700 transition-colors ${
+                  userMenuOpen ? 'ring-2 ring-green-300' : ''
+                }`}
+                title="Menú de usuario"
+                aria-label="Abrir menú de usuario"
+              >
+                <UserIcon size={20} color="white" />
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* Mobile Navigation */}
@@ -406,6 +591,37 @@ const SideNavigation: React.FC<SideNavigationProps> = ({ toggleTrigger, isMobile
                       </div>
                     );
                   })}
+
+                  {/* Mobile User Profile Section */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Link
+                        href="/dashboard/perfil"
+                        onClick={() => setMobileMoreOpen(false)}
+                        className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <UserIcon size={20} color="white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {user?.name || 'Usuario'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {user?.role || 'Administrador'}
+                          </p>
+                        </div>
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Cerrar sesión"
+                        aria-label="Cerrar sesión"
+                      >
+                        <PowerIcon size={20} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

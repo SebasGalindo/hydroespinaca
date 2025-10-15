@@ -13,7 +13,7 @@ import {
   SettingsIcon
 } from '@/components/ui/icons/Icons';
 
-import { ActuadorData } from '@hidroespinaca/shared';
+import { ActuadorData } from '@hydroespinaca/shared';
 
 interface ActuadorCardProps {
   actuador: ActuadorData;

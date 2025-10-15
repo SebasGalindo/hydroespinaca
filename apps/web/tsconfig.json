@@ -4,7 +4,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@hidroespinaca/shared/*": ["../../packages/shared/src/*"]
+      "@hydroespinaca/shared/*": ["../../packages/shared/src/*"]
     },
     "allowJs": true,
     "strictNullChecks": true,

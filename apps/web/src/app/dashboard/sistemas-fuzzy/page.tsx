@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import PageLayout from '@/components/layout/PageLayout';
 import FuzzySystemCard from '@/components/ui/FuzzySystemCard';
 import Button from '@/components/ui/Button';
-import { useFuzzyStore, FuzzySystemState } from '@hidroespinaca/shared';
+import { useFuzzyStore, FuzzySystemState } from '@hydroespinaca/shared';
 
 const SistemasFuzzyPage: React.FC = () => {
   const router = useRouter();

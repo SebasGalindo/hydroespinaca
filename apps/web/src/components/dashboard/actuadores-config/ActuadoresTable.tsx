@@ -3,7 +3,7 @@
 // ⭐ 1. Importa useMemo para la optimización de rendimiento.
 import React, { useMemo } from 'react';
 import { EditIcon, TrashIcon } from '@/components/ui/icons/Icons';
-import type { ActuadorData } from '@hidroespinaca/shared'; 
+import type { ActuadorData } from '@hydroespinaca/shared'; 
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';

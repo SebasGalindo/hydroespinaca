@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import FormField from '@/components/dashboard/nueva-variable/FormField';
+import FormField from '@/components/ui/FormField';
 import Button from '@/components/ui/Button';
 
 export interface SensorData {

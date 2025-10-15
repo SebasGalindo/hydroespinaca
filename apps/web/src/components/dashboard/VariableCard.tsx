@@ -86,7 +86,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
   };
 
   return (
-    <article className={`hidro-card p-4 ${className}`}>
+    <article className={`hidro-card p-4 flex flex-col h-full ${className}`}>
       <header className="flex items-start justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-700 font-inter">{title}</h3>
         <div className="flex items-center space-x-1">
@@ -98,17 +98,17 @@ const VariableCard: React.FC<VariableCardProps> = ({
           )}
         </div>
       </header>
-      
-      <div className="mb-2">
+
+      <div className="mb-2 flex-grow">
         <p className="text-2xl font-bold text-gray-900 font-inter">{value}</p>
       </div>
-      
+
       {optimal && (
         <p className={`text-xs ${getStatusColor()} font-inter`}>
           {optimal}
         </p>
       )}
-      
+
       {subtitle && (
         <p className="text-xs text-gray-500 font-inter">
           {subtitle}

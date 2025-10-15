@@ -1,6 +1,6 @@
 # UI Components - Componentes de Interfaz de Usuario
 
-Este directorio contiene todos los componentes de UI reutilizables de la aplicación Hidro Espinaca, implementando un sistema de diseño consistente y accesible.
+Este directorio contiene todos los componentes de UI reutilizables de la aplicación HydroEspinaca, implementando un sistema de diseño consistente y accesible.
 
 ## Arquitectura de Componentes UI
 

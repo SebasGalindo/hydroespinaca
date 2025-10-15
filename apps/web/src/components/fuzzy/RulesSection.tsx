@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { SimpleFuzzyRule, SimpleFuzzyTerm, SimpleFuzzyVariable, SimpleFuzzyRoutine } from '@hidroespinaca/shared';
+import { SimpleFuzzyRule, SimpleFuzzyTerm, SimpleFuzzyVariable, SimpleFuzzyRoutine } from '@hydroespinaca/shared';
 
 interface RulesSectionProps {
   rules: SimpleFuzzyRule[];

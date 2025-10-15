@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { EditIcon, XIcon } from '@/components/ui/icons/Icons';
-import type { VariableData } from '@hidroespinaca/shared';
+import type { VariableData } from '@hydroespinaca/shared';
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';

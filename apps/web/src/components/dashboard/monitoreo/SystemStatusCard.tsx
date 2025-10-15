@@ -9,10 +9,10 @@ import {
   BatteryIcon,
   CpuChipIcon
 } from '@/components/ui/icons/Icons';
-import { useSensorStore } from '@hidroespinaca/shared';
+import { useSensorStore } from '@hydroespinaca/shared';
 
 // Re-export type for backward compatibility
-export type { SystemComponent } from '@hidroespinaca/shared';
+export type { SystemComponent } from '@hydroespinaca/shared';
 
 const SystemStatusCard: React.FC = () => {
   const { systemComponents } = useSensorStore();
@@ -70,7 +70,7 @@ const SystemStatusCard: React.FC = () => {
             Estado del Sistema
           </h2>
           <p className="text-sm text-gray-600 font-inter">
-            Monitoreo en tiempo real de componentes
+            Monitoreo de componentes del sistema
           </p>
         </div>
         

@@ -1,6 +1,6 @@
 # Dashboard - Panel de Control Hidropónico
 
-Este directorio contiene todas las páginas del dashboard de la aplicación Hidro Espinaca, implementando un sistema completo de monitoreo y control para cultivos hidropónicos.
+Este directorio contiene todas las páginas del dashboard de la aplicación HydroEspinaca, implementando un sistema completo de monitoreo y control para cultivos hidropónicos.
 
 ## Arquitectura del Dashboard
 

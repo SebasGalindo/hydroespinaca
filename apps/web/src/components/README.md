@@ -1,6 +1,6 @@
 # Components - Arquitectura de Componentes
 
-Este directorio contiene todos los componentes reutilizables de la aplicación Hidro Espinaca, organizados siguiendo los principios de **Atomic Design** y las mejores prácticas de React.
+Este directorio contiene todos los componentes reutilizables de la aplicación HydroEspinaca, organizados siguiendo los principios de **Atomic Design** y las mejores prácticas de React.
 
 ## Arquitectura de Componentes
 

@@ -19,7 +19,7 @@ const nextConfig = {
       },
     },
   },
-  transpilePackages: ['@hidroespinaca/shared'],
+  transpilePackages: ['@hydroespinaca/shared'],
   // Solución temporal para React 19 + Next.js 15 prerendering error
   experimental: {
     ppr: false, // Deshabilitar Partial Prerendering

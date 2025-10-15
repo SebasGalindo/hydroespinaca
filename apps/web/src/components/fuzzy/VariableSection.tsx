@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hidroespinaca/shared';
+import { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hydroespinaca/shared';
 import MembershipChart from './MembershipChart';
 
 interface VariableSectionProps {

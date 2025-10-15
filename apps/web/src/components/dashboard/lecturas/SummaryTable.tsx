@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Table from '@/components/ui/Table';
-import type { SensorSummary } from '@hidroespinaca/shared';
+import type { SensorSummary } from '@hydroespinaca/shared';
 
 interface SummaryTableProps {
   sensorSummary: SensorSummary[];

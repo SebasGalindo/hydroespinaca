@@ -51,7 +51,7 @@ build_shared_dependencies() {
 
     log "Building shared package (required by web app)..."
     # Build shared package first (required by web app)
-    if ! pnpm --filter @hidroespinaca/shared build; then
+    if ! pnpm --filter @hydroespinaca/shared build; then
         warn "Failed to build shared package, will try inside Docker container"
         return 0
     fi
@@ -350,17 +350,48 @@ case "${1:-start}" in
         build_shared_dependencies
         log "Shared dependencies build complete. Restart web container to apply changes: docker compose restart web-app"
         ;;
+    "refresh-frontend"|"frontend")
+        # Refresh frontend only - rebuild shared deps and restart web container
+        log "=== Refreshing Frontend Only ==="
+        log "Backend services will remain running"
+
+        # Build shared dependencies
+        log "Step 1/3: Building shared dependencies..."
+        build_shared_dependencies
+
+        # Determine the correct profile
+        if [ "$ENVIRONMENT" = "Production" ]; then
+            export COMPOSE_PROFILE=production
+        else
+            export COMPOSE_PROFILE=development
+        fi
+
+        # Rebuild and restart only the web-app container
+        log "Step 2/3: Rebuilding web-app container..."
+        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" build web-app
+
+        log "Step 3/3: Restarting web-app container..."
+        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" up -d --no-deps --force-recreate web-app
+
+        log "=== Frontend Refresh Complete ==="
+        log "Frontend container restarted. Backend services unchanged."
+        log "Check logs with: $0 logs web-app"
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|renew|logs [service]|build}"
+        echo "Usage: $0 {start|stop|restart|status|renew|logs [service]|build|refresh-frontend}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start services based on ENVIRONMENT setting"
-        echo "  stop    - Stop all services"
-        echo "  restart - Restart all services"
-        echo "  status  - Show service and certificate status"
-        echo "  renew   - Renew SSL certificates"
-        echo "  logs    - Show logs (optionally for specific service)"
-        echo "  build   - Build shared dependencies (without restarting services)"
+        echo "  start            - Start services based on ENVIRONMENT setting"
+        echo "  stop             - Stop all services"
+        echo "  restart          - Restart all services"
+        echo "  status           - Show service and certificate status"
+        echo "  renew            - Renew SSL certificates"
+        echo "  logs [service]   - Show logs (optionally for specific service)"
+        echo "  build            - Build shared dependencies (without restarting services)"
+        echo "  refresh-frontend - Rebuild and restart ONLY the frontend (backend stays running)"
+        echo ""
+        echo "Aliases:"
+        echo "  frontend         - Same as refresh-frontend"
         echo ""
         echo "Environment: $ENVIRONMENT"
         echo "TLS Enabled: $USE_TLS"

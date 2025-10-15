@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useVariableStore, useActuatorStore, useSensorStore, useReadingsStore } from '@hidroespinaca/shared';
+import { useRouter, usePathname } from 'next/navigation';
+import { useVariableStore, useActuatorStore, useSensorStore, useReadingsStore, useAuthStore } from '@hydroespinaca/shared';
 
 export function StoreInitializer() {
   const [isClient, setIsClient] = useState(false);
-  
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -15,17 +19,40 @@ export function StoreInitializer() {
   const generateMockData = useSensorStore(state => state.generateMockData);
   const initializeSystemComponents = useSensorStore(state => state.initializeSystemComponents);
   const initializeReadings = useReadingsStore(state => state.initializeReadings);
+  const checkSession = useAuthStore(state => state.checkSession);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isLoading = useAuthStore(state => state.isLoading);
 
+  // Check session on mount
   useEffect(() => {
-    if (isClient) {
-      console.log('Initializing stores...');
+    if (isClient && !sessionChecked) {
+      checkSession().finally(() => {
+        setSessionChecked(true);
+      });
+    }
+  }, [isClient, sessionChecked, checkSession]);
+
+  // Redirect to login if session check completed and user is not authenticated
+  useEffect(() => {
+    if (sessionChecked && !isLoading && !isAuthenticated) {
+      // Only redirect if we're not already on a public page
+      const publicPaths = ['/', '/login', '/forgot-password', '/reset-password'];
+      if (!publicPaths.includes(pathname)) {
+        router.push('/login');
+      }
+    }
+  }, [sessionChecked, isLoading, isAuthenticated, pathname, router]);
+
+  // Initialize other stores only after successful authentication
+  useEffect(() => {
+    if (isClient && sessionChecked && isAuthenticated) {
       initializeVariables();
       initializeActuadores();
       generateMockData();
       initializeSystemComponents();
       initializeReadings();
     }
-  }, [isClient, initializeVariables, initializeActuadores, generateMockData, initializeSystemComponents, initializeReadings]);
+  }, [isClient, sessionChecked, isAuthenticated, initializeVariables, initializeActuadores, generateMockData, initializeSystemComponents, initializeReadings]);
 
   return null;
 }

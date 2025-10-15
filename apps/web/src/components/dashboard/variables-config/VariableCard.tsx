@@ -10,7 +10,7 @@ import {
   ChartBarIcon
 } from '@/components/ui/icons/Icons';
 
-import { VariableData } from '@hidroespinaca/shared';
+import { VariableData } from '@hydroespinaca/shared';
 
 interface VariableCardProps {
   variable: VariableData;

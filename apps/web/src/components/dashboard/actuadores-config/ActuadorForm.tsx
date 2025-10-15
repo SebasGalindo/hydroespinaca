@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import { FanIcon, MotorIcon, BoltIcon, LightBulbIcon } from '@/components/ui/icons/Icons';
-import type { ActuadorData } from '@hidroespinaca/shared'; // Importando desde la única fuente de verdad
+import type { ActuadorData } from '@hydroespinaca/shared'; // Importando desde la única fuente de verdad
 
 interface ActuadorFormProps {
   actuador?: ActuadorData;

@@ -24,11 +24,7 @@
   --color-hidro-warning: #f59e0b;
   --color-hidro-error: #ef4444;
   --color-hidro-info: #3b82f6;
-  
-  /* Colores para modo oscuro */
-  --color-background-dark: #0a0a0a;
-  --color-foreground-dark: #ededed;
-  
+
   /* Imágenes de fondo */
   --bg-hidroespinaca: url('/images/hidroespinaca-bg.jpg');
 }
@@ -149,11 +145,4 @@ body {
   color: theme(--color-foreground);
   background: theme(--color-background);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    color: theme(--color-foreground-dark);
-    background: theme(--color-background-dark);
-  }
 }

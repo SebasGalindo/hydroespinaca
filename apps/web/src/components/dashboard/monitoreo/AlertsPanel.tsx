@@ -11,10 +11,10 @@ import {
   InformationCircleIcon,
   BellIcon 
 } from '@heroicons/react/24/outline';
-import { useAlertStore } from '@hidroespinaca/shared';
+import { useAlertStore } from '@hydroespinaca/shared';
 
 // Re-export type for backward compatibility
-export type { Alert } from '@hidroespinaca/shared';
+export type { Alert } from '@hydroespinaca/shared';
 
 const AlertsPanel: React.FC = () => {
   const {
