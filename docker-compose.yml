@@ -361,8 +361,6 @@ services:
         condition: service_healthy
     expose:
       - "3000"
-    ports:
-      - "3000:3000"  # Expose for direct access (optional)
     environment:
       - NODE_ENV=${COMPOSE_PROFILE:-development}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}

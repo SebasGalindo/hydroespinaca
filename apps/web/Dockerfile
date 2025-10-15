@@ -110,11 +110,8 @@ RUN pnpm run build
 # -----------------------------
 FROM node:20-alpine AS runner
 
-# Install pnpm
-RUN npm install -g pnpm@10.16.1
-
-# Set working directory to monorepo root
-WORKDIR /workspace
+# Set working directory
+WORKDIR /app
 
 # Install dumb-init and curl for proper signal handling and healthchecks
 RUN apk add --no-cache dumb-init curl
@@ -123,33 +120,13 @@ RUN apk add --no-cache dumb-init curl
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy workspace configuration files FIRST
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY tsconfig.base.json ./
-COPY tools/ ./tools/
+# Copy standalone server and dependencies from builder
+# Next.js standalone mode creates a minimal self-contained server
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next/standalone ./
 
-# Copy package.json for all workspace packages
-COPY apps/web/package.json ./apps/web/
-COPY packages/shared/package.json ./packages/shared/
-
-# Copy the COMPLETE built shared package (dist + package.json)
-# This must be done BEFORE installing dependencies so pnpm can resolve the workspace
-COPY --from=builder --chown=nextjs:nodejs /workspace/packages/shared/dist ./packages/shared/dist
-COPY --from=builder --chown=nextjs:nodejs /workspace/packages/shared/package.json ./packages/shared/package.json
-
-# Install production dependencies INCLUDING workspace dependencies
-# Use --filter to install only dependencies for web app and its workspace deps
-# The ... notation includes all dependencies (transitive)
-RUN pnpm install --prod --frozen-lockfile --filter @hidroespinaca/web...
-
-# Copy Next.js production build artifacts
-COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next ./apps/web/.next
+# Copy static assets
+COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/next.config.js ./apps/web/next.config.js
-COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/package.json ./apps/web/package.json
-
-# Set working directory to web app
-WORKDIR /workspace/apps/web
 
 # Switch to non-root user
 USER nextjs
@@ -165,5 +142,6 @@ ENV HOSTNAME=0.0.0.0
 # Use dumb-init to handle signals properly (PID 1)
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start Next.js production server
-CMD ["pnpm", "run", "start"]
+# Start Next.js production server using standalone server
+# The standalone output includes a minimal Node.js server at apps/web/server.js
+CMD ["node", "apps/web/server.js"]

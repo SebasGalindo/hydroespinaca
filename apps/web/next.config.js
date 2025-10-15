@@ -7,9 +7,9 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Default Next.js output for flexible deployment
-  // Can be served via standalone server or through nginx proxy
-  // Supports all Next.js features including dynamic routes
+  // Standalone output mode for Docker production deployment
+  // Generates a minimal self-contained build with only required dependencies
+  output: 'standalone',
 
   turbopack: {
     rules: {
