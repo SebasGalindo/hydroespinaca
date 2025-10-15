@@ -1,6 +1,6 @@
 import { View, SafeAreaView } from 'react-native';
 import React from 'react';
-import { colors } from '@hidroespinaca/shared';
+import { colors } from '@hydroespinaca/shared';
 
 type ScreenLayoutProps = {
   children: React.ReactNode;

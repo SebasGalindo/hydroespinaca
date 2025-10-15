@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius } from '@hydroespinaca/shared';
 import { Text, Button, Label } from '../atoms';
 import { DatePicker, Card } from '../molecules';
 import { TimePicker, TimeValue } from '../molecules/TimePicker';

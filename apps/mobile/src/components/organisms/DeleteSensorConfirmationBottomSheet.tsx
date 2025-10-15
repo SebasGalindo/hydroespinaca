@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { semanticColors, spacing, typography } from '@hidroespinaca/shared';
-import type { IndividualSensorData } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography } from '@hydroespinaca/shared';
+import type { IndividualSensorData } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';
 import { Icon } from '../atoms/Icon';

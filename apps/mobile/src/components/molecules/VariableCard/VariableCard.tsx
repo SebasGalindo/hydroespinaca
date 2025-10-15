@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Icon, Badge } from '../../atoms';
-import { semanticColors, spacing, typography, colors } from '@hidroespinaca/shared';
-import type { MetricData } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography, colors } from '@hydroespinaca/shared';
+import type { MetricData } from '@hydroespinaca/shared';
 
 export interface VariableCardProps {
   metric: MetricData;

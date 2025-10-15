@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, useFuzzyStore } from '@hidroespinaca/shared';
-import type { SimpleFuzzyVariable } from '@hidroespinaca/shared';
+import { semanticColors, spacing, useFuzzyStore } from '@hydroespinaca/shared';
+import type { SimpleFuzzyVariable } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Badge } from '../atoms/Badge';
 import { Card } from './Card';

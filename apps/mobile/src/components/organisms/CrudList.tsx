@@ -4,7 +4,7 @@ import {
   StyleSheet,
   ListRenderItem,
 } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Heading } from '../atoms/Heading';
 import { Pressable } from '../atoms/Pressable';
@@ -17,7 +17,7 @@ import {
   EntityAction,
   PaginationProps,
   IconName 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 
 // Mapeo de tipos de entidades a iconos
 const ENTITY_ICONS: Record<string, IconName> = {

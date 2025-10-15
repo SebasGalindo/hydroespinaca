@@ -8,9 +8,9 @@ import {
   EntityConfig,
   EntityAction,
   InfoField
-} from '@hidroespinaca/shared';
-import type { IndividualSensorData } from '@hidroespinaca/shared';
-import type { SensorState } from '@hidroespinaca/shared/src/store/sensorStore';
+} from '@hydroespinaca/shared';
+import type { IndividualSensorData } from '@hydroespinaca/shared';
+import type { SensorState } from '@hydroespinaca/shared/src/store/sensorStore';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { Icon } from '../components/atoms/Icon';

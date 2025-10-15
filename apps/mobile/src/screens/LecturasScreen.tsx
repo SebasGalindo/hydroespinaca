@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, colors } from '@hidroespinaca/shared';
+import { semanticColors, spacing, colors } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms';
 import { Card } from '../components/molecules';
 import { ReadingsTable, FiltersPanel } from '../components/organisms';
 import { ScreenLayout } from '../components/templates/ScreenLayout';
-import { useReadingsStore } from '@hidroespinaca/shared';
+import { useReadingsStore } from '@hydroespinaca/shared';
 import type { FilterValues } from '../components/organisms/FiltersPanel';
 import type { OperatorType } from '../components/atoms/OperatorChips';
 import type { TimeValue } from '../components/molecules/TimePicker';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { IconButton } from '../atoms/IconButton';
 import { Avatar } from '../atoms/Avatar';
@@ -17,7 +17,7 @@ export function Header(): React.ReactElement {
           variant="h3" 
           color={semanticColors.primary}
         >
-          Hidro Espinaca
+          HydroEspinaca
         </Text>
       </View>
 

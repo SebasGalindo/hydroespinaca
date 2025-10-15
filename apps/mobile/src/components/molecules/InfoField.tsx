@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Badge } from '../atoms/Badge';
 import { 
   InfoField as InfoFieldType, 
   FieldType 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 
 export interface InfoFieldProps {
   /** Datos del campo de información */

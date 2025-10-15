@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { semanticColors, spacing, useActuatorStore, BaseEntity, EntityConfig, EntityAction, InfoField } from '@hidroespinaca/shared';
+import { semanticColors, spacing, useActuatorStore, BaseEntity, EntityConfig, EntityAction, InfoField } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { Icon } from '../components/atoms/Icon';

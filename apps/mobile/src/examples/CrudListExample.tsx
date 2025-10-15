@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { CrudList } from '../components/organisms/CrudList';
 import { 
   Variable, 
@@ -8,7 +8,7 @@ import {
   EntityAction,
   PaginationProps,
   FieldConfig 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 
 // Datos de ejemplo para Variables
 const mockVariables: Variable[] = [

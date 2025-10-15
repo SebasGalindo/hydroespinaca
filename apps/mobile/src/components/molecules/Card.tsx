@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius } from '@hydroespinaca/shared';
 
 export interface CardProps {
   children: React.ReactNode;

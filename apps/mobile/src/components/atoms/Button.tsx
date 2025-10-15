@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, ViewStyle, ActivityIndicator } from 'react-native';
-import { semanticColors, spacing, borderRadius, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface ButtonProps {

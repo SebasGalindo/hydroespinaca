@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, ViewStyle, Animated } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 
 export interface StatusIndicatorProps {
   status: 'online' | 'offline' | 'warning' | 'error' | 'loading' | 'success';

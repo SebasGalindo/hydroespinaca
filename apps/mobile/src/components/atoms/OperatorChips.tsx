@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { spacing } from '@hidroespinaca/shared';
+import { spacing } from '@hydroespinaca/shared';
 import { Button } from './Button';
 
 export type OperatorType = 'gt' | 'gte' | 'eq' | 'lte' | 'lt';

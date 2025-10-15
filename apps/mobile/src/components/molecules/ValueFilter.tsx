@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { spacing } from '@hidroespinaca/shared';
+import { spacing } from '@hydroespinaca/shared';
 import { FormField } from './FormField';
 import { OperatorChips, OperatorType } from '../atoms/OperatorChips';
 import { Label } from '../atoms/Label';

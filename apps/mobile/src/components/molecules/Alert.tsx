@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius, IconName } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, IconName } from '@hydroespinaca/shared';
 import { Text, IconButton, Icon } from '../atoms';
 
 export interface AlertProps {

@@ -1,6 +1,6 @@
 import React, { useState, forwardRef } from 'react';
 import { TextInput, View, TextStyle, ViewStyle, TextInputProps } from 'react-native';
-import { semanticColors, typography, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, typography, spacing, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface TextAreaProps extends Omit<TextInputProps, 'style' | 'multiline'> {

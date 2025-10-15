@@ -5,8 +5,8 @@ import {
   spacing, 
   typography, 
   useVariableStore
-} from '@hidroespinaca/shared';
-import type { IndividualSensorData } from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
+import type { IndividualSensorData } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';

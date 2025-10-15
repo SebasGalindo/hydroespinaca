@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography } from '@hydroespinaca/shared';
 import { BottomSheet } from './BottomSheet';
 import { Button } from '../atoms/Button';
 import { Text } from '../atoms/Text';

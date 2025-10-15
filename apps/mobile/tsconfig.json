@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@hidroespinaca/shared/*": ["../../packages/shared/src/*"]
+      "@hydroespinaca/shared/*": ["../../packages/shared/src/*"]
     },
     "jsx": "react-jsx",
     "types": ["react"],

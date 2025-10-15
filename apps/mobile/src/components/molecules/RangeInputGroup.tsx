@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '../atoms';
 import { FormField } from '../molecules';
-import { colors, semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { colors, semanticColors, spacing, typography } from '@hydroespinaca/shared';
 
 export interface RangeInputGroupProps {
   /** Título de la sección */

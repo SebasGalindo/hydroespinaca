@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { VariableCard } from '../molecules';
-import { spacing } from '@hidroespinaca/shared';
-import type { MetricData } from '@hidroespinaca/shared';
+import { spacing } from '@hydroespinaca/shared';
+import type { MetricData } from '@hydroespinaca/shared';
 
 interface MetricsGridProps {
   metrics: MetricData[];

@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { semanticColors, spacing, colors, useSensorStore } from '@hidroespinaca/shared';
+import { semanticColors, spacing, colors, useSensorStore } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms';
 import { VariablesGrid } from '../components/organisms';
-import type { MetricData } from '@hidroespinaca/shared';
+import type { MetricData } from '@hydroespinaca/shared';
 
 export function InfoMainScreen(): React.ReactElement {
   const { 

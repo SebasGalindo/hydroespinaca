@@ -23,7 +23,7 @@ config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 // Alias
 config.resolver.alias = {
-  '@hidroespinaca/shared': sharedRoot,
+  '@hydroespinaca/shared': sharedRoot,
   'react-native-svg': require.resolve('react-native-svg'),
 };
 

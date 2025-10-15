@@ -1,7 +1,7 @@
 // AuthProvider context for mobile app
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useNativeAuth } from '@hidroespinaca/shared';
-import type { UseAuthReturn } from '@hidroespinaca/shared';
+import { useNativeAuth } from '@hydroespinaca/shared';
+import type { UseAuthReturn } from '@hydroespinaca/shared';
 
 const AuthContext = createContext<UseAuthReturn | null>(null);
 

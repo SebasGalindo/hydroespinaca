@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform, Text, ViewStyle, TextStyle } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid, type AndroidNativeProps, type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Icon } from '../atoms/Icon';
-import { spacing, semanticColors, borderRadius, IconName } from '@hidroespinaca/shared';
+import { spacing, semanticColors, borderRadius, IconName } from '@hydroespinaca/shared';
 
 
 

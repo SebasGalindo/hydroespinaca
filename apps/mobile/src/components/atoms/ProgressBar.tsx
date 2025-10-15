@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, ViewStyle, Animated } from 'react-native';
-import { semanticColors, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface ProgressBarProps {

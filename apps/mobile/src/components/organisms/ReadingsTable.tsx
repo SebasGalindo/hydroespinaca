@@ -4,14 +4,14 @@ import {
   StyleSheet,
   ListRenderItem,
 } from 'react-native';
-import { semanticColors, spacing, borderRadius, typography, IconName } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography, IconName } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Heading } from '../atoms/Heading';
 import { Icon } from '../atoms/Icon';
 import { Badge } from '../atoms/Badge';
 import { Card } from '../molecules/Card';
 import { DataList, DataListProps } from './DataList';
-import { SensorSummary, IndividualReading } from '@hidroespinaca/shared';
+import { SensorSummary, IndividualReading } from '@hydroespinaca/shared';
 
 // Tipos para los diferentes modos de la tabla
 export type ReadingsTableMode = 'summary' | 'individual';

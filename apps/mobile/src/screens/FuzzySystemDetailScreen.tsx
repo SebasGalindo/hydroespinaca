@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFuzzyStore } from '@hidroespinaca/shared';
-import type { FuzzySystem, SimpleFuzzyVariable, SimpleFuzzyRule, SimpleFuzzyRoutine } from '@hidroespinaca/shared';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { useFuzzyStore } from '@hydroespinaca/shared';
+import type { FuzzySystem, SimpleFuzzyVariable, SimpleFuzzyRule, SimpleFuzzyRoutine } from '@hydroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { TabBar } from '../components/molecules/TabBar';

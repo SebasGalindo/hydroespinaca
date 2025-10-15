@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { VictoryChart, VictoryScatter, VictoryAxis, VictoryTheme, VictoryContainer, VictoryLine } from 'victory-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 
 export interface ScatterDataPoint {
   value: number;

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Dimensions } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Icon } from '../atoms/Icon';
-import { getMainTabs, NavigationItem } from '@hidroespinaca/shared/src/config/navigation';
-import { DrawerMenuItem } from '@hidroespinaca/shared/src/config/drawerMenu';
+import { getMainTabs, NavigationItem } from '@hydroespinaca/shared/src/config/navigation';
+import { DrawerMenuItem } from '@hydroespinaca/shared/src/config/drawerMenu';
 import { Text } from '../atoms/Text';
 import { DrawerMenuModal } from './DrawerMenuModal';
 

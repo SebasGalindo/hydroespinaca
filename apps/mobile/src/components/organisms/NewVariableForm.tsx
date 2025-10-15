@@ -4,7 +4,7 @@ import { Button, Text, Select } from '../atoms';
 import { FormField } from '../molecules';
 import { BottomSheet } from './BottomSheet';
 import { RangeInputGroup, NotificationConfig } from '../molecules';
-import { colors, semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { colors, semanticColors, spacing, typography } from '@hydroespinaca/shared';
 
 export interface VariableFormData {
   name: string;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle, TextStyle } from 'react-native';
-import { semanticColors, typography, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, typography, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface BadgeProps {

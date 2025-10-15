@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, SafeAreaView, ImageBackground } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { LoginForm } from '../organisms/LoginForm';
 
 interface LoginTemplateProps {

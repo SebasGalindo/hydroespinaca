@@ -5,7 +5,7 @@ import {
   ViewStyle,
   PressableStateCallbackType
 } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 
 // Tipo extendido para incluir estados adicionales
 interface ExtendedPressableState extends PressableStateCallbackType {

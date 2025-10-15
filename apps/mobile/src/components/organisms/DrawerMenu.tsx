@@ -3,11 +3,11 @@ import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { 
   semanticColors, 
   spacing, 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 import { 
   drawerMenuConfig,
   DrawerMenuItem
-} from '@hidroespinaca/shared/src/config/drawerMenu';
+} from '@hydroespinaca/shared/src/config/drawerMenu';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { VictoryChart, VictoryLine, VictoryAxis, VictoryTheme, VictoryContainer } from 'victory-native';
-import { semanticColors, spacing, useFuzzyStore } from '@hidroespinaca/shared';
-import type { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hidroespinaca/shared';
+import { semanticColors, spacing, useFuzzyStore } from '@hydroespinaca/shared';
+import type { SimpleFuzzyVariable, SimpleFuzzyTerm } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 
 interface MembershipChartProps {

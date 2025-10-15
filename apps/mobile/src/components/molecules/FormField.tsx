@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle, TextStyle } from 'react-native';
-import { spacing, semanticColors } from '@hidroespinaca/shared';
+import { spacing, semanticColors } from '@hydroespinaca/shared';
 import { Label, Input, Spinner, Text } from '../atoms';
 
 export interface FormFieldProps {

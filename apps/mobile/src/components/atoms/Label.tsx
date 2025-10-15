@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextStyle, View, ViewStyle } from 'react-native';
-import { semanticColors, typography, spacing } from '@hidroespinaca/shared';
+import { semanticColors, typography, spacing } from '@hydroespinaca/shared';
 
 export interface LabelProps {
   children: React.ReactNode;

@@ -6,7 +6,7 @@ import {
   GestureResponderEvent,
   View
 } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 
 export interface FloatingActionButtonProps {
   onPress: (event: GestureResponderEvent) => void;

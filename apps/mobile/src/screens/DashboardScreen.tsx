@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { semanticColors, spacing, colors, useDashboardStore, CHART_VARIABLES } from '@hidroespinaca/shared';
+import { semanticColors, spacing, colors, useDashboardStore, CHART_VARIABLES } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import {
   FilterTimeCard,
@@ -92,7 +92,7 @@ export function DashboardScreen(): React.ReactElement {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="h1" color={semanticColors.primary} style={styles.title}>
-            Dashboard de Monitoreo
+            Análisis de Datos Hidropónicos
           </Text>
           <Text variant="body" color={semanticColors.textSecondary} style={styles.description}>
             Análisis y visualización de datos en tiempo real

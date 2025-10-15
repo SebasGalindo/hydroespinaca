@@ -2,8 +2,8 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from '../../atoms';
 import { MetricsGrid } from '../MetricsGrid';
-import { semanticColors, spacing, typography, colors } from '@hidroespinaca/shared';
-import type { MetricData } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography, colors } from '@hydroespinaca/shared';
+import type { MetricData } from '@hydroespinaca/shared';
 
 export interface VariablesGridProps {
   aiVariables: MetricData[];

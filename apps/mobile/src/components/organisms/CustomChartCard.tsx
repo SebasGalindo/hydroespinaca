@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Dimensions, ViewStyle } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Card } from '../molecules/Card';
 import { Text } from '../atoms/Text';
 import { Select } from '../atoms/Select';
 import { Icon } from '../atoms/Icon';
-import { IconName } from '@hidroespinaca/shared';
+import { IconName } from '@hydroespinaca/shared';
 import { LineChart, LineChartDataPoint } from '../molecules/LineChart';
 import { ScatterChart, ScatterDataPoint } from '../molecules/ScatterChart';
 import { BarChart, BarChartDataPoint } from '../molecules/BarChart';

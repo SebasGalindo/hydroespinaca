@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface CheckboxProps {

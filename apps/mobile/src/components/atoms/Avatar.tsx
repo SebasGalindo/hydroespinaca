@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Image, ViewStyle, ImageStyle, ImageSourcePropType, TouchableOpacity } from 'react-native';
-import { semanticColors, typography } from '@hidroespinaca/shared';
+import { semanticColors, typography } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface AvatarProps {

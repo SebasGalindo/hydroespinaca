@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { semanticColors, spacing, borderRadius, typography, colors } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography, colors } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 

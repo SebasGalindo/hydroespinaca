@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, ViewStyle } from 'react-native';
-import { semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface RadioProps {

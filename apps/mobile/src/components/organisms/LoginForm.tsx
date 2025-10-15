@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { semanticColors, spacing, borderRadius, typography, useLoginForm } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography, useLoginForm } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Heading } from '../atoms/Heading';
 import { Input } from '../atoms/Input';
@@ -68,7 +68,7 @@ export function LoginForm({
               color={semanticColors.textPrimary}
               style={styles.title}
             >
-              Hidro Espinaca
+              HydroEspinaca
             </Heading>
             <Text 
               variant="body" 
@@ -123,7 +123,7 @@ export function LoginForm({
               <Input
                 value={formState.email}
                 onChangeText={handleEmailChange}
-                placeholder="ingeniero@ejemplo.com"
+                placeholder="correo@ejemplo.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}

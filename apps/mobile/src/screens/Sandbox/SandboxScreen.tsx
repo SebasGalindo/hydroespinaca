@@ -24,7 +24,7 @@ import {
   StatusIndicator,
 } from '../../components/atoms';
 import { ScreenLayout } from '../../components/templates';
-import { spacing, semanticColors, typography, borderRadius, HomeIcon, SettingsIcon, UserIcon, CloseIcon, MenuIcon, SearchIcon, PlusIcon, MinusIcon, CheckIcon, ArrowLeftIcon, ArrowRightIcon, HeartIcon, StarIcon, BellIcon, MailIcon, PhoneIcon, CameraIcon, EditIcon, DeleteIcon, SaveIcon, RefreshIcon, DownloadIcon, UploadIcon, LockIcon, UnlockIcon, EyeIcon, EyeOffIcon, CalendarIcon, ClockIcon, LocationIcon, WifiIcon, BatteryIcon, PowerIcon, WarningIcon, InfoIcon, ErrorIcon, SuccessIcon } from '@hidroespinaca/shared';
+import { spacing, semanticColors, typography, borderRadius, HomeIcon, SettingsIcon, UserIcon, CloseIcon, MenuIcon, SearchIcon, PlusIcon, MinusIcon, CheckIcon, ArrowLeftIcon, ArrowRightIcon, HeartIcon, StarIcon, BellIcon, MailIcon, PhoneIcon, CameraIcon, EditIcon, DeleteIcon, SaveIcon, RefreshIcon, DownloadIcon, UploadIcon, LockIcon, UnlockIcon, EyeIcon, EyeOffIcon, CalendarIcon, ClockIcon, LocationIcon, WifiIcon, BatteryIcon, PowerIcon, WarningIcon, InfoIcon, ErrorIcon, SuccessIcon } from '@hydroespinaca/shared';
 import { 
   Alert, 
   Card, 
@@ -53,7 +53,7 @@ import {
   BreadcrumbMinimal
 } from '../../components/molecules';
 import { DataList, ReadingsTable } from '../../components/organisms';
-import { useReadingsStore } from '@hidroespinaca/shared';
+import { useReadingsStore } from '@hydroespinaca/shared';
 import { type TimeValue } from '../../components/molecules/TimePicker';
 
 // Sección estable fuera del componente para evitar remounts en cada render

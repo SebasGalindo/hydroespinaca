@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { semanticColors, spacing, colors } from '@hidroespinaca/shared';
+import { semanticColors, spacing, colors } from '@hydroespinaca/shared';
 import { Text, Button } from '../components/atoms';
 import { NewVariableForm, VariableFormData } from '../components/organisms/NewVariableForm';
 

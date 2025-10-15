@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { TouchableOpacity, View, ViewStyle, Animated } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface SwitchProps {

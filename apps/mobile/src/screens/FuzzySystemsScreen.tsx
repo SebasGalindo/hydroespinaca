@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, RefreshControl, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFuzzyStore } from '@hidroespinaca/shared';
-import type { SimpleFuzzySystem } from '@hidroespinaca/shared';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { useFuzzyStore } from '@hydroespinaca/shared';
+import type { SimpleFuzzySystem } from '@hydroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { EmptyState } from '../components/molecules/EmptyState';
 import { FuzzySystemCard } from '../components/molecules/FuzzySystemCard';

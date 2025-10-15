@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography } from '@hydroespinaca/shared';
 import { Pressable, Text, Icon, Avatar, Badge } from '../atoms';
 
 export interface ListItemProps {

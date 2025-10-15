@@ -4,7 +4,7 @@ import {
   semanticColors, 
   spacing, 
   typography 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';

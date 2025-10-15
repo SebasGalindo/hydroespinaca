@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaView, View, StyleSheet } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 import { 
   LoginScreen,
   InfoMainScreen, 

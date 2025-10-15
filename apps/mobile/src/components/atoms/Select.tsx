@@ -7,7 +7,7 @@ import {
   ViewStyle, 
   TextStyle 
 } from 'react-native';
-import { semanticColors, typography, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, typography, spacing, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 
 export interface SelectOption {

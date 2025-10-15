@@ -9,7 +9,7 @@ import {
   EntityAction,
   InfoField,
   VariableData
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { Icon } from '../components/atoms/Icon';

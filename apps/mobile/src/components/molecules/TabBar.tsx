@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, ViewStyle, TouchableOpacity, Text } from 'react-native';
-import { IconName } from '@hidroespinaca/shared';
+import { IconName } from '@hydroespinaca/shared';
 import { Icon } from '../atoms/Icon';
 
 export interface TabItem {

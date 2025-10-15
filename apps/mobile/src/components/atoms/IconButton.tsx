@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, ViewStyle } from 'react-native';
-import { semanticColors, spacing, borderRadius, IconName } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, IconName } from '@hydroespinaca/shared';
 import { Icon } from './Icon';
 
 export interface IconButtonProps {

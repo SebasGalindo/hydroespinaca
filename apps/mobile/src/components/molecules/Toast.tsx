@@ -8,7 +8,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { IconName } from '@hidroespinaca/shared';
+import { IconName } from '@hydroespinaca/shared';
 import { Icon } from '../atoms/Icon';
 
 const { width } = Dimensions.get('window');

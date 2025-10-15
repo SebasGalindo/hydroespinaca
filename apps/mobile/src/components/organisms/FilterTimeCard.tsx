@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { Card } from '../molecules/Card';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';

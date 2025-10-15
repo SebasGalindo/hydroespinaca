@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, typography, VariableData } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography, VariableData } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Input } from '../atoms/Input';
 import { Select } from '../atoms/Select';

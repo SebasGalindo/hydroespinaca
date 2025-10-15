@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, ViewStyle } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 
 export interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg' | number;

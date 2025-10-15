@@ -1,8 +1,8 @@
 import React from 'react';
 import { Modal, View, StyleSheet, Pressable, Dimensions } from 'react-native';
-import { semanticColors, spacing } from '@hidroespinaca/shared';
+import { semanticColors, spacing } from '@hydroespinaca/shared';
 import { DrawerMenu } from './DrawerMenu';
-import { DrawerMenuItem } from '@hidroespinaca/shared/src/config/drawerMenu';
+import { DrawerMenuItem } from '@hydroespinaca/shared/src/config/drawerMenu';
 
 export interface DrawerMenuModalProps {
   visible: boolean;

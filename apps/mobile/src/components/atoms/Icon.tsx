@@ -1,6 +1,6 @@
 import React from 'react';
-import { Icon as SharedIcon } from '@hidroespinaca/shared/src/icons/Icon';
-import { IconName } from '@hidroespinaca/shared';
+import { Icon as SharedIcon } from '@hydroespinaca/shared/src/icons/Icon';
+import { IconName } from '@hydroespinaca/shared';
 
 export interface IconProps {
   name: IconName;

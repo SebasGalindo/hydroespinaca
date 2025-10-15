@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { semanticColors, spacing, borderRadius } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { BottomTabNavigator } from '../components/organisms/BottomTabNavigator';
@@ -9,7 +9,7 @@ import { BottomSheetDemo } from '../components/organisms/BottomSheetDemo';
 import { DataList } from '../components/organisms/DataList';
 import { ReadingsTable } from '../components/organisms/ReadingsTable';
 import { LoginForm } from '../components/organisms/LoginForm';
-import { useReadingsStore } from '@hidroespinaca/shared';
+import { useReadingsStore } from '@hydroespinaca/shared';
 
 export function BottomTabNavigatorDemo(): React.ReactElement {
   const [activeTab, setActiveTab] = useState('info-main');

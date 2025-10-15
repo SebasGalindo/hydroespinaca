@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import { semanticColors, spacing, borderRadius, colors } from '@hidroespinaca/shared';
+import { semanticColors, spacing, borderRadius, colors } from '@hydroespinaca/shared';
 import { Text } from '../components/atoms/Text';
 import { Header } from '../components/organisms/Header';
 import { EntityCard } from '../components/molecules/EntityCard';
 import { InfoField } from '../components/molecules/InfoField';
 import { CrudList } from '../components/organisms/CrudList';
 import { CrudListExample } from '../examples/CrudListExample';
-import type { Variable, EntityConfig, EntityAction, IconName } from '@hidroespinaca/shared';
+import type { Variable, EntityConfig, EntityAction, IconName } from '@hydroespinaca/shared';
 
 export function ComponentsExampleScreen(): React.ReactElement {
   // Datos de ejemplo para EntityCard

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { semanticColors } from '@hidroespinaca/shared';
+import { semanticColors } from '@hydroespinaca/shared';
 import { Header } from '../organisms/Header';
 import { BottomTabNavigator } from '../organisms/BottomTabNavigator';
 

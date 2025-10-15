@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { semanticColors, spacing, typography } from '@hidroespinaca/shared';
+import { semanticColors, spacing, typography } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Pressable } from '../atoms/Pressable';
 import { Icon } from '../atoms/Icon';
@@ -12,7 +12,7 @@ import {
   EntityConfig, 
   EntityAction,
   IconName 
-} from '@hidroespinaca/shared';
+} from '@hydroespinaca/shared';
 
 export interface EntityCardProps<T extends BaseEntity> {
   /** Datos de la entidad */
