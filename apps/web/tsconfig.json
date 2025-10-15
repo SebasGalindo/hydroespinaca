@@ -3,17 +3,24 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@hydroespinaca/shared/*": ["../../packages/shared/src/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@hydroespinaca/shared/*": [
+        "../../packages/shared/src/*"
+      ]
     },
     "allowJs": true,
     "strictNullChecks": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src",
     "next-env.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "env.d.ts"
   ],
   "exclude": [
     "node_modules",
