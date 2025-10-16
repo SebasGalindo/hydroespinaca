@@ -353,7 +353,7 @@ services:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
-      target: ${WEB_TARGET:-development}
+      target: ${WEB_TARGET:-production}
     container_name: web-app
     depends_on:
       bff-service:
@@ -361,7 +361,7 @@ services:
     expose:
       - "3000"
     environment:
-      - NODE_ENV=${COMPOSE_PROFILE:-development}
+      - NODE_ENV=${NODE_ENV:-production}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
@@ -373,6 +373,7 @@ services:
       - espinaca-net
     profiles:
       - production
+
 
   # Development version with volume mount for HMR
   web-app-dev:

@@ -202,7 +202,7 @@ start_production() {
 
     # Export profile and build target for container environment
     export COMPOSE_PROFILE=production
-    export WEB_TARGET=runner
+    export WEB_TARGET=production
     export NODE_ENV=production
 
     # Use Docker BuildKit for better build performance
