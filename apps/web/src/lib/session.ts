@@ -5,9 +5,9 @@
 import { apiGet, apiPost } from './api';
 
 export interface SessionData {
-  userId: string;
-  userRole?: string;
-  email?: string;
+  username: string;
+  email: string;
+  role: string;
 }
 
 /**
@@ -18,11 +18,11 @@ export interface SessionData {
 export async function fetchSession(): Promise<SessionData | null> {
   try {
     const data = await apiGet<any>('/session');
-    
+
     return {
-      userId: data.userId || data.id,
-      userRole: data.role || data.userRole,
+      username: data.username,
       email: data.email,
+      role: data.role,
     };
   } catch (error: any) {
     // 401 Unauthorized significa que no hay sesión activa

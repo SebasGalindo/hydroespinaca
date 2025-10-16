@@ -68,6 +68,56 @@ export const LockIcon: React.FC<IconProps> = ({
   );
 };
 
+export const ShieldIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+  color = 'currentColor'
+}) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+};
+
+export const SproutIcon: React.FC<IconProps> = ({
+  className = '',
+  size = 24,
+  color = 'currentColor'
+}) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M7 20a5 5 0 0 1 10 0" />
+      <path d="M12 20V10" />
+      <path d="M9 10c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6z" />
+      <path d="M15 10c0-3.3-2.7-6-6-6 0 3.3 2.7 6 6 6z" />
+    </svg>
+  );
+};
+
+
 export const CheckIcon: React.FC<IconProps> = ({ 
   className = '', 
   size = 24, 

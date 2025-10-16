@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {ShieldIcon, SproutIcon } from '@/components/ui/icons/Icons';
+
 import {
   ChartIcon,
   BookIcon,
@@ -57,7 +59,6 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
 
   const navigationItems: NavigationItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
-    { href: '/dashboard/lecturas', label: 'Lecturas', icon: BookIcon },
     { href: '/dashboard-monitoreo', label: 'Análisis de datos', icon: TrendingUpIcon },
     { href: '/dashboard/sistemas-fuzzy', label: 'Sistemas Fuzzy', icon: BrainIcon },
     {
@@ -355,11 +356,11 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
               }}
             >
               <div className="px-3 py-2 border-b border-gray-200">
-                <p className="text-sm font-semibold text-gray-700">
+                <p className="text-sm font-semibold text-gray-700" title={user?.name}>
                   {user?.name || 'Usuario'}
                 </p>
-                <p className="text-xs text-gray-500">
-                  {user?.role || 'Administrador'}
+                <p className="text-xs text-gray-500" title={user?.email}>
+                  {user?.role || 'Usuario'}
                 </p>
               </div>
               <ul className="py-1">
@@ -399,14 +400,18 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                 className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <UserIcon size={20} color="white" />
+                  {user?.role === 'Administrador' ? (
+                    <ShieldIcon size={20} color="white" />
+                  ) : (
+                    <SproutIcon size={20} color="white" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 truncate" title={user?.name}>
                     {user?.name || 'Usuario'}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user?.role || 'Administrador'}
+                  <p className="text-xs text-gray-500 truncate" title={user?.email}>
+                    {user?.role || 'Usuario'}
                   </p>
                 </div>
               </Link>
@@ -425,10 +430,14 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                 onClick={handleUserMenuToggle}
                 className={`w-10 h-10 bg-green-600 rounded-full flex items-center justify-center hover:bg-green-700 transition-colors ${userMenuOpen ? 'ring-2 ring-green-300' : ''
                   }`}
-                title="Menú de usuario"
+                title={user?.name || 'Menú de usuario'}
                 aria-label="Abrir menú de usuario"
               >
-                <UserIcon size={20} color="white" />
+                {user?.role === 'Administrador' ? (
+                  <ShieldIcon size={20} color="white" />
+                ) : (
+                  <SproutIcon size={20} color="white" />
+                )}
               </button>
             </div>
           )}
@@ -591,14 +600,18 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                         className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                       >
                         <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <UserIcon size={20} color="white" />
+                          {user?.role === 'Administrador' ? (
+                            <ShieldIcon size={20} color="white" />
+                          ) : (
+                            <SproutIcon size={20} color="white" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-sm font-medium text-gray-900 truncate" title={user?.name}>
                             {user?.name || 'Usuario'}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user?.role || 'Administrador'}
+                          <p className="text-xs text-gray-500 truncate" title={user?.email}>
+                            {user?.role || 'Usuario'}
                           </p>
                         </div>
                       </Link>

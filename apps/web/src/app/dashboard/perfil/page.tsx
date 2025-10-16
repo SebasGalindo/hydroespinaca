@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { useAuthStore } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
-import { UserIcon, LockIcon } from '@/components/ui/icons/Icons';
+import { UserIcon, LockIcon, ShieldIcon, SproutIcon } from '@/components/ui/icons/Icons';
 
 export default function PerfilPage() {
   const { user, logout } = useAuthStore();
@@ -48,13 +48,17 @@ export default function PerfilPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center mb-4">
-                <UserIcon size={48} color="white" />
+                {user?.role === 'Administrador' ? (
+                  <ShieldIcon size={48} color="white" />
+                ) : (
+                  <SproutIcon size={48} color="white" />
+                )}
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">
                 {user?.name || 'Usuario'}
               </h2>
               <p className="text-sm text-gray-500 mb-4">
-                {user?.role || 'Administrador'}
+                {user?.role || 'Usuario'}
               </p>
               <div className="w-full pt-4 border-t border-gray-200">
                 <div className="space-y-3">
@@ -62,12 +66,6 @@ export default function PerfilPage() {
                     <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
                     <p className="text-sm font-medium text-gray-900 break-all">
                       {user?.email || 'correo@ejemplo.com'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">ID de Usuario</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.id || 'N/A'}
                     </p>
                   </div>
                 </div>

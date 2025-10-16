@@ -1,74 +1,162 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import VariableCard from '@/components/dashboard/VariableCard';
 import ControllerStatus from '@/components/dashboard/ControllerStatus';
+import WeatherCard from '@/components/dashboard/WeatherCard';
 import PageLayout from '@/components/layout/PageLayout';
 import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
 import { systemStatusService } from '@hydroespinaca/shared';
-import type { SystemStatusResponse, ReadingItem } from '@hydroespinaca/shared';
+import type { SystemStatusResponse, ReadingItem, WeatherSummary } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
 import { IconType } from '@hydroespinaca/shared/types/common';
 import { logout } from '@/lib/session';
+import {
+  calculateVariableStatus,
+  calculateTrend,
+  requiresArtificialLight,
+  getAlertConfig
+} from '@/utils/variableAlerts';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const routerRef = useRef(router);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
+  const [previousReadings, setPreviousReadings] = useState<ReadingItem[]>([]);
   const [lastUpdateTimestamp, setLastUpdateTimestamp] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSystemStatus = useCallback(async () => {
+  // Estado para el clima
+  const [weather, setWeather] = useState<WeatherSummary | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+
+  // Mantener routerRef actualizado
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
+  const fetchSystemStatus = useCallback(async (): Promise<string | null> => {
     try {
       setIsLoading(true);
       setError(null);
       const data = await systemStatusService.getSystemStatus();
+
+      // Almacenar lecturas anteriores para calcular tendencias
+      if (systemStatus?.readings.readings) {
+        setPreviousReadings(systemStatus.readings.readings);
+      }
+
       setSystemStatus(data);
-      setLastUpdateTimestamp(data.timestamp);
+      setLastUpdateTimestamp(data.readings.timestamp);
+
+      // Actualizar clima desde la respuesta consolidada del BFF
+      if (data.weather) {
+        setWeather(data.weather);
+        setWeatherError(null);
+      }
+
+      return data.readings.timestamp;
     } catch (err: any) {
       console.error('Error fetching system status:', err);
       setError(err.message || 'Error al cargar los datos del sistema');
 
       // Si es error 401, redirigir a login
-     if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
-        console.warn('Sesión inválida o expirada, redirigiendo al login...');
-        await logout(); // limpia cookies, storage, etc.
-        router.push('/login');
+      if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
+        await logout();
+        routerRef.current.push('/login');
       }
-      
+      return null;
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [systemStatus]);
+
+  // Cargar datos iniciales (incluye clima desde el BFF)
+  useEffect(() => {
+    fetchSystemStatus();
+  }, []);
 
   // Auto-refresh dinámico basado en timestamp + 2 minutos
-  useEffect(() => {
-    // Cargar datos iniciales
-    fetchSystemStatus();
-  }, [fetchSystemStatus]);
+  // El clima se actualiza automáticamente con cada fetch del BFF
+
+  const lastTimestampRef = useRef<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const followUpStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!lastUpdateTimestamp) return;
 
-    // Calcular cuándo debe ocurrir la siguiente actualización (timestamp + 2 minutos)
-    const lastUpdate = new Date(lastUpdateTimestamp);
-    const nextUpdate = new Date(lastUpdate.getTime() + 2 * 60 * 1000); // +2 minutos
-    const now = new Date();
-    const msUntilNextUpdate = nextUpdate.getTime() - now.getTime();
+    const READING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos desde la LECTURA
+    const BUFFER_MS = 20 * 1000; // +20 segundos de margen
+    const FOLLOW_UP_INTERVAL_MS = 20 * 1000; // 20 segundos
+    const MAX_FOLLOW_UP_MS = 2 * 60 * 1000; // 2 minutos máximo en modo seguimiento
 
-    // Si el tiempo ya pasó, actualizar inmediatamente
-    if (msUntilNextUpdate <= 0) {
-      fetchSystemStatus();
-      return;
-    }
+    const calculateNextFetchDelay = (readingTimestamp: string): number => {
+      const readingTime = new Date(readingTimestamp).getTime();
+      const nextReadingTime = readingTime + READING_INTERVAL_MS;
+      const now = Date.now();
+      const timeUntilNextReading = nextReadingTime - now;
 
-    // Programar la siguiente actualización
-    const timeoutId = setTimeout(() => {
-      fetchSystemStatus();
-    }, msUntilNextUpdate);
+      if (timeUntilNextReading <= 0) {
+        return 0;
+      }
 
-    return () => clearTimeout(timeoutId);
+      return timeUntilNextReading + BUFFER_MS;
+    };
+
+    const scheduleNext = (timestamp: string, isFollowUp: boolean = false) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      const delay = isFollowUp ? FOLLOW_UP_INTERVAL_MS : calculateNextFetchDelay(timestamp);
+
+      timeoutRef.current = setTimeout(async () => {
+        const oldTimestamp = lastTimestampRef.current;
+        const newTimestamp = await fetchSystemStatus();
+
+        if (!newTimestamp) {
+          scheduleNext(oldTimestamp || lastUpdateTimestamp, true);
+          return;
+        }
+
+        const timestampsChanged = oldTimestamp !== newTimestamp;
+
+        if (timestampsChanged) {
+          followUpStartTimeRef.current = null;
+          lastTimestampRef.current = newTimestamp;
+          scheduleNext(newTimestamp, false);
+        } else {
+          if (!followUpStartTimeRef.current) {
+            followUpStartTimeRef.current = Date.now();
+          }
+
+          const elapsed = Date.now() - followUpStartTimeRef.current;
+
+          if (elapsed < MAX_FOLLOW_UP_MS) {
+            scheduleNext(newTimestamp, true);
+          } else {
+            followUpStartTimeRef.current = null;
+            scheduleNext(newTimestamp, false);
+          }
+        }
+      }, delay);
+    };
+
+    lastTimestampRef.current = lastUpdateTimestamp;
+    scheduleNext(lastUpdateTimestamp, false);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [lastUpdateTimestamp, fetchSystemStatus]);
+
+
+
 
   const formatColombiaDateTime = (isoString: string): string => {
     // Convertir ISO string a fecha GMT-5 (Colombia)
@@ -95,29 +183,28 @@ export default function DashboardPage() {
     return formatted.toString();
   };
 
-  const getReadingByName = (name: string): ReadingItem | undefined => {
-    return systemStatus?.readings.readings.find(
-      r => r.name.toLowerCase().includes(name.toLowerCase())
+  /**
+   * Verifica si la luz artificial (amplio espectro) está activa
+   */
+  const isArtificialLightActive = (): boolean => {
+    if (!systemStatus?.jobStatus.queue) return false;
+
+    // Buscar comandos relacionados con luz en la cola
+    return systemStatus.jobStatus.queue.some(job =>
+      job.commandId.toLowerCase().includes('luz') ||
+      job.commandId.toLowerCase().includes('light') ||
+      job.commandId.toLowerCase().includes('amplio-espectro')
     );
   };
 
-  const getStatusForReading = (reading?: ReadingItem): 'optimal' | 'warning' | 'error' => {
-    if (
-      !reading ||
-      reading.value == null ||
-      reading.optimalMin == null ||
-      reading.optimalMax == null
-    ) {
-      return 'error';
-    }
-
-    const { value, optimalMin, optimalMax } = reading;
-    const range = optimalMax - optimalMin;
-    const tolerance = range * 0.1;
-
-    if (value >= optimalMin && value <= optimalMax) return 'optimal';
-    if (value >= optimalMin - tolerance && value <= optimalMax + tolerance) return 'warning';
-    return 'error';
+  /**
+   * Obtiene el valor anterior de una variable para calcular tendencia
+   */
+  const getPreviousValue = (variableName: string): number | null => {
+    const previous = previousReadings.find(
+      r => r.name.toLowerCase() === variableName.toLowerCase()
+    );
+    return previous?.value || null;
   };
 
 
@@ -192,22 +279,47 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* Información Meteorológica */}
+      <section className="mb-8" aria-labelledby="weather-heading">
+        <h2 id="weather-heading" className="text-xl font-bold text-green-800 mb-4 font-inter">
+          Condiciones Climáticas
+        </h2>
+        <WeatherCard
+          weather={weather}
+          isLoading={weatherLoading}
+          error={weatherError}
+        />
+      </section>
+
       {/* Variables del sistema */}
       <section className="mb-8" aria-labelledby="system-variables-heading">
         <h2 id="system-variables-heading" className="text-xl font-bold text-green-800 mb-4 font-inter">
           Variables del Sistema
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-          {systemStatus?.readings.readings.map((reading) => (
-            <VariableCard
-              key={reading.name}
-              title={reading.name}
-              value={`${formatNumericValue(reading.value)} ${reading.unit}`}
-              optimal={`Óptima: ${formatNumericValue(reading.optimalMin)} – ${formatNumericValue(reading.optimalMax)} ${reading.unit}`}
-              iconType={getIconType(reading.name)}
-              status={getStatusForReading(reading)}
-            />
-          ))}
+          {systemStatus?.readings.readings.map((reading) => {
+            const alertConfig = getAlertConfig(reading.name);
+            const status = calculateVariableStatus(reading, alertConfig);
+            const previousValue = getPreviousValue(reading.name);
+            const trend = calculateTrend(reading.value, previousValue);
+            const needsLightCheck = requiresArtificialLight(reading.name);
+            const lightActive = isArtificialLightActive();
+            const showLightAlert = needsLightCheck && reading.value < reading.optimalMin;
+
+            return (
+              <VariableCard
+                key={reading.name}
+                title={reading.name}
+                value={`${formatNumericValue(reading.value)} ${reading.unit}`}
+                optimal={`Óptima: ${formatNumericValue(reading.optimalMin)} – ${formatNumericValue(reading.optimalMax)} ${reading.unit}`}
+                iconType={getIconType(reading.name)}
+                status={status}
+                trend={trend}
+                artificialLightActive={lightActive}
+                showArtificialLightAlert={showLightAlert}
+              />
+            );
+          })}
         </div>
       </section>
 

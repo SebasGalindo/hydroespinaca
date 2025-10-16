@@ -83,7 +83,7 @@ export default function ControllerStatus({
       {/* Cola de Comandos */}
       <div className="hidro-card p-6">
         <h3 className="text-lg font-semibold text-gray-900 font-inter mb-4">
-          Cola de Comandos - ESP32: {jobStatus.esp32Id}
+          Cola de Comandos - ESP32
         </h3>
         {jobStatus.queue.length > 0 ? (
           <div className="space-y-3">

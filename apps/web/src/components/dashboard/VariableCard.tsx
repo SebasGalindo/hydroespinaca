@@ -15,6 +15,7 @@ import {
   WaterIcon
 } from '@/components/ui/icons/Icons';
 
+export type TrendDirection = 'up' | 'down' | 'stable';
 
 interface VariableCardProps {
   title: string;
@@ -24,6 +25,9 @@ interface VariableCardProps {
   iconType: IconType;
   status: 'optimal' | 'warning' | 'error' | 'manual';
   className?: string;
+  trend?: TrendDirection;
+  artificialLightActive?: boolean;
+  showArtificialLightAlert?: boolean;
 }
 
 const VariableCard: React.FC<VariableCardProps> = ({
@@ -33,7 +37,10 @@ const VariableCard: React.FC<VariableCardProps> = ({
   subtitle,
   iconType,
   status,
-  className = ''
+  className = '',
+  trend,
+  artificialLightActive = false,
+  showArtificialLightAlert = false
 }) => {
   const getStatusColor = () => {
     switch (status) {
@@ -88,8 +95,26 @@ const VariableCard: React.FC<VariableCardProps> = ({
     }
   };
 
+  const getTrendIcon = () => {
+    if (!trend || trend === 'stable') return null;
+
+    if (trend === 'up') {
+      return (
+        <span className="text-green-600 text-xs" title="Incrementó respecto a la medición anterior">
+          ↑
+        </span>
+      );
+    }
+
+    return (
+      <span className="text-red-600 text-xs" title="Disminuyó respecto a la medición anterior">
+        ↓
+      </span>
+    );
+  };
+
   return (
-    <article className={`hidro-card p-4 flex flex-col h-full ${className}`}>
+    <article className={`hidro-card p-4 flex flex-col h-full ${className} relative`}>
       <header className="flex items-start justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-700 font-inter">{title}</h3>
         <div className="flex items-center space-x-1">
@@ -102,8 +127,9 @@ const VariableCard: React.FC<VariableCardProps> = ({
         </div>
       </header>
 
-      <div className="mb-2 flex-grow">
+      <div className="mb-2 flex-grow flex items-baseline gap-2">
         <p className="text-2xl font-bold text-gray-900 font-inter">{value}</p>
+        {getTrendIcon()}
       </div>
 
       {optimal && (
@@ -116,6 +142,23 @@ const VariableCard: React.FC<VariableCardProps> = ({
         <p className="text-xs text-gray-500 font-inter">
           {subtitle}
         </p>
+      )}
+
+      {/* Alerta de luz artificial */}
+      {showArtificialLightAlert && artificialLightActive && (
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <div className="flex items-center gap-1.5 group relative">
+            <span className="text-yellow-600">💡</span>
+            <span className="text-xs text-yellow-700 font-inter font-medium">
+              Luz artificial activa
+            </span>
+            {/* Tooltip */}
+            <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-10">
+              La luz de amplio espectro está compensando la baja luminosidad natural
+              <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
+        </div>
       )}
     </article>
   );
