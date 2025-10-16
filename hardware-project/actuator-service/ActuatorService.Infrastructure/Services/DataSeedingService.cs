@@ -159,8 +159,8 @@ public class DataSeedingService
             new InternalRoutine
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                Name = "Recirculation",
-                Description = "Routine to circulate nutrient solution every 2 hours",
+                Name = "Recirculación",
+                Description = "Rutina para circular la solución nutritiva cada 2 horas",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromHours(2),
                 IsActive = true,
@@ -198,8 +198,8 @@ public class DataSeedingService
             new InternalRoutine
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                Name = "Aeration",
-                Description = "Short routine for air circulation every 30 minutes",
+                Name = "Aireación",
+                Description = "Rutina corta para la circulación de aire cada 30 minutos",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromMinutes(30),
                 IsActive = true,
@@ -221,8 +221,8 @@ public class DataSeedingService
             new InternalRoutine
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                Name = "SystemReset",
-                Description = "System routine to reset all actuators to OFF state (triggered by /commands/jobs/clear)",
+                Name = "Reinicio del sistema",
+                Description = "Rutina del sistema para restablecer todos los actuadores al estado OFF (activada por /commands/jobs/clear)",
                 Esp32Id = esp32Id,
                 Interval = TimeSpan.FromDays(999), // Not time-triggered, manually invoked
                 IsActive = false, // Not scheduled by timer, manually triggered

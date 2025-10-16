@@ -1,5 +1,4 @@
-﻿using HydroEspinaca.Shared.Enums;
-using HydroEspinaca.Shared.Mongo;
+﻿using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
@@ -38,12 +37,12 @@ public class MongoEsp32AlertRepository : IEsp32AlertRepository
         await _baseRepo.UpdateAsync(alert);
     }
 
-    public async Task<Esp32Alert?> GetUnacknowledgedByEsp32AndTypeAsync(string esp32Id, AlertType type)
+    public async Task<Esp32Alert?> GetActiveByEsp32IdAsync(string esp32Id)
     {
         var filter = Builders<Esp32AlertDocument>.Filter.And(
             Builders<Esp32AlertDocument>.Filter.Eq(a => a.Esp32Id, esp32Id),
-            Builders<Esp32AlertDocument>.Filter.Eq(a => a.Type, type),
-            Builders<Esp32AlertDocument>.Filter.Eq(a => a.Acknowledged, false)
+            Builders<Esp32AlertDocument>.Filter.Eq(a => a.Acknowledged, false),
+            Builders<Esp32AlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
         );
 
         return await _baseRepo.FindOneAsync(filter);
@@ -54,5 +53,32 @@ public class MongoEsp32AlertRepository : IEsp32AlertRepository
         var filter = Builders<Esp32AlertDocument>.Filter.Lt(a => a.Timestamp, cutoffDate);
         var result = await _baseRepo.DeleteManyAsync(filter);
         return (int)result.DeletedCount;
+    }
+
+    public async Task<List<Esp32Alert>> GetUnsentEmailAlertsByEsp32IdsAsync(IEnumerable<string> esp32Ids, CancellationToken cancellationToken = default)
+    {
+        var esp32IdList = esp32Ids.ToList();
+
+        if (!esp32IdList.Any())
+            return new List<Esp32Alert>();
+
+        var filter = Builders<Esp32AlertDocument>.Filter.And(
+            Builders<Esp32AlertDocument>.Filter.In(a => a.Esp32Id, esp32IdList),
+            Builders<Esp32AlertDocument>.Filter.Eq(a => a.Acknowledged, false),
+            Builders<Esp32AlertDocument>.Filter.Eq(a => a.ResolvedAt, null),
+            Builders<Esp32AlertDocument>.Filter.Eq(a => a.EmailSentAt, null)
+        );
+
+        return await _baseRepo.FindManyAsync(filter);
+    }
+
+    public async Task MarkEmailAsSentAsync(string alertId, DateTime sentAt, CancellationToken cancellationToken = default)
+    {
+        var alert = await _baseRepo.GetByIdAsync(alertId);
+        if (alert == null)
+            return;
+
+        alert.EmailSentAt = sentAt;
+        await _baseRepo.UpdateAsync(alert);
     }
 }

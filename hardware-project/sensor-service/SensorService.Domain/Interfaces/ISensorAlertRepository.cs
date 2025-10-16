@@ -1,25 +1,22 @@
-using HydroEspinaca.Shared.Enums;
 using SensorService.Domain.Entities;
 
 namespace SensorService.Domain.Interfaces;
 public interface ISensorAlertRepository
 {
     Task CreateAsync(SensorAlert alert);
-    Task<List<SensorAlert>> GetBySensorCodeAsync(string sensorCode);
+    Task<List<SensorAlert>> GetByVariableCodeAsync(string variableCode);
     Task UpdateAsync(SensorAlert alert);
     Task<SensorAlert?> GetByIdAsync(string id);
-    Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorCode, AlertType type);
-    Task<SensorAlert?> GetActiveBySensorVariableAndTypeAsync(string sensorCode, string variableCode, AlertType type);
+    Task<SensorAlert?> GetActiveByVariableCodeAsync(string variableCode);
     Task<int> DeleteOlderThanAsync(DateTime cutoffDate);
 
     /// <summary>
-    /// Get count of active (unresolved, unacknowledged) alerts for specific sensors.
-    /// Used by notification service to prevent spam after memory loss or service restart.
+    /// Get count of active (unresolved, unacknowledged) alerts for specific variables.
     /// </summary>
-    /// <param name="sensorCodes">List of sensor codes to check for active alerts</param>
+    /// <param name="variableCodes">List of variable codes to check for active alerts</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Count of active alerts matching the criteria</returns>
-    Task<int> CountActiveAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default);
+    Task<int> CountActiveAlertsByVariablesAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Mark a sensor alert as email sent by setting the EmailSentAt timestamp.
@@ -30,11 +27,11 @@ public interface ISensorAlertRepository
     Task MarkEmailAsSentAsync(string alertId, DateTime sentAt, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get active alerts (unresolved, unacknowledged) for sensors that have NOT been emailed yet.
+    /// Get active alerts (unresolved, unacknowledged) for variables that have NOT been emailed yet.
     /// Used to recover pending notifications after service restart.
     /// </summary>
-    /// <param name="sensorCodes">List of sensor codes to check</param>
+    /// <param name="variableCodes">List of variable codes to check</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of alerts that need email notification</returns>
-    Task<List<SensorAlert>> GetUnsentEmailAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default);
+    Task<List<SensorAlert>> GetUnsentEmailAlertsByVariablesAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default);
 }

@@ -56,6 +56,10 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddSingleton<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
         services.AddHttpClient<CriticalAlertNotificationService>(); // Only for HttpClient injection
 
+        // ESP32 Offline Notification Service
+        services.AddSingleton<IEsp32OfflineNotificationService, Esp32OfflineNotificationService>();
+        services.AddHttpClient<Esp32OfflineNotificationService>(); // Only for HttpClient injection
+
         // Database initialization service - runs on startup
         services.AddHostedService<DatabaseInitializationService>();
 

@@ -43,33 +43,28 @@ public class CriticalAlertApplicationService : ICriticalAlertApplicationService
             if (!alertData.HasAnyAlert)
             {
                 _logger.LogDebug("No critical alerts found for ESP32: {Esp32Id}", esp32Id);
-                
-                // Mark any existing alerts as resolved for all manual variables
-                var allManualVariableNames = alertData.ManualReadings.Select(r => r.Name);
-                await _notificationService.MarkAlertAsResolvedAsync(esp32Id, allManualVariableNames, cancellationToken);
-                
                 return;
             }
 
-            // Check if we should send alert (prevent spam)
-            var alertVariables = alertData.AlertReadings.Select(r => r.Name).ToList();
-            var shouldSendAlert = await _notificationService.ShouldSendAlertAsync(esp32Id, alertVariables, cancellationToken);
-            
+            // Check if we should send alert based on variable codes
+            var alertVariableCodes = alertData.AlertReadings.Select(r => r.VariableCode).ToList();
+            var shouldSendAlert = await _notificationService.ShouldSendAlertAsync(alertVariableCodes, cancellationToken);
+
             if (!shouldSendAlert)
             {
-                _logger.LogDebug("Alert notification already sent for ESP32: {Esp32Id}, variables: {Variables}", 
-                    esp32Id, string.Join(", ", alertVariables));
+                _logger.LogDebug("Alert notification already sent for variables: {Variables}",
+                    string.Join(", ", alertVariableCodes));
                 return;
             }
 
             // Send critical alert notification
             await _notificationService.SendCriticalAlertAsync(alertData, cancellationToken);
-            
+
             // Mark alert as sent
-            await _notificationService.MarkAlertAsSentAsync(esp32Id, alertVariables, cancellationToken);
-            
-            _logger.LogWarning("Critical alert sent for ESP32: {Esp32Id}, variables: {Variables}", 
-                esp32Id, string.Join(", ", alertVariables));
+            await _notificationService.MarkAlertAsSentAsync(alertVariableCodes, cancellationToken);
+
+            _logger.LogWarning("Critical alert sent for ESP32: {Esp32Id}, variables: {Variables}",
+                esp32Id, string.Join(", ", alertVariableCodes));
         }
         catch (Exception ex)
         {

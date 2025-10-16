@@ -34,9 +34,15 @@ public class SensorAlertService : ISensorAlertService
         if (sensor is null)
             throw new SensorNotFoundException($"Sensor con ID '{sensorId}' no encontrado.");
 
-        // Use sensor Code for querying alerts
-        var list = await _repo.GetBySensorCodeAsync(sensor.Code);
-        return list.Select(SensorAlertMapper.ToDto).ToList();
+        // Get alerts for all variables of this sensor
+        var alerts = new List<SensorAlert>();
+        foreach (var variableCode in sensor.Variables)
+        {
+            var variableAlerts = await _repo.GetByVariableCodeAsync(variableCode);
+            alerts.AddRange(variableAlerts);
+        }
+
+        return alerts.Select(SensorAlertMapper.ToDto).ToList();
     }
 
     public async Task AcknowledgeAsync(string id, SensorAlertUpdateDto dto)

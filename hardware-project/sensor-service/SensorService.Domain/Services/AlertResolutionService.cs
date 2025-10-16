@@ -1,4 +1,3 @@
-using HydroEspinaca.Shared.Enums;
 using Microsoft.Extensions.Logging;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -29,71 +28,17 @@ public class AlertResolutionService : IAlertResolutionService
             return; // Still out of range, don't resolve
         }
 
-        // Resolve luminosity alerts if they exist
-        await ResolveSpecificAlertTypeAsync(
-            reading.SensorCode, 
-            reading.VariableCode, 
-            AlertType.LuminosityQuantityInsufficient, 
-            "Recovered by reading", 
-            timestamp);
-
-        await ResolveSpecificAlertTypeAsync(
-            reading.SensorCode, 
-            reading.VariableCode, 
-            AlertType.LuminosityQualityInsufficient, 
-            "Recovered by reading", 
-            timestamp);
-
-        // Resolve standard out-of-range alerts
-        await ResolveSpecificAlertTypeAsync(
-            reading.SensorCode, 
-            reading.VariableCode, 
-            AlertType.OutOfRange, 
-            "Recovered by reading", 
-            timestamp);
-    }
-
-    public async Task ResolveInactiveSensorAlertsAsync(string sensorCode, string variableCode, DateTime timestamp)
-    {
-        await ResolveSpecificAlertTypeAsync(
-            sensorCode,
-            variableCode,
-            AlertType.InactiveSensor,
-            "Sensor active again",
-            timestamp);
-    }
-
-    public async Task ResolveAlertAsync(SensorAlert alert, string resolutionReason, DateTime timestamp)
-    {
-        if (alert.ResolvedAt.HasValue)
-        {
-            _logger.LogDebug("Alert {AlertId} already resolved at {ResolvedAt}", alert.Id, alert.ResolvedAt);
-            return;
-        }
-
-        alert.ResolvedAt = timestamp;
-        alert.Acknowledged = true;
-        alert.ResolutionReason = resolutionReason;
-
-        await _sensorAlertRepository.UpdateAsync(alert);
-
-        _logger.LogInformation("✅ Alert {AlertId} resolved: {Type} for sensor {SensorId} - {Reason}", 
-            alert.Id, alert.Type, alert.SensorCode, resolutionReason);
-    }
-
-    private async Task ResolveSpecificAlertTypeAsync(
-        string sensorCode,
-        string variableCode,
-        AlertType alertType,
-        string resolutionReason,
-        DateTime timestamp)
-    {
-        var activeAlert = await _sensorAlertRepository.GetActiveBySensorVariableAndTypeAsync(
-            sensorCode, variableCode, alertType);
+        // Resolve any active alert for this variable
+        var activeAlert = await _sensorAlertRepository.GetActiveByVariableCodeAsync(reading.VariableCode);
 
         if (activeAlert != null)
         {
-            await ResolveAlertAsync(activeAlert, resolutionReason, timestamp);
+            activeAlert.ResolvedAt = timestamp;
+            activeAlert.Acknowledged = true;
+            await _sensorAlertRepository.UpdateAsync(activeAlert);
+
+            _logger.LogInformation("✅ Alert {AlertId} resolved for variable {VariableCode}",
+                activeAlert.Id, reading.VariableCode);
         }
     }
 }

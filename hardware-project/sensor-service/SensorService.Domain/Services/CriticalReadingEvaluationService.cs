@@ -75,6 +75,7 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
                     
                     criticalReadings.Add(new CriticalReadingAlert
                     {
+                        Code = variable.Code,
                         Name = variable.Name,
                         Value = latestReading.Value,
                         Threshold = thresholdDescription,
@@ -86,6 +87,7 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
                     // Variable has sensors but no readings - this is an alert
                     criticalReadings.Add(new CriticalReadingAlert
                     {
+                        Code = variable.Code,
                         Name = variable.Name,
                         Value = double.NaN,
                         Threshold = thresholdDescription,
@@ -98,6 +100,7 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
                 // Variable has no associated sensors - this is a configuration issue
                 criticalReadings.Add(new CriticalReadingAlert
                 {
+                    Code = variable.Code,
                     Name = variable.Name,
                     Value = double.NaN,
                     Threshold = "Sin sensores configurados",

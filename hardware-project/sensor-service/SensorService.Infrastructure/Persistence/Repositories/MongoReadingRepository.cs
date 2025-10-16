@@ -50,26 +50,28 @@ public class MongoReadingRepository : IReadingRepository
 
     public async Task<List<Reading>> GetLatestReadingsByVariableAsync()
     {
-        // Aggregate pipeline to get the latest reading for each variableCode
+        // Paso 1: obtener el timestamp más reciente
+        var latestTimestampDocs = await _baseRepo.AggregateAsync(new[]
+        {
+        new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
+        new BsonDocument("$limit", 1),
+        new BsonDocument("$project", new BsonDocument("timestamp", 1))
+    });
+
+        if (!latestTimestampDocs.Any())
+            return new List<Reading>();
+
+        var latestTimestamp = latestTimestampDocs.First().Timestamp;
+
+        // Paso 2: traer todas las lecturas con ese timestamp
         var pipeline = new[]
         {
-            // Sort by timestamp descending to get latest first
-            new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
-
-            // Group by variableCode and take the first (latest) document
-            new BsonDocument("$group", new BsonDocument
-            {
-                { "_id", "$variableCode" },
-                { "latestReading", new BsonDocument("$first", "$$ROOT") }
-            }),
-
-            // Replace root with the latest reading document
-            new BsonDocument("$replaceRoot", new BsonDocument("newRoot", "$latestReading")),
-
-            // Sort by variableCode for consistent ordering
-            new BsonDocument("$sort", new BsonDocument("variableCode", 1))
-        };
+        new BsonDocument("$match", new BsonDocument("timestamp", latestTimestamp)),
+        new BsonDocument("$sort", new BsonDocument("variableCode", 1))
+    };
 
         return await _baseRepo.AggregateAsync(pipeline);
     }
+
+
 }

@@ -34,7 +34,7 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
 
         // Resolver alerta offline activa si existe
         var activeAlert = await _esp32AlertRepository
-            .GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline);
+            .GetActiveByEsp32IdAsync(esp32Id);
 
         if (activeAlert != null)
         {
@@ -63,7 +63,7 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
 
         // Resolver alerta offline activa si existe (igual que online)
         var activeAlert = await _esp32AlertRepository
-            .GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline);
+            .GetActiveByEsp32IdAsync(esp32Id);
 
         if (activeAlert != null)
         {
@@ -86,7 +86,7 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
 
         // Verificar si ya existe una alerta activa para evitar duplicados
         var existingAlert = await _esp32AlertRepository
-            .GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline);
+            .GetActiveByEsp32IdAsync(esp32Id);
 
         if (existingAlert != null)
         {
@@ -98,9 +98,7 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         var newAlert = new Esp32Alert
         {
             Esp32Id = esp32Id,
-            Type = AlertType.Esp32Offline,
             Timestamp = timestamp,
-            Severity = AlertSeverity.Critical,
             Message = AlertMessages.Esp32Offline.Disconnected,
             Acknowledged = false,
             ResolvedAt = null
