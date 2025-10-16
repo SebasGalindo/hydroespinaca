@@ -32,11 +32,18 @@ public class SessionApplicationService : ISessionService
     {
         _logger.LogInformation("Attempting login for user: {Email}", request.Email);
 
-        var authResult = await _authService.LoginAsync(request.Email, request.Password, cancellationToken);
-        
+        // Generate session credentials first
         var sessionId = GenerateSessionId();
         var csrfToken = GenerateCsrfToken();
-        
+
+        // Pass sessionId and csrfToken to auth service so it can store them
+        var authResult = await _authService.LoginAsync(
+            request.Email,
+            request.Password,
+            sessionId,
+            csrfToken,
+            cancellationToken);
+
         var session = Session.Create(sessionId, csrfToken);
         session.SetTokens(
             authResult.TokenInfo.AccessToken,
@@ -44,7 +51,7 @@ public class SessionApplicationService : ISessionService
             authResult.TokenInfo.ExpiresAt,
             authResult.TokenInfo.RefreshTokenExpiresAt
         );
-        session.SetUserInfo(authResult.UserId, authResult.UserRole, authResult.Scopes);
+        session.SetUserInfo(authResult.UserId, authResult.Username, authResult.Email, authResult.UserRole, authResult.Scopes);
 
         await _sessionRepository.SaveAsync(session, cancellationToken);
 
@@ -99,7 +106,12 @@ public class SessionApplicationService : ISessionService
             return false;
         }
 
-        var tokenInfo = await _authService.RefreshTokenAsync(session.RefreshToken, cancellationToken);
+        // Pass sessionId to auth service to maintain sync
+        var tokenInfo = await _authService.RefreshTokenAsync(
+            session.RefreshToken,
+            request.SessionId,
+            cancellationToken);
+
         session.UpdateAccessToken(tokenInfo.AccessToken, tokenInfo.ExpiresAt);
 
         if (!string.IsNullOrEmpty(tokenInfo.RefreshToken))

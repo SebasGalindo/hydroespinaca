@@ -4,8 +4,8 @@ using HydroEspinaca.Shared.DTOs.Actuator;
 namespace BffService.Domain.DTOs;
 
 /// <summary>
-/// Consolidated system status combining sensor readings and actuator job information.
-/// This DTO is specific to the BFF layer and aggregates data from multiple microservices.
+/// Consolidated system status combining sensor readings, actuator job information, and weather data.
+/// This DTO is specific to the BFF layer and aggregates data from multiple microservices and external APIs.
 /// </summary>
 public class SystemStatusDto
 {
@@ -28,4 +28,9 @@ public class SystemStatusDto
     /// Information about internal scheduled routines
     /// </summary>
     public List<InternalRoutineInfoDto> InternalRoutines { get; set; } = new();
+
+    /// <summary>
+    /// Current weather information for Mosquera, Cundinamarca
+    /// </summary>
+    public WeatherDto? Weather { get; set; }
 }

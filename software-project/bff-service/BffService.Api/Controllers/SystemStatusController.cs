@@ -17,6 +17,7 @@ public class SystemStatusController : ControllerBase
     private readonly ISessionService _sessionService;
     private readonly ISystemStatusService _systemStatusService;
     private readonly ISessionTokenService _sessionTokenService;
+    private readonly IWeatherService _weatherService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<SystemStatusController> _logger;
 
@@ -24,12 +25,14 @@ public class SystemStatusController : ControllerBase
         ISessionService sessionService,
         ISystemStatusService systemStatusService,
         ISessionTokenService sessionTokenService,
+        IWeatherService weatherService,
         IConfiguration configuration,
         ILogger<SystemStatusController> logger)
     {
         _sessionService = sessionService;
         _systemStatusService = systemStatusService;
         _sessionTokenService = sessionTokenService;
+        _weatherService = weatherService;
         _configuration = configuration;
         _logger = logger;
     }
@@ -93,6 +96,33 @@ public class SystemStatusController : ControllerBase
         {
             _logger.LogError(ex, "Error getting system status");
             return StatusCode(500, new { message = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// DEBUG ENDPOINT: Test weather API connection without authentication
+    /// Remove this endpoint in production
+    /// </summary>
+    [HttpGet("debug/weather")]
+    [ProducesResponseType(typeof(WeatherDto), 200)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> DebugWeather(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("DEBUG: Testing weather service connection");
+            var weatherData = await _weatherService.GetWeatherAsync(cancellationToken);
+            _logger.LogInformation("DEBUG: Weather data retrieved successfully");
+            return Ok(weatherData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DEBUG: Error fetching weather data");
+            return StatusCode(500, new {
+                message = "Error fetching weather data",
+                error = ex.Message,
+                stackTrace = ex.StackTrace
+            });
         }
     }
 }

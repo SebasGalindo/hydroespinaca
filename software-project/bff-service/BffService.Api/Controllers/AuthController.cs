@@ -174,9 +174,49 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new { message = "Invalid or expired session" });
         }
-        
-        // Return only essential user information
-        return Ok(new UserSessionDto(sessionInfo.UserId, sessionInfo.UserRole));
+
+        // Get full session to access username and email
+        var fullSession = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
+
+        if (fullSession == null)
+        {
+            return Unauthorized(new { message = "Session not found" });
+        }
+
+        // Format role: remove "role_" prefix if present and capitalize
+        var formattedRole = FormatRole(fullSession.UserRole ?? sessionInfo.UserRole);
+
+        // Return user information for frontend
+        return Ok(new UserSessionDto(
+            fullSession.Username ?? "Usuario",
+            fullSession.Email ?? "",
+            formattedRole
+        ));
+    }
+
+    private static string FormatRole(string role)
+    {
+        if (string.IsNullOrEmpty(role))
+            return "Usuario";
+
+        // Remove "role_" prefix if present
+        var cleanRole = role.StartsWith("role_", StringComparison.OrdinalIgnoreCase)
+            ? role.Substring(5)
+            : role;
+
+        // Capitalize first letter
+        if (cleanRole.Length > 0)
+        {
+            cleanRole = char.ToUpper(cleanRole[0]) + cleanRole.Substring(1).ToLower();
+        }
+
+        // Map specific roles to Spanish
+        return cleanRole.ToLower() switch
+        {
+            "admin" => "Administrador",
+            "user" => "Usuario",
+            _ => cleanRole
+        };
     }
 
     [HttpGet("session/{sessionId}")]

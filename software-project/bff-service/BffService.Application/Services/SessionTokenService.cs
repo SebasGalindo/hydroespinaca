@@ -48,7 +48,7 @@ public class SessionTokenService : ISessionTokenService
             _logger.LogInformation("Access token expired for session {SessionId}, attempting refresh", sessionId);
 
             // Use the auth service to refresh the token
-            var newTokenInfo = await _authService.RefreshTokenAsync(session.RefreshToken, cancellationToken);
+            var newTokenInfo = await _authService.RefreshTokenAsync(session.RefreshToken, sessionId, cancellationToken);
 
             // Update the session with the new tokens
             session.UpdateAccessToken(newTokenInfo.AccessToken, newTokenInfo.ExpiresAt);

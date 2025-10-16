@@ -1,9 +1,10 @@
 namespace BffService.Application.DTOs;
 
 /// <summary>
-/// Minimal session response DTO for frontend consumption - only essential user information
+/// Session response DTO for frontend consumption with user information
 /// </summary>
 public record UserSessionDto(
-    string UserId,
+    string Username,
+    string Email,
     string Role
 );

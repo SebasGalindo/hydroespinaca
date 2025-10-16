@@ -13,12 +13,17 @@ namespace BffService.Application.Services;
 public class SystemStatusService : ISystemStatusService
 {
     private readonly IProxyService _proxyService;
+    private readonly IWeatherService _weatherService;
     private readonly ILogger<SystemStatusService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public SystemStatusService(IProxyService proxyService, ILogger<SystemStatusService> logger)
+    public SystemStatusService(
+        IProxyService proxyService,
+        IWeatherService weatherService,
+        ILogger<SystemStatusService> logger)
     {
         _proxyService = proxyService;
+        _weatherService = weatherService;
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
@@ -30,18 +35,22 @@ public class SystemStatusService : ISystemStatusService
     {
         try
         {
-            // Create tasks for both services with 2 second timeout
+            // Create tasks for all three sources with 2 second timeout for internal services
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(2));
 
             var actuatorTask = GetActuatorStatusAsync(accessToken, cts.Token);
             var sensorTask = GetLatestReadingsAsync(accessToken, cts.Token);
 
-            // Wait for both tasks to complete
-            await Task.WhenAll(actuatorTask, sensorTask);
+            // Weather service uses its own cache, so we use the original cancellationToken
+            var weatherTask = GetWeatherDataAsync(cancellationToken);
+
+            // Wait for all three tasks to complete
+            await Task.WhenAll(actuatorTask, sensorTask, weatherTask);
 
             var actuatorResponse = await actuatorTask;
             var sensorReadings = await sensorTask;
+            var weatherData = await weatherTask;
 
             // Build consolidated system status using shared DTOs directly
             var result = new SystemStatusDto
@@ -49,7 +58,8 @@ public class SystemStatusService : ISystemStatusService
                 Readings = sensorReadings ?? new EnrichedLatestReadingsDto(),
                 JobStatus = actuatorResponse.JobStatus ?? new JobStatusDto(),
                 Stats = actuatorResponse.Stats ?? new JobExecutionStatsDto(),
-                InternalRoutines = actuatorResponse.InternalRoutines ?? new List<InternalRoutineInfoDto>()
+                InternalRoutines = actuatorResponse.InternalRoutines ?? new List<InternalRoutineInfoDto>(),
+                Weather = weatherData
             };
 
             return result;
@@ -88,6 +98,12 @@ public class SystemStatusService : ISystemStatusService
             return new ActuatorStatusResponse();
         }
 
+        if (string.IsNullOrEmpty(response.Body))
+        {
+            _logger.LogWarning("Actuator service returned empty body");
+            return new ActuatorStatusResponse();
+        }
+
         var result = JsonSerializer.Deserialize<ActuatorStatusResponse>(response.Body, _jsonOptions);
         return result ?? new ActuatorStatusResponse();
     }
@@ -114,8 +130,28 @@ public class SystemStatusService : ISystemStatusService
             return null;
         }
 
+        if (string.IsNullOrEmpty(response.Body))
+        {
+            _logger.LogWarning("Sensor service returned empty body");
+            return null;
+        }
+
         var result = JsonSerializer.Deserialize<EnrichedLatestReadingsDto>(response.Body, _jsonOptions);
         return result;
+    }
+
+    private async Task<WeatherDto?> GetWeatherDataAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var weather = await _weatherService.GetWeatherAsync(cancellationToken);
+            return weather;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch weather data, continuing without it");
+            return null; // Weather is optional, continue without it if it fails
+        }
     }
 
     /// <summary>
