@@ -58,6 +58,8 @@ export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
+export { WeatherService, weatherService } from './api/weatherService';
+export type { WeatherSummary } from './types/weather';
 
 // Export components (platform agnostic)
 export * from './components/WelcomeMessage';

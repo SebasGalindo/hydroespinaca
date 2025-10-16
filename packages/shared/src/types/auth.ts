@@ -15,15 +15,17 @@ export interface WebLoginResponse {
 }
 
 export interface UserSession {
-  userId: string;
-  userRole: string;
+  username: string;
+  email: string;
+  role: string;
 }
 
 export interface Session {
   sessionId: string | null; // null for web (HttpOnly cookie), string for mobile
   csrfToken: string | null; // null for web (cookie), string for mobile
-  userId?: string; // User ID from backend
-  userRole?: string; // User role from backend
+  username: string;
+  email: string;
+  role: string;
 }
 
 export interface AuthState {

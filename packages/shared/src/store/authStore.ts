@@ -50,15 +50,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const session: Session = {
           sessionId: null, // HttpOnly cookie
           csrfToken: null, // Cookie
-          userId: userSession.userId,
-          userRole: userSession.userRole,
+          username: userSession.username,
+          email: userSession.email,
+          role: userSession.role,
         };
 
         const user: User = {
-          id: userSession.userId,
-          email,
-          name: email.split('@')[0], // Use email prefix as name temporarily
-          role: userSession.userRole,
+          id: userSession.email,
+          email: userSession.email,
+          name: userSession.username,
+          role: userSession.role,
         };
 
         set({
@@ -84,15 +85,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const session: Session = {
           sessionId: mobileResponse.sessionId,
           csrfToken: mobileResponse.csrfToken,
-          userId: userSession.userId,
-          userRole: userSession.userRole,
+          username: userSession.username,
+          email: userSession.email,
+          role: userSession.role,
         };
 
         const user: User = {
-          id: userSession.userId,
-          email,
-          name: email.split('@')[0], // Use email prefix as name temporarily
-          role: userSession.userRole,
+          id: userSession.email,
+          email: userSession.email,
+          name: userSession.username,
+          role: userSession.role,
         };
 
         set({
@@ -191,15 +193,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const session: Session = {
         sessionId,
         csrfToken,
-        userId: userSession.userId,
-        userRole: userSession.userRole,
+        username: userSession.username,
+        email: userSession.email,
+        role: userSession.role,
       };
 
       const user: User = {
-        id: userSession.userId,
-        email: '', // We don't have email from session endpoint
-        name: userSession.userId, // Use userId as name temporarily
-        role: userSession.userRole,
+        id: userSession.email,
+        email: userSession.email,
+        name: userSession.username,
+        role: userSession.role,
       };
 
       set({

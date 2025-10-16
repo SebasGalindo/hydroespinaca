@@ -36,10 +36,26 @@ export interface InternalRoutine {
   isActive: boolean;
 }
 
+export interface WeatherInfo {
+  temperature: number;
+  feelsLike: number;
+  humidity: number;
+  conditions: string;
+  conditionsDescription: string;
+  icon: string;
+  tempMin: number;
+  tempMax: number;
+  uvi: number;
+  pop: number;
+  windSpeed: number;
+  lastUpdated: number;
+  cacheExpiresAt: number;
+}
+
 export interface SystemStatusResponse {
-  timestamp: string;
   readings: ReadingsSnapshot;
   jobStatus: JobStatus;
   stats: Stats;
   internalRoutines: InternalRoutine[];
+  weather?: WeatherInfo;
 }

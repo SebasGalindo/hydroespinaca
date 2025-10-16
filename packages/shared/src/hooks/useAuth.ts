@@ -37,8 +37,9 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         const session: Session = {
           sessionId,
           csrfToken,
-          userId: userSession.userId,
-          userRole: userSession.userRole,
+          username: userSession.username,
+          email: userSession.email,
+          role: userSession.role,
         };
 
         setState({ session, isLoading: false, error: null });
@@ -70,8 +71,9 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         const session: Session = {
           sessionId: null, // HttpOnly cookie, not accessible
           csrfToken: null, // Cookie
-          userId: userSession.userId,
-          userRole: userSession.userRole,
+          username: userSession.username,
+          email: userSession.email,
+          role: userSession.role,
         };
 
         setState({ session, isLoading: false, error: null });
@@ -91,8 +93,9 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
         const session: Session = {
           sessionId: mobileResponse.sessionId,
           csrfToken: mobileResponse.csrfToken,
-          userId: userSession.userId,
-          userRole: userSession.userRole,
+          username: userSession.username,
+          email: userSession.email,
+          role: userSession.role,
         };
 
         setState({ session, isLoading: false, error: null });
