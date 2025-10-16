@@ -17,6 +17,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Templates\alert-body.liquid" />
+		<EmbeddedResource Include="Templates\esp32-offline-alert.liquid" />
 	</ItemGroup>
 
 	<PropertyGroup>
