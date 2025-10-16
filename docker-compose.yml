@@ -11,8 +11,6 @@ services:
     depends_on:
       bff-service:
         condition: service_healthy
-      web-app:
-        condition: service_healthy
     ports:
       - "80:80"   # HTTP from Cloudflare
       - "443:443" # HTTPS for Full Strict TLS
@@ -247,6 +245,7 @@ services:
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
+      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
       - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
@@ -364,7 +363,6 @@ services:
     environment:
       - NODE_ENV=${COMPOSE_PROFILE:-development}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -378,28 +376,34 @@ services:
 
   # Development version with volume mount for HMR
   web-app-dev:
+    container_name: web-app-dev
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile
       target: development
-    container_name: web-app
     depends_on:
       bff-service:
         condition: service_healthy
     expose:
       - "3000"
+    ports:
+      - "3000:3000" # Expose dev server on host for convenience
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     volumes:
+      # Bind mount: source code from host with live reload
       - .:/workspace:cached
-
+      # Anonymous volumes: protect node_modules from being overwritten by bind mount
+      - /workspace/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/packages/shared/node_modules
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     networks:
       - espinaca-net
     profiles:

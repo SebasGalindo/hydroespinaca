@@ -27,7 +27,11 @@ COPY packages/ ./packages/
 # Install dependencies for all workspaces
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Build shared package first (required for web app)
+# Source code already copied from line 25
+RUN pnpm --filter @hydroespinaca/shared build
+
+# Copy web app source code
 COPY apps/web/ ./apps/web/
 
 # Set working directory to web app

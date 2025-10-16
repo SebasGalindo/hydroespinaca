@@ -359,23 +359,27 @@ case "${1:-start}" in
         log "Step 1/3: Building shared dependencies..."
         build_shared_dependencies
 
-        # Determine the correct profile
+        # Determine the correct profile and container name based on ENVIRONMENT
         if [ "$ENVIRONMENT" = "Production" ]; then
             export COMPOSE_PROFILE=production
+            FRONTEND_CONTAINER="web-app"
+            log "Using production frontend container: $FRONTEND_CONTAINER"
         else
             export COMPOSE_PROFILE=development
+            FRONTEND_CONTAINER="web-app-dev"
+            log "Using development frontend container: $FRONTEND_CONTAINER"
         fi
 
-        # Rebuild and restart only the web-app container
-        log "Step 2/3: Rebuilding web-app container..."
-        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" build web-app
+        # Rebuild and restart only the appropriate web container
+        log "Step 2/3: Rebuilding $FRONTEND_CONTAINER container..."
+        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" build "$FRONTEND_CONTAINER"
 
-        log "Step 3/3: Restarting web-app container..."
-        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" up -d --no-deps --force-recreate web-app
+        log "Step 3/3: Restarting $FRONTEND_CONTAINER container..."
+        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" up -d --no-deps --force-recreate "$FRONTEND_CONTAINER"
 
         log "=== Frontend Refresh Complete ==="
-        log "Frontend container restarted. Backend services unchanged."
-        log "Check logs with: $0 logs web-app"
+        log "Frontend container '$FRONTEND_CONTAINER' restarted. Backend services unchanged."
+        log "Check logs with: $0 logs $FRONTEND_CONTAINER"
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|status|renew|logs [service]|build|refresh-frontend}"

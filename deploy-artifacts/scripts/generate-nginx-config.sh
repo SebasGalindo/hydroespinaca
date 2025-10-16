@@ -332,9 +332,9 @@ else
             keepalive 32;
         }
 
-        # Upstream for Next.js Frontend
+        # Upstream for Next.js Frontend (Development with HMR)
         upstream frontend_backend {
-            server web-app:3000;
+            server web-app-dev:3000;
             keepalive 32;
         }"
 

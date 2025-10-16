@@ -3,26 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "description": "Sistema de monitoreo hidropónico - Monorepo",
- 
   "scripts": {
     "dev": "pnpm --filter @hidroespinaca/web run dev",
     "dev:web": "pnpm --filter @hidroespinaca/web run dev",
     "dev:mobile": "pnpm --filter @hidroespinaca/mobile run start",
-
     "build": "pnpm -r --if-present run build",
     "build:web": "pnpm --filter @hidroespinaca/web run build",
     "build:mobile": "pnpm --filter @hidroespinaca/mobile run build",
-
     "lint": "pnpm -r --if-present run lint",
     "lint:fix": "pnpm -r --if-present run lint:fix",
     "test": "pnpm -r --if-present run test",
     "clean": "pnpm -r --if-present run clean",
     "type-check": "pnpm -r --if-present run type-check",
-
     "install:all": "pnpm install",
     "fresh-install": "pnpm run clean && pnpm install"
   },
-
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18.3.24",
@@ -71,5 +66,5 @@
   "dependencies": {
     "expo-status-bar": "~2.0.0"
   },
-  "packageManager": "pnpm@9.12.0"
+  "packageManager": "pnpm@10.18.3"
 }
