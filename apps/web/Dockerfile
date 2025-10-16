@@ -149,3 +149,5 @@ ENTRYPOINT ["dumb-init", "--"]
 # Start Next.js production server using standalone server
 # The standalone output includes a minimal Node.js server at apps/web/server.js
 CMD ["node", "apps/web/server.js"]
+
+FROM runner AS production
