@@ -1,3 +1,5 @@
+import { WeatherSummary } from "./weather";
+
 export interface ReadingItem {
   name: string;
   value: number;
@@ -36,26 +38,10 @@ export interface InternalRoutine {
   isActive: boolean;
 }
 
-export interface WeatherInfo {
-  temperature: number;
-  feelsLike: number;
-  humidity: number;
-  conditions: string;
-  conditionsDescription: string;
-  icon: string;
-  tempMin: number;
-  tempMax: number;
-  uvi: number;
-  pop: number;
-  windSpeed: number;
-  lastUpdated: number;
-  cacheExpiresAt: number;
-}
-
 export interface SystemStatusResponse {
   readings: ReadingsSnapshot;
   jobStatus: JobStatus;
   stats: Stats;
   internalRoutines: InternalRoutine[];
-  weather?: WeatherInfo;
+  weather?: WeatherSummary;
 }
