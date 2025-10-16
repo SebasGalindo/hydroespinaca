@@ -344,6 +344,7 @@ public class DataSeedingService
             }
 
             var adminUser = new User(
+                "Administrador",
                 new Email(adminEmail),
                 new HashedPassword(hashedPassword),
                 adminRole.Id
@@ -384,6 +385,7 @@ public class DataSeedingService
             var hashedPassword = _passwordHasher.Hash(userPassword);
 
             var testUser = new User(
+                "Usuario Demo",
                 new Email(userEmail),
                 new HashedPassword(hashedPassword),
                 userRole.Id

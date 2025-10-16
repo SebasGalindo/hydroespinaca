@@ -30,6 +30,11 @@ public class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, UserR
             throw new ArgumentException($"No se encontró el usuario con ID '{request.Id}'");
         }
 
+        if (!string.IsNullOrEmpty(request.Username))
+        {
+            user.UpdateUsername(request.Username);
+        }
+
         if (!string.IsNullOrEmpty(request.Email) && request.Email != user.Email.Value)
         {
             var existingUser = await _userRepository.FindByEmailAsync(request.Email);

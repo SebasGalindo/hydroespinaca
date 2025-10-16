@@ -257,6 +257,7 @@ public class AuthTestHelper : IDisposable
             {
                 var hashedPassword = passwordHasher.Hash("N16'+4a597|V!");
                 var testUser = new User(
+                    "Usuario Demo",
                     new Email("user@demo.com"),
                     new HashedPassword(hashedPassword),
                     userRole.Id

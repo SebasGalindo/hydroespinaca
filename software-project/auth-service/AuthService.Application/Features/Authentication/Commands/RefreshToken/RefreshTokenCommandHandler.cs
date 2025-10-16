@@ -1,41 +1,44 @@
-// No Application layer dependencies
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
-using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
 
 namespace AuthService.Application.Features.Authentication.Commands.RefreshToken;
 
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResultDto>
 {
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ITokenService _tokenService;
+    private readonly IUserSessionService _sessionService;
+    private readonly IUserSessionRepository _sessionRepository;
 
     public RefreshTokenCommandHandler(
-        IRefreshTokenRepository refreshTokenRepository,
         IUserRepository userRepository,
         IRoleRepository roleRepository,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IUserSessionService sessionService,
+        IUserSessionRepository sessionRepository)
     {
-        _refreshTokenRepository = refreshTokenRepository;
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _tokenService = tokenService;
+        _sessionService = sessionService;
+        _sessionRepository = sessionRepository;
     }
 
     public async Task<TokenResultDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var refreshToken = await _refreshTokenRepository.FindAsync(request.RefreshToken);
-        if (refreshToken == null || refreshToken.ExpiresAt <= DateTime.UtcNow)
+        // Find session by refresh token
+        var session = await _sessionRepository.FindByRefreshTokenAsync(request.RefreshToken);
+        if (session == null || !session.IsActive)
         {
             throw new InvalidRefreshTokenException();
         }
 
-        var user = await _userRepository.FindByIdAsync(refreshToken.UserId);
+        // Validate user still exists
+        var user = await _userRepository.FindByIdAsync(session.UserId);
         if (user == null)
         {
             throw new InvalidRefreshTokenException();
@@ -58,25 +61,31 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             user.Id,
             user.Email.Value,
             roleCode,
-            request.ClientId,
+            request.ClientId ?? session.ClientId,
             tokenType);
 
-        // Create new refresh token since current entity doesn't have update methods
-        var newRefreshToken = new RefreshTokenEntity(
-            user.Id,
+        // Calculate refresh token expiration
+        var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
+
+        // Update session with new tokens
+        await _sessionService.RefreshSessionAsync(
+            request.RefreshToken,
             tokens.RefreshToken,
-            tokens.ExpiresAt.AddDays(7),
-            request.ClientId ?? HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp);
-        
-        await _refreshTokenRepository.AddAsync(newRefreshToken);
+            tokens.AccessToken,
+            refreshTokenExpiresAt
+        );
 
         return new TokenResultDto(
             tokens.AccessToken,
             tokens.RefreshToken,
             tokens.ExpiresAt,
             tokens.Role,
+            user.Username,
+            user.Email.Value,
             tokens.ClientId,
-            tokens.Scopes
+            tokens.Scopes,
+            session.SessionId,
+            refreshTokenExpiresAt
         );
     }
 }

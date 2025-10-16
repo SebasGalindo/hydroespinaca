@@ -1,4 +1,3 @@
-﻿// ITokenService now in Domain.Interfaces
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Infrastructure.Persistence.Mappers;
@@ -30,6 +29,7 @@ public static class ServiceCollectionApplicationExtensions
             .AddScoped<ITokenService, JwtTokenService>()
             .AddScoped<IClientAppRegistrationService, ClientAppRegistrationService>()
             .AddScoped<IRefreshTokenService, RefreshTokenService>()
+            .AddScoped<IUserSessionService, UserSessionService>()
             .AddScoped<ICodeGenerator, CodeGenerator>()
             .AddScoped<IEmailTemplateRenderer, LiquidEmailTemplateRenderer>();
 
@@ -64,6 +64,7 @@ public static class ServiceCollectionApplicationExtensions
         services.AddScoped<IUserRepository, MongoUserRepository>();
         services.AddScoped<IClientAppRepository, MongoClientAppRepository>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
+        services.AddScoped<IUserSessionRepository, MongoUserSessionRepository>();
         services.AddScoped<IPermissionRepository, MongoPermissionRepository>();
         services.AddScoped<IRoleRepository, MongoRoleRepository>();
         services.AddScoped<IPasswordResetTokenRepository, MongoPasswordResetTokenRepository>();

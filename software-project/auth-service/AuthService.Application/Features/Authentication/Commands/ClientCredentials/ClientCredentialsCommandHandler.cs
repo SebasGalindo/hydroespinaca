@@ -57,8 +57,12 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             tokens.RefreshToken,
             tokens.ExpiresAt,
             tokens.Role,
+            null, // Username - N/A for client credentials
+            null, // Email - N/A for client credentials
             tokens.ClientId,
-            tokens.Scopes
+            tokens.Scopes,
+            null, // SessionId - N/A for client credentials
+            null  // RefreshTokenExpiresAt
         );
     }
 }

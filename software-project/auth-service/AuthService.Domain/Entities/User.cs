@@ -5,13 +5,15 @@ namespace AuthService.Domain.Entities;
 public class User : IIdentifiableMutable
 {
     public string Id { get; private set; }
+    public string Username { get; private set; }
     public Email Email { get; private set; }
     public HashedPassword Password { get; private set; }
     public string? RoleId { get; private set; }
 
-    public User(Email email, HashedPassword password, string? roleId = null)
+    public User(string username, Email email, HashedPassword password, string? roleId = null)
     {
         Id = Guid.NewGuid().ToString();
+        Username = username ?? throw new ArgumentNullException(nameof(username));
         Email = email ?? throw new ArgumentNullException(nameof(email));
         Password = password ?? throw new ArgumentNullException(nameof(password));
         RoleId = roleId;
@@ -19,6 +21,11 @@ public class User : IIdentifiableMutable
     public void SetId(string id)
     {
         Id = id;
+    }
+
+    public void UpdateUsername(string username)
+    {
+        Username = username ?? throw new ArgumentNullException(nameof(username));
     }
 
     public void UpdateEmail(Email email)

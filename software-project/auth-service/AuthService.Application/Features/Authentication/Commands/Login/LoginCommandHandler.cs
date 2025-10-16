@@ -3,7 +3,6 @@ using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
-using RefreshTokenEntity = AuthService.Domain.Entities.RefreshToken;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
@@ -13,20 +12,20 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
     private readonly IRoleRepository _roleRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IUserSessionService _sessionService;
 
     public LoginCommandHandler(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
-        IRefreshTokenRepository refreshTokenRepository)
+        IUserSessionService sessionService)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
-        _refreshTokenRepository = refreshTokenRepository;
+        _sessionService = sessionService;
     }
 
     public async Task<TokenResultDto> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -55,27 +54,42 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
         }
 
         var tokens = await _tokenService.GenerateTokensAsync(
-            user.Id, 
-            user.Email.Value, 
-            roleCode, 
+            user.Id,
+            user.Email.Value,
+            roleCode,
             null,
             TokenType.User);
 
-        var refreshToken = new RefreshTokenEntity(
-            user.Id,
-            tokens.RefreshToken,
-            tokens.ExpiresAt.AddDays(7),
-            HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp);
+        // Calculate refresh token expiration
+        var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
 
-        await _refreshTokenRepository.AddAsync(refreshToken);
+        // Generate SessionId if not provided by BFF
+        var sessionId = request.SessionId ?? Guid.NewGuid().ToString("N");
+
+        // Create user session
+        await _sessionService.CreateSessionAsync(
+            user.Id,
+            HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp,
+            sessionId,
+            tokens.RefreshToken,
+            tokens.AccessToken,
+            refreshTokenExpiresAt,
+            request.IpAddress,
+            request.UserAgent,
+            request.CsrfToken
+        );
 
         return new TokenResultDto(
             tokens.AccessToken,
             tokens.RefreshToken,
             tokens.ExpiresAt,
             tokens.Role,
+            user.Username,
+            user.Email.Value,
             tokens.ClientId,
-            tokens.Scopes
+            tokens.Scopes,
+            sessionId,
+            refreshTokenExpiresAt
         );
     }
 }
