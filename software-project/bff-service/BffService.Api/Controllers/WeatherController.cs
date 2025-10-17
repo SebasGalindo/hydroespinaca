@@ -9,7 +9,7 @@ namespace BffService.Api.Controllers;
 /// Controller for weather information from OpenWeather API
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("weather")]
 [AllowAnonymous]
 public class WeatherController : ControllerBase
 {

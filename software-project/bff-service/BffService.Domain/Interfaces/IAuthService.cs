@@ -9,6 +9,8 @@ public interface IAuthService
         string password,
         string? sessionId = null,
         string? csrfToken = null,
+        string? ipAddress = null,
+        string? userAgent = null,
         CancellationToken cancellationToken = default);
 
     Task<TokenInfo> RefreshTokenAsync(

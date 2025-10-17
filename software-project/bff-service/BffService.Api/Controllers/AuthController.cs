@@ -24,19 +24,34 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("login/web")]   
+    [HttpPost("login/web")]
     public async Task<ActionResult<WebLoginResponseDto>> LoginWeb([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await _sessionService.LoginAsync(request, cancellationToken);
+        // Capture client information from the current HTTP context
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+        // Enrich the request with client information
+        var enrichedRequest = new LoginRequestDto(
+            request.Email,
+            request.Password,
+            request.SessionId,
+            ipAddress,
+            userAgent,
+            request.CsrfToken
+        );
+
+        var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
 
         // Configure cookie options from appsettings
+        // Cookies expire at the same time as the refresh token (fixed session, not rolling)
         var sessionCookieOptions = new CookieOptions
         {
             HttpOnly = true, // SessionId should be HttpOnly for security
             Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+            Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
         };
 
         var csrfCookieOptions = new CookieOptions
@@ -45,7 +60,7 @@ public class AuthController : ControllerBase
             Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+            Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
         };
 
         // Only set domain if configured
@@ -64,10 +79,24 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("login/mobile")]   
+    [HttpPost("login/mobile")]
     public async Task<ActionResult<MobileLoginResponseDto>> LoginMobile([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await _sessionService.LoginAsync(request, cancellationToken);
+        // Capture client information from the current HTTP context
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+        // Enrich the request with client information
+        var enrichedRequest = new LoginRequestDto(
+            request.Email,
+            request.Password,
+            request.SessionId,
+            ipAddress,
+            userAgent,
+            request.CsrfToken
+        );
+
+        var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
 
         // Set headers for mobile clients
         var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";

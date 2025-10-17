@@ -39,6 +39,8 @@ public class AuthService : IAuthService
         string password,
         string? sessionId = null,
         string? csrfToken = null,
+        string? ipAddress = null,
+        string? userAgent = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -50,7 +52,9 @@ public class AuthService : IAuthService
                 email,
                 password,
                 sessionId,
-                csrfToken
+                csrfToken,
+                ipAddress,
+                userAgent
             };
 
             var response = await _httpClient.PostAsJsonAsync(
