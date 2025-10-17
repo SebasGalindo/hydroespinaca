@@ -17,6 +17,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  isLoggingOut: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  isLoggingOut: false,
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
@@ -131,16 +133,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
+    // Prevenir llamadas múltiples simultáneas a logout
+    if (get().isLoggingOut) {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[AuthStore] Logout already in progress, skipping');
+      }
+      return;
+    }
+
+    const currentState = get();
+
+    // Validación más estricta: solo llamar al endpoint si realmente hay datos de sesión
+    // Verificamos múltiples condiciones para asegurar que hay una sesión válida
+    const hasUserData = currentState.user !== null && currentState.user.email !== '';
+    const hasSessionData = currentState.session !== null;
+    const isMarkedAuthenticated = currentState.isAuthenticated;
+
+    const hasActiveSession = isMarkedAuthenticated && (hasUserData || hasSessionData);
+
+    set({ isLoading: true, isLoggingOut: true });
 
     try {
-      const currentSession = get().session;
-      const sessionId = platform === 'mobile' && currentSession
-        ? currentSession.sessionId || undefined
-        : undefined;
+      // Solo llamar al endpoint de logout si hay una sesión activa
+      // Esto evita errores 401/400 innecesarios cuando no hay sesión
+      if (hasActiveSession) {
+        const sessionId = platform === 'mobile' && currentState.session
+          ? currentState.session.sessionId || undefined
+          : undefined;
 
-      // Call logout endpoint
-      await authService.logout(platform === 'web' ? 'web' : 'mobile', sessionId);
+        // Call logout endpoint solo si hay sesión activa
+        await authService.logout(platform === 'web' ? 'web' : 'mobile', sessionId);
+      } else {
+        // No hay sesión activa, solo limpiar localmente
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[AuthStore] No active session, skipping logout endpoint call');
+        }
+      }
 
       // For mobile, clear stored tokens
       if (platform === 'mobile') {
@@ -152,10 +180,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session: null,
         isAuthenticated: false,
         isLoading: false,
+        isLoggingOut: false,
         error: null,
       });
     } catch (error) {
-      // Even if logout fails on server, clear local session
+      // Incluso si el logout falla en el servidor (ej: 400 por sesión ya inválida),
+      // limpiamos la sesión local de todos modos
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[AuthStore] Logout endpoint failed, clearing local session anyway:', error);
+      }
+
       if (platform === 'mobile') {
         await SessionStorage.clearSession();
       }
@@ -165,6 +199,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session: null,
         isAuthenticated: false,
         isLoading: false,
+        isLoggingOut: false,
         error: null,
       });
     }
@@ -214,27 +249,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error) {
       // Session is invalid or expired
-      // Clean up session to ensure cookies/tokens are cleared
       if (error instanceof ApiError && error.status === 401) {
-        // 401 means session is invalid - clear it properly
+        // 401 significa que no hay sesión válida
+        // No intentamos hacer logout porque generaría otro 401/400 innecesario
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[AuthStore] No valid session found (401), clearing local state');
+        }
+
+        // Solo limpiar tokens móviles si aplica
         try {
-          // For mobile, clear stored tokens
           if (platform === 'mobile') {
             await SessionStorage.clearSession();
           }
-
-          // For web, try to call logout to clear cookies
-          // This will fail with 401 but that's ok - the server will still clear cookies
-          if (platform === 'web') {
-            try {
-              await authService.logout('web');
-            } catch {
-              // Ignore logout errors - session is already invalid
-            }
+        } catch (cleanupError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[AuthStore] Failed to clear mobile session storage:', cleanupError);
           }
-        } catch {
-          // Ignore cleanup errors
         }
+      } else if (process.env.NODE_ENV === 'development') {
+        // Otros errores (red, servidor, etc.)
+        console.warn('[AuthStore] Session check failed:', error);
       }
 
       // No valid session found

@@ -134,6 +134,7 @@ export class AuthApiService {
 
   /**
    * Logout - clear session on server
+   * Maneja silenciosamente 401/400 porque significan que la sesión ya es inválida
    */
   async logout(platform: 'web' | 'mobile' = 'web', sessionId?: string): Promise<void> {
     const options: RequestInit = {
@@ -145,7 +146,21 @@ export class AuthApiService {
       options.body = JSON.stringify({ sessionId });
     }
 
-    await this.request('/auth/logout', options, platform);
+    try {
+      await this.request('/auth/logout', options, platform);
+    } catch (error) {
+      // Si el error es 401 o 400, significa que la sesión ya era inválida
+      // No propagamos el error porque el objetivo (cerrar sesión) ya se cumplió
+      if (error instanceof ApiError && (error.status === 401 || error.status === 400)) {
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[AuthService] Logout endpoint returned', error.status, '- session already invalid');
+        }
+        return; // Salida exitosa
+      }
+
+      // Otros errores (red, 500, etc.) sí se propagan
+      throw error;
+    }
   }
 
   /**

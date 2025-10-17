@@ -52,6 +52,15 @@ export * from './tokens';
 export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
+export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
+export type {
+  GetEnvironmentalAggregatesRequest,
+  AggregateSummary,
+  AggregateTrendPoint,
+  AggregateVariabilityPoint,
+  EnvironmentalVariableAggregate,
+  EnvironmentalAggregateResponse,
+} from './api/analyticsService';
 
 // Export components
 export * from './components/WelcomeMessage';

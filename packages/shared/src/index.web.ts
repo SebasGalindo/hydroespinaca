@@ -60,6 +60,15 @@ export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
 export { WeatherService, weatherService } from './api/weatherService';
 export type { WeatherSummary } from './types/weather';
+export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
+export type {
+  GetEnvironmentalAggregatesRequest,
+  AggregateSummary,
+  AggregateTrendPoint,
+  AggregateVariabilityPoint,
+  EnvironmentalVariableAggregate,
+  EnvironmentalAggregateResponse,
+} from './api/analyticsService';
 
 // Export components (platform agnostic)
 export * from './components/WelcomeMessage';
