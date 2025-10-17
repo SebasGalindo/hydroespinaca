@@ -63,6 +63,26 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
         // Calculate refresh token expiration
         var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
 
+        // Limit to a maximum of 2 active sessions per user
+        // If user has 2 or more active sessions, revoke the oldest ones
+        const int MAX_SESSIONS = 2;
+        var activeSessions = await _sessionService.GetActiveUserSessionsAsync(user.Id);
+        var sessionsList = activeSessions.ToList();
+
+        if (sessionsList.Count >= MAX_SESSIONS)
+        {
+            // Calculate how many sessions need to be revoked
+            // We want to keep (MAX_SESSIONS - 1) sessions, so after creating the new one we'll have MAX_SESSIONS
+            var sessionsToRevoke = sessionsList
+                .OrderBy(s => s.LastActivity)  // Order by oldest activity first
+                .Take(sessionsList.Count - MAX_SESSIONS + 1);  // Revoke oldest sessions
+
+            foreach (var oldSession in sessionsToRevoke)
+            {
+                await _sessionService.RevokeSessionAsync(oldSession.SessionId);
+            }
+        }
+
         // Generate SessionId if not provided by BFF
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString("N");
 
