@@ -1,6 +1,7 @@
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using Microsoft.Extensions.Configuration;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Exceptions;
@@ -49,5 +50,95 @@ public class MongoAggregateRepository : IAggregateRepository
         );
 
         return await _baseRepo.FindOneAsync(filter);
+    }
+
+    public async Task<Dictionary<string, List<Aggregate>>> GetEnvironmentalAggregatesAsync(DateTime startDate, DateTime endDate, string view)
+    {
+        var dateFormat = view.ToLower() switch
+        {
+            "daily" => "%Y-%m-%dT00:00:00.000Z",
+            "weekly" => "%Y-W%V", // ISO week format
+            "monthly" => "%Y-%m-01T00:00:00.000Z", // First day of month
+            _ => "%Y-%m-%dT00:00:00.000Z"
+        };
+
+        var pipeline = new BsonDocument[]
+        {
+            // Stage 1: Match documents within date range
+            new BsonDocument("$match", new BsonDocument
+            {
+                { "timestamp", new BsonDocument
+                    {
+                        { "$gte", startDate },
+                        { "$lte", endDate }
+                    }
+                }
+            }),
+            // Stage 2: Project with truncated timestamp
+            new BsonDocument("$project", new BsonDocument
+            {
+                { "variableCode", 1 },
+                { "avg", 1 },
+                { "min", 1 },
+                { "max", 1 },
+                { "count", 1 },
+                { "timestamp", 1 },
+                { "truncatedDate", new BsonDocument("$dateToString", new BsonDocument
+                    {
+                        { "format", dateFormat },
+                        { "date", "$timestamp" }
+                    })
+                }
+            }),
+            // Stage 3: Group by variableCode and truncated date
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "variableCode", "$variableCode" },
+                        { "truncatedDate", "$truncatedDate" }
+                    }
+                },
+                { "avg", new BsonDocument("$avg", "$avg") },
+                { "min", new BsonDocument("$min", "$min") },
+                { "max", new BsonDocument("$max", "$max") },
+                { "count", new BsonDocument("$sum", "$count") },
+                { "timestamp", new BsonDocument("$first", "$truncatedDate") }
+            }),
+            // Stage 4: Project to match Aggregate structure
+            new BsonDocument("$project", new BsonDocument
+            {
+                { "_id", 0 },
+                { "sensorCode", "" },
+                { "variableCode", "$_id.variableCode" },
+                { "avg", 1 },
+                { "min", 1 },
+                { "max", 1 },
+                { "count", 1 },
+                { "timestamp", new BsonDocument("$dateFromString", new BsonDocument
+                    {
+                        { "dateString", "$timestamp" }
+                    })
+                }
+            }),
+            // Stage 5: Sort by variableCode and timestamp
+            new BsonDocument("$sort", new BsonDocument
+            {
+                { "variableCode", 1 },
+                { "timestamp", 1 }
+            })
+        };
+
+        var results = await _baseRepo.AggregateAsync(pipeline);
+
+        // Group results by variableCode
+        var grouped = results
+            .GroupBy(a => a.VariableCode)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(a => a.Timestamp).ToList()
+            );
+
+        return grouped;
     }
 }

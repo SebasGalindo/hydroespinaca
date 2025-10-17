@@ -148,7 +148,7 @@ public class VariableSeedService : IVariableSeedService
             },
             new VariableDocument
             {
-                Code = "pH",
+                Code = "PH",
                 Name = "Nivel de pH",
                 Unit = "pH",
                 Description = "Acidity or alkalinity of the nutrient solution",

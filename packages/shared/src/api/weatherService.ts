@@ -19,7 +19,7 @@ export class WeatherService {
    */
   async getWeather(): Promise<WeatherSummary> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/weather`, {
+      const response = await fetch(`${this.baseUrl}/weather`, {
         method: 'GET',
         credentials: 'include',
         headers: {

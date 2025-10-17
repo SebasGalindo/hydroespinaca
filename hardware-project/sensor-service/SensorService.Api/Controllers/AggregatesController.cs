@@ -23,4 +23,12 @@ public class AggregatesController : ControllerBase
         var aggregates = await _service.GetBySensorAndVariableAsync(sensorId, variableId, from, to);
         return Ok(aggregates);
     }
+
+    [HttpPost("environmental")]
+    [Authorize(Policy = PolicyNames.AggregateRead)]
+    public async Task<IActionResult> GetEnvironmentalAggregates([FromBody] SensorService.Application.DTOs.Aggregate.GetEnvironmentalAggregatesRequest request)
+    {
+        var aggregates = await _service.GetEnvironmentalAggregatesAsync(request);
+        return Ok(aggregates);
+    }
 }

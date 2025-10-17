@@ -50,6 +50,7 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IVariableMigrationService, VariableMigrationService>();
         services.AddScoped<IVariableSeedService, VariableSeedService>();
         services.AddScoped<ISensorSeedService, SensorSeedService>();
+        services.AddScoped<AggregateIndexService>();
 
         // ✅ CRITICAL: Singleton to maintain in-memory alert state across requests
         // IMPORTANT: In production with multiple replicas, migrate to Redis/Distributed Cache
