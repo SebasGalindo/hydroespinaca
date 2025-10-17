@@ -361,7 +361,7 @@ services:
     expose:
       - "3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
