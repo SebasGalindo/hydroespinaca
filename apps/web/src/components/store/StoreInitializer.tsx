@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useVariableStore, useActuatorStore, useSensorStore, useReadingsStore, useAuthStore } from '@hydroespinaca/shared';
-import { logout } from '@/lib/session';
 
 export function StoreInitializer() {
   const [isClient, setIsClient] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Ref para asegurar que checkSession solo se llame UNA vez
+  const sessionCheckAttempted = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -24,22 +26,35 @@ export function StoreInitializer() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isLoading = useAuthStore(state => state.isLoading);
 
-  // Check session on mount
+  // Check session on mount - SOLO UNA VEZ
   useEffect(() => {
-    if (isClient && !sessionChecked) {
+    if (isClient && !sessionChecked && !sessionCheckAttempted.current) {
+      sessionCheckAttempted.current = true;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StoreInitializer] Checking session...');
+      }
+
       checkSession().finally(() => {
         setSessionChecked(true);
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StoreInitializer] Session check completed');
+        }
       });
     }
-  }, [isClient, sessionChecked, checkSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient, sessionChecked]);
 
   // Redirect to login if session check completed and user is not authenticated
   useEffect(() => {
     if (sessionChecked && !isLoading && !isAuthenticated) {
       const publicPaths = ['/', '/login', '/forgot-password', '/reset-password'];
       if (pathname && !publicPaths.includes(pathname)) {
-        console.warn('Sesión inválida detectada. Redirigiendo al login...');
-        logout(); // limpia cookies o tokens viejos
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StoreInitializer] No session found, redirecting to login from:', pathname);
+        }
+        // No llamar a logout() aquí - el authStore ya limpió la sesión en checkSession()
+        // Solo redirigir al login
         router.push('/login');
       }
     }
@@ -49,11 +64,19 @@ export function StoreInitializer() {
   // Initialize other stores only after successful authentication
   useEffect(() => {
     if (isClient && sessionChecked && isAuthenticated) {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StoreInitializer] User authenticated, initializing app stores...');
+      }
+
       initializeVariables();
       initializeActuadores();
       generateMockData();
       initializeSystemComponents();
       initializeReadings();
+
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StoreInitializer] App stores initialized successfully');
+      }
     }
   }, [isClient, sessionChecked, isAuthenticated, initializeVariables, initializeActuadores, generateMockData, initializeSystemComponents, initializeReadings]);
 

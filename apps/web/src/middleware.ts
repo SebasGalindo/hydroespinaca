@@ -32,15 +32,19 @@ export async function middleware(req: NextRequest) {
 
   // Si no hay sesión y la ruta es protegida → redirigir a /login
   if (!hasSession && !isPublicPath) {
-    console.log(`[Middleware] No session found, redirecting to /login from ${path}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.info(`[Middleware] No session found, redirecting to /login from ${path}`);
+    }
     url.pathname = '/login';
-    url.searchParams.set('from', path); // Guardar ruta de origen para redirect después del login
+    url.searchParams.set('from', path);
     return NextResponse.redirect(url);
   }
 
   // Si hay sesión y el usuario intenta acceder a /login → redirigir a /dashboard
   if (hasSession && path === '/login') {
-    console.log('[Middleware] Session found, redirecting to /dashboard');
+    if (process.env.NODE_ENV === 'development') {
+      console.info('[Middleware] Session found, redirecting to /dashboard');
+    }
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }

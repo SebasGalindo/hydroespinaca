@@ -16,14 +16,7 @@ export default function ForgotPasswordPage() {
     setStatus('idle');
 
     try {
-      // TODO: Replace with actual API call to Supabase or custom endpoint
-      // const response = await fetch('/api/auth/forgot-password', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email })
-      // });
-
-      // Simulating API call
+      // Feature pendiente: Integrar con endpoint de recuperación de contraseña
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       setStatus('success');

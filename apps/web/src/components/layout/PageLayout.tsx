@@ -45,8 +45,9 @@ const PageLayout: React.FC<PageLayoutProps> = ({
     }
   }, [sidebarExpanded, mounted]);
 
-  const handleMoreClick = () => {
-    setIsMobileMoreOpen(true);
+  // Toggle del menú móvil (abrir/cerrar)
+  const handleMoreToggle = () => {
+    setIsMobileMoreOpen(prev => !prev);
   };
 
   const getMaxWidthClass = () => {
@@ -99,7 +100,13 @@ const PageLayout: React.FC<PageLayoutProps> = ({
         </main>
       </div>
 
-      {/* Bottom Navigation - Deshabilitado para móvil (solo Dashboard accesible vía sidebar) */}
+      {/* Bottom Navigation - Móvil */}
+      {showBottomNav && (
+        <BottomNavigation
+          onMoreClick={handleMoreToggle}
+          isMoreMenuOpen={isMobileMoreOpen}
+        />
+      )}
     </div>
   );
 };

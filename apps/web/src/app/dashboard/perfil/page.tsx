@@ -19,8 +19,7 @@ export default function PerfilPage() {
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implementar cambio de contraseña
-    console.log('Cambiar contraseña:', passwordData);
+    // Feature pendiente: Integrar con endpoint de cambio de contraseña
     alert('Funcionalidad de cambio de contraseña en desarrollo');
     setShowChangePassword(false);
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -28,8 +27,7 @@ export default function PerfilPage() {
 
   const handleDeleteAccount = async () => {
     if (window.confirm('¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.')) {
-      // TODO: Implementar eliminación de cuenta
-      console.log('Eliminar cuenta');
+      // Feature pendiente: Integrar con endpoint de eliminación de cuenta
       alert('Funcionalidad de eliminación de cuenta en desarrollo');
       await logout();
       router.push('/');

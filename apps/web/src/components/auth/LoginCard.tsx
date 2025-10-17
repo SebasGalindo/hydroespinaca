@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLoginForm, useAuthStore } from '@hydroespinaca/shared';
@@ -13,16 +13,55 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
   const { isAuthenticated } = useAuthStore();
   const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
+  // Rastrear si hubo un submit del formulario (solo en este montaje del componente)
+  const loginAttemptedRef = useRef(false);
+  const previousLoadingRef = useRef(false);
+
+  // Wrapper para handleSubmit que marca que hubo un intento de login
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    loginAttemptedRef.current = true;
+    await handleSubmit(e);
+  };
+
+  // Detectar login exitoso NUEVO (solo tras submit del usuario)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    // Solo mostrar éxito si:
+    // 1. El usuario intentó hacer login en este montaje (loginAttemptedRef)
+    // 2. Pasó de isLoading=true a isLoading=false (transición completa)
+    // 3. Está autenticado sin errores
+    const wasLoading = previousLoadingRef.current;
+    const stoppedLoading = wasLoading && !isLoading;
 
-    const timer = setTimeout(() => {
-      router.push('/dashboard');
-    }, 500);
+    if (loginAttemptedRef.current && stoppedLoading && isAuthenticated && !error) {
+      setLoginSuccess(true);
 
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, router]);
+      const timer = setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+
+    // Resetear si hay error
+    if (error) {
+      setLoginSuccess(false);
+    }
+
+    // Actualizar ref de loading para el próximo ciclo
+    previousLoadingRef.current = isLoading;
+
+    return undefined;
+  }, [isAuthenticated, isLoading, error, router]);
+
+  // Limpiar estado al desmontar para evitar persistencia
+  useEffect(() => {
+    return () => {
+      setLoginSuccess(false);
+      loginAttemptedRef.current = false;
+    };
+  }, []);
 
 
   return (
@@ -64,7 +103,7 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
         </div>
       )}
 
-      {isAuthenticated && (
+      {loginSuccess && (
         <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md text-sm flex items-center gap-2">
           <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -76,7 +115,7 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
 
       <form
         className="space-y-4"
-        onSubmit={handleSubmit}
+        onSubmit={handleLoginSubmit}
         name="login"
         method="post"
         action="/login"

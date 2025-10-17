@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import {ShieldIcon, SproutIcon } from '@/components/ui/icons/Icons';
-
+import { usePathname, useRouter } from 'next/navigation';
 import {
+  ShieldIcon,
+  SproutIcon,
   ChartIcon,
-  BookIcon,
   TrendingUpIcon,
   BrainIcon,
   SettingsIcon,
@@ -15,13 +14,9 @@ import {
   BoltIcon,
   ListIcon,
   PlantIcon,
-  MenuIcon,
-  PowerIcon,
-  UserIcon,
-  ChevronDownIcon
+  PowerIcon
 } from '@/components/ui/icons/Icons';
 import { useAuthStore } from '@hydroespinaca/shared';
-import { useRouter } from 'next/navigation';
 
 interface NavigationItem {
   href: string;
@@ -48,7 +43,6 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   const router = useRouter();
   const { logout, user } = useAuthStore();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState<string | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -59,7 +53,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
 
   const navigationItems: NavigationItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
-    { href: '/dashboard-monitoreo', label: 'Análisis de datos', icon: TrendingUpIcon },
+    { href: '/analytics', label: 'Análisis de datos', icon: TrendingUpIcon },
     { href: '/dashboard/sistemas-fuzzy', label: 'Sistemas Fuzzy', icon: BrainIcon },
     {
       href: '/dashboard/listas',
@@ -73,10 +67,6 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
       ]
     },
   ];
-
-  // En móvil solo se muestra el Dashboard principal
-  const mobileMainItems = navigationItems.slice(0, 1); // Solo Dashboard
-  const mobileMoreItems = navigationItems.slice(1); // Resto de items
 
   const toggleGroup = (label: string) => {
     setExpandedGroups(prev =>
@@ -446,85 +436,59 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
 
       {/* Mobile Navigation */}
       <div className="lg:hidden">
-
-
-        {/* Mobile menu overlay with blur effect */}
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setIsMobileMenuOpen(false)} />
-        )}
-
-        {/* Mobile menu */}
-        {isMobileMenuOpen && (
-          <div className="fixed left-0 top-0 h-full w-80 bg-white shadow-lg z-50 transform transition-transform">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-800">Navegación</h2>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 text-gray-600 hover:text-gray-800"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {/* Main mobile items */}
-              <div className="p-4 space-y-2">
-                {mobileMainItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${pathname === item.href ? 'bg-green-50 text-green-600' : ''
-                      }`}
-                  >
-                    <item.icon size={20} className="mr-3" />
-                    <span className="text-sm font-medium">{item.label}</span>
-                  </Link>
-                ))}
-
-                {/* More Options button - opens full sidebar */}
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setMobileMoreOpen(true);
-                  }}
-                  className="w-full flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  <MenuIcon size={20} className="mr-3" />
-                  <span className="text-sm font-medium">Más opciones</span>
-                  <ChevronRightIcon size={16} className="ml-auto" />
-                </button>
-
-
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Full Sidebar for "More Options" */}
         {isMobileMoreOpen && (
           <>
-            {/* Overlay */}
-            <div className="fixed inset-0 z-40 bg-transparent backdrop-blur-xs" onClick={() => setMobileMoreOpen(false)} />
+            {/* Overlay con backdrop blur y animación de fade-in */}
+            <div
+              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm animate-in fade-in duration-300"
+              onClick={() => setMobileMoreOpen(false)}
+              aria-label="Cerrar menú"
+            />
 
-            {/* Full Sidebar */}
-            <div className="fixed left-0 top-0 h-full w-100 bg-white shadow-lg z-50 transform transition-transform overflow-y-auto scrollbar-hidden">
-              <div className="p-4 border-b border-gray-200">
+            {/* Drawer desde la derecha con animación slide-in */}
+            <div
+              id="mobile-drawer-menu"
+              className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-right duration-300 ease-out"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-drawer-title"
+            >
+              {/* Header del drawer */}
+              <div className="sticky top-0 bg-gradient-to-r from-green-600 to-green-700 p-4 border-b border-green-800 shadow-md z-10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-800">Todas las opciones</h2>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                      <PlantIcon size={22} color="white" />
+                    </div>
+                    <div>
+                      <h2 id="mobile-drawer-title" className="text-base font-bold text-white leading-tight">
+                        Menú de Navegación
+                      </h2>
+                      <p className="text-xs text-green-100">HydroEspinaca</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setMobileMoreOpen(false)}
-                    className="p-2 text-gray-600 hover:text-gray-800"
+                    className="p-2 text-white hover:bg-white/20 rounded-full transition-all duration-200 active:scale-90"
+                    aria-label="Cerrar menú de navegación"
+                    title="Cerrar menú"
                   >
-                    ×
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-4 space-y-2">
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto px-3 py-4">
+                {/* Título de sección */}
+                <div className="px-3 mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Navegación</p>
+                </div>
+
+                <div className="space-y-1">
                   {navigationItems.map((item) => {
                     const IconComponent = item.icon;
                     const hasChildren = item.children && item.children.length > 0;
@@ -532,98 +496,146 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                     const itemActive = isGroupActive(item);
 
                     return (
-                      <div key={item.href}>
+                      <div key={item.href} className="mb-1">
                         {hasChildren ? (
                           <>
+                            {/* Parent item con submenú */}
                             <button
                               onClick={() => toggleGroup(item.label)}
-                              className={`w-full flex items-center px-4 py-3 rounded-md text-left transition-colors ${itemActive
-                                  ? 'text-green-600 bg-green-50'
-                                  : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                                }`}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                                itemActive
+                                  ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm'
+                                  : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                              }`}
                             >
-                              <IconComponent size={20} className="mr-3" />
-                              <span className="text-sm font-medium">{item.label}</span>
+                              <div className={`p-1.5 rounded-lg ${itemActive ? 'bg-green-200/50' : 'bg-gray-100'}`}>
+                                <IconComponent size={18} />
+                              </div>
+                              <span className="text-sm font-medium flex-1">{item.label}</span>
                               <ChevronRightIcon
                                 size={16}
-                                className={`ml-auto transition-transform ${groupExpanded ? 'rotate-90' : ''
-                                  }`}
+                                className={`transition-transform duration-200 ${groupExpanded ? 'rotate-90' : ''}`}
                               />
                             </button>
 
+                            {/* Submenú expandible */}
                             {groupExpanded && item.children && (
-                              <div className="ml-8 space-y-1">
-                                {item.children.map((child) => (
-                                  <Link
-                                    key={child.href}
-                                    href={child.href}
-                                    onClick={() => setMobileMoreOpen(false)}
-                                    className={`flex items-center px-4 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded transition-colors ${pathname === child.href ? 'bg-green-50 text-green-600' : ''
+                              <div className="mt-1 ml-3 pl-6 border-l-2 border-green-200 space-y-1">
+                                {item.children.map((child) => {
+                                  const ChildIcon = child.icon;
+                                  const childActive = pathname === child.href;
+
+                                  return (
+                                    <Link
+                                      key={child.href}
+                                      href={child.href}
+                                      onClick={() => setMobileMoreOpen(false)}
+                                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                                        childActive
+                                          ? 'bg-green-600 text-white shadow-md'
+                                          : 'text-gray-600 hover:bg-gray-50 active:bg-gray-100'
                                       }`}
-                                  >
-                                    <child.icon size={14} className="mr-2" />
-                                    <span>{child.label}</span>
-                                    {child.status && (
-                                      <span className={`ml-auto text-xs px-2 py-1 rounded-full ${child.status === 'Conectado'
-                                          ? 'bg-green-100 text-green-600'
-                                          : 'bg-red-100 text-red-600'
+                                    >
+                                      <ChildIcon size={16} />
+                                      <span className="text-sm font-medium">{child.label}</span>
+                                      {child.status && (
+                                        <span className={`ml-auto text-xs px-2 py-1 rounded-full font-medium ${
+                                          child.status === 'Conectado'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-red-100 text-red-700'
                                         }`}>
-                                        {child.status}
-                                      </span>
-                                    )}
-                                  </Link>
-                                ))}
+                                          {child.status}
+                                        </span>
+                                      )}
+                                      {childActive && (
+                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                      )}
+                                    </Link>
+                                  );
+                                })}
                               </div>
                             )}
                           </>
                         ) : (
+                          /* Item simple sin submenú */
                           <Link
                             href={item.href}
                             onClick={() => setMobileMoreOpen(false)}
-                            className={`flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 transition-colors ${pathname === item.href ? 'bg-green-50 text-green-600' : ''
-                              }`}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                              pathname === item.href
+                                ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm'
+                                : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                            }`}
                           >
-                            <IconComponent size={20} className="mr-3" />
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <div className={`p-1.5 rounded-lg ${pathname === item.href ? 'bg-green-200/50' : 'bg-gray-100'}`}>
+                              <IconComponent size={18} />
+                            </div>
+                            <span className="text-sm font-medium flex-1">{item.label}</span>
+                            {pathname === item.href && (
+                              <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
+                            )}
                           </Link>
                         )}
                       </div>
                     );
                   })}
 
-                  {/* Mobile User Profile Section */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
+                  {/* Sección de Usuario */}
+                  <div className="mt-6">
+                    <div className="px-3 mb-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cuenta</p>
+                    </div>
+
+                    {/* Card del perfil de usuario */}
+                    <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 mb-3 border border-green-200/50">
                       <Link
                         href="/dashboard/perfil"
                         onClick={() => setMobileMoreOpen(false)}
-                        className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex items-center gap-3 group"
                       >
-                        <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          {user?.role === 'Administrador' ? (
-                            <ShieldIcon size={20} color="white" />
-                          ) : (
-                            <SproutIcon size={20} color="white" />
-                          )}
+                        <div className="relative">
+                          <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
+                            {user?.role === 'Administrador' ? (
+                              <ShieldIcon size={24} color="white" />
+                            ) : (
+                              <SproutIcon size={24} color="white" />
+                            )}
+                          </div>
+                          {/* Indicador de estado online */}
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm" />
                         </div>
+
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate" title={user?.name}>
+                          <p className="text-sm font-bold text-gray-900 truncate mb-0.5" title={user?.name}>
                             {user?.name || 'Usuario'}
                           </p>
-                          <p className="text-xs text-gray-500 truncate" title={user?.email}>
-                            {user?.role || 'Usuario'}
+                          <p className="text-xs text-gray-600 truncate mb-1" title={user?.email}>
+                            {user?.email || 'email@example.com'}
                           </p>
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/80 rounded-full">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
+                            <span className="text-xs font-medium text-gray-700">
+                              {user?.role || 'Usuario'}
+                            </span>
+                          </div>
                         </div>
+
+                        <ChevronRightIcon size={18} className="text-gray-400 group-hover:text-green-600 transition-colors" />
                       </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Cerrar sesión"
-                        aria-label="Cerrar sesión"
-                      >
-                        <PowerIcon size={20} />
-                      </button>
                     </div>
+
+                    {/* Botón de logout con diseño destacado */}
+                    <button
+                      onClick={() => {
+                        setMobileMoreOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 transition-all duration-200 font-semibold shadow-sm hover:shadow group"
+                      aria-label="Cerrar sesión"
+                    >
+                      <PowerIcon size={20} className="group-hover:rotate-12 transition-transform" />
+                      <span>Cerrar sesión</span>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -59,17 +59,7 @@ export default function ResetPasswordPage() {
     setStatus('idle');
 
     try {
-      // TODO: Replace with actual API call to Supabase or custom endpoint
-      // const response = await fetch('/api/auth/reset-password', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     token: searchParams.get('token'),
-      //     newPassword: formData.newPassword
-      //   })
-      // });
-
-      // Simulating API call
+      // Feature pendiente: Integrar con endpoint de reset de contraseña
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       setStatus('success');

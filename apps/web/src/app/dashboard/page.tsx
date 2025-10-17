@@ -10,7 +10,7 @@ import { systemStatusService } from '@hydroespinaca/shared';
 import type { SystemStatusResponse, ReadingItem, WeatherSummary } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
 import { IconType } from '@hydroespinaca/shared/types/common';
-import { logout } from '@/lib/session';
+import { useAuthStore } from '@hydroespinaca/shared';
 import {
   calculateVariableStatus,
   calculateTrend,
@@ -21,6 +21,7 @@ import {
 export default function DashboardPage() {
   const router = useRouter();
   const routerRef = useRef(router);
+  const { logout } = useAuthStore();
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [previousReadings, setPreviousReadings] = useState<ReadingItem[]>([]);
   const [lastUpdateTimestamp, setLastUpdateTimestamp] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function DashboardPage() {
       console.error('Error fetching system status:', err);
       setError(err.message || 'Error al cargar los datos del sistema');
 
-      // Si es error 401, redirigir a login
+      // Si es error 401, cerrar sesión y redirigir a login
       if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
         await logout();
         routerRef.current.push('/login');
@@ -71,7 +72,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [systemStatus]);
+  }, [systemStatus, logout]);
 
   // Cargar datos iniciales (incluye clima desde el BFF)
   useEffect(() => {
@@ -266,18 +267,7 @@ export default function DashboardPage() {
       subtitle="Monitoreo de las variables y estado actual del sistema hidropónico"
       maxWidth="xl"
     >
-      {/* Indicador global de última actualización */}
-      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-green-700 text-2xl">🔄</span>
-          <span className="text-sm font-medium text-green-800 font-inter">
-            Última actualización: {lastUpdateTimestamp ? formatColombiaDateTime(lastUpdateTimestamp) : 'Cargando...'}
-          </span>
-        </div>
-        <p className="text-xs text-green-700 ml-8">
-          Las lecturas se actualizan automáticamente cada 2 minutos desde la última lectura del backend
-        </p>
-      </div>
+
 
       {/* Información Meteorológica */}
       <section className="mb-8" aria-labelledby="weather-heading">
@@ -290,6 +280,19 @@ export default function DashboardPage() {
           error={weatherError}
         />
       </section>
+
+      {/* Indicador global de última actualización */}
+      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-green-700 text-2xl">🔄</span>
+          <span className="text-sm font-medium text-green-800 font-inter">
+            Última actualización: {lastUpdateTimestamp ? formatColombiaDateTime(lastUpdateTimestamp) : 'Cargando...'}
+          </span>
+        </div>
+        <p className="text-xs text-green-700 ml-8">
+          Las lecturas se actualizan automáticamente cada 2 minutos desde la última lectura del backend
+        </p>
+      </div>
 
       {/* Variables del sistema */}
       <section className="mb-8" aria-labelledby="system-variables-heading">
