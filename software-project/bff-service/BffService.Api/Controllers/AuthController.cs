@@ -138,23 +138,51 @@ public class AuthController : ControllerBase
             }
         }
 
-        if (string.IsNullOrEmpty(sessionId))
+        // Try to logout from session repository if we have a sessionId
+        if (!string.IsNullOrEmpty(sessionId))
         {
-            return BadRequest(new { message = "No active session to logout" });
+            var logoutRequest = new LogoutRequestDto(sessionId);
+            try
+            {
+                await _sessionService.LogoutAsync(logoutRequest, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during logout for session {SessionId}, will still clear cookies", sessionId);
+            }
         }
 
-        var logoutRequest = new LogoutRequestDto(sessionId);
-        await _sessionService.LogoutAsync(logoutRequest, cancellationToken);
+        // ALWAYS clear cookies for web clients, even if there's no active session
+        // This handles cases where cookies persist after session was deleted (e.g., server restart, session limit)
+        var sessionCookieOptions = new CookieOptions
+        {
+            HttpOnly = true, // SessionId is HttpOnly
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
+        };
 
-        // Clear cookies for web clients
-        if (Request.Cookies.ContainsKey("SessionId"))
+        var csrfCookieOptions = new CookieOptions
         {
-            Response.Cookies.Delete("SessionId");
-        }
-        if (Request.Cookies.ContainsKey("CsrfToken"))
+            HttpOnly = false, // CsrfToken is NOT HttpOnly
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
+        };
+
+        // Only set domain if configured (must match creation)
+        var domain = _configuration.GetValue<string>("Cookies:Domain");
+        if (!string.IsNullOrEmpty(domain))
         {
-            Response.Cookies.Delete("CsrfToken");
+            sessionCookieOptions.Domain = domain;
+            csrfCookieOptions.Domain = domain;
         }
+
+        // Always delete both cookies (SessionId is HttpOnly, CsrfToken is not)
+        Response.Cookies.Append("SessionId", "", sessionCookieOptions);
+        Response.Cookies.Append("CsrfToken", "", csrfCookieOptions);
 
         return Ok(new { message = "Logged out successfully" });
     }

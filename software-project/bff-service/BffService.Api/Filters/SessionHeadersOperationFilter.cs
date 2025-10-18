@@ -12,13 +12,12 @@ public class SessionHeadersOperationFilter : IOperationFilter
     {
         var controllerName = context.MethodInfo.DeclaringType?.Name ?? "";
         var actionName = context.MethodInfo.Name;
-        
+
         // Add headers to relevant endpoints
-        var isProxyController = controllerName.Contains("ProxyController");
         var isAuthController = controllerName.Contains("AuthController");
         var isLoginEndpoint = isAuthController && actionName.Contains("Login");
-        
-        if (!isProxyController && !isAuthController)
+
+        if (!isAuthController)
         {
             return;
         }
