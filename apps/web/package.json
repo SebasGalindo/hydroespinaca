@@ -21,6 +21,7 @@
     "@heroicons/react": "^2.2.0",
     "@hydroespinaca/shared": "workspace:*",
     "@types/plotly.js": "^3.0.3",
+    "dayjs": "^1.11.18",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
     "next": "^15.5.3",
