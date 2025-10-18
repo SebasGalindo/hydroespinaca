@@ -1,5 +1,6 @@
 import type { WeatherSummary } from '../types/weather';
 import { getApiUrl } from '../utils/apiConfig';
+import { authFetch } from '../utils/authFetch';
 
 /**
  * Servicio para obtener información meteorológica del BFF
@@ -16,10 +17,11 @@ export class WeatherService {
   /**
    * Obtiene el clima actual de Mosquera, Cundinamarca
    * Los datos vienen del BFF que implementa cache y se actualiza cada hora
+   * Uses authFetch for automatic 401 handling and redirect
    */
   async getWeather(): Promise<WeatherSummary> {
     try {
-      const response = await fetch(`${this.baseUrl}/weather`, {
+      const response = await authFetch(`${this.baseUrl}/weather`, {
         method: 'GET',
         credentials: 'include',
         headers: {

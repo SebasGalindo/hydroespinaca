@@ -60,3 +60,18 @@ export const formatCurrency = (amount: number, currency: string = 'COP'): string
     minimumFractionDigits: 0,
   }).format(amount);
 };
+
+/**
+ * Formatea un valor numérico a 2 decimales eliminando ceros innecesarios
+ * @param value - Valor numérico
+ * @returns Valor formateado como string
+ * @example
+ * formatNumericValue(23.50) // "23.5"
+ * formatNumericValue(23.00) // "23"
+ * formatNumericValue(23.456) // "23.46"
+ */
+export const formatNumericValue = (value: number): string => {
+  // Formatear a 2 decimales y eliminar ceros innecesarios
+  const formatted = parseFloat(value.toFixed(2));
+  return formatted.toString();
+};

@@ -46,27 +46,9 @@ public static class ActuatorConstants
 
     public static class CommandStatuses
     {
-        public const string Scheduled = nameof(RoutineCommandStatus.SCHEDULED);
-        public const string Running = nameof(RoutineCommandStatus.IN_PROGRESS);
-        public const string Completed = nameof(RoutineCommandStatus.COMPLETED);
-        public const string Failed = nameof(RoutineCommandStatus.FAILED);
-        public const string Cancelled = nameof(RoutineCommandStatus.CANCELLED);
-    }
+        public const string Running = nameof(RoutineCommandStatus.RUNNING);
+        public const string Finished = nameof(RoutineCommandStatus.FINISHED);
 
-    public static class StepStatuses
-    {
-        public const string Ok = "ok";
-        public const string Cancelled = "cancelled";
-        public const string Error = "error";
-        
-        public static readonly string[] ValidStatuses = { Ok, Cancelled, Error };
-    }
-
-    public static class FirmwareDecisions
-    {
-        public const string Consolidated = "consolidated";
-        public const string Queued = "queued";
-        
-        public static readonly string[] ValidDecisions = { Consolidated, Queued };
+        public static readonly string[] ValidStatuses = { Running, Finished };
     }
 }

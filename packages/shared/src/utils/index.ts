@@ -3,6 +3,7 @@
 export * from './formatters';
 export * from './validators';
 export * from './apiConfig';
+export * from './authFetch';
 
 // For backward compatibility with direct imports
 // Note: SessionStorage import should use platform-specific entry points

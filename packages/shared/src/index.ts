@@ -44,6 +44,7 @@ export * from './utils/formatters';
 export * from './utils/validators';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { SessionStorage, secureStorage } from './utils/secureStorage';
+export { setAuthCallbacks, authFetch } from './utils/authFetch';
 
 // Export design tokens (includes colors, typography, spacing)
 export * from './tokens';
@@ -54,7 +55,7 @@ export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
 export type {
-  GetEnvironmentalAggregatesRequest,
+  EnvironmentalAnalyticsRequest,
   AggregateSummary,
   AggregateTrendPoint,
   AggregateVariabilityPoint,

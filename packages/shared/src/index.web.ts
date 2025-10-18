@@ -48,6 +48,7 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 export * from './utils/formatters';
 export * from './utils/validators';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
+export { setAuthCallbacks, authFetch } from './utils/authFetch';
 // Note: SessionStorage and secureStorage excluded - web should use browser APIs
 
 // Export design tokens (platform agnostic)
@@ -62,7 +63,7 @@ export { WeatherService, weatherService } from './api/weatherService';
 export type { WeatherSummary } from './types/weather';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
 export type {
-  GetEnvironmentalAggregatesRequest,
+  EnvironmentalAnalyticsRequest,
   AggregateSummary,
   AggregateTrendPoint,
   AggregateVariabilityPoint,

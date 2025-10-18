@@ -6,27 +6,12 @@ namespace HydroEspinaca.Shared.Enums;
 public enum RoutineCommandStatus
 {
     /// <summary>
-    /// Command has been created and scheduled for execution
+    /// Command is currently being executed (actuator is active)
     /// </summary>
-    SCHEDULED,
-    
+    RUNNING,
+
     /// <summary>
-    /// Command is currently being executed
+    /// Command has finished execution (confirmed by firmware via MQTT)
     /// </summary>
-    IN_PROGRESS,
-    
-    /// <summary>
-    /// Command has been successfully completed
-    /// </summary>
-    COMPLETED,
-    
-    /// <summary>
-    /// Command execution failed
-    /// </summary>
-    FAILED,
-    
-    /// <summary>
-    /// Command was cancelled before completion
-    /// </summary>
-    CANCELLED
+    FINISHED
 }

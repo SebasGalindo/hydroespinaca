@@ -1,5 +1,6 @@
 import type { SystemStatusResponse } from '../types/systemStatus';
 import { getApiUrl } from '../utils/apiConfig';
+import { authFetch } from '../utils/authFetch';
 
 /**
  * Service for fetching system status from the BFF
@@ -15,10 +16,10 @@ export class SystemStatusService {
 
   /**
    * Fetches the current system status including sensor readings and actuator jobs
-   * Uses credentials: 'include' to automatically send the X-Session-Id cookie
+   * Uses authFetch for automatic 401 handling and redirect
    */
   async getSystemStatus(): Promise<SystemStatusResponse> {
-    const response = await fetch(`${this.baseUrl}/system/status`, {
+    const response = await authFetch(`${this.baseUrl}/system/status`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -27,9 +28,6 @@ export class SystemStatusService {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Unauthorized: Session expired or invalid');
-      }
       throw new Error(`Failed to fetch system status: ${response.statusText}`);
     }
 

@@ -4,4 +4,5 @@
 export * from './formatters';
 export * from './validators';
 export * from './apiConfig';
+export * from './authFetch';
 export { secureStorage, SessionStorage } from './secureStorage.web';

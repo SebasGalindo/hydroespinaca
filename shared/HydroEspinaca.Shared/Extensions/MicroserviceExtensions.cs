@@ -32,8 +32,14 @@ public static class MicroserviceExtensions
         // Log environment information
         LogEnvironmentInfo(serviceName);
 
-        // Add standard web API services
-        services.AddControllers();
+        // Add standard web API services with JSON camelCase configuration
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                // Configure JSON serialization to use camelCase for property names
+                // This ensures consistency with frontend conventions
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
 
         // Add authentication and authorization
         services.AddHydroEspinacaAuth(configuration, serviceName);
@@ -68,7 +74,12 @@ public static class MicroserviceExtensions
     {
         LogEnvironmentInfo(serviceName);
 
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                // Configure JSON serialization to use camelCase for property names
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
         services.AddHealthChecks();
 
         return services;

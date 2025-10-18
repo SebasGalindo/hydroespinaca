@@ -142,33 +142,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const currentState = get();
-
-    // Validación más estricta: solo llamar al endpoint si realmente hay datos de sesión
-    // Verificamos múltiples condiciones para asegurar que hay una sesión válida
-    const hasUserData = currentState.user !== null && currentState.user.email !== '';
-    const hasSessionData = currentState.session !== null;
-    const isMarkedAuthenticated = currentState.isAuthenticated;
-
-    const hasActiveSession = isMarkedAuthenticated && (hasUserData || hasSessionData);
-
     set({ isLoading: true, isLoggingOut: true });
 
     try {
-      // Solo llamar al endpoint de logout si hay una sesión activa
-      // Esto evita errores 401/400 innecesarios cuando no hay sesión
-      if (hasActiveSession) {
-        const sessionId = platform === 'mobile' && currentState.session
-          ? currentState.session.sessionId || undefined
-          : undefined;
+      // ALWAYS call logout endpoint - backend handles cookie cleanup centrally
+      // Backend will delete cookies even if session doesn't exist
+      const sessionId = platform === 'mobile' && currentState.session
+        ? currentState.session.sessionId || undefined
+        : undefined;
 
-        // Call logout endpoint solo si hay sesión activa
-        await authService.logout(platform === 'web' ? 'web' : 'mobile', sessionId);
-      } else {
-        // No hay sesión activa, solo limpiar localmente
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[AuthStore] No active session, skipping logout endpoint call');
-        }
-      }
+      await authService.logout(platform === 'web' ? 'web' : 'mobile', sessionId);
 
       // For mobile, clear stored tokens
       if (platform === 'mobile') {
@@ -184,8 +167,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
     } catch (error) {
-      // Incluso si el logout falla en el servidor (ej: 400 por sesión ya inválida),
-      // limpiamos la sesión local de todos modos
+      // Even if logout fails on server, clear local session
       if (process.env.NODE_ENV === 'development') {
         console.warn('[AuthStore] Logout endpoint failed, clearing local session anyway:', error);
       }
@@ -248,30 +230,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
     } catch (error) {
-      // Session is invalid or expired
-      if (error instanceof ApiError && error.status === 401) {
-        // 401 significa que no hay sesión válida
-        // No intentamos hacer logout porque generaría otro 401/400 innecesario
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[AuthStore] No valid session found (401), clearing local state');
+      // Session is invalid or expired - just clear local state
+      // Backend will handle cookie cleanup when user explicitly logs out
+      if (process.env.NODE_ENV === 'development') {
+        if (error instanceof ApiError && error.status === 401) {
+          console.info('[AuthStore] No valid session found (401)');
+        } else {
+          console.warn('[AuthStore] Session check failed:', error);
         }
+      }
 
-        // Solo limpiar tokens móviles si aplica
+      // Clear mobile tokens if applicable
+      if (platform === 'mobile') {
         try {
-          if (platform === 'mobile') {
-            await SessionStorage.clearSession();
-          }
+          await SessionStorage.clearSession();
         } catch (cleanupError) {
           if (process.env.NODE_ENV === 'development') {
             console.warn('[AuthStore] Failed to clear mobile session storage:', cleanupError);
           }
         }
-      } else if (process.env.NODE_ENV === 'development') {
-        // Otros errores (red, servidor, etc.)
-        console.warn('[AuthStore] Session check failed:', error);
       }
 
-      // No valid session found
+      // No valid session found - clear local state only
       set({
         user: null,
         session: null,
