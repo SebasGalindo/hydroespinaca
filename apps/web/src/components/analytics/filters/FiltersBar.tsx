@@ -224,7 +224,7 @@ export default function FiltersBar({
             onClick={onExport}
             variant="secondary"
             disabled={isLoading || isExporting}
-            isLoading={isExporting}
+            isLoading={!!isExporting}
             className="w-full sm:w-auto"
             data-export-button
           >
