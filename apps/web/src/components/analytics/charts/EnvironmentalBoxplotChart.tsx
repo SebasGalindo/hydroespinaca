@@ -3,11 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { EnvironmentalVariableAggregate } from '@hydroespinaca/shared';
+import type { ViewMode } from '@/lib/analytics-filters';
+import { formatChartDate } from '@/lib/dateUtils';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
 interface EnvironmentalBoxplotChartProps {
   variables: EnvironmentalVariableAggregate[];
+  viewMode: ViewMode;
 }
 
 // Mapeo de códigos de variables a nombres legibles
@@ -31,7 +34,7 @@ const variableColors: Record<string, string> = {
   TDS: '#10b981',
 };
 
-export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBoxplotChartProps) {
+export default function EnvironmentalBoxplotChart({ variables, viewMode }: EnvironmentalBoxplotChartProps) {
   // Initialize with first available variable
   const [selectedVariable, setSelectedVariable] = useState<string>(
     variables.length > 0 && variables[0] ? variables[0].variableCode : ''
@@ -60,7 +63,7 @@ export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBo
   // Find the selected variable data
   const selectedVariableData = variables.find((v) => v.variableCode === selectedVariable);
 
-  if (!selectedVariableData || selectedVariableData.variability.length === 0) {
+  if (!selectedVariableData || !selectedVariableData.variability || selectedVariableData.variability.length === 0) {
     return (
       <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
         <p className="text-sm text-yellow-800">
@@ -70,34 +73,70 @@ export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBo
     );
   }
 
-  // Create boxplot traces from variability data
-  const traces = selectedVariableData.variability.map((point: { timestamp: string; q1: number; median: number; q3: number; min: number; max: number }) => {
-    // Format date for display
-    const date = new Date(point.timestamp).toLocaleDateString('es-ES', {
-      month: 'short',
-      day: 'numeric',
-    });
+  // Validate and sanitize variability data to prevent rendering errors
+  // Remove duplicates based on timestamp and filter out invalid entries
+  const validVariability = selectedVariableData.variability.filter((point, index, self) => {
+    // Check if point has all required properties
+    if (!point || !point.timestamp ||
+        typeof point.q1 !== 'number' ||
+        typeof point.median !== 'number' ||
+        typeof point.q3 !== 'number' ||
+        typeof point.min !== 'number' ||
+        typeof point.max !== 'number') {
+      console.warn('[EnvironmentalBoxplotChart] Invalid variability point:', point);
+      return false;
+    }
 
-    return {
-      type: 'box' as const,
-      name: date,
-      q1: [point.q1],
-      median: [point.median],
-      q3: [point.q3],
-      lowerfence: [point.min],
-      upperfence: [point.max],
-      marker: {
-        color: variableColors[selectedVariable] || '#6b7280',
-      },
-      boxmean: false,
-    };
+    // Remove duplicates by timestamp (keep first occurrence)
+    return self.findIndex(p => p.timestamp === point.timestamp) === index;
   });
+
+  if (validVariability.length === 0) {
+    return (
+      <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+        <p className="text-sm text-yellow-800">
+          Los datos de variabilidad para esta variable no son válidos. Por favor, verifica los datos del backend.
+        </p>
+      </div>
+    );
+  }
+
+  // Create a single boxplot trace with all data points
+  // Extract formatted date labels for X-axis
+  const xLabels = validVariability.map((point: { timestamp: string }) =>
+    formatChartDate(point.timestamp, viewMode)
+  );
+
+  // Create arrays for boxplot statistics
+  const q1Values = validVariability.map((point: { q1: number }) => point.q1);
+  const medianValues = validVariability.map((point: { median: number }) => point.median);
+  const q3Values = validVariability.map((point: { q3: number }) => point.q3);
+  const minValues = validVariability.map((point: { min: number }) => point.min);
+  const maxValues = validVariability.map((point: { max: number }) => point.max);
+
+  const traces = [{
+    type: 'box' as const,
+    x: xLabels,
+    q1: q1Values,
+    median: medianValues,
+    q3: q3Values,
+    lowerfence: minValues,
+    upperfence: maxValues,
+    marker: {
+      color: variableColors[selectedVariable] || '#6b7280',
+    },
+    boxmean: false,
+    name: variableDisplayNames[selectedVariable] || selectedVariable,
+  }];
+
+  // Get title based on view mode
+  const chartTitle = viewMode === 'hourly' ? 'Variabilidad Horaria' : 'Variabilidad Diaria';
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
         <h3 className="text-lg font-semibold text-gray-900">
-          Variabilidad Diaria
+          {chartTitle}
         </h3>
         <select
           value={selectedVariable}
@@ -106,7 +145,7 @@ export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBo
         >
           {variables.map((variable) => (
             <option key={variable.variableCode} value={variable.variableCode}>
-              {variableDisplayNames[variable.variableCode] || variable.variableCode}
+              {variableDisplayNames[variable.variableName] || variable.variableName}
             </option>
           ))}
         </select>
@@ -119,7 +158,7 @@ export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBo
           height: 400,
           margin: { l: 60, r: 30, t: 30, b: 80 },
           xaxis: {
-            title: { text: 'Fecha' },
+            title: { text: viewMode === 'hourly' ? 'Hora' : 'Fecha' },
             gridcolor: '#f3f4f6',
           },
           yaxis: {
@@ -137,8 +176,9 @@ export default function EnvironmentalBoxplotChart({ variables }: EnvironmentalBo
 
       <div className="mt-4 p-3 bg-gray-50 rounded-md">
         <p className="text-sm text-gray-600">
-          Este gráfico muestra la dispersión de lecturas por día. La caja representa el rango intercuartílico (IQR),
-          la línea central es la mediana, y los puntos externos son valores atípicos.
+          {viewMode === 'hourly'
+            ? 'Este gráfico muestra la dispersión de lecturas por hora. La caja representa el rango intercuartílico (IQR), la línea central es la mediana, y los bigotes muestran los valores mínimo y máximo.'
+            : 'Este gráfico muestra la dispersión de lecturas por día. La caja representa el rango intercuartílico (IQR), la línea central es la mediana, y los bigotes muestran los valores mínimo y máximo.'}
         </p>
       </div>
     </div>

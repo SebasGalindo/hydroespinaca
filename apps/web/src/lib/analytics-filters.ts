@@ -1,12 +1,13 @@
 // Analytics Filters Validation and Utilities
 
 export const MAX_RANGES = {
+  hourly: 1,
   daily: 7,
   weekly: 31,
   monthly: 180,
 } as const;
 
-export type ViewMode = 'daily' | 'weekly' | 'monthly';
+export type ViewMode = 'hourly' | 'daily' | 'weekly' | 'monthly';
 
 export interface FilterValidationResult {
   valid: boolean;
@@ -22,11 +23,13 @@ export interface AnalyticsFilters {
 
 /**
  * Calcula la diferencia en días entre dos fechas
+ * Para el mismo día retorna 0, permitiendo consultas hourly
  */
 export function getDaysDifference(startDate: string, endDate: string): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const diffTime = end.getTime() - start.getTime();
+  // Use Math.ceil but handle same-day case (0 days)
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 }
@@ -50,11 +53,12 @@ export function validateFilters(
     };
   }
 
-  // Validar que la fecha de inicio sea anterior a la de fin
-  if (start >= end) {
+  // Validar que la fecha de inicio no sea posterior a la de fin
+  // Permitir que sean iguales para vista hourly (mismo día)
+  if (start > end) {
     return {
       valid: false,
-      message: 'La fecha de inicio debe ser anterior a la fecha de fin.',
+      message: 'La fecha de inicio no puede ser posterior a la fecha de fin.',
     };
   }
 
@@ -99,7 +103,15 @@ export function adjustDateRangeForView(
     return { startDate, endDate };
   }
 
-  // Ajustar manteniendo la fecha de fin y recalculando la de inicio
+  // Special case for hourly: use same day (from = to = endDate)
+  if (view === 'hourly') {
+    return {
+      startDate: endDate,
+      endDate,
+    };
+  }
+
+  // For other views: adjust keeping end date and recalculating start date
   const end = new Date(endDate);
   const newStart = new Date(end);
   newStart.setDate(newStart.getDate() - maxAllowed);
@@ -115,6 +127,7 @@ export function adjustDateRangeForView(
  */
 export function getViewLabel(view: ViewMode): string {
   const labels: Record<ViewMode, string> = {
+    hourly: 'Horaria',
     daily: 'Diaria',
     weekly: 'Semanal',
     monthly: 'Mensual',
@@ -127,6 +140,10 @@ export function getViewLabel(view: ViewMode): string {
  */
 export function getSuggestedRanges(view: ViewMode): Array<{ label: string; days: number }> {
   const ranges: Record<ViewMode, Array<{ label: string; days: number }>> = {
+    hourly: [
+      { label: 'Últimas 12 horas', days: 0.5 },
+      { label: 'Hoy (24h)', days: 1 },
+    ],
     daily: [
       { label: 'Hoy', days: 1 },
       { label: 'Últimos 3 días', days: 3 },
@@ -151,11 +168,13 @@ export function getSuggestedRanges(view: ViewMode): Array<{ label: string; days:
  */
 export function generateBackendPayload(filters: AnalyticsFilters) {
   // Convertir a ISO 8601 con timezone UTC
+  // IMPORTANTE: Usar setUTCHours en lugar de setHours para trabajar directamente en UTC
+  // y evitar problemas de zona horaria
   const startDate = new Date(filters.startDate);
-  startDate.setHours(0, 0, 0, 0);
+  startDate.setUTCHours(0, 0, 0, 0);
 
   const endDate = new Date(filters.endDate);
-  endDate.setHours(23, 59, 59, 999);
+  endDate.setUTCHours(23, 59, 59, 999);
 
   return {
     startDate: startDate.toISOString(),

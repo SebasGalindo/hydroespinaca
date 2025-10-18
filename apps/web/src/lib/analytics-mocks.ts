@@ -22,13 +22,6 @@ export interface ActuatorActivity {
   activationCount: number;
 }
 
-export interface CorrelationData {
-  variable1: string;
-  variable2: string;
-  correlation: number; // Pearson correlation coefficient
-  pValue: number;
-}
-
 // Generate mock environmental data for a date range
 export function generateEnvironmentalData(
   startDate: Date,
@@ -106,72 +99,6 @@ export function generateActuatorData(
       activationCount: activations.length,
     };
   });
-}
-
-// Generate mock correlation matrix
-export function generateCorrelationMatrix(): CorrelationData[] {
-  const variables = [
-    'temperature',
-    'humidity',
-    'ph',
-    'conductivity',
-    'light',
-  ];
-
-  const correlations: CorrelationData[] = [];
-
-  for (let i = 0; i < variables.length; i++) {
-    for (let j = i + 1; j < variables.length; j++) {
-      const var1 = variables[i];
-      const var2 = variables[j];
-      if (var1 && var2) {
-        correlations.push({
-          variable1: var1,
-          variable2: var2,
-          correlation: (Math.random() - 0.5) * 2, // -1 to 1
-          pValue: Math.random() * 0.1, // 0 to 0.1
-        });
-      }
-    }
-  }
-
-  return correlations;
-}
-
-// Generate mock actuator-environment correlation
-export function generateActuatorEnvironmentCorrelation(
-  environmentalVar: string,
-  actuatorId: string
-): { data: { x: number[]; y: number[] }; correlation: number } {
-  const points = 50;
-  const x: number[] = [];
-  const y: number[] = [];
-
-  // Correlation strength (some actuators correlate more with certain variables)
-  let baseCorrelation = 0;
-  if (actuatorId.includes('heater') && environmentalVar === 'temperature') {
-    baseCorrelation = 0.7;
-  } else if (actuatorId.includes('fan') && environmentalVar === 'humidity') {
-    baseCorrelation = -0.6;
-  } else if (actuatorId.includes('light') && environmentalVar === 'light') {
-    baseCorrelation = 0.8;
-  } else {
-    baseCorrelation = (Math.random() - 0.5) * 0.4;
-  }
-
-  for (let i = 0; i < points; i++) {
-    const envValue = Math.random() * 100;
-    const noise = (Math.random() - 0.5) * 30;
-    const actuatorDuration = envValue * baseCorrelation + 50 + noise;
-
-    x.push(envValue);
-    y.push(Math.max(0, actuatorDuration));
-  }
-
-  return {
-    data: { x, y },
-    correlation: baseCorrelation,
-  };
 }
 
 // Calculate basic statistics for boxplot

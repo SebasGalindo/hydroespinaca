@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type AnalyticsLevel = 'environmental' | 'actuators' | 'correlations';
+export type AnalyticsLevel = 'environmental' | 'actuators';
 
 interface Tab {
   id: AnalyticsLevel;
@@ -20,11 +20,6 @@ const tabs: Tab[] = [
     id: 'actuators',
     label: 'Nivel 2',
     description: 'Actividad de Actuadores',
-  },
-  {
-    id: 'correlations',
-    label: 'Nivel 3',
-    description: 'Correlaciones Base',
   },
 ];
 

@@ -9,11 +9,12 @@ import ActuatorProportionChart from '../charts/ActuatorProportionChart';
 interface ActuatorsLevelProps {
   data: ActuatorActivity[];
   isLoading?: boolean;
+  error?: string | null;
 }
 
 type ViewMode = 'timeline' | 'duration' | 'proportion' | 'all';
 
-export default function ActuatorsLevel({ data, isLoading }: ActuatorsLevelProps) {
+export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLevelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [selectedActuators, setSelectedActuators] = useState<string[]>(
     data.map((a) => a.actuatorId)
@@ -40,12 +41,14 @@ export default function ActuatorsLevel({ data, isLoading }: ActuatorsLevelProps)
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-        <p className="text-sm text-blue-800">
-          <strong>Objetivo:</strong> Visualizar la frecuencia, duración y patrones de uso de los actuadores.
-          Los datos actuales son <strong>mocks temporales</strong> y serán reemplazados por datos reales del actuator-service vía BFF.
-        </p>
-      </div>
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+          <p className="text-sm text-red-800">
+            <strong>Error:</strong> {error}
+          </p>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

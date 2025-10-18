@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/analytics-mocks';
+import { formatNumericValue } from '@hydroespinaca/shared';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
@@ -35,12 +36,12 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
 
   const trace = {
     x: data.map((a) => a.actuatorName),
-    y: data.map((a) => (a.totalDuration / 60).toFixed(2)), // Convert to hours
+    y: data.map((a) => formatNumericValue(a.totalDuration / 60)), // Convert to hours with formatting
     type: 'bar' as const,
     marker: {
       color: data.map((a) => actuatorColors[a.actuatorId] || '#6b7280'),
     },
-    text: data.map((a) => `${(a.totalDuration / 60).toFixed(1)}h`),
+    text: data.map((a) => `${formatNumericValue(a.totalDuration / 60)}h`),
     textposition: 'auto' as const,
     hovertemplate: '<b>%{x}</b><br>Duración: %{y} horas<br>Activaciones: %{customdata}<extra></extra>',
     customdata: data.map((a) => a.activationCount),

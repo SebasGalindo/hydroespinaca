@@ -60,38 +60,31 @@ export default function EnvironmentalLevel({
 
   return (
     <div className="space-y-6">
-      <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-        <p className="text-sm text-green-800">
-          <strong>Nivel 1: Condiciones Ambientales</strong> - Visualización de datos reales del sensor-service.
-          Los datos se actualizan desde el backend y muestran el comportamiento histórico de las variables sensoriales.
-        </p>
-      </div>
-
+      
       {/* Summary Cards */}
       <EnvironmentalSummaryCards variables={variables} />
 
       {/* Trend Chart */}
       <EnvironmentalTimelineChart variables={variables} />
 
-      {/* Variability Chart - Solo en vista daily */}
-      {viewMode === 'daily' && hasVariabilityData && (
-        <EnvironmentalBoxplotChart variables={variables} />
+      {/* Variability Chart - Available for hourly and daily views */}
+      {(viewMode === 'hourly' || viewMode === 'daily') && hasVariabilityData && (
+        <EnvironmentalBoxplotChart variables={variables} viewMode={viewMode} />
       )}
 
-      {viewMode === 'daily' && !hasVariabilityData && (
+      {(viewMode === 'hourly' || viewMode === 'daily') && !hasVariabilityData && (
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> El gráfico de variabilidad solo está disponible en la vista diaria
-            cuando hay suficientes datos de variabilidad.
+            <strong>Nota:</strong> El gráfico de variabilidad solo está disponible cuando hay suficientes datos.
           </p>
         </div>
       )}
 
-      {viewMode !== 'daily' && (
+      {viewMode !== 'hourly' && viewMode !== 'daily' && (
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> El gráfico de variabilidad solo está disponible en la vista diaria.
-            Cambia a vista diaria para ver la variabilidad de los datos.
+            <strong>Nota:</strong> El gráfico de variabilidad solo está disponible en las vistas horaria y diaria.
+            Cambia a vista horaria o diaria para ver la variabilidad de los datos.
           </p>
         </div>
       )}

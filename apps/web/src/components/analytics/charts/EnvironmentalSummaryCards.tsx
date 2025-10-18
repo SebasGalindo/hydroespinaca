@@ -7,29 +7,25 @@ interface EnvironmentalSummaryCardsProps {
   variables: EnvironmentalVariableAggregate[];
 }
 
-// Mapeo de códigos de variables a nombres legibles y unidades
-const variableMetadata: Record<string, { name: string; unit: string; color: string }> = {
-  PH: { name: 'pH', unit: '', color: 'bg-purple-500' },
-  EC: { name: 'Conductividad', unit: 'mS/cm', color: 'bg-amber-500' },
-  TEMP: { name: 'Temperatura', unit: '°C', color: 'bg-red-500' },
-  HUMIDITY: { name: 'Humedad', unit: '%', color: 'bg-blue-500' },
-  LIGHT: { name: 'Luz', unit: 'lux', color: 'bg-yellow-500' },
-  WATER_TEMP: { name: 'Temp. Agua', unit: '°C', color: 'bg-cyan-500' },
-  TDS: { name: 'TDS', unit: 'ppm', color: 'bg-green-500' },
+// Función para obtener metadatos basados en el nombre de la variable
+const getVariableMetadata = (variableName: string): { unit: string; color: string } => {
+  const name = variableName.toLowerCase();
+
+  if (name.includes('ph')) return { unit: '', color: 'bg-purple-500' };
+  if (name.includes('conductividad') || name.includes('ec')) return { unit: 'mS/cm', color: 'bg-amber-500' };
+  if (name.includes('temperatura')) return { unit: '°C', color: 'bg-red-500' };
+  if (name.includes('humedad')) return { unit: '%', color: 'bg-blue-500' };
+  if (name.includes('luz') || name.includes('luminosidad')) return { unit: 'lux', color: 'bg-yellow-500' };
+  if (name.includes('nivel') && name.includes('agua')) return { unit: 'cm', color: 'bg-blue-600' };
+  if (name.includes('tds')) return { unit: 'ppm', color: 'bg-green-500' };
+
+  // Default
+  return { unit: '', color: 'bg-gray-500' };
 };
 
-// Formatear número con decimales apropiados
-const formatValue = (value: number, variableCode: string): string => {
-  if (variableCode === 'PH') {
-    return value.toFixed(2);
-  } else if (variableCode === 'EC' || variableCode === 'TEMP' || variableCode === 'WATER_TEMP') {
-    return value.toFixed(2);
-  } else if (variableCode === 'HUMIDITY') {
-    return value.toFixed(1);
-  } else if (variableCode === 'LIGHT' || variableCode === 'TDS') {
-    return Math.round(value).toString();
-  }
-  return value.toFixed(2);
+// Formatear número (el backend ya redondea a 2 decimales)
+const formatValue = (value: number): string => {
+  return value.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
 
 export default function EnvironmentalSummaryCards({ variables }: EnvironmentalSummaryCardsProps) {
@@ -48,27 +44,23 @@ export default function EnvironmentalSummaryCards({ variables }: EnvironmentalSu
       <h3 className="text-lg font-semibold text-gray-900">Resumen de Variables Ambientales</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {variables.map((variable) => {
-          const metadata = variableMetadata[variable.variableCode] || {
-            name: variable.variableCode,
-            unit: '',
-            color: 'bg-gray-500',
-          };
+          const metadata = getVariableMetadata(variable.variableName);
 
           return (
             <div
-              key={variable.variableCode}
+              key={variable.variableCode || variable.variableName}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
             >
               {/* Header con color de variable */}
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-3 h-3 rounded-full ${metadata.color}`}></div>
-                <h4 className="text-sm font-medium text-gray-700">{metadata.name}</h4>
+                <h4 className="text-sm font-medium text-gray-700">{variable.variableName}</h4>
               </div>
 
               {/* Valor promedio (prominente) */}
               <div className="mb-4">
                 <div className="text-3xl font-bold text-gray-900">
-                  {formatValue(variable.summary.avg, variable.variableCode)}
+                  {formatValue(variable.summary.avg)}
                   {metadata.unit && <span className="text-lg text-gray-500 ml-1">{metadata.unit}</span>}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Promedio</p>
@@ -79,14 +71,14 @@ export default function EnvironmentalSummaryCards({ variables }: EnvironmentalSu
                 <div>
                   <p className="text-gray-500 text-xs">Mínimo</p>
                   <p className="font-semibold text-gray-700">
-                    {formatValue(variable.summary.min, variable.variableCode)}
+                    {formatValue(variable.summary.min)}
                     {metadata.unit && <span className="text-xs ml-0.5">{metadata.unit}</span>}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-gray-500 text-xs">Máximo</p>
                   <p className="font-semibold text-gray-700">
-                    {formatValue(variable.summary.max, variable.variableCode)}
+                    {formatValue(variable.summary.max)}
                     {metadata.unit && <span className="text-xs ml-0.5">{metadata.unit}</span>}
                   </p>
                 </div>

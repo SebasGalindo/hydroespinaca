@@ -6,7 +6,7 @@ import ControllerStatus from '@/components/dashboard/ControllerStatus';
 import WeatherCard from '@/components/dashboard/WeatherCard';
 import PageLayout from '@/components/layout/PageLayout';
 import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
-import { systemStatusService } from '@hydroespinaca/shared';
+import { systemStatusService, formatNumericValue } from '@hydroespinaca/shared';
 import type { SystemStatusResponse, ReadingItem, WeatherSummary } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
 import { IconType } from '@hydroespinaca/shared/types/common';
@@ -176,12 +176,6 @@ export default function DashboardPage() {
 
     const formatter = new Intl.DateTimeFormat('es-CO', options);
     return formatter.format(date);
-  };
-
-  const formatNumericValue = (value: number): string => {
-    // Formatear a 2 decimales y eliminar ceros innecesarios
-    const formatted = parseFloat(value.toFixed(2));
-    return formatted.toString();
   };
 
   /**

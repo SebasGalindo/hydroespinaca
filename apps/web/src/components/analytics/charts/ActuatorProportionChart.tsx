@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/analytics-mocks';
+import { formatNumericValue } from '@hydroespinaca/shared';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
@@ -42,8 +43,12 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
     marker: {
       colors: data.map((a) => actuatorColors[a.actuatorId] || '#6b7280'),
     },
+    customdata: data.map((a) => a.totalDuration),
     textinfo: 'label+percent' as const,
-    hovertemplate: '<b>%{label}</b><br>Duración: %{value} min<br>Proporción: %{percent}<extra></extra>',
+    hovertemplate:
+      '<b>%{label}</b><br>' +
+      'Duración: %{customdata:.2f} min<br>' +
+      'Proporción: %{percent:.2%}<extra></extra>',
   };
 
   return (
@@ -74,7 +79,9 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
 
       <div className="mt-4 p-3 bg-gray-50 rounded-md">
         <p className="text-sm text-gray-600">
-          <strong>Total de tiempo activo:</strong> {(totalDuration / 60).toFixed(1)} horas ({totalDuration} minutos)
+          <strong>Total de tiempo activo:</strong>{' '}
+          {formatNumericValue(totalDuration / 60)} horas (
+          {formatNumericValue(totalDuration)} minutos)
         </p>
       </div>
     </div>

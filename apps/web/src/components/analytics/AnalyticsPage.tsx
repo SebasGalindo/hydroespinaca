@@ -6,12 +6,8 @@ import FiltersBar, { FilterState } from './filters/FiltersBar';
 import AnalyticsTabs, { AnalyticsLevel } from './AnalyticsTabs';
 import EnvironmentalLevel from './levels/EnvironmentalLevel';
 import ActuatorsLevel from './levels/ActuatorsLevel';
-import CorrelationsLevel from './levels/CorrelationsLevel';
 import ExportMetadata from './ExportMetadata';
-import {
-  generateActuatorData,
-  ActuatorActivity,
-} from '@/lib/analytics-mocks';
+import { ActuatorActivity } from '@/lib/analytics-mocks';
 import {
   generateBackendPayload,
   getCacheKey,
@@ -22,6 +18,7 @@ import {
   AnalyticsApiError,
   type EnvironmentalVariableAggregate,
 } from '@hydroespinaca/shared';
+import { mapActuatorAnalytics } from '@/lib/actuator-analytics-mapper';
 
 // Cache interface
 interface DataCache {
@@ -35,20 +32,25 @@ interface DataCache {
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<AnalyticsLevel>('environmental');
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Initialize filters with default values
-  const getDefaultFilters = (): FilterState => ({
-    dateRange: {
-      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '',
-      to: new Date().toISOString().split('T')[0] || '',
-    },
-    viewMode: 'daily' as ViewMode,
-  });
+  // Initialize filters with default values (today only for hourly view)
+  const getDefaultFilters = (): FilterState => {
+    const today = new Date().toISOString().split('T')[0] || '';
+    return {
+      dateRange: {
+        from: today, // Same day for hourly (max 1 day)
+        to: today,
+      },
+      viewMode: 'hourly' as ViewMode,
+    };
+  };
 
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(getDefaultFilters());
   const [environmentalData, setEnvironmentalData] = useState<EnvironmentalVariableAggregate[]>([]);
   const [actuatorData, setActuatorData] = useState<ActuatorActivity[]>([]);
   const [environmentalError, setEnvironmentalError] = useState<string | null>(null);
+  const [actuatorError, setActuatorError] = useState<string | null>(null);
 
   // Cache para evitar recargas innecesarias
   const cacheRef = useRef<DataCache>({});
@@ -66,6 +68,7 @@ export default function AnalyticsPage() {
   const loadData = async (newFilters: FilterState) => {
     setIsLoading(true);
     setEnvironmentalError(null);
+    setActuatorError(null);
 
     try {
       // Generar clave de cache única para estos filtros
@@ -112,31 +115,84 @@ export default function AnalyticsPage() {
       } catch (error: unknown) {
         console.error('[Analytics] Error loading environmental data:', error);
 
-        if (error instanceof AnalyticsApiError) {
+        // Handle session errors (401) - these should be caught by authFetch
+        // but we handle them here defensively to prevent UI crashes
+        if (error instanceof Error && error.message.includes('Sesión inválida')) {
+          setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
+          // authFetch already handles logout and redirect, so we just show a message
+          envData = [];
+        } else if (error instanceof AnalyticsApiError) {
+          // Handle specific API errors with user-friendly messages
           if (error.status === 400) {
             setEnvironmentalError(`Rango de fechas inválido: ${error.message}`);
+          } else if (error.status === 401) {
+            // 401 should be caught by authFetch, but handle defensively
+            setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
           } else if (error.status === 404) {
             setEnvironmentalError('No hay datos disponibles para el rango seleccionado.');
           } else if (error.status === 0) {
             setEnvironmentalError('Error de conexión. Verifica tu conexión a internet.');
+          } else if (error.status >= 500) {
+            setEnvironmentalError(`Error del servidor (${error.status}). Por favor, intenta nuevamente.`);
           } else {
-            setEnvironmentalError(`Error del servidor: ${error.message}`);
+            setEnvironmentalError(`Error al cargar datos: ${error.message}`);
           }
+          envData = [];
+        } else if (error instanceof Error) {
+          // Generic error handling
+          setEnvironmentalError(`Error: ${error.message}`);
+          envData = [];
         } else {
-          setEnvironmentalError('Error desconocido al cargar los datos.');
+          // Unknown error type
+          setEnvironmentalError('Error desconocido al cargar los datos. Por favor, intenta nuevamente.');
+          envData = [];
         }
-
-        // Set empty array on error
-        envData = [];
       }
 
-      // Generate mock data for actuators (keep mocks for other levels)
-      const startDate = new Date(newFilters.dateRange.from);
-      const endDate = new Date(newFilters.dateRange.to);
-      const actData = generateActuatorData(startDate, endDate);
+      // Fetch real actuator data from backend
+      let actData: ActuatorActivity[] = [];
+      try {
+        const actResponse = await analyticsService.getActuatorAnalytics({
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+          view: payload.view,
+        });
+        actData = mapActuatorAnalytics(actResponse);
+        console.log('[Analytics] Actuator data loaded:', actData.length, 'actuators');
+      } catch (error: unknown) {
+        console.error('[Analytics] Error loading actuator data:', error);
 
-      // Guardar en cache solo si hay datos ambientales
-      if (envData.length > 0) {
+        // Handle session errors (401)
+        if (error instanceof Error && error.message.includes('Sesión inválida')) {
+          setActuatorError('Sesión expirada. Redirigiendo al login...');
+          actData = [];
+        } else if (error instanceof AnalyticsApiError) {
+          // Handle specific API errors with user-friendly messages
+          if (error.status === 400) {
+            setActuatorError(`Rango de fechas inválido: ${error.message}`);
+          } else if (error.status === 401) {
+            setActuatorError('Sesión expirada. Redirigiendo al login...');
+          } else if (error.status === 404) {
+            setActuatorError('No hay datos de actuadores disponibles para el rango seleccionado.');
+          } else if (error.status === 0) {
+            setActuatorError('Error de conexión. Verifica tu conexión a internet.');
+          } else if (error.status >= 500) {
+            setActuatorError(`Error del servidor (${error.status}). Por favor, intenta nuevamente.`);
+          } else {
+            setActuatorError(`Error al cargar datos de actuadores: ${error.message}`);
+          }
+          actData = [];
+        } else if (error instanceof Error) {
+          setActuatorError(`Error: ${error.message}`);
+          actData = [];
+        } else {
+          setActuatorError('Error desconocido al cargar los datos de actuadores.');
+          actData = [];
+        }
+      }
+
+      // Guardar en cache solo si hay datos ambientales o de actuadores
+      if (envData.length > 0 || actData.length > 0) {
         cacheRef.current[cacheKey] = {
           environmental: envData,
           actuators: actData,
@@ -148,8 +204,20 @@ export default function AnalyticsPage() {
       setActuatorData(actData);
       setAppliedFilters(newFilters);
     } catch (error: unknown) {
-      console.error('[Analytics] Unexpected error:', error);
-      setEnvironmentalError('Error inesperado al cargar los datos. Por favor, intenta nuevamente.');
+      console.error('[Analytics] Unexpected error in loadData:', error);
+
+      // Handle catastrophic errors gracefully
+      if (error instanceof Error && error.message.includes('Sesión inválida')) {
+        setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
+      } else if (error instanceof Error) {
+        setEnvironmentalError(`Error inesperado: ${error.message}. Por favor, intenta nuevamente.`);
+      } else {
+        setEnvironmentalError('Error inesperado al cargar los datos. Por favor, recarga la página.');
+      }
+
+      // Set empty data to prevent crashes
+      setEnvironmentalData([]);
+      setActuatorData([]);
     } finally {
       setIsLoading(false);
     }
@@ -161,25 +229,49 @@ export default function AnalyticsPage() {
 
   const handleExport = async () => {
     try {
+      setIsExporting(true);
+
       // Dynamic import for better bundle size
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
+      const { convertDOMColors } = await import('@/utils/colorConverter');
 
       if (!contentRef.current) return;
 
-      // Show loading state
-      const exportButton = document.querySelector('[data-export-button]') as HTMLButtonElement;
-      if (exportButton) {
-        exportButton.disabled = true;
-        exportButton.textContent = 'Exportando...';
-      }
-
       // Capture the content as canvas
+      // Note: We use onclone to convert oklch/oklab colors to rgb before rendering
+      // This fixes compatibility issues with html2canvas which doesn't support CSS Color Level 4
       const canvas = await html2canvas(contentRef.current, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          try {
+            // Convert all modern color formats (oklch, oklab) to rgb
+            convertDOMColors(clonedDoc);
+          } catch (error) {
+            console.warn('Error converting colors for export:', error);
+            // Fallback: try basic conversion
+            const elements = clonedDoc.querySelectorAll('*');
+            elements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                const computed = window.getComputedStyle(el);
+                // Copy computed styles as inline to ensure they're rendered
+                if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                  el.style.backgroundColor = computed.backgroundColor;
+                }
+                if (computed.color) {
+                  el.style.color = computed.color;
+                }
+                if (computed.borderColor) {
+                  el.style.borderColor = computed.borderColor;
+                }
+              }
+            });
+          }
+        },
       });
 
       // Create PDF
@@ -196,22 +288,17 @@ export default function AnalyticsPage() {
       const levelNames = {
         environmental: 'ambiental',
         actuators: 'actuadores',
-        correlations: 'correlaciones',
       };
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `analytics_hydroespinaca_${levelNames[activeTab]}_${timestamp}.pdf`;
 
       // Download
       pdf.save(filename);
-
-      // Restore button state
-      if (exportButton) {
-        exportButton.disabled = false;
-        exportButton.textContent = 'Exportar';
-      }
     } catch (error) {
       console.error('Error exporting:', error);
       alert('Hubo un error al exportar. Por favor, intenta nuevamente.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -227,14 +314,13 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Filters */}
-        <div data-export-button>
-          <FiltersBar
-            onApplyFilters={handleApplyFilters}
-            onExport={handleExport}
-            isLoading={isLoading}
-            currentFilters={appliedFilters}
-          />
-        </div>
+        <FiltersBar
+          onApplyFilters={handleApplyFilters}
+          onExport={handleExport}
+          isLoading={isLoading}
+          isExporting={isExporting}
+          currentFilters={appliedFilters}
+        />
 
         {/* Tabs */}
         <AnalyticsTabs activeTab={activeTab} onTabChange={setActiveTab} />
@@ -258,10 +344,7 @@ export default function AnalyticsPage() {
             />
           )}
           {activeTab === 'actuators' && (
-            <ActuatorsLevel data={actuatorData} isLoading={isLoading} />
-          )}
-          {activeTab === 'correlations' && (
-            <CorrelationsLevel isLoading={isLoading} />
+            <ActuatorsLevel data={actuatorData} isLoading={isLoading} error={actuatorError} />
           )}
         </div>
       </div>
