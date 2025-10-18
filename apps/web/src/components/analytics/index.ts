@@ -8,7 +8,6 @@ export { default as FiltersBar } from './filters/FiltersBar';
 // Levels
 export { default as EnvironmentalLevel } from './levels/EnvironmentalLevel';
 export { default as ActuatorsLevel } from './levels/ActuatorsLevel';
-export { default as CorrelationsLevel } from './levels/CorrelationsLevel';
 
 // Charts - Environmental
 export { default as EnvironmentalTimelineChart } from './charts/EnvironmentalTimelineChart';
@@ -18,10 +17,6 @@ export { default as EnvironmentalBoxplotChart } from './charts/EnvironmentalBoxp
 export { default as ActuatorTimelineChart } from './charts/ActuatorTimelineChart';
 export { default as ActuatorDurationChart } from './charts/ActuatorDurationChart';
 export { default as ActuatorProportionChart } from './charts/ActuatorProportionChart';
-
-// Charts - Correlations
-export { default as CorrelationScatterChart } from './charts/CorrelationScatterChart';
-export { default as CorrelationHeatmapChart } from './charts/CorrelationHeatmapChart';
 
 // Utilities
 export { ChartSkeleton, LevelSkeleton } from './SkeletonLoader';
