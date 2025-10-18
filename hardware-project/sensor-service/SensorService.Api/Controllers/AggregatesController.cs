@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.Interfaces;
-
+using HydroEspinaca.Shared.DTOs.Analytics;
 namespace SensorService.Api.Controllers;
 
 [ApiController]
@@ -26,7 +26,7 @@ public class AggregatesController : ControllerBase
 
     [HttpPost("environmental")]
     [Authorize(Policy = PolicyNames.AggregateRead)]
-    public async Task<IActionResult> GetEnvironmentalAggregates([FromBody] SensorService.Application.DTOs.Aggregate.GetEnvironmentalAggregatesRequest request)
+    public async Task<IActionResult> GetEnvironmentalAggregates([FromBody] EnvironmentalAnalyticsRequest request)
     {
         var aggregates = await _service.GetEnvironmentalAggregatesAsync(request);
         return Ok(aggregates);

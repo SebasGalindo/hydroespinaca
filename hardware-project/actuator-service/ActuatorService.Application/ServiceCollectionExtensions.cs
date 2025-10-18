@@ -19,13 +19,15 @@ public static class ServiceCollectionExtensions
         // Actuator code resolution
         services.AddScoped<IActuatorCodeResolver, ActuatorCodeResolver>();
 
-        // Command execution (new simplified flow)
+        // Command execution
         services.AddScoped<IExecuteCommandsUseCase, ExecuteCommandsUseCase>();
         services.AddSingleton<ICommandExecutionService, CommandExecutionService>();
 
-        // Legacy routine support (backward compatibility for internal routines)
+        // Analytics
+        services.AddScoped<IGetActuatorAnalyticsUseCase, GetActuatorAnalyticsUseCase>();
+
+        // Routine command service (for querying executed commands)
         services.AddScoped<IRoutineCommandService, RoutineCommandService>();
-        services.AddSingleton<IRoutineExecutionService, RoutineExecutionService>();
 
         // Pin-based execution (singleton for in-memory state and locking)
         services.AddSingleton<IPinLockRegistry, PinLockRegistry>();

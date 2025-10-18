@@ -4,6 +4,7 @@ using ActuatorService.Application.Services;
 using ActuatorService.Application.UseCases;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Actuator;
+using HydroEspinaca.Shared.DTOs.Analytics;
 using HydroEspinaca.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,15 +18,18 @@ public class CommandsController : ControllerBase
     private readonly IExecuteCommandsUseCase _executeCommandsUseCase;
     private readonly ICommandExecutionService _commandExecutionService;
     private readonly IInternalRoutineRepository _internalRoutineRepository;
+    private readonly IGetActuatorAnalyticsUseCase _getActuatorAnalyticsUseCase;
 
     public CommandsController(
         IExecuteCommandsUseCase executeCommandsUseCase,
         ICommandExecutionService commandExecutionService,
-        IInternalRoutineRepository internalRoutineRepository)
+        IInternalRoutineRepository internalRoutineRepository,
+        IGetActuatorAnalyticsUseCase getActuatorAnalyticsUseCase)
     {
         _executeCommandsUseCase = executeCommandsUseCase;
         _commandExecutionService = commandExecutionService;
         _internalRoutineRepository = internalRoutineRepository;
+        _getActuatorAnalyticsUseCase = getActuatorAnalyticsUseCase;
     }
 
     [HttpPost("execute")]
@@ -74,5 +78,13 @@ public class CommandsController : ControllerBase
         return Ok(new { Message = esp32Id != null
             ? $"Job schedule cleared and all actuators reset for ESP32: {esp32Id}"
             : "All job schedules cleared and all actuators reset" });
+    }
+
+    [HttpPost("analytics")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
+    public async Task<IActionResult> GetActuatorAnalytics([FromBody] ActuatorAnalyticsRequest request)
+    {
+        var result = await _getActuatorAnalyticsUseCase.ExecuteAsync(request);
+        return Ok(result);
     }
 }

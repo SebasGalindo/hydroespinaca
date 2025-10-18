@@ -224,6 +224,9 @@ public class InternalRoutineScheduler : BackgroundService
         IActuatorCodeResolver actuatorCodeResolver,
         ICommandExecutionService commandExecutionService)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
+
         // Convert InternalRoutineStep to individual commands
         var resolvedCommands = new List<ResolvedCommandDto>();
 
@@ -271,6 +274,48 @@ public class InternalRoutineScheduler : BackgroundService
         if (resolvedCommands.Count == 0)
         {
             throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid commands after resolution");
+        }
+
+        // Persist commands to database (same logic as ExecuteCommandsUseCase)
+        foreach (var resolvedCommand in resolvedCommands)
+        {
+            var power = resolvedCommand.Power ?? resolvedCommand.DutyCycle?.ToString();
+            var isPowerOff = power?.Equals(HydroEspinaca.Shared.Constants.ActuatorConstants.PowerStates.Off, StringComparison.OrdinalIgnoreCase) == true;
+
+            // Check for existing RUNNING command for this actuator
+            var existingRunningCommand = await routineCommandRepository.GetRunningByActuatorCodeAsync(resolvedCommand.ActuatorCode);
+
+            if (existingRunningCommand != null)
+            {
+                // Update existing RUNNING command (extend it)
+                // Note: We only update ExtendedAt timestamp. Power/Duration are not stored.
+                // The MQTT message will contain the new parameters for the firmware.
+                existingRunningCommand.ExtendedAt = DateTime.UtcNow;
+
+                await routineCommandRepository.UpdateAsync(existingRunningCommand);
+
+                _logger.LogInformation("🔄 Extended existing RUNNING command for {ActuatorCode} from routine {RoutineName}",
+                    resolvedCommand.ActuatorCode, routine.Name);
+            }
+            else if (!isPowerOff)
+            {
+                // Create new RUNNING command (only if not OFF)
+                var commandId = $"{resolvedCommand.ActuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                var routineCommandEntity = new RoutineCommand
+                {
+                    CommandId = commandId,
+                    ActuatorCode = resolvedCommand.ActuatorCode,
+                    Esp32Id = routine.Esp32Id,
+                    StatusGeneral = HydroEspinaca.Shared.Enums.RoutineCommandStatus.RUNNING,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await routineCommandRepository.AddAsync(routineCommandEntity);
+
+                _logger.LogInformation("💾 Created RUNNING command for {ActuatorCode} from routine {RoutineName}",
+                    resolvedCommand.ActuatorCode, routine.Name);
+            }
         }
 
         // Schedule individual commands (respects pin locks and queuing)

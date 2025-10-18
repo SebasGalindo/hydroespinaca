@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
         // Background Services
         services.AddHostedService<DatabaseCleanupService>();
         services.AddHostedService<MqttRoutineCompletionSubscriber>();
-        services.AddHostedService<MqttRoutineNotificationSubscriber>();
+        // MqttRoutineNotificationSubscriber removed - notification topic no longer used
         services.AddHostedService<InternalRoutineScheduler>();
         services.AddHostedService<SafetyRulesHostedService>();
         services.AddHostedService<AdvancedBehaviorMonitoringService>();

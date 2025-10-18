@@ -56,7 +56,8 @@ public class MongoAggregateRepository : IAggregateRepository
     {
         var dateFormat = view.ToLower() switch
         {
-            "daily" => "%Y-%m-%dT00:00:00.000Z",
+            "hourly" => "%Y-%m-%dT%H:00:00.000Z", // Hour precision
+            "daily" => "%Y-%m-%dT%H:00:00.000Z",  // Hour precision for boxplot calculation
             "weekly" => "%Y-W%V", // ISO week format
             "monthly" => "%Y-%m-01T00:00:00.000Z", // First day of month
             _ => "%Y-%m-%dT00:00:00.000Z"

@@ -7,6 +7,7 @@ using SensorService.Application.Mappers;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Domain.Exceptions;
+using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace SensorService.Application.Services;
 
@@ -47,7 +48,7 @@ public class AggregateService : IAggregateService
         return results.Select(AggregateMapper.ToDto).ToList();
     }
 
-    public async Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(GetEnvironmentalAggregatesRequest request)
+    public async Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(EnvironmentalAnalyticsRequest request)
     {
         // Normalize dates to UTC midnight to handle timezone offsets from frontend
         // Frontend may send dates like "2025-10-09T05:00:00.000Z" (midnight in Colombia UTC-5)
@@ -55,29 +56,43 @@ public class AggregateService : IAggregateService
         var startDate = NormalizeDateToUtcStart(request.StartDate);
         var endDate = NormalizeDateToUtcEnd(request.EndDate);
 
-        // Validate date range
-        if (startDate >= endDate)
-            throw new ValidationException("La fecha inicial debe ser menor a la fecha final.");
+        // Validate view parameter first - hourly, daily, weekly, monthly allowed
+        var validViews = new[] { "hourly", "daily", "weekly", "monthly" };
+        var viewLower = request.View.ToLower();
+        if (!validViews.Contains(viewLower))
+            throw new ValidationException($"Vista inválida '{request.View}'. Valores permitidos: {string.Join(", ", validViews)}");
 
-        // Validate view parameter - only daily, weekly, monthly allowed
-        var validViews = new[] { "daily", "weekly", "monthly" };
-        if (!validViews.Contains(request.View.ToLower()))
-            throw new ValidationException($"Vista inválida. Valores permitidos: {string.Join(", ", validViews)}");
+        // Validate date range - allow same day for any view
+        if (startDate > endDate)
+            throw new ValidationException("La fecha inicial no puede ser mayor a la fecha final.");
+
+        // Calculate date range in days (comparing date parts only for clearer validation)
+        var startDateOnly = startDate.Date;
+        var endDateOnly = endDate.Date;
+        var daysDifference = (endDateOnly - startDateOnly).Days;
 
         // Validate maximum date range based on view
-        var dateRange = endDate - startDate;
-        var maxRange = request.View.ToLower() switch
+        // For hourly view, we allow same day (0 days diff) up to 1 day difference
+        var maxDaysAllowed = viewLower switch
         {
-            "daily" => TimeSpan.FromDays(14),    // Max 14 days
-            "weekly" => TimeSpan.FromDays(84),   // Max 12 weeks
-            "monthly" => TimeSpan.FromDays(365), // Max 12 months
-            _ => TimeSpan.FromDays(14)
+            "hourly" => 1,    // Max 1 day (can be same day or next day)
+            "daily" => 14,    // Max 14 days
+            "weekly" => 84,   // Max 12 weeks (84 days)
+            "monthly" => 365, // Max 12 months (365 days)
+            _ => 14
         };
 
-        if (dateRange > maxRange)
+        if (daysDifference > maxDaysAllowed)
         {
-            var maxDays = (int)maxRange.TotalDays;
-            throw new ValidationException($"Rango de fechas excede el límite permitido para la vista seleccionada (máximo: {maxDays} días)");
+            var viewLabel = viewLower switch
+            {
+                "hourly" => "horaria (máximo 1 día)",
+                "daily" => "diaria (máximo 14 días)",
+                "weekly" => "semanal (máximo 84 días)",
+                "monthly" => "mensual (máximo 365 días)",
+                _ => $"{viewLower} (máximo {maxDaysAllowed} días)"
+            };
+            throw new ValidationException($"Rango de fechas inválido para vista {viewLabel}. Días seleccionados: {daysDifference}");
         }
 
         // Get aggregated data from repository using normalized dates
@@ -98,35 +113,61 @@ public class AggregateService : IAggregateService
             if (!aggregates.Any())
                 continue;
 
-            // Calculate summary (overall statistics)
+            // Lookup variable to get the display name
+            var variable = await _variableRepo.GetByCodeAsync(variableCode);
+            var variableName = variable?.Name ?? variableCode; // Fallback to code if not found
+
+            // Calculate summary (overall statistics) with rounding
             var summary = new AggregateSummary
             {
-                Min = aggregates.Min(a => a.Min),
-                Max = aggregates.Max(a => a.Max),
-                Avg = aggregates.Average(a => a.Avg),
+                Min = RoundToDecimals(aggregates.Min(a => a.Min), 2),
+                Max = RoundToDecimals(aggregates.Max(a => a.Max), 2),
+                Avg = RoundToDecimals(aggregates.Average(a => a.Avg), 2),
                 Count = aggregates.Sum(a => a.Count)
             };
 
-            // Calculate trend (avg per time period)
-            var trend = aggregates
-                .OrderBy(a => a.Timestamp)
-                .Select(a => new AggregateTrendPoint
-                {
-                    Timestamp = a.Timestamp,
-                    Avg = a.Avg
-                })
-                .ToList();
+            // Calculate trend (avg per time period) with rounding
+            List<AggregateTrendPoint> trend;
+            var viewMode = request.View.ToLower();
 
-            // Calculate variability (only for daily view)
-            List<AggregateVariabilityPoint>? variability = null;
-            if (request.View.ToLower() == "daily")
+            if (viewMode == "daily")
             {
+                // For daily view, group hourly data by day and calculate daily average
+                trend = aggregates
+                    .GroupBy(a => a.Timestamp.Date)
+                    .OrderBy(g => g.Key)
+                    .Select(g => new AggregateTrendPoint
+                    {
+                        Timestamp = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day, 0, 0, 0, DateTimeKind.Utc),
+                        Avg = RoundToDecimals(g.Average(a => a.Avg), 2)
+                    })
+                    .ToList();
+            }
+            else
+            {
+                // For other views (hourly, weekly, monthly), use data as-is
+                trend = aggregates
+                    .OrderBy(a => a.Timestamp)
+                    .Select(a => new AggregateTrendPoint
+                    {
+                        Timestamp = a.Timestamp,
+                        Avg = RoundToDecimals(a.Avg, 2)
+                    })
+                    .ToList();
+            }
+
+            // Calculate variability ONLY for daily view
+            List<AggregateVariabilityPoint>? variability = null;
+            if (viewMode == "daily")
+            {
+                // For daily view, group hourly data by day to show intra-day variability (boxplot)
                 variability = CalculateDailyVariability(aggregates);
             }
 
             response.Add(new EnvironmentalAggregateResponse
             {
                 VariableCode = variableCode,
+                VariableName = variableName,
                 Summary = summary,
                 Trend = trend,
                 Variability = variability
@@ -167,11 +208,11 @@ public class AggregateService : IAggregateService
             variability.Add(new AggregateVariabilityPoint
             {
                 Timestamp = dayGroup.Key,
-                Min = min,
-                Q1 = q1,
-                Median = median,
-                Q3 = q3,
-                Max = max,
+                Min = RoundToDecimals(min, 2),
+                Q1 = RoundToDecimals(q1, 2),
+                Median = RoundToDecimals(median, 2),
+                Q3 = RoundToDecimals(q3, 2),
+                Max = RoundToDecimals(max, 2),
                 Count = count
             });
         }
@@ -197,6 +238,14 @@ public class AggregateService : IAggregateService
 
         var fraction = position - lower;
         return sortedValues[lower] + fraction * (sortedValues[upper] - sortedValues[lower]);
+    }
+
+    /// <summary>
+    /// Rounds a double value to the specified number of decimal places
+    /// </summary>
+    private double RoundToDecimals(double value, int decimals)
+    {
+        return Math.Round(value, decimals);
     }
 
     /// <summary>

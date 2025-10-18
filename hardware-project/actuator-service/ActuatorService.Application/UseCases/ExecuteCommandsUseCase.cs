@@ -85,40 +85,67 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
 
         var esp32Id = commandsByEsp32.First().Key;
 
-        // 4. Schedule commands with execution service (handles pin locking and MQTT publishing)
-        var commandIds = await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
+        // 4. Process commands: check for existing RUNNING commands and handle DB persistence
+        var commandIds = new List<string>();
 
-        // 5. Store commands in database for tracking completion
-        foreach (var (resolvedCommand, commandId) in resolvedCommands.Zip(commandIds, (cmd, id) => (cmd, id)))
+        foreach (var resolvedCommand in resolvedCommands)
         {
-            var existingCommand = await _routineCommandRepository.GetByCommandIdAsync(commandId);
-            if (existingCommand == null)
+            var power = resolvedCommand.Power ?? resolvedCommand.DutyCycle?.ToString();
+            var isPowerOff = power?.Equals(ActuatorConstants.PowerStates.Off, StringComparison.OrdinalIgnoreCase) == true;
+
+            // Check for existing RUNNING command for this actuator
+            var existingRunningCommand = await _routineCommandRepository.GetRunningByActuatorCodeAsync(resolvedCommand.ActuatorCode);
+
+            string commandId;
+
+            if (existingRunningCommand != null)
             {
-                var stepMapping = new RoutineStepMapping
-                {
-                    Pin = resolvedCommand.Pin,
-                    ActuatorId = resolvedCommand.ActuatorId,
-                    Duration = resolvedCommand.Duration,
-                    DutyCycle = resolvedCommand.DutyCycle,
-                    Power = resolvedCommand.Power
-                };
+                // Update existing RUNNING command (extend it)
+                // Note: We only update ExtendedAt timestamp. Power/Duration are not stored.
+                // The MQTT message will contain the new parameters for the firmware.
+                existingRunningCommand.ExtendedAt = DateTime.UtcNow;
+
+                await _routineCommandRepository.UpdateAsync(existingRunningCommand);
+                commandId = existingRunningCommand.CommandId;
+
+                _logger.LogInformation("🔄 Extended existing RUNNING command {CommandId} for {ActuatorCode}",
+                    commandId, resolvedCommand.ActuatorCode);
+            }
+            else if (!isPowerOff)
+            {
+                // Create new RUNNING command (only if not OFF)
+                commandId = $"{resolvedCommand.ActuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
                 var routineCommandEntity = new RoutineCommand
                 {
                     CommandId = commandId,
-                    RoutineId = $"command_{resolvedCommand.ActuatorCode}",
+                    ActuatorCode = resolvedCommand.ActuatorCode,
                     Esp32Id = esp32Id,
-                    StatusGeneral = RoutineCommandStatus.SCHEDULED,
-                    CreatedAt = DateTime.UtcNow,
-                    StepMappings = new List<RoutineStepMapping> { stepMapping }
+                    StatusGeneral = RoutineCommandStatus.RUNNING,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 await _routineCommandRepository.AddAsync(routineCommandEntity);
-                _logger.LogDebug("💾 Saved command {CommandId} to database", commandId);
+
+                _logger.LogInformation("💾 Created new RUNNING command {CommandId} for {ActuatorCode}",
+                    commandId, resolvedCommand.ActuatorCode);
             }
+            else
+            {
+                // Power is OFF: don't save to DB, just generate ID for MQTT
+                commandId = $"{resolvedCommand.ActuatorCode}_off_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                _logger.LogInformation("⏹️ Power OFF command for {ActuatorCode} - will publish to MQTT but not save to DB",
+                    resolvedCommand.ActuatorCode);
+            }
+
+            commandIds.Add(commandId);
         }
 
-        _logger.LogInformation("✅ Executed {Count} commands for ESP32 {Esp32Id}", commandIds.Count, esp32Id);
+        // 5. Schedule commands with execution service (handles MQTT publishing)
+        await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
+
+        _logger.LogInformation("✅ Processed {Count} commands for ESP32 {Esp32Id}", commandIds.Count, esp32Id);
 
         return commandIds;
     }
