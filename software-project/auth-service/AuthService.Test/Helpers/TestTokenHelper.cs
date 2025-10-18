@@ -24,11 +24,11 @@ public class TestTokenHelper
     /// <summary>
     /// Generates a test token for admin user with admin role
     /// </summary>
-    public string GenerateAdminToken()
+    public async Task<string> GenerateAdminTokenAsync()
     {
         Console.WriteLine($"🔧 [TestTokenHelper] Generating admin token with Issuer='{_jwtSettings.Issuer}', Audience='{_jwtSettings.Audience}'");
-        
-        var tokens = _tokenService.GenerateTokens(
+
+        var tokens = await _tokenService.GenerateTokensAsync(
             userId: "test-admin-id",
             email: "admin@demo.com",
             role: "admin-role-id",
@@ -44,11 +44,11 @@ public class TestTokenHelper
     /// <summary>
     /// Generates a test token for regular user
     /// </summary>
-    public string GenerateUserToken()
+    public async Task<string> GenerateUserTokenAsync()
     {
         Console.WriteLine($"🔧 [TestTokenHelper] Generating user token with Issuer='{_jwtSettings.Issuer}', Audience='{_jwtSettings.Audience}'");
-        
-        var tokens = _tokenService.GenerateTokens(
+
+        var tokens = await _tokenService.GenerateTokensAsync(
             userId: "test-user-id",
             email: "user@demo.com",
             role: "user-role-id",
@@ -64,11 +64,11 @@ public class TestTokenHelper
     /// <summary>
     /// Generates a test token with custom parameters
     /// </summary>
-    public string GenerateCustomToken(string userId, string email, string role, string? clientId = null, TokenType tokenType = TokenType.User)
+    public async Task<string> GenerateCustomTokenAsync(string userId, string email, string role, string? clientId = null, TokenType tokenType = TokenType.User)
     {
         Console.WriteLine($"🔧 [TestTokenHelper] Generating custom token with Issuer='{_jwtSettings.Issuer}', Audience='{_jwtSettings.Audience}'");
-        
-        var tokens = _tokenService.GenerateTokens(
+
+        var tokens = await _tokenService.GenerateTokensAsync(
             userId: userId,
             email: email,
             role: role,

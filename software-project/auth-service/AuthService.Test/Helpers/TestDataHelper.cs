@@ -30,8 +30,10 @@ public static class TestDataHelper
     public static User CreateTestUser(string? email = null, string? roleId = null)
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var emailValue = email ?? $"test{uniqueId}@example.com";
         return new User(
-            new Email(email ?? $"test{uniqueId}@example.com"),
+            $"user_{uniqueId}",
+            new Email(emailValue),
             new HashedPassword("$2a$11$hashedpasswordhere"),
             roleId ?? ObjectId.GenerateNewId().ToString()
         );

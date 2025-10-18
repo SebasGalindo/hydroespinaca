@@ -26,7 +26,7 @@ public class UserController : ControllerBase
     [Authorize(Policy = PolicyNames.UserCreate)]
     public async Task<ActionResult<UserResponseDto>> Create([FromBody] UserCreateDto request)
     {
-        var command = new CreateUserCommand(request.Email, request.Password, request.RoleId);
+        var command = new CreateUserCommand(request.Username, request.Email, request.Password, request.RoleId);
         var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
