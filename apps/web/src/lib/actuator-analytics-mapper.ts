@@ -3,7 +3,21 @@ import type {
   ActuatorAnalyticsResponse,
   ActuatorTimelineItem,
 } from '@hydroespinaca/shared';
-import type { ActuatorActivity } from './analytics-mocks';
+
+/**
+ * Frontend representation of actuator activity data
+ */
+export interface ActuatorActivity {
+  actuatorId: string;
+  actuatorName: string;
+  activations: {
+    startTime: string;
+    endTime: string;
+    duration: number; // minutes
+  }[];
+  totalDuration: number; // minutes
+  activationCount: number;
+}
 
 /**
  * Format actuator code for display

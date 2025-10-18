@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { ActuatorActivity } from '@/lib/analytics-mocks';
+import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import { formatNumericValue } from '@hydroespinaca/shared';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });

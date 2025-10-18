@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ActuatorActivity } from '@/lib/analytics-mocks';
+import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import ActuatorTimelineChart from '../charts/ActuatorTimelineChart';
 import ActuatorDurationChart from '../charts/ActuatorDurationChart';
 import ActuatorProportionChart from '../charts/ActuatorProportionChart';

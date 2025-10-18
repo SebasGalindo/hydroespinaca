@@ -7,7 +7,7 @@ import AnalyticsTabs, { AnalyticsLevel } from './AnalyticsTabs';
 import EnvironmentalLevel from './levels/EnvironmentalLevel';
 import ActuatorsLevel from './levels/ActuatorsLevel';
 import ExportMetadata from './ExportMetadata';
-import { ActuatorActivity } from '@/lib/analytics-mocks';
+import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import {
   generateBackendPayload,
   getCacheKey,
