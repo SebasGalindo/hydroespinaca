@@ -59,6 +59,20 @@ export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
+export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
+export type {
+  EnvironmentalAnalyticsRequest,
+  AggregateSummary,
+  AggregateTrendPoint,
+  AggregateVariabilityPoint,
+  EnvironmentalVariableAggregate,
+  EnvironmentalAggregateResponse,
+  ActuatorAnalyticsRequest,
+  ActuatorTimelineItem,
+  ActuatorTotalDurationItem,
+  ActuatorActiveTimeProportionItem,
+  ActuatorAnalyticsResponse,
+} from './api/analyticsService';
 
 // Export components
 export * from './components/WelcomeMessage';

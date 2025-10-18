@@ -69,6 +69,11 @@ export type {
   AggregateVariabilityPoint,
   EnvironmentalVariableAggregate,
   EnvironmentalAggregateResponse,
+  ActuatorAnalyticsRequest,
+  ActuatorTimelineItem,
+  ActuatorTotalDurationItem,
+  ActuatorActiveTimeProportionItem,
+  ActuatorAnalyticsResponse,
 } from './api/analyticsService';
 
 // Export components (platform agnostic)

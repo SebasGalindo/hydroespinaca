@@ -43,8 +43,8 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 export * from './utils/formatters';
 export * from './utils/validators';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
-export { SessionStorage, secureStorage } from './utils/secureStorage';
 export { setAuthCallbacks, authFetch } from './utils/authFetch';
+// Note: SessionStorage and secureStorage are exported via './utils' subpath export
 
 // Export design tokens (includes colors, typography, spacing)
 export * from './tokens';
