@@ -106,8 +106,8 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             {
                 { "FinishedAt", new BsonDocument
                     {
-                        { "$gte", startDate },
-                        { "$lte", endDate }
+                        { "$gte", startDate.ToUniversalTime() },
+                        { "$lte", endDate.ToUniversalTime() }
                     }
                 },
                 { "StatusGeneral", "FINISHED" }

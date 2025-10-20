@@ -50,11 +50,8 @@ public class AggregateService : IAggregateService
 
     public async Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(EnvironmentalAnalyticsRequest request)
     {
-        // Normalize dates to UTC midnight to handle timezone offsets from frontend
-        // Frontend may send dates like "2025-10-09T05:00:00.000Z" (midnight in Colombia UTC-5)
-        // We normalize to "2025-10-09T00:00:00.000Z" (midnight UTC)
-        var startDate = NormalizeDateToUtcStart(request.StartDate);
-        var endDate = NormalizeDateToUtcEnd(request.EndDate);
+        var startDate = request.StartDate;
+        var endDate = request.EndDate;
 
         // Validate view parameter first - hourly, daily, weekly, monthly allowed
         var validViews = new[] { "hourly", "daily", "weekly", "monthly" };
@@ -97,9 +94,7 @@ public class AggregateService : IAggregateService
 
         // Get aggregated data from repository using normalized dates
         var aggregatedData = await _repo.GetEnvironmentalAggregatesAsync(
-            startDate,
-            endDate,
-            request.View
+            request
         );
 
         // Transform to response format with summary, trend, and variability
@@ -138,7 +133,8 @@ public class AggregateService : IAggregateService
                     .OrderBy(g => g.Key)
                     .Select(g => new AggregateTrendPoint
                     {
-                        Timestamp = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day, 0, 0, 0, DateTimeKind.Utc),
+                        // Keep midnight at Colombia-local boundary (already converted in repository)
+                        Timestamp = g.Key,
                         Avg = RoundToDecimals(g.Average(a => a.Avg), 2)
                     })
                     .ToList();
@@ -247,25 +243,4 @@ public class AggregateService : IAggregateService
     {
         return Math.Round(value, decimals);
     }
-
-    /// <summary>
-    /// Normalizes a date to the start of day in UTC (00:00:00.000)
-    /// Handles timezone offsets from frontend by extracting date components
-    /// </summary>
-    private DateTime NormalizeDateToUtcStart(DateTime date)
-    {
-        // Extract date components and create UTC midnight
-        return new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Utc);
-    }
-
-    /// <summary>
-    /// Normalizes a date to the end of day in UTC (23:59:59.999)
-    /// Handles timezone offsets from frontend by extracting date components
-    /// </summary>
-    private DateTime NormalizeDateToUtcEnd(DateTime date)
-    {
-        // Extract date components and create UTC end of day
-        return new DateTime(date.Year, date.Month, date.Day, 23, 59, 59, 999, DateTimeKind.Utc);
-    }
-
 }

@@ -79,7 +79,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "T_AMB",
-                Name = "Temperatura ambiente",
+                Name = "Temp ambiente",
                 Unit = "°C",
                 Description = "Ambient temperature",
                 Type = VariableTypes.Analog,
@@ -107,7 +107,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "T_WAT",
-                Name = "Temperatura del Agua",
+                Name = "Temp del Agua",
                 Unit = "°C",
                 Description = "Water temperature",
                 Type = VariableTypes.Analog,

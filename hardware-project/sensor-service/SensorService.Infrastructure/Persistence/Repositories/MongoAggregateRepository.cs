@@ -7,12 +7,14 @@ using SensorService.Domain.Entities;
 using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
+using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
 public class MongoAggregateRepository : IAggregateRepository
 {
     private readonly BaseMongoRepository<Aggregate, AggregateDocument> _baseRepo;
+    private readonly TimeZoneInfo _colombiaTz;
 
     public MongoAggregateRepository(IConfiguration config, IEntityMapper<Aggregate, AggregateDocument> mapper)
     {
@@ -22,6 +24,8 @@ public class MongoAggregateRepository : IAggregateRepository
         _baseRepo = new BaseMongoRepository<Aggregate, AggregateDocument>(
             db, "aggregates", mapper
         );
+
+        _colombiaTz = TryGetColombiaTimeZone();
     }
 
     public async Task CreateAsync(Aggregate aggregate)
@@ -52,16 +56,28 @@ public class MongoAggregateRepository : IAggregateRepository
         return await _baseRepo.FindOneAsync(filter);
     }
 
-    public async Task<Dictionary<string, List<Aggregate>>> GetEnvironmentalAggregatesAsync(DateTime startDate, DateTime endDate, string view)
+    public async Task<Dictionary<string, List<Aggregate>>> GetEnvironmentalAggregatesAsync(EnvironmentalAnalyticsRequest request)
     {
-        var dateFormat = view.ToLower() switch
+        // 1) Las fechas vienen del frontend ya convertidas a UTC (desde hora Colombia)
+        // Simplemente aseguramos que tengan el Kind correcto
+        var startUtc = request.StartDate.Kind == DateTimeKind.Utc
+            ? request.StartDate
+            : DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+        var endUtc = request.EndDate.Kind == DateTimeKind.Utc
+            ? request.EndDate
+            : DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
+        // 2) Elegir formato de truncamiento según la vista
+        var dateFormat = request.View.ToLower() switch
         {
-            "hourly" => "%Y-%m-%dT%H:00:00.000Z", // Hour precision
-            "daily" => "%Y-%m-%dT%H:00:00.000Z",  // Hour precision for boxplot calculation
+            "hourly" => "%Y-%m-%dT%H:00:00.000", // Hour precision
+            "daily" => "%Y-%m-%dT%H:00:00.000",  // Hour precision for boxplot calculation
             "weekly" => "%Y-W%V", // ISO week format
-            "monthly" => "%Y-%m-01T00:00:00.000Z", // First day of month
-            _ => "%Y-%m-%dT00:00:00.000Z"
+            "monthly" => "%Y-%m-01T00:00:00.000", // First day of month
+            _ => "%Y-%m-%dT00:00:00.000"
         };
+
+        var tzId = _colombiaTz.Id; // e.g., "America/Bogota"
 
         var pipeline = new BsonDocument[]
         {
@@ -70,8 +86,8 @@ public class MongoAggregateRepository : IAggregateRepository
             {
                 { "timestamp", new BsonDocument
                     {
-                        { "$gte", startDate },
-                        { "$lte", endDate }
+                        { "$gte", startUtc },
+                        { "$lte", endUtc }
                     }
                 }
             }),
@@ -87,7 +103,8 @@ public class MongoAggregateRepository : IAggregateRepository
                 { "truncatedDate", new BsonDocument("$dateToString", new BsonDocument
                     {
                         { "format", dateFormat },
-                        { "date", "$timestamp" }
+                        { "date", "$timestamp" },
+                        { "timezone", tzId }
                     })
                 }
             }),
@@ -118,7 +135,9 @@ public class MongoAggregateRepository : IAggregateRepository
                 { "count", 1 },
                 { "timestamp", new BsonDocument("$dateFromString", new BsonDocument
                     {
-                        { "dateString", "$timestamp" }
+                        { "dateString", "$timestamp" },
+                        // Interpret the truncated string in Colombia time so the resulting Date (UTC instant) aligns to local boundaries
+                        { "timezone", tzId }
                     })
                 }
             }),
@@ -132,6 +151,17 @@ public class MongoAggregateRepository : IAggregateRepository
 
         var results = await _baseRepo.AggregateAsync(pipeline);
 
+        // 3) Convertir timestamps de UTC a hora Colombia para el frontend
+        // Los datos se almacenan en UTC, pero el frontend los muestra en hora local
+        foreach (var item in results)
+        {
+            // Asegurar que los timestamps del pipeline se traten como UTC
+            var utc = item.Timestamp.Kind == DateTimeKind.Utc
+                ? item.Timestamp
+                : DateTime.SpecifyKind(item.Timestamp, DateTimeKind.Utc);
+            item.Timestamp = TimeZoneInfo.ConvertTimeFromUtc(utc, _colombiaTz);
+        }
+
         // Group results by variableCode
         var grouped = results
             .GroupBy(a => a.VariableCode)
@@ -141,5 +171,17 @@ public class MongoAggregateRepository : IAggregateRepository
             );
 
         return grouped;
+    }
+
+    private static TimeZoneInfo TryGetColombiaTimeZone()
+    {
+        // Linux containers use IANA time zones
+        try { return TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"); } catch { }
+
+        // Windows fallback
+        try { return TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time"); } catch { }
+
+        // As a last resort, use UTC (will keep behavior stable but without shift)
+        return TimeZoneInfo.Utc;
     }
 }
