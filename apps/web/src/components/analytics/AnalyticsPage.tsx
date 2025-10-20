@@ -19,6 +19,7 @@ import {
   type EnvironmentalVariableAggregate,
 } from '@hydroespinaca/shared';
 import { mapActuatorAnalytics } from '@/lib/actuator-analytics-mapper';
+import Swal from 'sweetalert2';
 
 // Cache interface
 interface DataCache {
@@ -36,11 +37,18 @@ export default function AnalyticsPage() {
 
   // Initialize filters with default values (today only for hourly view)
   const getDefaultFilters = (): FilterState => {
-    const today = new Date().toISOString().split('T')[0] || '';
+    // Obtener la fecha actual en hora de Colombia (UTC-5)
+    const colombiaTime = new Date().toLocaleString('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '-'); // Formato YYYY-MM-DD
+
     return {
       dateRange: {
-        from: today, // Same day for hourly (max 1 day)
-        to: today,
+        from: colombiaTime, // Mismo día para vista horaria
+        to: colombiaTime,
       },
       viewMode: 'hourly' as ViewMode,
     };
@@ -83,7 +91,6 @@ export default function AnalyticsPage() {
       const now = Date.now();
 
       if (cachedData && now - cachedData.timestamp < CACHE_TTL) {
-        console.log('[Analytics] Using cached data for', cacheKey);
         setEnvironmentalData(cachedData.environmental);
         setActuatorData(cachedData.actuators);
         setAppliedFilters(newFilters);
@@ -91,16 +98,11 @@ export default function AnalyticsPage() {
         return;
       }
 
-      console.log('[Analytics] Fetching fresh data for', cacheKey);
-
-      // Generar payload estandarizado para backend
       const payload = generateBackendPayload({
         startDate: newFilters.dateRange.from,
         endDate: newFilters.dateRange.to,
         view: newFilters.viewMode,
       });
-
-      console.log('[Analytics] Backend payload:', payload);
 
       // Fetch real environmental data from backend
       let envData: EnvironmentalVariableAggregate[] = [];
@@ -111,22 +113,14 @@ export default function AnalyticsPage() {
           view: payload.view,
         });
         envData = envResponse.variables;
-        console.log('[Analytics] Environmental data loaded:', envData.length, 'variables');
       } catch (error: unknown) {
-        console.error('[Analytics] Error loading environmental data:', error);
-
-        // Handle session errors (401) - these should be caught by authFetch
-        // but we handle them here defensively to prevent UI crashes
         if (error instanceof Error && error.message.includes('Sesión inválida')) {
           setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
-          // authFetch already handles logout and redirect, so we just show a message
           envData = [];
         } else if (error instanceof AnalyticsApiError) {
-          // Handle specific API errors with user-friendly messages
           if (error.status === 400) {
             setEnvironmentalError(`Rango de fechas inválido: ${error.message}`);
           } else if (error.status === 401) {
-            // 401 should be caught by authFetch, but handle defensively
             setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
           } else if (error.status === 404) {
             setEnvironmentalError('No hay datos disponibles para el rango seleccionado.');
@@ -139,11 +133,9 @@ export default function AnalyticsPage() {
           }
           envData = [];
         } else if (error instanceof Error) {
-          // Generic error handling
           setEnvironmentalError(`Error: ${error.message}`);
           envData = [];
         } else {
-          // Unknown error type
           setEnvironmentalError('Error desconocido al cargar los datos. Por favor, intenta nuevamente.');
           envData = [];
         }
@@ -158,16 +150,11 @@ export default function AnalyticsPage() {
           view: payload.view,
         });
         actData = mapActuatorAnalytics(actResponse);
-        console.log('[Analytics] Actuator data loaded:', actData.length, 'actuators');
       } catch (error: unknown) {
-        console.error('[Analytics] Error loading actuator data:', error);
-
-        // Handle session errors (401)
         if (error instanceof Error && error.message.includes('Sesión inválida')) {
           setActuatorError('Sesión expirada. Redirigiendo al login...');
           actData = [];
         } else if (error instanceof AnalyticsApiError) {
-          // Handle specific API errors with user-friendly messages
           if (error.status === 400) {
             setActuatorError(`Rango de fechas inválido: ${error.message}`);
           } else if (error.status === 401) {
@@ -191,7 +178,6 @@ export default function AnalyticsPage() {
         }
       }
 
-      // Guardar en cache solo si hay datos ambientales o de actuadores
       if (envData.length > 0 || actData.length > 0) {
         cacheRef.current[cacheKey] = {
           environmental: envData,
@@ -204,9 +190,6 @@ export default function AnalyticsPage() {
       setActuatorData(actData);
       setAppliedFilters(newFilters);
     } catch (error: unknown) {
-      console.error('[Analytics] Unexpected error in loadData:', error);
-
-      // Handle catastrophic errors gracefully
       if (error instanceof Error && error.message.includes('Sesión inválida')) {
         setEnvironmentalError('Sesión expirada. Redirigiendo al login...');
       } else if (error instanceof Error) {
@@ -215,7 +198,6 @@ export default function AnalyticsPage() {
         setEnvironmentalError('Error inesperado al cargar los datos. Por favor, recarga la página.');
       }
 
-      // Set empty data to prevent crashes
       setEnvironmentalData([]);
       setActuatorData([]);
     } finally {
@@ -296,7 +278,12 @@ export default function AnalyticsPage() {
       pdf.save(filename);
     } catch (error) {
       console.error('Error exporting:', error);
-      alert('Hubo un error al exportar. Por favor, intenta nuevamente.');
+      await Swal.fire({
+        title: 'Error al exportar',
+        text: 'Hubo un error al exportar. Por favor, intenta nuevamente.',
+        icon: 'error',
+        confirmButtonColor: '#16a34a'
+      });
     } finally {
       setIsExporting(false);
     }

@@ -54,19 +54,23 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   const navigationItems: NavigationItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
     { href: '/analytics', label: 'Análisis de datos', icon: TrendingUpIcon },
-    { href: '/dashboard/sistemas-fuzzy', label: 'Sistemas Fuzzy', icon: BrainIcon },
+  ];
+
+  // Admin menu items (only for Administrador role)
+  const adminMenuItems: NavigationItem[] = user?.role === 'Administrador' ? [
     {
-      href: '/dashboard/listas',
-      label: 'Listas',
-      icon: ListIcon,
+      href: '/admin',
+      label: 'Administración',
+      icon: ShieldIcon,
       children: [
-        { href: '/dashboard/variables-config', label: 'Variables', icon: BoltIcon },
-        { href: '/dashboard/sensores-config', label: 'Sensores', icon: SettingsIcon },
-        { href: '/dashboard/actuadores-config', label: 'Actuadores', icon: SettingsIcon },
-        { href: '/dashboard/reglas-fuzzy', label: 'Reglas Fuzzy', icon: BrainIcon },
+        { href: '/admin/access', label: 'Gestión de Acceso', icon: SettingsIcon },
+        { href: '/admin/dashboard', label: 'Dashboard Admin', icon: ChartIcon },
       ]
     },
-  ];
+  ] : [];
+
+  // Combine navigation items
+  const allNavigationItems = [...navigationItems, ...adminMenuItems];
 
   const toggleGroup = (label: string) => {
     setExpandedGroups(prev =>
@@ -189,7 +193,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
         {/* Navigation */}
         <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
           <ul className="space-y-1">
-            {navigationItems.map((item) => {
+            {allNavigationItems.map((item) => {
               const IconComponent = item.icon;
               const hasChildren = item.children && item.children.length > 0;
               const groupExpanded = expandedGroups.includes(item.label);
@@ -289,7 +293,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
               onClick={handlePopoverClose}
             />
             {/* Popover content */}
-            {navigationItems
+            {allNavigationItems
               .filter(item => item.label === popoverOpen && item.children)
               .map(item => (
                 <div
@@ -356,7 +360,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
               <ul className="py-1">
                 <li>
                   <Link
-                    href="/dashboard/perfil"
+                    href="/perfil"
                     onClick={handleUserMenuClose}
                     className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
@@ -386,7 +390,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
           {isExpanded ? (
             <div className="flex items-center justify-between">
               <Link
-                href="/dashboard/perfil"
+                href="/perfil"
                 className="flex items-center space-x-3 flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -489,7 +493,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  {navigationItems.map((item) => {
+                  {allNavigationItems.map((item) => {
                     const IconComponent = item.icon;
                     const hasChildren = item.children && item.children.length > 0;
                     const groupExpanded = expandedGroups.includes(item.label);
@@ -589,7 +593,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                     {/* Card del perfil de usuario */}
                     <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 mb-3 border border-green-200/50">
                       <Link
-                        href="/dashboard/perfil"
+                        href="/perfil"
                         onClick={() => setMobileMoreOpen(false)}
                         className="flex items-center gap-3 group"
                       >

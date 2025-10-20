@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { EnvironmentalVariableAggregate } from '@hydroespinaca/shared';
-import { getColombiaDate } from '@/lib/dateUtils';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
@@ -17,7 +16,8 @@ const getVariableColor = (variableName: string): string => {
 
   if (name.includes('ph')) return '#8b5cf6';
   if (name.includes('conductividad') || name.includes('ec')) return '#f59e0b';
-  if (name.includes('temperatura')) return '#ef4444';
+  if (name.includes('ambiente')) return '#10b981';
+  if (name.includes('agua')) return '#3b82f6';
   if (name.includes('humedad')) return '#3b82f6';
   if (name.includes('luz') || name.includes('luminosidad')) return '#eab308';
   if (name.includes('nivel') && name.includes('agua')) return '#1e40af';
@@ -65,7 +65,7 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
   const traces = variables
     .filter((variable) => selectedVariables.includes(variable.variableName))
     .map((variable) => ({
-      x: variable.trend.map((point: { timestamp: string }) => getColombiaDate(point.timestamp)),
+      x: variable.trend.map((point: { timestamp: string }) => point.timestamp),
       y: variable.trend.map((point: { avg: number }) => point.avg),
       type: 'scatter' as const,
       mode: 'lines+markers' as const,

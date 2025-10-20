@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircleIcon, ClockIcon, XCircleIcon } from '@/components/ui/icons/Icons';
 import type { JobStatus, Stats, InternalRoutine } from '@hydroespinaca/shared/types';
+import FuzzyRulesInfo from '@/components/dashboard/FuzzyRulesInfo';
 
 interface ControllerStatusProps {
   timeSinceUpdate: number;
@@ -56,9 +57,12 @@ export default function ControllerStatus({
 
   return (
     <section className="space-y-6" aria-labelledby="controller-status-heading">
-      <h2 id="controller-status-heading" className="text-xl font-bold text-green-800 font-inter">
-        Estado actual del controlador
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 id="controller-status-heading" className="text-xl font-bold text-green-800 font-inter">
+          Estado actual del controlador
+        </h2>
+        <FuzzyRulesInfo />
+      </div>
 
       {/* Resumen General */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -105,12 +109,11 @@ export default function ControllerStatus({
                     </p>
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                  command.status === 'running' ? 'bg-green-100 text-green-700' :
-                  command.status === 'scheduled' ? 'bg-yellow-100 text-yellow-700' :
-                  command.status === 'queued' ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
+                <span className={`text-xs font-medium px-3 py-1 rounded-full ${command.status === 'running' ? 'bg-green-100 text-green-700' :
+                    command.status === 'scheduled' ? 'bg-yellow-100 text-yellow-700' :
+                      command.status === 'queued' ? 'bg-orange-100 text-orange-700' :
+                        'bg-red-100 text-red-700'
+                  }`}>
                   {getStatusLabel(command.status)}
                 </span>
               </div>

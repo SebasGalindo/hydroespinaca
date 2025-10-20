@@ -165,20 +165,23 @@ export function getSuggestedRanges(view: ViewMode): Array<{ label: string; days:
 
 /**
  * Genera un payload estandarizado para enviar al backend
+ * Envía fechas en hora de Colombia (UTC-5) con offset explícito.
+ * El backend las recibirá y convertirá automáticamente a UTC para queries.
+ *
+ * Ejemplo:
+ * - Input: startDate = "2025-10-19"
+ * - Output: startDate = "2025-10-19T00:00:00-05:00"
+ * - Backend recibe y convierte a UTC: "2025-10-19T05:00:00.000Z"
  */
 export function generateBackendPayload(filters: AnalyticsFilters) {
-  // Convertir a ISO 8601 con timezone UTC
-  // IMPORTANTE: Usar setUTCHours en lugar de setHours para trabajar directamente en UTC
-  // y evitar problemas de zona horaria
-  const startDate = new Date(filters.startDate);
-  startDate.setUTCHours(0, 0, 0, 0);
-
-  const endDate = new Date(filters.endDate);
-  endDate.setUTCHours(23, 59, 59, 999);
+  // Construir strings ISO 8601 con offset de Colombia (UTC-5)
+  // Esto hace explícita la zona horaria del usuario
+  const startDate = `${filters.startDate}T00:00:00-05:00`;
+  const endDate = `${filters.endDate}T23:59:59.999-05:00`;
 
   return {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
+    startDate,
+    endDate,
     view: filters.view,
   };
 }

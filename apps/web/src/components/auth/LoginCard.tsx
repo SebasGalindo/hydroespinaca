@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLoginForm, useAuthStore } from '@hydroespinaca/shared';
 import { EyeIcon, EyeOffIcon } from '@/components/ui/icons/Icons';
@@ -162,12 +161,6 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
               )}
             </button>
           </div>
-        </div>
-
-        <div className="text-right mb-4">
-          <Link href="/forgot-password" className="text-sm text-green-700 hover:text-green-900 font-medium">
-            ¿Olvidaste tu contraseña?
-          </Link>
         </div>
 
         <button

@@ -4,9 +4,35 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { EnvironmentalVariableAggregate } from '@hydroespinaca/shared';
 import type { ViewMode } from '@/lib/analytics-filters';
-import { formatChartDate } from '@/lib/dateUtils';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
+
+// Format date for display without timezone conversion
+// Backend already sends timestamps in Colombia time
+function formatDateForDisplay(
+  timestamp: string,
+  viewMode: 'hourly' | 'daily' | 'weekly' | 'monthly'
+): string {
+  const date = new Date(timestamp);
+  const month = date.toLocaleString('es-CO', { month: 'short' });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  switch (viewMode) {
+    case 'hourly':
+      return `${month} ${day}, ${hours}:${minutes}`;
+    case 'daily':
+      return `${month} ${day}`;
+    case 'weekly':
+      return `${month} ${day}, ${year}`;
+    case 'monthly':
+      return `${month} ${year}`;
+    default:
+      return `${year}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+}
 
 interface EnvironmentalBoxplotChartProps {
   variables: EnvironmentalVariableAggregate[];
@@ -103,8 +129,9 @@ export default function EnvironmentalBoxplotChart({ variables, viewMode }: Envir
 
   // Create a single boxplot trace with all data points
   // Extract formatted date labels for X-axis
+  // Timestamps from backend are already in Colombia time, just format for display
   const xLabels = validVariability.map((point: { timestamp: string }) =>
-    formatChartDate(point.timestamp, viewMode)
+    formatDateForDisplay(point.timestamp, viewMode)
   );
 
   // Create arrays for boxplot statistics

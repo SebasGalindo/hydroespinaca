@@ -321,14 +321,16 @@ export default function DashboardPage() {
       </section>
 
       {/* Estado actual del controlador */}
-      {systemStatus && lastUpdateTimestamp && (
-        <ControllerStatus
-          timeSinceUpdate={Math.floor((new Date().getTime() - new Date(lastUpdateTimestamp).getTime()) / 1000)}
-          jobStatus={systemStatus.jobStatus}
-          stats={systemStatus.stats}
-          internalRoutines={systemStatus.internalRoutines}
-        />
-      )}
+      <section className="mb-8" aria-labelledby="controller-status-heading">
+        {systemStatus && lastUpdateTimestamp && (
+          <ControllerStatus
+            timeSinceUpdate={Math.floor((new Date().getTime() - new Date(lastUpdateTimestamp).getTime()) / 1000)}
+            jobStatus={systemStatus.jobStatus}
+            stats={systemStatus.stats}
+            internalRoutines={systemStatus.internalRoutines}
+          />
+        )}
+      </section>
     </PageLayout>
   );
 }

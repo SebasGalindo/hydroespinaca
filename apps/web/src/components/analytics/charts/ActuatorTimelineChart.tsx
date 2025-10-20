@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
-import { getColombiaDate } from '@/lib/dateUtils';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
@@ -35,12 +34,12 @@ export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartPro
   }
 
   // Create traces for each actuator
-  // Convert UTC timestamps to Colombia local time for consistency
+  // Timestamps from backend are already in Colombia time
   const traces = data.map((actuator, index) => {
     const bars = actuator.activations.map((activation) => ({
       x: [
-        getColombiaDate(activation.startTime).getTime(),
-        getColombiaDate(activation.endTime).getTime(),
+        new Date(activation.startTime).getTime(),
+        new Date(activation.endTime).getTime(),
       ],
       y: [index, index],
     }));

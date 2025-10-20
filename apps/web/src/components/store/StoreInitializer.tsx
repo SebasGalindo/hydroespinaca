@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useVariableStore, useActuatorStore, useSensorStore, useReadingsStore, useAuthStore } from '@hydroespinaca/shared';
+import { useAuthStore } from '@hydroespinaca/shared';
 
 export function StoreInitializer() {
   const [isClient, setIsClient] = useState(false);
@@ -17,11 +17,6 @@ export function StoreInitializer() {
     setIsClient(true);
   }, []);
 
-  const initializeVariables = useVariableStore(state => state.initializeVariables);
-  const initializeActuadores = useActuatorStore(state => state.initializeActuadores);
-  const generateMockData = useSensorStore(state => state.generateMockData);
-  const initializeSystemComponents = useSensorStore(state => state.initializeSystemComponents);
-  const initializeReadings = useReadingsStore(state => state.initializeReadings);
   const checkSession = useAuthStore(state => state.checkSession);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isLoading = useAuthStore(state => state.isLoading);
@@ -48,7 +43,7 @@ export function StoreInitializer() {
   // Redirect to login if session check completed and user is not authenticated
   useEffect(() => {
     if (sessionChecked && !isLoading && !isAuthenticated) {
-      const publicPaths = ['/', '/login', '/forgot-password', '/reset-password'];
+      const publicPaths = ['/', '/login'];
       if (pathname && !publicPaths.includes(pathname)) {
         if (process.env.NODE_ENV === 'development') {
           console.info('[StoreInitializer] No session found, redirecting to login from:', pathname);
@@ -59,26 +54,6 @@ export function StoreInitializer() {
       }
     }
   }, [sessionChecked, isLoading, isAuthenticated, pathname, router]);
-
-
-  // Initialize other stores only after successful authentication
-  useEffect(() => {
-    if (isClient && sessionChecked && isAuthenticated) {
-      if (process.env.NODE_ENV === 'development') {
-        console.info('[StoreInitializer] User authenticated, initializing app stores...');
-      }
-
-      initializeVariables();
-      initializeActuadores();
-      generateMockData();
-      initializeSystemComponents();
-      initializeReadings();
-
-      if (process.env.NODE_ENV === 'development') {
-        console.info('[StoreInitializer] App stores initialized successfully');
-      }
-    }
-  }, [isClient, sessionChecked, isAuthenticated, initializeVariables, initializeActuadores, generateMockData, initializeSystemComponents, initializeReadings]);
 
   return null;
 }
