@@ -1,5 +1,6 @@
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using AuthService.Domain.Settings;
 using AuthService.Infrastructure.Security.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;

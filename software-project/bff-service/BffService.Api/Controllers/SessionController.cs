@@ -49,6 +49,11 @@ public class SessionController : BaseAuthenticatedController
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
         }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error getting sessions");
@@ -81,6 +86,11 @@ public class SessionController : BaseAuthenticatedController
         {
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
+        }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
         }
         catch (HttpRequestException ex)
         {

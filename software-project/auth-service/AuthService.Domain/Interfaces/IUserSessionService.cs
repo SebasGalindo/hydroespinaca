@@ -18,8 +18,7 @@ public interface IUserSessionService
     Task<UserSession> RefreshSessionAsync(
         string refreshToken,
         string newRefreshToken,
-        string newAccessToken,
-        DateTime newExpiresAt);
+        string newAccessToken);
 
     Task<IEnumerable<UserSession>> GetActiveUserSessionsAsync(string userId);
 }

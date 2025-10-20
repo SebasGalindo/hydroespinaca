@@ -1,5 +1,6 @@
 ﻿using AuthService.Domain.ValueObjects;
 using HydroEspinaca.Shared.Abstractions;
+using MongoDB.Bson;
 
 namespace AuthService.Domain.Entities;
 public class User : IIdentifiableMutable
@@ -12,7 +13,7 @@ public class User : IIdentifiableMutable
 
     public User(string username, Email email, HashedPassword password, string? roleId = null)
     {
-        Id = Guid.NewGuid().ToString();
+        Id = null!; // MongoDB will auto-generate _id on insert
         Username = username ?? throw new ArgumentNullException(nameof(username));
         Email = email ?? throw new ArgumentNullException(nameof(email));
         Password = password ?? throw new ArgumentNullException(nameof(password));

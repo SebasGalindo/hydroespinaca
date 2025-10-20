@@ -44,6 +44,9 @@ public class UserSessionMapper : IEntityMapper<UserSession, UserSessionDocument>
 
         entity.SetId(document.Id);
 
+        // Restore timestamps from database (constructor sets them to UtcNow by default)
+        entity.RestoreTimestamps(document.CreatedAt, document.LastActivity);
+
         // Restore state
         if (document.Revoked)
         {

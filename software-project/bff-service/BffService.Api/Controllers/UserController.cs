@@ -49,6 +49,11 @@ public class UserController : BaseAuthenticatedController
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
         }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error getting users");
@@ -85,6 +90,11 @@ public class UserController : BaseAuthenticatedController
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
         }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error getting user {UserId}", id);
@@ -117,6 +127,11 @@ public class UserController : BaseAuthenticatedController
         {
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
+        }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
         }
         catch (HttpRequestException ex)
         {
@@ -157,6 +172,11 @@ public class UserController : BaseAuthenticatedController
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
         }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
+        }
         catch (HttpRequestException ex)
         {
             Logger.LogWarning(ex, "Error from auth service updating user");
@@ -194,6 +214,11 @@ public class UserController : BaseAuthenticatedController
         {
             Logger.LogWarning(ex, "Session expired");
             return Unauthorized(new { message = "Session expired, please login again" });
+        }
+        catch (InvalidTokenException ex)
+        {
+            Logger.LogWarning(ex, "Invalid or revoked token");
+            return Unauthorized(new { message = "Session is no longer valid, please login again" });
         }
         catch (HttpRequestException ex)
         {

@@ -1,8 +1,10 @@
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using AuthService.Domain.Settings;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
@@ -14,6 +16,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
     private readonly ITokenService _tokenService;
     private readonly IUserSessionService _sessionService;
     private readonly IUserSessionRepository _sessionRepository;
+    private readonly JwtSettings _jwtSettings;
 
     public LoginCommandHandler(
         IUserRepository userRepository,
@@ -21,7 +24,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IUserSessionService sessionService,
-        IUserSessionRepository sessionRepository)
+        IUserSessionRepository sessionRepository,
+        IOptions<JwtSettings> jwtSettings)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
@@ -29,6 +33,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
         _tokenService = tokenService;
         _sessionService = sessionService;
         _sessionRepository = sessionRepository;
+        _jwtSettings = jwtSettings.Value;
     }
 
     public async Task<TokenResultDto> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -63,8 +68,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
             null,
             TokenType.User);
 
-        // Calculate refresh token expiration
-        var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
+        // Calculate refresh token expiration from now (not from access token expiry)
+        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);
 
         // Limit to a maximum of 2 active sessions per user
         // If user has 2 or more active sessions, revoke the oldest ones

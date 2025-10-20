@@ -1,4 +1,5 @@
 using AuthService.Application.Features.Authentication.Commands.ClientCredentials;
+using AuthService.Domain.Settings;
 using AuthService.Infrastructure.Security;
 using HydroEspinaca.Shared.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,7 +29,7 @@ public static class ServiceCollectionWebExtensions
         {
             var jwtSettings = configuration
                 .GetSection("Jwt")
-                .Get<AuthService.Infrastructure.Security.JwtSettings>()
+                .Get<JwtSettings>()
                 ?? throw new InvalidOperationException("Missing Jwt section in config");
 
             options.TokenValidationParameters.IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>

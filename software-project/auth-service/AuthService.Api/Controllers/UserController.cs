@@ -56,7 +56,7 @@ public class UserController : ControllerBase
     [Authorize(Policy = PolicyNames.UserUpdate)]
     public async Task<ActionResult<UserResponseDto>> Update(string id, [FromBody] UserUpdateDto request)
     {
-        var command = new UpdateUserCommand(id, request.Email, request.Password, request.RoleId);
+        var command = new UpdateUserCommand(id, request.Username, request.Email, request.Password, request.RoleId);
         var result = await _mediator.Send(command);
         return Ok(result);
     }

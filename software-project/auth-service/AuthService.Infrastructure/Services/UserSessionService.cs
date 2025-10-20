@@ -47,8 +47,7 @@ public class UserSessionService : IUserSessionService
     public async Task<UserSession> RefreshSessionAsync(
         string refreshToken,
         string newRefreshToken,
-        string newAccessToken,
-        DateTime newExpiresAt)
+        string newAccessToken)
     {
         var session = await _sessionRepository.FindByRefreshTokenAsync(refreshToken);
         if (session == null)
@@ -62,7 +61,7 @@ public class UserSessionService : IUserSessionService
         }
 
         var newAccessTokenHash = ComputeHash(newAccessToken);
-        session.UpdateTokens(newRefreshToken, newAccessTokenHash, newExpiresAt);
+        session.UpdateTokens(newRefreshToken, newAccessTokenHash);
 
         await _sessionRepository.UpdateAsync(session);
         return session;

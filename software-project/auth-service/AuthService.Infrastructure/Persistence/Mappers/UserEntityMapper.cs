@@ -22,7 +22,7 @@ public class UserMapper : IEntityMapper<User, UserDocument>
     {
         return new UserDocument
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id, // MongoDB will auto-generate if null/empty
             Username = entity.Username,
             Email = entity.Email.Value,
             Password = entity.Password.Value,

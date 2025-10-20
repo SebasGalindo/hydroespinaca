@@ -77,13 +77,13 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             clientIdForToken,
             tokenType);
 
-        var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
+        // Use the ORIGINAL refresh token expiration from the session (set during login)
+        var refreshTokenExpiresAt = session.ExpiresAt;
 
         await _sessionService.RefreshSessionAsync(
             request.RefreshToken,
             tokens.RefreshToken,
-            tokens.AccessToken,
-            refreshTokenExpiresAt
+            tokens.AccessToken
         );
 
         _logger.LogInformation("Token refresh successful for session: {SessionId}", session.SessionId);

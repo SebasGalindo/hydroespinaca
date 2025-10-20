@@ -47,12 +47,18 @@ public class UserSession : IIdentifiableMutable
 
     public void SetId(string id) => Id = id;
 
-    public void UpdateTokens(string refreshToken, string accessTokenHash, DateTime expiresAt)
+    public void RestoreTimestamps(DateTime createdAt, DateTime lastActivity)
+    {
+        CreatedAt = createdAt;
+        LastActivity = lastActivity;
+    }
+
+    public void UpdateTokens(string refreshToken, string accessTokenHash)
     {
         RefreshToken = refreshToken;
         AccessTokenHash = accessTokenHash;
-        ExpiresAt = expiresAt;
         LastActivity = DateTime.UtcNow;
+        // ExpiresAt is NOT updated - it remains fixed from the initial login
     }
 
     public void UpdateActivity()
