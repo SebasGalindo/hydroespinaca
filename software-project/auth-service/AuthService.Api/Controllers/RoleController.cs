@@ -1,9 +1,9 @@
 using AuthService.Application.Features.Roles.Commands.CreateRole;
 using AuthService.Application.Features.Roles.Commands.DeleteRole;
 using AuthService.Application.Features.Roles.Commands.UpdateRole;
-using AuthService.Application.Features.Roles.DTOs;
 using AuthService.Application.Features.Roles.Queries.GetAllRoles;
 using AuthService.Application.Features.Roles.Queries.GetRole;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using HydroEspinaca.Shared.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

@@ -1,7 +1,6 @@
 using AuthService.Domain.Interfaces;
-using Microsoft.AspNetCore.Authorization;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AuthService.Api.Controllers;
 
@@ -9,174 +8,92 @@ namespace AuthService.Api.Controllers;
 [Route("api/sessions")]
 public class SessionController : ControllerBase
 {
-    private readonly IUserSessionService _sessionService;
     private readonly IUserSessionRepository _sessionRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger<SessionController> _logger;
 
     public SessionController(
-        IUserSessionService sessionService,
-        IUserSessionRepository sessionRepository)
+        IUserSessionRepository sessionRepository,
+        IUserRepository userRepository,
+        ILogger<SessionController> logger)
     {
-        _sessionService = sessionService;
         _sessionRepository = sessionRepository;
+        _userRepository = userRepository;
+        _logger = logger;
     }
 
     /// <summary>
-    /// Get all active sessions for the authenticated user
+    /// Get all active sessions grouped by user
     /// </summary>
-    [Authorize]
-    [HttpGet("active")]
-    public async Task<ActionResult> GetActiveSessions()
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized();
-        }
-
-        var sessions = await _sessionService.GetActiveUserSessionsAsync(userId);
-        var sessionDtos = sessions.Select(s => new
-        {
-            s.SessionId,
-            s.ClientId,
-            s.CreatedAt,
-            s.LastActivity,
-            s.ExpiresAt,
-            s.IpAddress,
-            s.UserAgent,
-            IsActive = s.IsActive
-        });
-
-        return Ok(sessionDtos);
-    }
-
-    /// <summary>
-    /// Get all sessions (active and revoked) for the authenticated user
-    /// </summary>
-    [Authorize]
     [HttpGet]
-    public async Task<ActionResult> GetAllSessions()
+    public async Task<ActionResult<List<UserSessionsDto>>> GetSessions()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
+        try
         {
-            return Unauthorized();
+            var sessionsByUser = await _sessionRepository.GetAllActiveSessionsGroupedByUserAsync();
+            
+            var result = new List<UserSessionsDto>();
+
+            foreach (var (userId, sessions) in sessionsByUser)
+            {
+                var user = await _userRepository.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("User {UserId} not found for existing sessions", userId);
+                    continue;
+                }
+
+                var sessionDtos = sessions.Select(s => new SessionMonitorDto
+                {
+                    SessionId = s.SessionId,
+                    ClientId = s.ClientId,
+                    CreatedAt = s.CreatedAt,
+                    ExpiresAt = s.ExpiresAt,
+                    LastActivity = s.LastActivity,
+                    Revoked = s.Revoked,
+                    RevokedAt = s.RevokedAt
+                }).ToList();
+
+                result.Add(new UserSessionsDto
+                {
+                    UserId = user.Id,
+                    UserName = user.Username,
+                    Sessions = sessionDtos
+                });
+            }
+
+            return Ok(result);
         }
-
-        var sessions = await _sessionRepository.FindAllByUserIdAsync(userId);
-        var sessionDtos = sessions.Select(s => new
+        catch (Exception ex)
         {
-            s.SessionId,
-            s.ClientId,
-            s.CreatedAt,
-            s.LastActivity,
-            s.ExpiresAt,
-            s.Revoked,
-            s.RevokedAt,
-            s.IpAddress,
-            s.UserAgent,
-            IsActive = s.IsActive
-        });
-
-        return Ok(sessionDtos);
+            _logger.LogError(ex, "Error retrieving sessions");
+            return StatusCode(500, new { message = "Error retrieving sessions" });
+        }
     }
 
     /// <summary>
     /// Revoke a specific session by sessionId
     /// </summary>
-    [Authorize]
-    [HttpPost("{sessionId}/revoke")]
+    [HttpDelete("{sessionId}")]
     public async Task<ActionResult> RevokeSession(string sessionId)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
+        try
         {
-            return Unauthorized();
+            var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
+            if (session == null)
+            {
+                return NotFound(new { message = "Session not found" });
+            }
+
+            session.Revoke();
+            await _sessionRepository.UpdateAsync(session);
+
+            return Ok(new { message = "Session revoked successfully" });
         }
-
-        // Verify the session belongs to the user
-        var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
-        if (session == null)
+        catch (Exception ex)
         {
-            return NotFound(new { message = "Session not found" });
+            _logger.LogError(ex, "Error revoking session {SessionId}", sessionId);
+            return StatusCode(500, new { message = "Error revoking session" });
         }
-
-        if (session.UserId != userId)
-        {
-            return Forbid();
-        }
-
-        await _sessionService.RevokeSessionAsync(sessionId);
-        return Ok(new { message = "Session revoked successfully" });
-    }
-
-    /// <summary>
-    /// Revoke all sessions for the authenticated user
-    /// </summary>
-    [Authorize]
-    [HttpPost("revoke-all")]
-    public async Task<ActionResult> RevokeAllSessions()
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized();
-        }
-
-        await _sessionService.RevokeAllUserSessionsAsync(userId);
-        return Ok(new { message = "All sessions revoked successfully" });
-    }
-
-    /// <summary>
-    /// Admin endpoint: Get all sessions for a specific user by userId
-    /// </summary>
-    [Authorize(Roles = "admin")]
-    [HttpGet("user/{userId}")]
-    public async Task<ActionResult> GetUserSessions(string userId)
-    {
-        var sessions = await _sessionRepository.FindAllByUserIdAsync(userId);
-        var sessionDtos = sessions.Select(s => new
-        {
-            s.SessionId,
-            s.UserId,
-            s.ClientId,
-            s.CreatedAt,
-            s.LastActivity,
-            s.ExpiresAt,
-            s.Revoked,
-            s.RevokedAt,
-            s.IpAddress,
-            s.UserAgent,
-            IsActive = s.IsActive
-        });
-
-        return Ok(sessionDtos);
-    }
-
-    /// <summary>
-    /// Admin endpoint: Revoke a specific session by sessionId
-    /// </summary>
-    [Authorize(Roles = "admin")]
-    [HttpPost("admin/{sessionId}/revoke")]
-    public async Task<ActionResult> AdminRevokeSession(string sessionId)
-    {
-        var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
-        if (session == null)
-        {
-            return NotFound(new { message = "Session not found" });
-        }
-
-        await _sessionService.RevokeSessionAsync(sessionId);
-        return Ok(new { message = "Session revoked successfully" });
-    }
-
-    /// <summary>
-    /// Admin endpoint: Revoke all sessions for a specific user
-    /// </summary>
-    [Authorize(Roles = "admin")]
-    [HttpPost("admin/user/{userId}/revoke-all")]
-    public async Task<ActionResult> AdminRevokeAllUserSessions(string userId)
-    {
-        await _sessionService.RevokeAllUserSessionsAsync(userId);
-        return Ok(new { message = $"All sessions for user {userId} revoked successfully" });
     }
 }

@@ -21,7 +21,5 @@ public interface IUserSessionService
         string newAccessToken,
         DateTime newExpiresAt);
 
-    Task RevokeSessionAsync(string sessionId);
-    Task RevokeAllUserSessionsAsync(string userId);
     Task<IEnumerable<UserSession>> GetActiveUserSessionsAsync(string userId);
 }

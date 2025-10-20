@@ -44,11 +44,19 @@ public class MongoUserSessionRepository : IUserSessionRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task<IEnumerable<UserSession>> FindAllByUserIdAsync(string userId)
+    public async Task<Dictionary<string, List<UserSession>>> GetAllActiveSessionsGroupedByUserAsync()
     {
-        var filter = Builders<UserSessionDocument>.Filter.Eq(x => x.UserId, userId);
-        var sort = Builders<UserSessionDocument>.Sort.Descending(x => x.CreatedAt);
-        return await _baseRepo.FindManyAsync(filter, sort);
+        var filter = Builders<UserSessionDocument>.Filter.And(
+            Builders<UserSessionDocument>.Filter.Eq(x => x.Revoked, false),
+            Builders<UserSessionDocument>.Filter.Gt(x => x.ExpiresAt, DateTime.UtcNow)
+        );
+        
+        var sort = Builders<UserSessionDocument>.Sort.Descending(x => x.LastActivity);
+        var sessions = await _baseRepo.FindManyAsync(filter, sort);
+        
+        return sessions
+            .GroupBy(s => s.UserId)
+            .ToDictionary(g => g.Key, g => g.ToList());
     }
 
     public Task AddAsync(UserSession session)
@@ -56,21 +64,4 @@ public class MongoUserSessionRepository : IUserSessionRepository
 
     public Task UpdateAsync(UserSession session)
         => _baseRepo.UpdateAsync(session);
-
-    public Task DeleteAsync(string id)
-        => _baseRepo.DeleteAsync(id);
-
-    public async Task RevokeAllByUserIdAsync(string userId)
-    {
-        var filter = Builders<UserSessionDocument>.Filter.And(
-            Builders<UserSessionDocument>.Filter.Eq(x => x.UserId, userId),
-            Builders<UserSessionDocument>.Filter.Eq(x => x.Revoked, false)
-        );
-
-        var update = Builders<UserSessionDocument>.Update
-            .Set(x => x.Revoked, true)
-            .Set(x => x.RevokedAt, DateTime.UtcNow);
-
-        await _collection.UpdateManyAsync(filter, update);
-    }
 }

@@ -1,4 +1,4 @@
-using AuthService.Application.Features.Permissions.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Domain.Entities;
 using AutoMapper;
 

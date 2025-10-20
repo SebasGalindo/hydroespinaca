@@ -1,4 +1,4 @@
-using AuthService.Application.Features.Roles.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Domain.Interfaces;
 using AutoMapper;
 using HydroEspinaca.Shared.Utils;
@@ -35,19 +35,15 @@ public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, RoleR
             return null;
         }
 
-        var permissionIds = new List<string>();
-        foreach (var permissionCode in request.PermissionCodes)
+        // Validate provided codes exist
+        var nonExisting = await _permissionRepository.GetNonExistingCodesAsync(request.PermissionCodes);
+        if (nonExisting.Count > 0)
         {
-            var permission = await _permissionRepository.FindByCodeAsync(permissionCode);
-            if (permission == null)
-            {
-                throw new ArgumentException($"No se encontró el permiso con código '{permissionCode}'");
-            }
-            permissionIds.Add(permission.Id);
+            throw new ArgumentException($"No se encontraron los permisos con códigos: {string.Join(", ", nonExisting)}");
         }
 
         role.UpdateName(request.Name);
-        role.SetPermissions(permissionIds);
+        role.SetPermissions(request.PermissionCodes.Distinct().ToList());
         await _roleRepository.UpdateAsync(role);
 
         return _mapper.Map<RoleResponseDto>(role);

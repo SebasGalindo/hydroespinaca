@@ -13,19 +13,22 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly IUserSessionService _sessionService;
+    private readonly IUserSessionRepository _sessionRepository;
 
     public LoginCommandHandler(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
-        IUserSessionService sessionService)
+        IUserSessionService sessionService,
+        IUserSessionRepository sessionRepository)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _sessionService = sessionService;
+        _sessionRepository = sessionRepository;
     }
 
     public async Task<TokenResultDto> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -79,7 +82,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
 
             foreach (var oldSession in sessionsToRevoke)
             {
-                await _sessionService.RevokeSessionAsync(oldSession.SessionId);
+                oldSession.Revoke();
+                await _sessionRepository.UpdateAsync(oldSession);
             }
         }
 

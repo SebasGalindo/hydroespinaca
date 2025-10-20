@@ -202,8 +202,8 @@ namespace AuthService.Infrastructure.Security
                 }
 
                 // Get permissions for the role - permission.code is already the scope
-                var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
-                return permissions.Select(p => p.Code);
+                // Role.Permissions is a list of permission codes (scopes)
+                return role.Permissions;
             }
             catch
             {

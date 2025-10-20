@@ -16,4 +16,5 @@ public interface IPermissionRepository
     Task<List<Permission>> FindByCodesAsync(IEnumerable<string> codes);
     Task<List<string>> GetNonExistingIdsAsync(IEnumerable<string> ids);
     Task<List<string>> GetNonExistingCodesAsync(IEnumerable<string> codes);
+    Task<List<GroupedPermissionsDto>> GetGroupedAsync();
 }

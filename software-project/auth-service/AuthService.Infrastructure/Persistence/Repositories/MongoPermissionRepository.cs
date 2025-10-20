@@ -75,4 +75,20 @@ public class MongoPermissionRepository : IPermissionRepository
         var existingCodes = existingPermissions.Select(p => p.Code).ToHashSet();
         return codes.Where(code => !existingCodes.Contains(code)).ToList();
     }
+
+    public async Task<List<GroupedPermissionsDto>> GetGroupedAsync()
+    {
+        var all = await _baseRepo.GetAllAsync();
+        var groups = all
+            .GroupBy(p => p.Code.Split(':')[0])
+            .Select(g => new GroupedPermissionsDto
+            {
+                Category = g.Key,
+                Permissions = g.OrderBy(x => x.Code).ToList()
+            })
+            .OrderBy(g => g.Category)
+            .ToList();
+
+        return groups;
+    }
 }

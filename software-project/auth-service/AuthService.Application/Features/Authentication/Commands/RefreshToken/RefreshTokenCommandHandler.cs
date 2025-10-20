@@ -3,6 +3,7 @@ using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Features.Authentication.Commands.RefreshToken;
 
@@ -13,39 +14,48 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
     private readonly ITokenService _tokenService;
     private readonly IUserSessionService _sessionService;
     private readonly IUserSessionRepository _sessionRepository;
+    private readonly ILogger<RefreshTokenCommandHandler> _logger;
 
     public RefreshTokenCommandHandler(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         ITokenService tokenService,
         IUserSessionService sessionService,
-        IUserSessionRepository sessionRepository)
+        IUserSessionRepository sessionRepository,
+        ILogger<RefreshTokenCommandHandler> logger)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _tokenService = tokenService;
         _sessionService = sessionService;
         _sessionRepository = sessionRepository;
+        _logger = logger;
     }
 
     public async Task<TokenResultDto> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        // Find session by refresh token
         var session = await _sessionRepository.FindByRefreshTokenAsync(request.RefreshToken);
-        if (session == null || !session.IsActive)
+        if (session == null)
         {
+            _logger.LogWarning("Session not found by refresh token");
             throw new InvalidRefreshTokenException();
         }
 
-        // Validate user still exists
+        if (!session.IsActive)
+        {
+            _logger.LogWarning("Session is inactive: {SessionId}", session.SessionId);
+            throw new InvalidRefreshTokenException();
+        }
+
         var user = await _userRepository.FindByIdAsync(session.UserId);
         if (user == null)
         {
+            _logger.LogWarning("User not found: {UserId}", session.UserId);
             throw new InvalidRefreshTokenException();
         }
 
-        // Resolver el código del rol en lugar del RoleId
-        string roleCode = "user"; // valor por defecto
+        // Resolve role code
+        string roleCode = "user";
         if (!string.IsNullOrEmpty(user.RoleId))
         {
             var role = await _roleRepository.FindByIdAsync(user.RoleId);
@@ -55,25 +65,28 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             }
         }
 
-        // Generate new tokens - determine token type based on client context
-        var tokenType = string.IsNullOrEmpty(request.ClientId) ? TokenType.User : TokenType.MachineToMachine;
+        // Generate new tokens - PRESERVE original token type from the session
+        var isUserSession = session.ClientId == "web" || session.ClientId == "mobile";
+        var tokenType = isUserSession ? TokenType.User : TokenType.MachineToMachine;
+        var clientIdForToken = session.ClientId;
+
         var tokens = await _tokenService.GenerateTokensAsync(
             user.Id,
             user.Email.Value,
             roleCode,
-            request.ClientId ?? session.ClientId,
+            clientIdForToken,
             tokenType);
 
-        // Calculate refresh token expiration
         var refreshTokenExpiresAt = tokens.ExpiresAt.AddDays(7);
 
-        // Update session with new tokens
         await _sessionService.RefreshSessionAsync(
             request.RefreshToken,
             tokens.RefreshToken,
             tokens.AccessToken,
             refreshTokenExpiresAt
         );
+
+        _logger.LogInformation("Token refresh successful for session: {SessionId}", session.SessionId);
 
         return new TokenResultDto(
             tokens.AccessToken,

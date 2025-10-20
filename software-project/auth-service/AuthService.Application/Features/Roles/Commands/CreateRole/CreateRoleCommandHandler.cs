@@ -1,4 +1,4 @@
-using AuthService.Application.Features.Roles.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AutoMapper;
@@ -30,18 +30,15 @@ public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, RoleR
             throw new ArgumentException($"Ya existe un rol con el código '{request.Code}'");
         }
 
-        var permissionIds = new List<string>();
-        foreach (var permissionCode in request.PermissionCodes)
+        // Validate provided permission codes exist
+        var nonExisting = await _permissionRepository.GetNonExistingCodesAsync(request.PermissionCodes);
+        if (nonExisting.Count > 0)
         {
-            var permission = await _permissionRepository.FindByCodeAsync(permissionCode);
-            if (permission == null)
-            {
-                throw new ArgumentException($"No se encontró el permiso con código '{permissionCode}'");
-            }
-            permissionIds.Add(permission.Id);
+            throw new ArgumentException($"No se encontraron los permisos con códigos: {string.Join(", ", nonExisting)}");
         }
 
-        var role = new Role(request.Code, request.Name, permissionIds);
+        var distinctCodes = request.PermissionCodes.Distinct().ToList();
+        var role = new Role(request.Code, request.Name, distinctCodes);
         await _roleRepository.CreateAsync(role);
 
         return _mapper.Map<RoleResponseDto>(role);

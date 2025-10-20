@@ -1,7 +1,7 @@
 using AuthService.Application.Features.Users.Commands.CreateUser;
 using AuthService.Application.Features.Users.Commands.DeleteUser;
 using AuthService.Application.Features.Users.Commands.UpdateUser;
-using AuthService.Application.Features.Users.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Application.Features.Users.Queries.GetAllUsers;
 using AuthService.Application.Features.Users.Queries.GetUser;
 using HydroEspinaca.Shared.Extensions;

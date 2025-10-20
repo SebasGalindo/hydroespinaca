@@ -68,21 +68,6 @@ public class UserSessionService : IUserSessionService
         return session;
     }
 
-    public async Task RevokeSessionAsync(string sessionId)
-    {
-        var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
-        if (session != null)
-        {
-            session.Revoke();
-            await _sessionRepository.UpdateAsync(session);
-        }
-    }
-
-    public async Task RevokeAllUserSessionsAsync(string userId)
-    {
-        await _sessionRepository.RevokeAllByUserIdAsync(userId);
-    }
-
     public async Task<IEnumerable<UserSession>> GetActiveUserSessionsAsync(string userId)
     {
         return await _sessionRepository.FindActiveByUserIdAsync(userId);
