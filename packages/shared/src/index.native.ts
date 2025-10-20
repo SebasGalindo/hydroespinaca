@@ -4,38 +4,13 @@
  */
 
 // Export all stores
-export {
-  useAuthStore,
-  useSensorStore,
-  useAlertStore,
-  useActuatorStore,
-  useVariableStore,
-  useReadingsStore,
-  useFuzzyStore,
-  useDashboardStore,
-  CHART_VARIABLES
-} from './store';
+export { useAuthStore } from './store';
 
 // Export store-specific types
-export type {
-  SensorData,
-  MetricData,
-  SystemComponent,
-  IndividualSensorData,
-  SensorState,
-  ActuadorData,
-  VariableData,
-  SensorSummary,
-  IndividualReading,
-  FuzzySystemState,
-  TimeSeriesDataPoint,
-  ScatterDataPoint,
-  ChartVariable
-} from './store';
+export type { User } from './store';
 
 // Export all general types
 export * from './types';
-export * from './types/sensorTypes';
 
 // Export all hooks (including native-specific)
 export * from './hooks/useLoginForm';
@@ -46,19 +21,18 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 
 // Export all utilities (including native storage)
 export * from './utils/formatters';
-export * from './utils/validators';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { SessionStorage, secureStorage } from './utils/secureStorage.native';
 export { StorageUtils, StorageKeys } from './utils/storage';
 
-// Export design tokens
-export * from './tokens';
-
 // Export API utilities
-export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
+export { FuzzyRulesService, fuzzyRulesService } from './api/fuzzyRulesService';
+export type { FuzzyRuleSummary } from './types/fuzzyRules';
+export { WeatherService, weatherService } from './api/weatherService';
+export type { WeatherSummary } from './types/weather';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
 export type {
   EnvironmentalAnalyticsRequest,
@@ -73,16 +47,27 @@ export type {
   ActuatorActiveTimeProportionItem,
   ActuatorAnalyticsResponse,
 } from './api/analyticsService';
-
-// Export components
-export * from './components/WelcomeMessage';
-
-// Export native icons (uses react-native-svg)
-export { Icon, svgPaths } from './icons/index.native';
-export type { IconProps, IconComponent, IconName } from './icons';
-
-// Export navigation config
-export * from './config/navigation';
-
-// Export drawer menu config
-export * from './config/drawerMenu';
+export { AdminApiService, adminService } from './api/adminService';
+export type {
+  UserCreateDto,
+  UserUpdateDto,
+  UserResponseDto,
+  CreateRoleRequestDto,
+  UpdateRoleRequestDto,
+  RoleResponseDto,
+  CreatePermissionRequestDto,
+  UpdatePermissionRequestDto,
+  PermissionResponseDto,
+  GroupedPermissionResponseDto,
+  SessionMonitorDto,
+  UserSessionsDto,
+} from './types/admin';
+export type {
+  SystemStatusResponse,
+  ReadingItem,
+  ReadingsSnapshot,
+  QueueItem,
+  JobStatus,
+  Stats,
+  InternalRoutine,
+} from './types/systemStatus';

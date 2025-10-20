@@ -1,9 +1,8 @@
 // API services exports
-export * from './placeholders';
-export * from './fuzzyPlaceholders';
 export { AuthApiService, authService, ApiError } from './authService';
 export type { ApiResponse } from './authService';
 export { SystemStatusService, systemStatusService } from './systemStatusService';
+export { FuzzyRulesService, fuzzyRulesService } from './fuzzyRulesService';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './analyticsService';
 export type {
   EnvironmentalAnalyticsRequest,
@@ -18,3 +17,4 @@ export type {
   ActuatorActiveTimeProportionItem,
   ActuatorAnalyticsResponse,
 } from './analyticsService';
+export { AdminApiService, adminService } from './adminService';

@@ -1,36 +1,11 @@
 // Export all stores
-export {
-  useAuthStore,
-  useSensorStore,
-  useAlertStore,
-  useActuatorStore,
-  useVariableStore,
-  useReadingsStore,
-  useFuzzyStore,
-  useDashboardStore,
-  CHART_VARIABLES
-} from './store';
+export { useAuthStore } from './store';
 
 // Export store-specific types
-export type {
-  SensorData,
-  MetricData,
-  SystemComponent,
-  IndividualSensorData,
-  SensorState,
-  ActuadorData,
-  VariableData,
-  SensorSummary,
-  IndividualReading,
-  FuzzySystemState,
-  TimeSeriesDataPoint,
-  ScatterDataPoint,
-  ChartVariable
-} from './store';
+export type { User } from './store';
 
-// Export all general types (including User and Alert from types)
+// Export all general types
 export * from './types';
-export * from './types/sensorTypes';
 
 // Export hooks
 export * from './hooks/useLoginForm';
@@ -41,18 +16,17 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 
 // Export utilities
 export * from './utils/formatters';
-export * from './utils/validators';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { setAuthCallbacks, authFetch } from './utils/authFetch';
-// Note: SessionStorage and secureStorage are exported via './utils' subpath export
-
-// Export design tokens (includes colors, typography, spacing)
-export * from './tokens';
 
 // Export API utilities
-export * from './api/placeholders';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
+export { SystemStatusService, systemStatusService } from './api/systemStatusService';
+export { FuzzyRulesService, fuzzyRulesService } from './api/fuzzyRulesService';
+export type { FuzzyRuleSummary } from './types/fuzzyRules';
+export { WeatherService, weatherService } from './api/weatherService';
+export type { WeatherSummary } from './types/weather';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
 export type {
   EnvironmentalAnalyticsRequest,
@@ -67,16 +41,27 @@ export type {
   ActuatorActiveTimeProportionItem,
   ActuatorAnalyticsResponse,
 } from './api/analyticsService';
-
-// Export components
-export * from './components/WelcomeMessage';
-
-// Export icons
-export { Icon, svgPaths } from './icons';
-export type { IconProps, IconComponent, IconName } from './icons';
-
-// Export navigation config
-export * from './config/navigation';
-
-// Export drawer menu config
-export * from './config/drawerMenu';
+export { AdminApiService, adminService } from './api/adminService';
+export type {
+  UserCreateDto,
+  UserUpdateDto,
+  UserResponseDto,
+  CreateRoleRequestDto,
+  UpdateRoleRequestDto,
+  RoleResponseDto,
+  CreatePermissionRequestDto,
+  UpdatePermissionRequestDto,
+  PermissionResponseDto,
+  GroupedPermissionResponseDto,
+  SessionMonitorDto,
+  UserSessionsDto,
+} from './types/admin';
+export type {
+  SystemStatusResponse,
+  ReadingItem,
+  ReadingsSnapshot,
+  QueueItem,
+  JobStatus,
+  Stats,
+  InternalRoutine,
+} from './types/systemStatus';
