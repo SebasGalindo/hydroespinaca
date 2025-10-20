@@ -31,7 +31,7 @@ export class FuzzyRulesService {
       throw new Error(`Failed to fetch fuzzy rules: ${response.statusText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<FuzzyRuleSummary[]>;
   }
 }
 

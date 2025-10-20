@@ -15,7 +15,14 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   isLoading = false
 }) => {
   const [revoking, setRevoking] = useState<Set<string>>(new Set());
-  const [, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Get token expiry configuration from environment
+  const ACCESS_TOKEN_EXPIRY_MINUTES = Number(process.env.NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES) || 60;
+  const REFRESH_TOKEN_EXPIRY_DAYS = Number(process.env.NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS) || 7;
+
+  const MS_PER_MINUTE = 60 * 1000;
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -40,31 +47,67 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     }
   };
 
-  const calculateExpirationTime = (lastActivity: string): Date => {
-    const lastActivityDate = new Date(lastActivity);
-    return new Date(lastActivityDate.getTime() + 60 * 60 * 1000); // +1 hour
-  };
+  const getTimeUntilExpiration = (expiresAt: string): { text: string; color: string; expired: boolean } => {
+    const exp = new Date(expiresAt).getTime();
+    const diff = exp - currentTime.getTime();
 
-  const getTimeRemaining = (expirationDate: Date): { text: string; color: string; expired: boolean } => {
-    const now = new Date();
-    const diffMs = expirationDate.getTime() - now.getTime();
-    const diffMinutes = Math.floor(diffMs / 60000);
-    const diffSeconds = Math.floor((diffMs % 60000) / 1000);
+    if (diff <= 0) {
+      return { text: 'Expirada', color: 'bg-gray-100 text-gray-800', expired: true };
+    }
 
-    if (diffMs <= 0) {
-      return { text: 'Expirando...', color: 'bg-gray-100 text-gray-800', expired: true };
-    } else if (diffMinutes < 5) {
+    const days = Math.floor(diff / MS_PER_DAY);
+    const hours = Math.floor((diff % MS_PER_DAY) / (60 * 60 * 1000));
+    const minutes = Math.floor((diff % (60 * 60 * 1000)) / MS_PER_MINUTE);
+
+    if (days > 1) {
       return {
-        text: `${diffMinutes}m ${diffSeconds}s`,
+        text: `${days}d ${hours}h`,
+        color: 'bg-green-100 text-green-800',
+        expired: false
+      };
+    } else if (days === 1) {
+      return {
+        text: `1d ${hours}h`,
+        color: 'bg-green-100 text-green-800',
+        expired: false
+      };
+    } else if (hours > 3) {
+      return {
+        text: `${hours}h ${minutes}m`,
+        color: 'bg-green-100 text-green-800',
+        expired: false
+      };
+    } else if (hours > 0) {
+      return {
+        text: `${hours}h ${minutes}m`,
+        color: 'bg-yellow-100 text-yellow-800',
+        expired: false
+      };
+    } else {
+      return {
+        text: `${minutes}m`,
         color: 'bg-red-100 text-red-800',
         expired: false
       };
-    } else if (diffMinutes < 15) {
-      return { text: `${diffMinutes}m`, color: 'bg-yellow-100 text-yellow-800', expired: false };
+    }
+  };
+
+  const getAccessTokenExpiration = (lastActivity: string): { text: string; color: string; expired: boolean } => {
+    const lastActivityDate = new Date(lastActivity);
+    const expirationTime = new Date(lastActivityDate.getTime() + ACCESS_TOKEN_EXPIRY_MINUTES * MS_PER_MINUTE);
+    const diff = expirationTime.getTime() - currentTime.getTime();
+
+    if (diff <= 0) {
+      return { text: 'Expirado', color: 'text-gray-500', expired: true };
+    }
+
+    const minutes = Math.floor(diff / MS_PER_MINUTE);
+    const seconds = Math.floor((diff % MS_PER_MINUTE) / 1000);
+
+    if (minutes > 0) {
+      return { text: `${minutes}m ${seconds}s`, color: 'text-gray-600', expired: false };
     } else {
-      const hours = Math.floor(diffMinutes / 60);
-      const mins = diffMinutes % 60;
-      return { text: `${hours}h ${mins}m`, color: 'bg-green-100 text-green-800', expired: false };
+      return { text: `${seconds}s`, color: 'text-gray-600', expired: false };
     }
   };
 
@@ -130,8 +173,8 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
 
           <div className="divide-y divide-gray-200">
             {userSessions.sessions.map((session: SessionMonitorDto) => {
-              const expirationTime = calculateExpirationTime(session.lastActivity);
-              const timeRemaining = getTimeRemaining(expirationTime);
+              const sessionExpiry = getTimeUntilExpiration(session.expiresAt);
+              const accessTokenExpiry = getAccessTokenExpiration(session.lastActivity);
               const isRevoked = session.revoked || revoking.has(session.sessionId);
 
               return (
@@ -147,18 +190,26 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500">Creada</p>
                           <p className="text-gray-900 font-medium">{formatDate(session.createdAt)}</p>
                         </div>
+
                         <div>
                           <p className="text-gray-500">Última actividad</p>
                           <p className="text-gray-900 font-medium">{formatDate(session.lastActivity)}</p>
                         </div>
+
+                        <div>
+                          <p className="text-gray-500">Token refresca en</p>
+                          <p className={`font-medium ${accessTokenExpiry.color}`}>
+                            {accessTokenExpiry.text}
+                          </p>
+                        </div>
                       </div>
 
-                      {isRevoked && !timeRemaining.expired && (
+                      {isRevoked && !accessTokenExpiry.expired && (
                         <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                           <div className="flex items-start gap-2">
                             <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,8 +220,8 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                                 Sesión revocada
                               </p>
                               <p className="text-xs text-orange-700 mt-1">
-                                Esta sesión será cerrada automáticamente cuando caduque el token actual en{' '}
-                                <span className="font-semibold">{timeRemaining.text}</span>
+                                Esta sesión será cerrada automáticamente cuando el token actual expire en{' '}
+                                <span className="font-semibold">{accessTokenExpiry.text}</span>
                               </p>
                             </div>
                           </div>
@@ -179,8 +230,8 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                     </div>
 
                     <div className="ml-4 flex flex-col items-end gap-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${timeRemaining.color}`}>
-                        {isRevoked ? 'Revocada' : timeRemaining.text}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sessionExpiry.color}`}>
+                        {isRevoked ? 'Revocada' : sessionExpiry.text}
                       </span>
                       {!isRevoked && (
                         <button

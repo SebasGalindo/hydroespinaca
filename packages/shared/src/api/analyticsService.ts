@@ -122,7 +122,7 @@ export class AnalyticsApiService {
       });
 
       const isJson = response.headers.get('content-type')?.includes('application/json');
-      const data = isJson ? await response.json() : null;
+      const data: any = isJson ? await response.json() : null;
 
       if (!response.ok) {
         const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;
@@ -176,7 +176,7 @@ export class AnalyticsApiService {
       });
 
       const isJson = response.headers.get('content-type')?.includes('application/json');
-      const data = isJson ? await response.json() : null;
+      const data: any = isJson ? await response.json() : null;
 
       if (!response.ok) {
         const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;

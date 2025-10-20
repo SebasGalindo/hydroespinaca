@@ -33,7 +33,7 @@ export class WeatherService {
         throw new Error(`Failed to fetch weather data: ${response.statusText}`);
       }
 
-      return response.json();
+      return response.json() as Promise<WeatherSummary>;
     } catch (error) {
       console.error('Error fetching weather data from BFF:', error);
       throw error;

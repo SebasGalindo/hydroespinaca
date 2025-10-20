@@ -1,5 +1,6 @@
 // Admin API Service for users, roles, and permissions management
 import { getApiUrl } from '../utils/apiConfig';
+import { useAuthStore } from '../store/authStore';
 import type {
   UserCreateDto,
   UserUpdateDto,
@@ -61,6 +62,26 @@ export class AdminApiService {
         errorMessage = errorText || errorMessage;
       }
 
+      // Handle 401 Unauthorized - session is invalid/expired/revoked
+      if (response.status === 401) {
+        // Only trigger logout if we're not already logging out
+        const { isLoggingOut, logout } = useAuthStore.getState();
+
+        if (!isLoggingOut) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[AdminApiService] Received 401, triggering logout:', errorMessage);
+          }
+
+          // Execute logout asynchronously - don't wait for it
+          // This will clear the session and redirect to login
+          logout().catch((logoutError) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[AdminApiService] Logout failed after 401:', logoutError);
+            }
+          });
+        }
+      }
+
       throw new ApiError(response.status, errorMessage);
     }
 
@@ -69,7 +90,7 @@ export class AdminApiService {
       return null as T;
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   // ==================== USER MANAGEMENT ====================

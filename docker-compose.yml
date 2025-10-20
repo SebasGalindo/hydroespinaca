@@ -194,6 +194,7 @@ services:
       - Jwt__Issuer=${Jwt_Issuer}
       - Jwt__Audience=${Jwt_Audience}
       - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - Jwt__RefreshTokenExpiryDays=${Jwt_RefreshTokenExpiryDays}
       # M2M Configuration for auth-service to communicate with other services
       - M2M__ClientId=${AUTH_SERVICE_CLIENT_ID}
       - M2M__ClientSecret=${AUTH_SERVICE_CLIENT_SECRET}
@@ -363,6 +364,8 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -393,6 +396,8 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
     volumes:
       # Bind mount: source code from host with live reload
       - .:/workspace:cached

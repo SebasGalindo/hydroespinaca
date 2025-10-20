@@ -48,7 +48,7 @@ function clearBrowserStorage() {
  * by logging out and redirecting to login
  */
 export async function authFetch(
-  input: RequestInfo | URL,
+  input: string | Request | URL,
   init?: RequestInit
 ): Promise<Response> {
   try {

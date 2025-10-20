@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // Start as true to prevent premature redirects during SSR/hydration
   error: null,
   isLoggingOut: false,
 

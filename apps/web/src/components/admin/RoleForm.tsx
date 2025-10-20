@@ -46,6 +46,18 @@ export const RoleForm: React.FC<RoleFormProps> = ({
     setError(null);
   }, [role, isOpen]);
 
+  const formatRoleCode = (code: string): string => {
+    // Remove spaces and convert to lowercase
+    let formatted = code.trim().toLowerCase().replace(/\s+/g, '_');
+
+    // Add "role_" prefix if not present
+    if (!formatted.startsWith('role_')) {
+      formatted = 'role_' + formatted;
+    }
+
+    return formatted;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -60,7 +72,7 @@ export const RoleForm: React.FC<RoleFormProps> = ({
         await onSubmit(updateData);
       } else {
         const createData: CreateRoleRequestDto = {
-          code: formData.code,
+          code: formatRoleCode(formData.code), // Auto-format code with "role_" prefix
           name: formData.name,
           permissionCodes: formData.permissionCodes
         };
@@ -85,7 +97,7 @@ export const RoleForm: React.FC<RoleFormProps> = ({
         ></div>
 
         {/* Modal panel */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+        <div className="relative z-10 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
           <form onSubmit={handleSubmit}>
             {/* Header */}
             <div className="bg-blue-600 px-6 py-4">

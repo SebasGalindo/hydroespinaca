@@ -68,14 +68,14 @@ export class AuthApiService {
       });
 
       const isJson = response.headers.get('content-type')?.includes('application/json');
-      const data = isJson ? await response.json() : null;
+      const data: any = isJson ? await response.json() : null;
 
       if (!response.ok) {
         throw new ApiError(response.status, data?.message || `HTTP ${response.status}`);
       }
 
       return {
-        data,
+        data: data as T | undefined,
         status: response.status,
       };
     } catch (error) {

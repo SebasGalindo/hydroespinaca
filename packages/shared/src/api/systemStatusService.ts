@@ -31,7 +31,7 @@ export class SystemStatusService {
       throw new Error(`Failed to fetch system status: ${response.statusText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<SystemStatusResponse>;
   }
 }
 

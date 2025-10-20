@@ -6,9 +6,13 @@ import type { NextRequest } from 'next/server';
  *
  * Flujo:
  * 1. Rutas públicas: /, /login (acceso sin sesión)
- * 2. Rutas protegidas: /dashboard/*, /app/* (requieren sesión)
+ * 2. Rutas protegidas: /dashboard/*, /app/*, /admin/* (requieren sesión)
  * 3. Si no hay SessionId cookie y la ruta es protegida → redirige a /login
  * 4. Si hay SessionId y va a /login → redirige a /dashboard
+ *
+ * Nota: La validación de roles se hace en el componente AdminRoute (client-side)
+ * después de que checkSession() obtenga los datos del usuario del BFF.
+ * El estado inicial isLoading=true previene redirects prematuros durante SSR.
  */
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -49,7 +53,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Permitir el acceso
+  // Permitir el acceso - la validación de rol admin se hace en AdminRoute
   return NextResponse.next();
 }
 

@@ -26,19 +26,19 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       router.push('/login');
       return;
     }
 
-    // Check if user has Administrador role
-    if (user?.role !== 'Administrador') {
+    // Check if user has Administrador role - only after user is fully loaded
+    if (user.role !== 'Administrador') {
       router.push(fallbackPath);
     }
   }, [isAuthenticated, user, router, fallbackPath, isLoading]);
 
-  // Show loading state while checking session
-  if (isLoading) {
+  // Show loading state while checking session OR while user data is not yet available
+  if (isLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -54,8 +54,8 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
     );
   }
 
-  // Don't render content if not admin
-  if (!isAuthenticated || user?.role !== 'Administrador') {
+  // Don't render content if not admin (user is guaranteed to be defined here)
+  if (!isAuthenticated || user.role !== 'Administrador') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
