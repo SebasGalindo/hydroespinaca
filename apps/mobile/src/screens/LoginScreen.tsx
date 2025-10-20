@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthProvider';
 
 type RootStackParamList = {
   Login: undefined;
-  MainTabs: undefined;
+  Dashboard: undefined;
 };
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -17,10 +17,10 @@ export function LoginScreen(): React.ReactElement {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Redirect to main tabs if already authenticated
+  // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigation.replace('MainTabs');
+      navigation.replace('Dashboard');
     }
   }, [isAuthenticated, isLoading, navigation]);
 
