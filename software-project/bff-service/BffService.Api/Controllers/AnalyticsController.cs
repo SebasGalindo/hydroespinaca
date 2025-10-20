@@ -47,9 +47,9 @@ public class AnalyticsController : ControllerBase
         [FromBody] EnvironmentalAnalyticsRequest request,
         CancellationToken cancellationToken)
     {
+        string? sessionId = null;
         try
         {
-            string? sessionId = null;
             var sessionIdHeaderKey = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
 
             // 1️⃣ Try to read from cookie (web)
@@ -65,20 +65,20 @@ public class AnalyticsController : ControllerBase
 
             if (string.IsNullOrWhiteSpace(sessionId))
             {
+                _logger.LogWarning("Session ID not found in request (GetEnvironmentalAggregates)");
                 return Unauthorized(new { message = "Session ID not found" });
             }
 
-            // 3️⃣ Validate session
-            var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
-            if (sessionInfo == null || !sessionInfo.IsValid)
-            {
-                return Unauthorized(new { message = "Invalid or expired session" });
-            }
+            _logger.LogDebug(
+                "Processing GetEnvironmentalAggregates for session {SessionId} - will validate and refresh tokens if needed",
+                sessionId
+            );
 
-            // 4️⃣ Ensure we have a valid access token (refresh if needed)
+            // 3️⃣ Ensure we have a valid access token (refresh if needed)
+            // NOTE: GetSessionWithValidTokensAsync handles token expiration and automatic refresh
             var session = await _sessionTokenService.GetSessionWithValidTokensAsync(sessionId, cancellationToken);
 
-            // 5️⃣ Call the analytics service
+            // 4️⃣ Call the analytics service
             var result = await _analyticsService.GetEnvironmentalAggregatesAsync(
                 request,
                 session.AccessToken,
@@ -88,8 +88,26 @@ public class AnalyticsController : ControllerBase
         }
         catch (SessionNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Session not found");
+            _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
             return Unauthorized(new { message = "Session not found" });
+        }
+        catch (SessionExpiredException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Session expired and cannot be refreshed: {SessionId}",
+                sessionId
+            );
+            return Unauthorized(new { message = "Session expired, please login again" });
+        }
+        catch (InvalidTokenException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Invalid token exception for session {SessionId} - this should NOT happen if auto-refresh works correctly",
+                sessionId
+            );
+            return Unauthorized(new { message = "Session expired" });
         }
         catch (InvalidOperationException ex)
         {
@@ -120,9 +138,9 @@ public class AnalyticsController : ControllerBase
         [FromBody] ActuatorAnalyticsRequest request,
         CancellationToken cancellationToken)
     {
+        string? sessionId = null;
         try
         {
-            string? sessionId = null;
             var sessionIdHeaderKey = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
 
             // 1️⃣ Try to read from cookie (web)
@@ -138,20 +156,20 @@ public class AnalyticsController : ControllerBase
 
             if (string.IsNullOrWhiteSpace(sessionId))
             {
+                _logger.LogWarning("Session ID not found in request (GetActuatorAnalytics)");
                 return Unauthorized(new { message = "Session ID not found" });
             }
 
-            // 3️⃣ Validate session
-            var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
-            if (sessionInfo == null || !sessionInfo.IsValid)
-            {
-                return Unauthorized(new { message = "Invalid or expired session" });
-            }
+            _logger.LogDebug(
+                "Processing GetActuatorAnalytics for session {SessionId} - will validate and refresh tokens if needed",
+                sessionId
+            );
 
-            // 4️⃣ Ensure we have a valid access token (refresh if needed)
+            // 3️⃣ Ensure we have a valid access token (refresh if needed)
+            // NOTE: GetSessionWithValidTokensAsync handles token expiration and automatic refresh
             var session = await _sessionTokenService.GetSessionWithValidTokensAsync(sessionId, cancellationToken);
 
-            // 5️⃣ Call the analytics service
+            // 4️⃣ Call the analytics service
             var result = await _analyticsService.GetActuatorAnalyticsAsync(
                 request,
                 session.AccessToken,
@@ -161,8 +179,26 @@ public class AnalyticsController : ControllerBase
         }
         catch (SessionNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Session not found");
+            _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
             return Unauthorized(new { message = "Session not found" });
+        }
+        catch (SessionExpiredException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Session expired and cannot be refreshed: {SessionId}",
+                sessionId
+            );
+            return Unauthorized(new { message = "Session expired, please login again" });
+        }
+        catch (InvalidTokenException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Invalid token exception for session {SessionId} - this should NOT happen if auto-refresh works correctly",
+                sessionId
+            );
+            return Unauthorized(new { message = "Session expired" });
         }
         catch (InvalidOperationException ex)
         {

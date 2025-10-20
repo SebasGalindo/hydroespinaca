@@ -152,14 +152,29 @@ public class SessionApplicationService : ISessionService
 
     public async Task<Session?> GetFullSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug("GetFullSessionAsync called for session: {SessionId}", sessionId);
+
         var session = await _sessionRepository.GetAsync(sessionId, cancellationToken);
         if (session == null)
         {
-            _logger.LogWarning("Session not found: {SessionId}", sessionId);
+            _logger.LogWarning("Session not found in repository: {SessionId}", sessionId);
             return null;
         }
 
-        _validationService.ValidateSessionOrThrow(session, sessionId);
+        _logger.LogDebug(
+            "Session found: {SessionId} | IsExpired: {IsExpired} | CanRefresh: {CanRefresh} | ExpiresAt: {ExpiresAt} | UtcNow: {UtcNow}",
+            sessionId,
+            session.IsExpired(),
+            session.CanRefresh(),
+            session.ExpiresAt,
+            DateTime.UtcNow
+        );
+
+        // NOTE: ValidateSessionOrThrow will throw SessionExpiredException if expired
+        // This is NOT what we want here - we want to allow expired sessions to be refreshed
+        // Commenting this out temporarily to allow the refresh flow
+        // _validationService.ValidateSessionOrThrow(session, sessionId);
+
         return session;
     }
 

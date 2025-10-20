@@ -120,8 +120,6 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogInformation("Attempting token refresh");
-
             var refreshRequest = new
             {
                 refreshToken = refreshToken,
@@ -137,7 +135,11 @@ public class AuthService : IAuthService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("Token refresh failed: {StatusCode} - {Error}", response.StatusCode, errorContent);
+                _logger.LogError(
+                    "Token refresh failed: {StatusCode} - {Error}",
+                    response.StatusCode,
+                    errorContent
+                );
                 throw new InvalidTokenException($"Token refresh failed: {response.StatusCode}");
             }
 
@@ -149,17 +151,16 @@ public class AuthService : IAuthService
 
             if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
             {
+                _logger.LogError("Invalid token response from auth service");
                 throw new InvalidTokenException("Invalid token response from auth service");
             }
 
             var expiresAt = tokenResponse.ExpiresAt;
             var refreshTokenExpiresAt = tokenResponse.RefreshTokenExpiresAt ?? DateTime.UtcNow.AddDays(7);
 
-            _logger.LogInformation("Token refresh successful");
-
             return new TokenInfo(
                 tokenResponse.AccessToken,
-                tokenResponse.RefreshToken ?? refreshToken, // Keep old refresh token if new one not provided
+                tokenResponse.RefreshToken ?? refreshToken,
                 expiresAt,
                 refreshTokenExpiresAt
             );

@@ -44,7 +44,7 @@ public class ProxyService : IProxyService
                 throw new ProxyException($"Unknown target service: {targetService}");
             }
 
-            _logger.LogInformation("Forwarding {Method} request to {Service}: {Path}", 
+            _logger.LogInformation("Forwarding {Method} request to {Service}: {Path}",
                 request.Method, targetService, request.Path);
 
             // Add API prefix for the target service
@@ -56,6 +56,10 @@ public class ProxyService : IProxyService
             if (!string.IsNullOrEmpty(accessToken))
             {
                 httpRequestMessage.Headers.Add(BffConstants.Headers.Authorization, $"Bearer {accessToken}");
+            }
+            else
+            {
+                _logger.LogWarning("No access token provided for request to {Service}", targetService);
             }
 
             // Add request headers (excluding authorization to prevent override)
@@ -85,7 +89,12 @@ public class ProxyService : IProxyService
                 .Where(h => IsAllowedResponseHeader(h.Key))
                 .ToDictionary(h => h.Key, h => string.Join(", ", h.Value));
 
-            _logger.LogInformation("Received response from {Service}: {StatusCode}", 
+            if ((int)response.StatusCode == 403)
+            {
+                _logger.LogError("Service {Service} returned 403 Forbidden", targetService);
+            }
+
+            _logger.LogInformation("Received response from {Service}: {StatusCode}",
                 targetService, response.StatusCode);
 
             return new ProxyResponse(

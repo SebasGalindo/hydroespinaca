@@ -16,17 +16,25 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddMemoryCache();
 
         // Repositories
-        services.AddScoped<ISessionRepository, InMemorySessionRepository>();
+        // IMPORTANT: InMemorySessionRepository must be Singleton because:
+        // 1. It's a shared cache across all requests
+        // 2. It uses IMemoryCache which is already Singleton
+        // 3. Creating new instances per request is wasteful and can cause issues with concurrent refresh
+        services.AddSingleton<ISessionRepository, InMemorySessionRepository>();
 
         // HTTP Clients
         services.AddHttpClient<IAuthService, AuthService>();
+        services.AddHttpClient<IAuthServiceClient, AuthServiceClient>();
         services.AddHttpClient<IProxyService, ProxyService>();
         services.AddHttpClient<IWeatherService, WeatherService>();
+        services.AddHttpClient<IFuzzyServiceClient, FuzzyServiceClient>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAuthServiceClient, AuthServiceClient>();
         services.AddScoped<IProxyService, ProxyService>();
         services.AddScoped<IWeatherService, WeatherService>();
+        services.AddScoped<IFuzzyServiceClient, FuzzyServiceClient>();
 
         return services;
     }

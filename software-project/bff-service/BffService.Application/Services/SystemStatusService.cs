@@ -92,6 +92,12 @@ public class SystemStatusService : ISystemStatusService
             cancellationToken
         );
 
+        if (response.StatusCode == 403)
+        {
+            _logger.LogError("Actuator service returned 403 Forbidden");
+            throw new UnauthorizedAccessException("Actuator service rejected the access token");
+        }
+
         if (response.StatusCode != 200)
         {
             _logger.LogWarning("Actuator service returned status code {StatusCode}", response.StatusCode);
@@ -123,6 +129,12 @@ public class SystemStatusService : ISystemStatusService
             BffConstants.Proxy.Services.SensorService,
             cancellationToken
         );
+
+        if (response.StatusCode == 403)
+        {
+            _logger.LogError("Sensor service returned 403 Forbidden");
+            throw new UnauthorizedAccessException("Sensor service rejected the access token");
+        }
 
         if (response.StatusCode != 200)
         {
