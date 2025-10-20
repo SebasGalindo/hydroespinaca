@@ -57,14 +57,16 @@ public:
     static int getFanSpeed();
     
     // ========================================
-    // HUMIDIFICADOR (Control básico)
+    // HUMIDIFICADOR ULTRASÓNICO
     // ========================================
+    // PIN 13: Generador de niebla (activo en bajo)
+    // PIN 14: Ventilador interno (activo en bajo)
     
-    // Control directo de relés (usado por control.cpp)
-    static void turnHumidifierMasterOn();
-    static void turnHumidifierMasterOff();
-    static void turnHumidifierRelayOn();
-    static void turnHumidifierRelayOff();
+    // Control directo de pines (usado por control.cpp)
+    static void turnHumidifierMasterOn();   // PIN 14 ON (ventilador)
+    static void turnHumidifierMasterOff();  // PIN 14 OFF (ventilador)
+    static void turnHumidifierRelayOn();    // PIN 13 ON (generador niebla)
+    static void turnHumidifierRelayOff();   // PIN 13 OFF (generador niebla)
     
     // ========================================
     // UTILIDADES

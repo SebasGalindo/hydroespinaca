@@ -44,9 +44,9 @@
 #define PIN_FAN          27     // Ventiladores (puede ser PWM)
 #define PIN_HEATER_WATER 25     // Calentador agua
 
-// Humidificador (control con 2 relés)
-#define PIN_HUMID_RELAY  13     // Relé pulso humidificador
-#define PIN_HUMID_POWER  14     // Relé maestro (power)
+// Humidificador ultrasónico (control con 2 relés ACTIVOS LOW)
+#define PIN_HUMID_RELAY  13     // Generador de niebla ultrasónico (activo en bajo)
+#define PIN_HUMID_POWER  14     // Ventilador interno del humidificador (activo en bajo)
 
 // ========================================
 // CONFIGURACIÓN DE RELÉS

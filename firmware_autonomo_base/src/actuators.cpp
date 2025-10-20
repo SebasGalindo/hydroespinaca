@@ -20,7 +20,9 @@ void ActuatorController::begin() {
     pinMode(PIN_FAN, OUTPUT);
     pinMode(PIN_HEATER_WATER, OUTPUT);
 
-    // PINES HUMIDIFICADOR  (PIN 14)
+    // HUMIDIFICADOR ULTRASÓNICO
+    // PIN 13: Generador de niebla
+    // PIN 14: Ventilador interno
     pinMode(PIN_HUMID_RELAY, OUTPUT);
     pinMode(PIN_HUMID_POWER, OUTPUT);
 
@@ -32,9 +34,9 @@ void ActuatorController::begin() {
     digitalWrite(PIN_FAN, LOW);  // Fan is non-inverted: LOW = OFF
     digitalWrite(PIN_HEATER_WATER, HIGH);
 
-    // HUMIDIFICADOR  (PIN 14)
-    digitalWrite(PIN_HUMID_RELAY, HIGH);
-    digitalWrite(PIN_HUMID_POWER, HIGH);
+    // HUMIDIFICADOR - Inicialmente apagado
+    digitalWrite(PIN_HUMID_RELAY, HIGH);   // PIN 13 OFF
+    digitalWrite(PIN_HUMID_POWER, HIGH);   // PIN 14 OFF
     
     Serial.println("✅ Actuadores inicializados - Todos apagados");
 }
@@ -195,30 +197,30 @@ void ActuatorController::detachFanPWM() {
 }
 
 // ========================================
-// HUMIDIFICADOR (Control especializado)
+// HUMIDIFICADOR ULTRASÓNICO
 // ========================================
+// PIN 13: Generador de niebla ultrasónico (activo en bajo)
+// PIN 14: Ventilador interno del humidificador (activo en bajo)
+
 void ActuatorController::turnHumidifierMasterOn() {
-    digitalWrite(PIN_HUMID_POWER, LOW);  // ACTIVO LOW (lógica invertida)
-    Serial.println("💨 Humidificador: Relé maestro ENCENDIDO");
+    digitalWrite(PIN_HUMID_POWER, LOW);  // PIN 14: ACTIVO LOW
+    Serial.println("🌬️ Ventilador humidificador (PIN 14) ENCENDIDO");
 }
 
 void ActuatorController::turnHumidifierMasterOff() {
-    digitalWrite(PIN_HUMID_POWER, HIGH);  // ACTIVO LOW (lógica invertida)
-    Serial.println("💨 Humidificador: Relé maestro APAGADO");
+    digitalWrite(PIN_HUMID_POWER, HIGH);  // PIN 14: ACTIVO LOW
+    Serial.println("🌬️ Ventilador humidificador (PIN 14) APAGADO");
 }
 
 void ActuatorController::turnHumidifierRelayOn() {
-    digitalWrite(PIN_HUMID_RELAY, LOW);  // ACTIVO LOW (lógica invertida)
-    Serial.println("💨 Humidificador: Relé de pulso ENCENDIDO");
+    digitalWrite(PIN_HUMID_RELAY, LOW);  // PIN 13: ACTIVO LOW
+    Serial.println("🌫️ Generador de niebla (PIN 13) ENCENDIDO");
 }
 
 void ActuatorController::turnHumidifierRelayOff() {
-    digitalWrite(PIN_HUMID_RELAY, HIGH);  // ACTIVO LOW (lógica invertida)
-    Serial.println("💨 Humidificador: Relé de pulso APAGADO");
+    digitalWrite(PIN_HUMID_RELAY, HIGH);  // PIN 13: ACTIVO LOW
+    Serial.println("🌫️ Generador de niebla (PIN 13) APAGADO");
 }
-
-// Humidificador ahora controlado completamente por control.cpp
-// Funciones legacy eliminadas - solo funciones básicas ON/OFF
 
 // ========================================
 // UTILIDADES
@@ -246,6 +248,6 @@ void ActuatorController::printStatus() {
     Serial.printf("  🌊 Bomba agua: %s\n", isWaterPumpOn() ? "ON" : "OFF");
     Serial.printf("  🌪️ Ventilador: %s (%d%%)\n", isFanOn() ? "ON" : "OFF", currentFanSpeed);
     Serial.printf("  🌡️ Calentador agua: %s\n", isWaterHeaterOn() ? "ON" : "OFF");
-    Serial.printf("  💨 Humid. maestro: %s\n", digitalRead(PIN_HUMID_POWER) == LOW ? "ON" : "OFF");
-    Serial.printf("  💨 Humid. pulso: %s\n", digitalRead(PIN_HUMID_RELAY) == LOW ? "ON" : "OFF");
+    Serial.printf("  🌫️ Generador niebla (PIN 13): %s\n", digitalRead(PIN_HUMID_RELAY) == LOW ? "ON" : "OFF");
+    Serial.printf("  🌬️ Ventilador humid (PIN 14): %s\n", digitalRead(PIN_HUMID_POWER) == LOW ? "ON" : "OFF");
 }

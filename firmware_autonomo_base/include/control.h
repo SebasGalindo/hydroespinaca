@@ -29,8 +29,8 @@
 // ========================================
 // Umbrales específicos para monitoreo rápido del calefactor
 #define HEATER_ON_TEMP       17.0f          // Enciende ≤ 17.0°C
-#define HEATER_OFF_TEMP      22.5f          // Apaga ≥ 22.5°C (control normal)
-#define HEATER_EMERGENCY_TEMP 25.0f         // Apaga inmediatamente ≥ 25.0°C
+#define HEATER_OFF_TEMP      22.0f          // Apaga ≥ 22.0°C (control normal)
+#define HEATER_EMERGENCY_TEMP 24.0f         // Apaga inmediatamente ≥ 24.0°C
 #define HEATER_MIN_ON_TIME   (3 * 60 * 1000)  // 3 minutos mínimo encendido
 #define HEATER_MIN_OFF_TIME  (2 * 60 * 1000)  // 2 minutos mínimo apagado
 #define HEATER_FAST_MONITOR_INTERVAL 3000   // 3 segundos de monitoreo rápido
@@ -155,17 +155,21 @@ enum LightState {
     LIGHT_ON                       // Encendida (lux insuficiente dentro del horario)
 };
 
-// MÁQUINA DE ESTADOS PARA SECUENCIA DE ENCENDIDO DEL HUMIDIFICADOR
-enum HumidifierSequenceState {
-    HUMID_SEQ_IDLE,                // Inactivo - sin secuencia en progreso
-    HUMID_SEQ_MASTER_ON,           // Relé maestro encendido, esperando 2s
-    HUMID_SEQ_PULSE_ON,            // Pulso de activación ON, esperando 1s
-    HUMID_SEQ_COMPLETE             // Secuencia completa, pulso apagado
-};
+// ========================================
+// NUEVA LÓGICA DEL HUMIDIFICADOR ULTRASÓNICO
+// ========================================
+// PIN 13: Generador de niebla (activo en bajo)
+// PIN 14: Ventilador interno (activo en bajo)
+//
+// Comportamiento:
+// 1. Generador de niebla se enciende cuando humedad < HUMIDITY_MIN
+// 2. Mientras generador esté ON, ventilador cicla cada 40s por 15s
+// 3. Todo se apaga cuando humedad >= HUMIDITY_MAX (estabilizada)
+// ========================================
 
-// Tiempos de la secuencia del humidificador
-#define HUMID_MASTER_DELAY_MS 2000   // 2 segundos de espera después de activar maestro
-#define HUMID_PULSE_DURATION_MS 1000 // 1 segundo de duración del pulso
+// Tiempos del ciclo del ventilador del humidificador
+#define HUMID_FAN_CYCLE_INTERVAL_MS 40000  // 40 segundos entre ciclos
+#define HUMID_FAN_ON_DURATION_MS 15000     // 15 segundos de duración ON
 
 struct SensorReadings {
     float temperature;
@@ -266,21 +270,13 @@ struct ControlState {
     LightState lightState;                 // Estado actual de la luz (ON/OFF)
     unsigned long lightOnStartTime;        // Timestamp cuando se encendió la luz
     
-    // HUMIDIFICADOR: Control con secuencia de encendido no bloqueante
-    bool humidifierMasterActive;                // Relé maestro (PIN 14) activo
-    unsigned long humidifierStartTime;          // Tiempo de inicio del ciclo
-    HumidifierSequenceState humidifierSeqState; // Estado de la secuencia de encendido
-    unsigned long humidifierSeqTimestamp;       // Timestamp para transiciones de secuencia
-
-    // ========================================
-    // VALIDACIÓN DE EFECTIVIDAD DEL HUMIDIFICADOR
-    // ========================================
-    float humidityAtStart;               // Humedad cuando se encendió
-    float temperatureAtStart;            // Temperatura cuando se encendió
-    unsigned long humidifierWindowStart; // Inicio de ventana de evaluación
-    bool humidifierLocked;               // Bloqueado por inefectividad
-    unsigned long humidifierLockedUntil; // Timestamp de expiración del bloqueo
-    bool windowValidationActive;         // Ventana de validación activa
+    // HUMIDIFICADOR: Control simplificado con ciclo de ventilador
+    bool humidifierActive;                      // Generador de niebla activo (PIN 13)
+    unsigned long humidifierStartTime;          // Tiempo de inicio del ciclo completo
+    
+    // Control cíclico del ventilador interno (PIN 14)
+    bool humidifierFanOn;                       // Estado actual del ventilador
+    unsigned long lastHumidifierFanCycle;       // Último cambio de estado del ventilador
     
     // ========================================
     // PARCHE DE SEGURIDAD DEL CALEFACTOR (monitoreo rápido)
@@ -360,12 +356,11 @@ private:
     void updateAirStoneControl();         // Controlador central de aireación
     void setAirStoneMode(AirStoneMode newMode, const char* reason);
     
+    
     // ========================================
-    // SECUENCIA DE ENCENDIDO DEL HUMIDIFICADOR (NO BLOQUEANTE)
+    // CONTROL DEL HUMIDIFICADOR ULTRASÓNICO
     // ========================================
-    void startHumidifierSequence(float humidity, float temperature);  // Iniciar secuencia
-    void updateHumidifierSequence();                                  // Actualizar máquina de estados
-    bool canStartHumidifierSequence();                                // Validar si puede iniciar
+    void updateHumidifierFanCycle();             // Actualizar ciclo del ventilador (no bloqueante)
 
     // ========================================
     // RECIRCULACIÓN EXTRA POR CALEFACTOR DE AGUA
