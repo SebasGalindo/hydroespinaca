@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from kink import di
@@ -17,6 +17,7 @@ from FuzzyService.Application.Features.FuzzyRules.Commands.UpdateRuleConsequentC
 from FuzzyService.Application.Features.FuzzyRules.Queries.GetAllFuzzyRulesQuery import GetAllFuzzyRulesQuery
 from FuzzyService.Application.Features.FuzzyRules.Queries.GetFuzzyRuleByIdQuery import GetFuzzyRuleByIdQuery
 from FuzzyService.Application.Features.FuzzyRules.Queries.GetFuzzyRulesBySystemQuery import GetFuzzyRulesBySystemQuery
+from FuzzyService.Application.Features.FuzzyRules.Queries.GetAllRulesNameDescriptionQuery import GetAllRulesNameDescriptionQuery
 from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, BusinessRuleViolationError
 
 router = APIRouter(prefix="/api/fuzzy-rules", tags=["fuzzy-rules"])
@@ -217,3 +218,19 @@ async def get_fuzzy_rules_by_system(
         return query._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.get("/summary/name-description", response_model=List[Dict[str, Any]])
+async def get_all_rules_name_description(
+    skip: int = 0,
+    limit: int = 100,
+) -> List[Dict[str, Any]]:
+    """Obtiene todas las reglas difusas con solo id, nombre y descripción."""
+    mediator: Medyator = di[Medyator]
+    
+    query = GetAllRulesNameDescriptionQuery(
+        skip=skip,
+        limit=limit
+    )
+    await mediator.send(query)
+    return query._result

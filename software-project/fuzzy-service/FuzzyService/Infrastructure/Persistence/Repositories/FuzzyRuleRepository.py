@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -16,7 +18,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
 )
 from FuzzyService.Domain.Enums import RuleConnector
 from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
-
+    
 _logger = logging.getLogger(__name__)
 
 
@@ -217,6 +219,39 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             query["consequents"] = []
         cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "system_id": 1, "description": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
+
+
+
+    async def get_all_rules_name_description(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        cursor = (
+            self._coll.find({}, projection={"_id": 1, "name": 1, "description": 1})
+            .skip(skip)
+            .limit(limit)
+        )
+        docs = await cursor.to_list(length=limit)
+
+        # Extrae número de "Regla X" (soporta "Regla 3A", "Regla 3B", etc.)
+        def extract_rule_number(name: str) -> tuple[int, str]:
+            match = re.search(r"Regla\s+(\d+)([A-Z]?)", name or "", re.IGNORECASE)
+            if not match:
+                return (9999, "")  # las que no tengan número van al final
+            num = int(match.group(1))
+            suffix = match.group(2)
+            return (num, suffix)
+
+        # Ordena por número, y luego por sufijo (3A < 3B)
+        sorted_docs = sorted(docs, key=lambda d: extract_rule_number(d.get("name", "")))
+
+        return [
+            {
+                "id": str(d["_id"]) if "_id" in d else None,
+                "name": d.get("name"),
+                "description": d.get("description"),
+            }
+            for d in sorted_docs
+        ]
+
+
 
     # ---------------------------- Counting & date ----------------------------
     async def count_by_system(self, system_id: FuzzySystemId) -> int:

@@ -151,6 +151,7 @@ def configure_application_di() -> None:
     from FuzzyService.Application.Features.FuzzyRules.Queries.GetAllFuzzyRulesQuery import GetAllFuzzyRulesQuery
     from FuzzyService.Application.Features.FuzzyRules.Queries.GetFuzzyRuleByIdQuery import GetFuzzyRuleByIdQuery
     from FuzzyService.Application.Features.FuzzyRules.Queries.GetFuzzyRulesBySystemQuery import GetFuzzyRulesBySystemQuery
+    from FuzzyService.Application.Features.FuzzyRules.Queries.GetAllRulesNameDescriptionQuery import GetAllRulesNameDescriptionQuery
     from FuzzyService.Application.Features.FuzzyRules.Handlers.CreateFuzzyRuleHandler import CreateFuzzyRuleHandler
     from FuzzyService.Application.Features.FuzzyRules.Handlers.UpdateFuzzyRuleHandler import UpdateFuzzyRuleHandler
     from FuzzyService.Application.Features.FuzzyRules.Handlers.DeleteFuzzyRuleHandler import DeleteFuzzyRuleHandler
@@ -161,6 +162,7 @@ def configure_application_di() -> None:
     from FuzzyService.Application.Features.FuzzyRules.Handlers.GetAllFuzzyRulesHandler import GetAllFuzzyRulesHandler
     from FuzzyService.Application.Features.FuzzyRules.Handlers.GetFuzzyRuleByIdHandler import GetFuzzyRuleByIdHandler
     from FuzzyService.Application.Features.FuzzyRules.Handlers.GetFuzzyRulesBySystemHandler import GetFuzzyRulesBySystemHandler
+    from FuzzyService.Application.Features.FuzzyRules.Handlers.GetAllRulesNameDescriptionHandler import GetAllRulesNameDescriptionHandler
 
     di[CreateFuzzyRuleCommand] = CreateFuzzyRuleHandler()
     di[UpdateFuzzyRuleCommand] = UpdateFuzzyRuleHandler()
@@ -172,6 +174,7 @@ def configure_application_di() -> None:
     di[GetAllFuzzyRulesQuery] = GetAllFuzzyRulesHandler()
     di[GetFuzzyRuleByIdQuery] = GetFuzzyRuleByIdHandler()
     di[GetFuzzyRulesBySystemQuery] = GetFuzzyRulesBySystemHandler()
+    di[GetAllRulesNameDescriptionQuery] = GetAllRulesNameDescriptionHandler()
 
     # FuzzyEvaluations handlers
     from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetAllFuzzyEvaluationsQuery import GetAllFuzzyEvaluationsQuery
