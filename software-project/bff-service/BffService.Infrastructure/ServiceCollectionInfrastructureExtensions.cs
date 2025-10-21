@@ -29,13 +29,6 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddHttpClient<IWeatherService, WeatherService>();
         services.AddHttpClient<IFuzzyServiceClient, FuzzyServiceClient>();
 
-        // Services
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IAuthServiceClient, AuthServiceClient>();
-        services.AddScoped<IProxyService, ProxyService>();
-        services.AddScoped<IWeatherService, WeatherService>();
-        services.AddScoped<IFuzzyServiceClient, FuzzyServiceClient>();
-
         return services;
     }
 }
