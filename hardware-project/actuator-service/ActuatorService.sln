@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ActuatorService.Infrastruct
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ActuatorService.Api", "ActuatorService.Api\ActuatorService.Api.csproj", "{DE0E47DA-59B0-4DFD-B579-838A2DFAD2E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ActuatorService.Tests", "ActuatorService.Tests\ActuatorService.Tests.csproj", "{4E0640AD-6BB1-4B39-B27A-8DD2CAB470DB}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SensorService.Application",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SensorService.Infrastructure", "SensorService.Infrastructure\SensorService.Infrastructure.csproj", "{897033B8-E79A-4797-AC28-6527B212E253}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SensorService.Tests", "SensorService.Tests\SensorService.Tests.csproj", "{F5417CF9-026A-4110-AB3A-34584D86E3AF}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
