@@ -37,7 +37,6 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             await self._coll.create_index([("created_at", -1)], name="ix_created_at_desc")
             await self._coll.create_index([("conditions.variableId", 1)], name="ix_conditions_variable")
             await self._coll.create_index([("connectors", 1)], name="ix_connectors_array")
-            await self._coll.create_index([("consequent", 1)], name="ix_consequent")
             await self._coll.create_index([("name", "text")], name="ix_text_name")
             _logger.info("FuzzyRule indexes ensured.")
         except Exception:
@@ -46,7 +45,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
 
     # ---------------------------- Mappers ----------------------------
     @staticmethod
-    def _to_object_id(id_value: Optional[FuzzyRuleId | FuzzySystemId | FuzzyVariableId | FuzzyRoutineId | str]) -> Optional[Any]:
+    def _to_object_id(id_value: Optional[FuzzyRuleId | FuzzySystemId | FuzzyVariableId | str]) -> Optional[Any]:
         if id_value is None:
             return None
         s = str(id_value)
@@ -183,11 +182,6 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
     async def get_rules_with_connector(self, connector: RuleConnector, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
         conn_value = connector.value if hasattr(connector, "value") else str(connector)
         cursor = self._coll.find({"connectors": conn_value}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
-        return [self._doc_to_entity(d) async for d in cursor]
-
-    # ---------------------------- Consequent queries ----------------------------
-    async def get_rules_by_consequent(self, routine_id: FuzzyRoutineId, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({"consequent": str(routine_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequent": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Search & filter ----------------------------

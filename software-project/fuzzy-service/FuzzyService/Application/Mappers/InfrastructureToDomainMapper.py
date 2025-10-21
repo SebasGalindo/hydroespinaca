@@ -16,8 +16,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
     FuzzyVariableId,
     FuzzyTermId,
     FuzzySystemId,
-    FuzzyEvaluationId,
-    FuzzyRoutineId
+    FuzzyEvaluationId
 )
 from FuzzyService.Domain.ValueObjects.MembershipFunction import MembershipFunction
 from FuzzyService.Domain.Enums import (

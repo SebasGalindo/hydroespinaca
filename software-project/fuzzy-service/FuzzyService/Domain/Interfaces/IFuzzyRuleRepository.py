@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from ..Entities.fuzzy_rule import FuzzyRule
-from ..ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId, FuzzyRoutineId
+from ..ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId
 from ..Enums import RuleConnector
 
 
@@ -148,21 +148,6 @@ class IFuzzyRuleRepository(ABC):
             
         Returns:
             List of fuzzy rules that contain the connector
-        """
-        pass
-
-    # Consequent queries
-    @abstractmethod
-    async def get_rules_by_consequent(self, routine_id: FuzzyRoutineId, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        """Gets rules by consequent routine ID.
-        
-        Args:
-            routine_id: ID of the consequent routine
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of fuzzy rules pointing to the routine
         """
         pass
 

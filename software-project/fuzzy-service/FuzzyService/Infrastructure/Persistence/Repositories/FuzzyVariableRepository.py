@@ -32,7 +32,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             # Unique variable name (global). If later system-scoped uniqueness is needed, change to compound index
             await self._coll.create_index([("name", 1)], unique=True, name="uq_fuzzy_variable_name")
             await self._coll.create_index([("variable_type", 1)], name="ix_variable_type")
-            await self._coll.create_index([("reference_id", 1)], name="ix_reference_id")
+            await self._coll.create_index([("reference_code", 1)], name="ix_reference_code")
             await self._coll.create_index([("created_at", -1)], name="ix_created_at_desc")
             await self._coll.create_index([("terms", 1)], name="ix_terms_array")
             # Text index for efficient name searches
@@ -159,7 +159,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         return self._doc_to_entity(doc) if doc else None
 
     async def get_by_name(self, name: str) -> Optional[FuzzyVariable]:
-        doc = await self._coll.find_one({"name": name}, projection={"_id": 1, "name": 1, "variable_type": 1, "reference_id": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
+        doc = await self._coll.find_one({"name": name}, projection={"_id": 1, "name": 1, "variable_type": 1, "reference_code": 1, "terms": 1, "description": 1, "created_at": 1, "updated_at": 1})
         return self._doc_to_entity(doc) if doc else None
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[FuzzyVariable]:
@@ -311,8 +311,8 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             query["$text"] = {"$search": name_contains}
         if (term_id := filters.get("term_id")):
             query["terms"] = str(term_id)
-        if (reference_id := filters.get("reference_id")):
-            query["reference_id"] = reference_id
+        if (reference_code := filters.get("reference_code")):
+            query["reference_code"] = reference_code
         cursor = self._coll.find(query).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 

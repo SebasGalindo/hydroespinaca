@@ -139,15 +139,15 @@ async def update_rule_connectors(
 @router.put("/{rule_id}/consequent", response_model=FuzzyRuleDto)
 async def update_rule_consequent(
     rule_id: str,
-    consequent: str,
+    consequents: List[Dict[str, Any]],
 ) -> FuzzyRuleDto:
-    """Actualiza el consecuente de una regla difusa existente."""
+    """Actualiza los consecuentes Mamdani de una regla difusa existente."""
     mediator: Medyator = di[Medyator]
     
     try:
         command = UpdateRuleConsequentCommand(
             rule_id=rule_id,
-            consequent=consequent
+            consequents=consequents
         )
         await mediator.send(command)
         return command.result

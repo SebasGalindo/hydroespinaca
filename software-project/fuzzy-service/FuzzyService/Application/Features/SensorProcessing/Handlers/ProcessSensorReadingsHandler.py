@@ -22,9 +22,6 @@ from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
 from FuzzyService.Domain.Entities.fuzzy_term import FuzzyTerm
 from FuzzyService.Domain.Entities.fuzzy_evaluation import FuzzyEvaluation, InputValue, OutputValue, RuleActivation
-from FuzzyService.Application.Features.ActuatorIntegration.Commands.SendRoutinesToActuatorCommand import (
-    SendRoutinesToActuatorCommand, RoutinePayload, StepPayload
-)
 from FuzzyService.Application.Services.CommandAggregator import CommandAggregator
 from medyator import Medyator
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzySystemId, FuzzyVariableId, FuzzyRuleId

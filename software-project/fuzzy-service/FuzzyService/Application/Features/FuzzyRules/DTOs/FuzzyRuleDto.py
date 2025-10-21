@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from FuzzyService.Domain.Entities.fuzzy_rule import FuzzyRule
+from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
 from FuzzyService.Domain.Enums import RuleConnector, LogicalOperator
 
 
@@ -43,6 +44,41 @@ class ConditionDto(BaseModel):
         return v
 
 
+class RuleConsequentDto(BaseModel):
+    """DTO para un consecuente Mamdani de regla difusa."""
+    variable_id: str = Field(..., description="ID de la variable de salida")
+    terms: List[str] = Field(..., description="IDs de términos lingüísticos activados")
+    aggregation_method: str = Field(default="max", description="Método de agregación (max, sum, probabilistic_or)")
+
+    @field_validator('variable_id')
+    @classmethod
+    def validate_variable_id(cls, v: str) -> str:
+        """Valida que el ID de variable sea un ObjectId válido."""
+        if not v or len(v) != 24:
+            raise ValueError('El ID de variable debe ser un ObjectId válido de 24 caracteres')
+        return v
+
+    @field_validator('terms')
+    @classmethod
+    def validate_terms(cls, v: List[str]) -> List[str]:
+        """Valida que haya al menos un término y que todos sean ObjectIds válidos."""
+        if not v or len(v) == 0:
+            raise ValueError('Debe haber al menos un término')
+        for term_id in v:
+            if not term_id or len(term_id) != 24:
+                raise ValueError('Cada ID de término debe ser un ObjectId válido de 24 caracteres')
+        return v
+
+    @field_validator('aggregation_method')
+    @classmethod
+    def validate_aggregation_method(cls, v: str) -> str:
+        """Valida que el método de agregación sea válido."""
+        valid_methods = {'max', 'sum', 'probabilistic_or'}
+        if v not in valid_methods:
+            raise ValueError(f'Método de agregación inválido: {v}. Solo se permiten: {", ".join(valid_methods)}')
+        return v
+
+
 class FuzzyRuleDto(BaseModel):
     """DTO para reglas difusas."""
     id: Optional[str] = Field(None, description="ID único de la regla")
@@ -51,7 +87,7 @@ class FuzzyRuleDto(BaseModel):
     description: Optional[str] = Field(None, description="Descripción de la regla")
     conditions: List[ConditionDto] = Field(default_factory=list, description="Lista de condiciones")
     connectors: List[str] = Field(default_factory=list, description="Lista de conectores (AND, OR)")
-    consequent: Optional[str] = Field(None, description="ID de la rutina consecuente")
+    consequents: List[RuleConsequentDto] = Field(default_factory=list, description="Lista de consecuentes Mamdani")
     created_at: Optional[datetime] = Field(None, description="Fecha de creación")
     rule_text: Optional[str] = Field(None, description="Representación textual de la regla")
     
@@ -72,14 +108,6 @@ class FuzzyRuleDto(BaseModel):
         """Valida que el ID del sistema sea un ObjectId válido si se proporciona."""
         if v is not None and (not v or len(v) != 24):
             raise ValueError('El ID del sistema debe ser un ObjectId válido de 24 caracteres')
-        return v
-    
-    @field_validator('consequent')
-    @classmethod
-    def validate_consequent(cls, v: Optional[str]) -> Optional[str]:
-        """Valida que el ID del consecuente sea un ObjectId válido si se proporciona."""
-        if v is not None and (not v or len(v) != 24):
-            raise ValueError('El ID del consecuente debe ser un ObjectId válido de 24 caracteres')
         return v
     
     @field_validator('connectors')
@@ -103,6 +131,20 @@ class FuzzyRuleDto(BaseModel):
         variable_ids = [condition.variable_id for condition in v]
         if len(variable_ids) != len(set(variable_ids)):
             raise ValueError('No puede haber condiciones duplicadas para la misma variable')
+        
+        return v
+
+    @field_validator('consequents')
+    @classmethod
+    def validate_consequents(cls, v: List[RuleConsequentDto]) -> List[RuleConsequentDto]:
+        """Valida que haya al menos un consecuente y que no haya variables duplicadas."""
+        if len(v) == 0:
+            raise ValueError('Debe haber al menos un consecuente')
+        
+        # Verificar variables únicas en consecuentes
+        variable_ids = [cons.variable_id for cons in v]
+        if len(variable_ids) != len(set(variable_ids)):
+            raise ValueError('No puede haber consecuentes duplicados para la misma variable')
         
         return v
     
@@ -135,6 +177,15 @@ class FuzzyRuleDto(BaseModel):
             for connector in entity.connectors
         ]
         
+        consequents_dto = [
+            RuleConsequentDto(
+                variable_id=str(cons.variable_id),
+                terms=[str(t) for t in cons.terms],
+                aggregation_method=cons.aggregation_method
+            )
+            for cons in entity.consequents
+        ]
+        
         return cls(
             id=str(entity.id) if entity.id else None,
             name=entity.name,
@@ -142,14 +193,14 @@ class FuzzyRuleDto(BaseModel):
             description=entity.description,
             conditions=conditions_dto,
             connectors=connectors_str,
-            consequent=str(entity.consequent) if entity.consequent else None,
+            consequents=consequents_dto,
             created_at=entity.created_at,
             rule_text=entity.get_rule_text()
         )
 
     def to_entity(self) -> FuzzyRule:
         """Convierte el DTO a entidad FuzzyRule."""
-        from FuzzyService.Domain.ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId, FuzzyRoutineId
+        from FuzzyService.Domain.ValueObjects.DomainId import FuzzyRuleId, FuzzySystemId, FuzzyVariableId, FuzzyTermId
         
         # Convertir condiciones
         conditions_dict = [
@@ -164,6 +215,16 @@ class FuzzyRuleDto(BaseModel):
         # Convertir conectores
         connectors_enum = [RuleConnector(connector) for connector in self.connectors]
         
+        # Convertir consecuentes
+        consequents_entities = [
+            RuleConsequent(
+                variable_id=FuzzyVariableId(cons.variable_id),
+                terms=[FuzzyTermId(t) for t in cons.terms],
+                aggregation_method=cons.aggregation_method
+            )
+            for cons in self.consequents
+        ]
+        
         return FuzzyRule(
             id=FuzzyRuleId(self.id) if self.id else None,
             name=self.name,
@@ -171,6 +232,6 @@ class FuzzyRuleDto(BaseModel):
             description=self.description,
             conditions=conditions_dict,
             connectors=connectors_enum,
-            consequent=FuzzyRoutineId(self.consequent) if self.consequent else None,
+            consequents=consequents_entities,
             created_at=self.created_at
         )
