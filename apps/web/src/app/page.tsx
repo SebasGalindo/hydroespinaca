@@ -68,6 +68,21 @@ export default function HomePage() {
                 Obtén insights valiosos con análisis detallados y reportes sobre el estado de tus cultivos.
               </p>
             </div>
+
+            {/* Feature 3 - Seguridad de Usuarios */}
+            <div className="bg-red-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v1h1a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5a2 2 0 012-2h1v-1c0-1.657 1.343-3 3-3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Seguridad de Usuarios</h3>
+              <p className="text-gray-600">
+                Administra el acceso al sistema mediante la gestión de usuarios, roles y monitoreo de sesiones activas.
+              </p>
+            </div>
+
+
           </div>
         </div>
       </section>
