@@ -1,12 +1,17 @@
-﻿using SensorService.Domain.Interfaces;
+﻿using Microsoft.Extensions.Logging;
+using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.UseCases.ProcessReadingBatch;
 public class MqttMessageDispatcher
 {
     private readonly Dictionary<string, IMqttMessageHandler> _handlers;
+    private readonly ILogger<MqttMessageDispatcher> _logger;
 
-    public MqttMessageDispatcher(IEnumerable<IMqttMessageHandler> handlers)
+    public MqttMessageDispatcher(
+        IEnumerable<IMqttMessageHandler> handlers,
+        ILogger<MqttMessageDispatcher> logger)
     {
+        _logger = logger;
         _handlers = new Dictionary<string, IMqttMessageHandler>
         {
             { "sensor/readings", handlers.OfType<MqttMessageHandler>().First() }
@@ -21,7 +26,6 @@ public class MqttMessageDispatcher
             return;
         }
 
-        // No handler found for this topic
-        Console.WriteLine($"⚠️ No handler para topic: {topic}");
+        _logger.LogWarning("No se encontró handler para topic: {Topic}", topic);
     }
 }

@@ -47,7 +47,6 @@ public static class ServiceCollectionInfrastructureExtensions
 
         // Services
         services.AddSingleton<IMqttClientService, MqttClientService>();
-        services.AddScoped<IVariableMigrationService, VariableMigrationService>();
         services.AddScoped<IVariableSeedService, VariableSeedService>();
         services.AddScoped<ISensorSeedService, SensorSeedService>();
         services.AddScoped<AggregateIndexService>();
