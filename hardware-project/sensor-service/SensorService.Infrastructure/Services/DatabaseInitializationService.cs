@@ -29,6 +29,10 @@ public class DatabaseInitializationService : IHostedService
         {
             using var scope = _serviceProvider.CreateScope();
 
+            // Ensure indexes are created for optimal query performance
+            var aggregateIndexService = scope.ServiceProvider.GetRequiredService<AggregateIndexService>();
+            await aggregateIndexService.EnsureIndexesAsync();
+
             // Seed variables first (required for sensors)
             var variableSeedService = scope.ServiceProvider.GetRequiredService<IVariableSeedService>();
             var variablesSeeded = await variableSeedService.SeedDefaultVariablesAsync();

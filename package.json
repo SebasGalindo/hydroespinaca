@@ -1,55 +1,70 @@
 {
-  "name": "hydroespinaca",
-  "version": "1.0.0",
-  "description": "HydroEspinaca - Sistema de Control Hidropónico",
+  "name": "@hidroespinaca/monorepo",
+  "version": "0.1.0",
   "private": true,
+  "description": "Sistema de monitoreo hidropónico - Monorepo",
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "type-check": "turbo run type-check",
-    "clean": "pnpm exec find . -name 'dist' -type d -exec rm -rf {} + && pnpm exec find . -name '.turbo' -type d -exec rm -rf {} +",
-    "clean:deep": "./clean-rebuild.sh",
-    "clean:cache": "pnpm store prune && rm -rf .turbo",
-    "clean:node-modules": "pnpm exec find . -name 'node_modules' -type d -exec rm -rf {} +",
-    "mobile:start": "cd apps/mobile-app && npm start",
-    "mobile:reset": "cd apps/mobile-app && npx expo start --clear",
-    "verify": "pnpm run type-check && pnpm run lint",
-    "audit:security": "node scripts/audit-secure-storage.js",
-    "fix-corruption": "./clean-rebuild.sh && echo 'Corruption fixed! Run pnpm mobile:start to test.'"
-  },
-  "keywords": [
-    "hydroponics",
-    "react",
-    "react-native",
-    "monorepo"
-  ],
-  "author": "HydroEspinaca Team",
-  "license": "ISC",
-  "packageManager": "pnpm@10.17.0",
-  "pnpm": {
-    "overrides": {
-      "react": "19.1.0",
-      "react-dom": "19.1.0",
-      "@types/react": "19.1.0",
-      "@types/react-dom": "19.1.0"
-    }
+    "dev": "pnpm --filter @hidroespinaca/web run dev",
+    "dev:web": "pnpm --filter @hidroespinaca/web run dev",
+    "dev:mobile": "pnpm --filter @hidroespinaca/mobile run start",
+    "build": "pnpm -r --if-present run build",
+    "build:web": "pnpm --filter @hidroespinaca/web run build",
+    "build:mobile": "pnpm --filter @hidroespinaca/mobile run build",
+    "lint": "pnpm -r --if-present run lint",
+    "lint:fix": "pnpm -r --if-present run lint:fix",
+    "test": "pnpm -r --if-present run test",
+    "clean": "pnpm -r --if-present run clean",
+    "type-check": "pnpm -r --if-present run type-check",
+    "install:all": "pnpm install",
+    "fresh-install": "pnpm run clean && pnpm install"
   },
   "devDependencies": {
-    "@react-native-community/eslint-config": "^3.2.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-native": "^4.1.0",
-    "prettier": "^3.2.5",
-    "turbo": "^2.5.4",
-    "typescript": "^5.3.0"
-  }
+    "@types/node": "^20",
+    "@types/react": "^18.3.24",
+    "@types/react-dom": "^18.3.7",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^9",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tu-usuario/hidroespinaca-monorepo.git"
+  },
+  "keywords": [
+    "hidroponía",
+    "monitoreo",
+    "iot",
+    "react",
+    "react-native",
+    "nextjs",
+    "typescript",
+    "monorepo"
+  ],
+  "author": "Sebastian Galindo & Miguel Moreno",
+  "license": "MIT",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "expo-status-bar": "~2.0.0"
+  },
+  "packageManager": "pnpm@10.18.3"
 }

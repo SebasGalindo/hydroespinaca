@@ -19,8 +19,14 @@ public static class ServiceCollectionWebExtensions
         // ❌ Don't use standard microservice configuration due to FallbackPolicy 
         // Instead, configure manually without global auth requirement
 
-        // Add standard web API services
-        services.AddControllers();
+        // Add standard web API services with JSON camelCase configuration
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                // Configure JSON serialization to use camelCase for property names
+                // This matches the frontend's convention (startDate, endDate, view)
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
         services.AddHealthChecks();
         
         // Add CORS policy for frontend

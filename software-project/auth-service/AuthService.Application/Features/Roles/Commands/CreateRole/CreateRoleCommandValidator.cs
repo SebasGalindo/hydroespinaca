@@ -26,8 +26,8 @@ public class CreateRoleCommandValidator : BaseValidator<CreateRoleCommand>
             .WithMessage("La lista de códigos de permisos no puede ser nula");
 
         RuleForEach(x => x.PermissionCodes)
-            .Must(permCode => permCode.StartsWith("perm_"))
-            .WithMessage("Cada código de permiso debe comenzar con 'perm_'")
-            .When(x => x.PermissionCodes != null);
+            .Must(permCode => permCode.Contains(':'))
+            .WithMessage("Cada código de permiso debe tener el formato 'resource:action' (ej: 'user:read', 'actuator:control')")
+            .When(x => x.PermissionCodes != null && x.PermissionCodes.Count > 0);
     }
 }

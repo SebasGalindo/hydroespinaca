@@ -13,11 +13,6 @@ public interface IInternalRoutineRepository
     Task<List<InternalRoutine>> GetActiveRoutinesAsync();
 
     /// <summary>
-    /// Updates the last execution timestamp for a routine
-    /// </summary>
-    Task UpdateLastExecutedAtAsync(string id, DateTime timestamp);
-
-    /// <summary>
     /// Adds a new internal routine
     /// </summary>
     Task AddAsync(InternalRoutine routine);

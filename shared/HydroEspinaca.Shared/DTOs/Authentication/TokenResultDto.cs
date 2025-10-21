@@ -9,11 +9,15 @@ public record TokenResultDto(
     string RefreshToken,
     DateTime ExpiresAt,
     string? Role = null,
+    string? Username = null,
+    string? Email = null,
     string? ClientId = null,
-    string[]? Scopes = null
+    string[]? Scopes = null,
+    string? SessionId = null,
+    DateTime? RefreshTokenExpiresAt = null
 )
 {
-    public TokenResultDto() : this(string.Empty, string.Empty, DateTime.MinValue, null, null, null)
+    public TokenResultDto() : this(string.Empty, string.Empty, DateTime.MinValue, null, null, null, null, null, null, null)
     {
     }
 };

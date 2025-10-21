@@ -11,6 +11,6 @@ public interface IEsp32StatusService
     Task UpsertOfflineAlertAsync(
       Esp32StatusRecord status,
       DateTime timestamp);
+    Task ResolveOfflineAlertAsync(string esp32Id, DateTime timestamp);
     Task AcknowledgeOfflineAlertAsync(string esp32Id);
-
 }

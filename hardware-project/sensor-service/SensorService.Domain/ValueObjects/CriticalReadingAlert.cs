@@ -2,10 +2,12 @@ namespace SensorService.Domain.ValueObjects;
 
 public record CriticalReadingAlert
 {
+    public string Code { get; init; } = default!;
     public string Name { get; init; } = default!;
     public double Value { get; init; }
     public string Threshold { get; init; } = default!;
     public bool IsAlert { get; init; }
+    public string VariableCode => Code; // Alias for backward compatibility
 }
 
 /// <summary>

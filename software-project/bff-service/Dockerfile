@@ -17,6 +17,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 
 WORKDIR /app
 
+USER root
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN groupadd -r bffserviceapp && useradd -r -g bffserviceapp bffserviceapp
 RUN chown -R bffserviceapp:bffserviceapp /app

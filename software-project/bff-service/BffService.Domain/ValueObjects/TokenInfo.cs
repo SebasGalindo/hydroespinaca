@@ -10,6 +10,8 @@ public record TokenInfo(
 public record AuthenticationResult(
     TokenInfo TokenInfo,
     string UserId,
+    string Username,
+    string Email,
     string UserRole,
     List<string> Scopes
 );

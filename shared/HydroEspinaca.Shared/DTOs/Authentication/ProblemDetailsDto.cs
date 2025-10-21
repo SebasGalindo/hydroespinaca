@@ -35,9 +35,9 @@ public static class ProblemDetailsExtensions
             service = context.ServiceName
         };
 
-        return System.Text.Json.JsonSerializer.Serialize(problemDetails, new System.Text.Json.JsonSerializerOptions
+        return global::System.Text.Json.JsonSerializer.Serialize(problemDetails, new global::System.Text.Json.JsonSerializerOptions
         {
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = global::System.Text.Json.JsonNamingPolicy.CamelCase
         });
     }
 

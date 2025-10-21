@@ -15,7 +15,6 @@ public class InternalRoutineMapper : IEntityMapper<InternalRoutine, InternalRout
             Description = entity.Description,
             Esp32Id = entity.Esp32Id,
             Interval = entity.Interval,
-            StartTime = entity.StartTime,
             Steps = entity.Steps.Select(step => new InternalRoutineStepDocument
             {
                 OutputVariable = step.OutputVariable,
@@ -24,7 +23,6 @@ public class InternalRoutineMapper : IEntityMapper<InternalRoutine, InternalRout
                 DutyCycle = step.DutyCycle,
                 Mode = step.Mode
             }).ToList(),
-            LastExecutedAt = entity.LastExecutedAt,
             IsActive = entity.IsActive,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
@@ -40,7 +38,6 @@ public class InternalRoutineMapper : IEntityMapper<InternalRoutine, InternalRout
             Description = document.Description,
             Esp32Id = document.Esp32Id,
             Interval = document.Interval,
-            StartTime = document.StartTime,
             Steps = document.Steps.Select(step => new InternalRoutineStep
             {
                 OutputVariable = step.OutputVariable,
@@ -49,7 +46,6 @@ public class InternalRoutineMapper : IEntityMapper<InternalRoutine, InternalRout
                 DutyCycle = step.DutyCycle,
                 Mode = step.Mode
             }).ToList(),
-            LastExecutedAt = document.LastExecutedAt,
             IsActive = document.IsActive,
             CreatedAt = document.CreatedAt,
             UpdatedAt = document.UpdatedAt

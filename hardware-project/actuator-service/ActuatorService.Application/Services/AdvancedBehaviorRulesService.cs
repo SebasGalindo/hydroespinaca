@@ -11,13 +11,13 @@ namespace ActuatorService.Application.Services;
 
 /// <summary>
 /// Implements advanced behavior rules for critical actuators
+/// Refactored to work with direct actuator codes instead of ControlOutputs
 /// </summary>
 public class AdvancedBehaviorRulesService
 {
     private readonly IActuatorRepository _actuatorRepository;
-    private readonly IControlOutputRepository _controlOutputRepository;
-    private readonly IRoutineValidationService _routineValidationService;
-    private readonly IRoutineExecutionService _routineExecutionService;
+    private readonly IActuatorCodeResolver _actuatorCodeResolver;
+    private readonly ICommandExecutionService _commandExecutionService;
     private readonly IActuatorStateMachine _stateMachine;
     private readonly IPinBlockManager _pinBlockManager;
     private readonly AdvancedRulesConfiguration _config;
@@ -27,18 +27,16 @@ public class AdvancedBehaviorRulesService
 
     public AdvancedBehaviorRulesService(
         IActuatorRepository actuatorRepository,
-        IControlOutputRepository controlOutputRepository,
-        IRoutineValidationService routineValidationService,
-        IRoutineExecutionService routineExecutionService,
+        IActuatorCodeResolver actuatorCodeResolver,
+        ICommandExecutionService commandExecutionService,
         IActuatorStateMachine stateMachine,
         IPinBlockManager pinBlockManager,
         IOptions<AdvancedRulesConfiguration> config,
         ILogger<AdvancedBehaviorRulesService> logger)
     {
         _actuatorRepository = actuatorRepository;
-        _controlOutputRepository = controlOutputRepository;
-        _routineValidationService = routineValidationService;
-        _routineExecutionService = routineExecutionService;
+        _actuatorCodeResolver = actuatorCodeResolver;
+        _commandExecutionService = commandExecutionService;
         _stateMachine = stateMachine;
         _pinBlockManager = pinBlockManager;
         _config = config.Value;
@@ -140,43 +138,6 @@ public class AdvancedBehaviorRulesService
                         cooldownDuration);
                 }
             }
-
-            // Full Spectrum Light: Time restrictions
-            if (actuator.Code == "Luz de Espectro Completo")
-            {
-                var localTime = now.AddHours(-5); // Colombia UTC-5
-                var currentHour = localTime.Hour;
-
-                // Auto-off after 18:00
-                if (currentHour >= _config.FullSpectrumLight.AllowedEndHour)
-                {
-                    _logger.LogWarning("⚠️ Full spectrum light ON after allowed hours. Auto-off triggered.");
-
-                    _stateMachine.UpdateState(actuator.Id, PowerState.OFF, commandId: "time_restriction");
-
-                    var cooldownDuration = TimeSpan.FromMinutes(_config.FullSpectrumLight.CooldownMinutes);
-                    await _pinBlockManager.BlockForAsync(
-                        actuator.Id,
-                        cooldownDuration,
-                        "Auto-off: fuera de horario permitido");
-                }
-
-                // Max continuous time
-                var maxTime = TimeSpan.FromHours(_config.FullSpectrumLight.MaxContinuousOnHours);
-                if (onDuration > maxTime)
-                {
-                    _logger.LogWarning("⚠️ Full spectrum light exceeded max time: {Duration:hh\\:mm\\:ss}",
-                        onDuration);
-
-                    _stateMachine.UpdateState(actuator.Id, PowerState.OFF, commandId: "max_time_violation");
-
-                    var cooldownDuration = TimeSpan.FromMinutes(_config.FullSpectrumLight.CooldownMinutes);
-                    await _pinBlockManager.BlockForAsync(
-                        actuator.Id,
-                        cooldownDuration,
-                        "Auto-off: tiempo máximo continuo excedido");
-                }
-            }
         }
     }
 
@@ -197,49 +158,73 @@ public class AdvancedBehaviorRulesService
 
         try
         {
-            // Get control outputs for recirculation pumps
-            var allOutputs = await _controlOutputRepository.GetAllAsync();
-            var waterPumpOutput = allOutputs.FirstOrDefault(o => o.Name == "Duración de Riego");
-            var airPumpOutput = allOutputs.FirstOrDefault(o => o.Name == "Duración de Aireación");
+            // Resolve actuators by code
+            var waterPumpActuator = await _actuatorCodeResolver.ResolveAsync("BombaRiego");
+            var airPumpActuator = await _actuatorCodeResolver.ResolveAsync("BombaAire");
 
-            if (waterPumpOutput == null || airPumpOutput == null)
+            if (waterPumpActuator == null || airPumpActuator == null)
             {
-                _logger.LogWarning("⚠️ Cannot execute recirculation - pump outputs not found");
+                _logger.LogWarning("⚠️ Cannot execute recirculation - pump actuators not found (BombaRiego or BombaAire)");
                 return;
             }
 
-            // Create recirculation routine
+            // Create individual commands for recirculation sequence
             var recirculationDuration = _config.WaterHeater.RecirculationDurationSeconds;
-            var steps = new List<RoutineStepDto>
+            var commands = new List<ActuatorControlDto>
             {
-                new() { OutputVariable = airPumpOutput.Id, Power = "ON", Duration = 30 },
-                new() { OutputVariable = waterPumpOutput.Id, Power = "ON", Duration = recirculationDuration },
-                new() { OutputVariable = airPumpOutput.Id, Power = "ON", Duration = 30 }
+                // Pre-aeration: 30 seconds
+                new() { ActuatorCode = "BombaAire", Power = "ON", Duration = 30 },
+                // Main irrigation: configured duration
+                new() { ActuatorCode = "BombaRiego", Power = "ON", Duration = recirculationDuration },
+                // Post-aeration: 30 seconds
+                new() { ActuatorCode = "BombaAire", Power = "ON", Duration = 30 }
             };
 
-            var resolvedSteps = await _routineValidationService.ValidateAndResolveStepsAsync(steps);
-            var esp32Ids = resolvedSteps.Select(s => s.Esp32Id).Distinct().ToList();
-
-            if (esp32Ids.Count == 0)
+            // Resolve commands to physical actuators
+            var resolvedCommands = new List<ResolvedCommandDto>();
+            foreach (var command in commands)
             {
-                _logger.LogWarning("⚠️ No valid steps for recirculation");
+                var actuator = await _actuatorCodeResolver.ResolveAsync(command.ActuatorCode);
+                if (actuator == null)
+                {
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} not found, skipping command", command.ActuatorCode);
+                    continue;
+                }
+
+                resolvedCommands.Add(new ResolvedCommandDto
+                {
+                    ActuatorCode = command.ActuatorCode,
+                    ActuatorId = actuator.Id,
+                    Esp32Id = actuator.Esp32Id,
+                    Pin = actuator.Pin,
+                    Mode = actuator.Mode,
+                    Power = command.Power,
+                    DutyCycle = command.DutyCycle,
+                    Duration = command.Duration
+                });
+            }
+
+            if (resolvedCommands.Count == 0)
+            {
+                _logger.LogWarning("⚠️ No valid commands for recirculation");
                 return;
             }
 
-            var resolvedRoutine = new ResolvedRoutineDto
+            // Ensure all commands belong to same ESP32
+            var esp32Id = resolvedCommands.First().Esp32Id;
+            if (resolvedCommands.Any(c => c.Esp32Id != esp32Id))
             {
-                RoutineId = "auto_recirculation",
-                Esp32Id = esp32Ids.First(),
-                ResolvedSteps = resolvedSteps
-            };
+                _logger.LogWarning("⚠️ Recirculation commands span multiple ESP32 devices - cannot execute");
+                return;
+            }
 
-            await _routineExecutionService.ScheduleRoutinesAsync(
-                new List<ResolvedRoutineDto> { resolvedRoutine },
-                esp32Ids.First());
+            // Schedule individual commands
+            await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
 
             _lastRecirculationAt = now;
 
-            _logger.LogInformation("✅ Automatic recirculation scheduled successfully");
+            _logger.LogInformation("✅ Automatic recirculation scheduled successfully ({CommandCount} commands)",
+                resolvedCommands.Count);
         }
         catch (Exception ex)
         {

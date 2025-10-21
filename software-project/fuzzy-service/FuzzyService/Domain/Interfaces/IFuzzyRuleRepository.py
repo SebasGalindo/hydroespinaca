@@ -235,3 +235,17 @@ class IFuzzyRuleRepository(ABC):
             List of rules created in the specified range
         """
         pass
+
+    # Lightweight queries
+    @abstractmethod
+    async def get_all_rules_name_description(self, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
+        """Gets all rules with only id, name and description fields.
+        
+        Args:
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of dictionaries with id, name and description
+        """
+        pass

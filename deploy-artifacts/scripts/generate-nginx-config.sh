@@ -56,21 +56,30 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     else
         echo "[INFO] Full production mode: complete nginx config"
         
-        # Upstreams: backend services and MQTT for production
+        # DNS Resolver for Docker (allows nginx to start even if backends not ready)
+        export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s;"
+
+        # Upstreams: backend services, frontend, and MQTT for production
         export NGINX_UPSTREAMS="
             # Upstream for BFF Service
             upstream bff_backend {
                 server bff-service:8080;
                 keepalive 32;
             }
-            
+
+            # Upstream for Next.js Frontend
+            upstream frontend_backend {
+                server web-app:3000;
+                keepalive 32;
+            }
+
             # Upstream for MQTT WebSockets
             upstream mqtt_websocket_backend {
                 server mqtt:9002;
                 keepalive 32;
             }"
         
-        # HTTP config: serve frontend files and API in HTTP for challenges and fallback
+        # HTTP config: proxy to services in HTTP for challenges and fallback
         export NGINX_HTTP_CONFIG="
             # API routes to BFF Service (fallback HTTP)
             location /api/ {
@@ -81,29 +90,35 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
                 proxy_set_header X-Real-IP \$remote_addr;
                 proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto \$scheme;
-                
+
                 # WebSocket support
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
-                
+
                 # Timeouts
                 proxy_connect_timeout 60s;
                 proxy_send_timeout 60s;
                 proxy_read_timeout 60s;
             }
-            
-            # Frontend routes - serve static files for production
+
+            # Next.js frontend - proxy to Next.js server
             location / {
-                root /var/www/frontend;
-                index index.html;
-                try_files \$uri \$uri/ /index.html;
-                
-                # Cache static assets
-                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                    expires 1y;
-                    add_header Cache-Control \"public, immutable\";
-                }
+                proxy_pass http://frontend_backend;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
+
+                # WebSocket support
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
             }"
     fi
     
@@ -133,20 +148,26 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         
         # HSTS
         add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;
-        
-        # Frontend routes - serve static files from volume
+
+        # Next.js frontend - proxy to Next.js server
         location / {
-            root /var/www/frontend;
-            index index.html;
-            try_files \$uri \$uri/ /index.html;
-            
-            # Cache static assets
-            location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                expires 1y;
-                add_header Cache-Control \"public, immutable\";
-            }
+            proxy_pass http://frontend_backend;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \"upgrade\";
+
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
         }
-        
+
         # Health check endpoint
         location /health {
             access_log off;
@@ -176,21 +197,27 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         
         # HSTS
         add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;
-        
-        # Frontend routes - serve static files from volume
+
+        # Next.js frontend - proxy to Next.js server
         location / {
-            root /var/www/frontend;
-            index index.html;
-            try_files \$uri \$uri/ /index.html;
-            
-            # Cache static assets
-            location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                expires 1y;
-                add_header Cache-Control \"public, immutable\";
-            }
+            proxy_pass http://frontend_backend;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto https;
+
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \"upgrade\";
+
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
         }
     }
-    
+
     # =================================================
     # API SERVER (api.hydroespinaca.online)
     # =================================================
@@ -294,15 +321,24 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
 else
     echo "[INFO] Configuring for Development (HTTP only)"
 
-    # Upstreams: only BFF service for development
+    # DNS Resolver for Docker (allows nginx to start even if backends not ready)
+    export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s;"
+
+    # Upstreams: BFF service and Next.js frontend for development
     export NGINX_UPSTREAMS="
         # Upstream for BFF Service
         upstream bff_backend {
             server bff-service:8080;
             keepalive 32;
+        }
+
+        # Upstream for Next.js Frontend (Development with HMR)
+        upstream frontend_backend {
+            server web-app-dev:3000;
+            keepalive 32;
         }"
 
-    # HTTP config: serve static frontend files even in development
+    # HTTP config: proxy to Next.js server for development
     export NGINX_HTTP_CONFIG="
             # API routes to BFF Service
             location /api/ {
@@ -325,17 +361,26 @@ else
                 proxy_read_timeout 60s;
             }
 
-            # Frontend routes - serve static files from volume
+            # Next.js frontend - proxy to Next.js server
             location / {
-                root /var/www/frontend;
-                index index.html;
-                try_files \$uri \$uri/ /index.html;
+                proxy_pass http://frontend_backend;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$scheme;
 
-                # Cache static assets
-                location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-                    expires 1y;
-                    add_header Cache-Control \"public, immutable\";
-                }
+                # WebSocket support for Next.js HMR in development
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+
+                # Buffering
+                proxy_buffering off;
             }"
     
     # Redirect config: empty (no redirect)
@@ -346,7 +391,7 @@ else
 fi
 
 # Generate the final nginx.conf
-envsubst '${DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN} ${FRONTEND_DOMAIN} ${NGINX_UPSTREAMS} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
+envsubst '${DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN} ${FRONTEND_DOMAIN} ${NGINX_RESOLVER} ${NGINX_UPSTREAMS} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
     < /etc/nginx/templates/nginx.conf.tpl > /etc/nginx/nginx.conf
 
 echo "[INFO] Nginx configuration generated successfully"

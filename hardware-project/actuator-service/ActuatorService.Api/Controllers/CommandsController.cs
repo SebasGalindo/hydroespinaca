@@ -1,7 +1,10 @@
 ﻿using ActuatorService.Application.DTOs;
 using ActuatorService.Application.Interfaces;
+using ActuatorService.Application.Services;
+using ActuatorService.Application.UseCases;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Actuator;
+using HydroEspinaca.Shared.DTOs.Analytics;
 using HydroEspinaca.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,31 +15,28 @@ namespace ActuatorService.Api.Controllers;
 [Route("api/commands")]
 public class CommandsController : ControllerBase
 {
-    private readonly IExecuteMultiRoutineCommandUseCase _executeMultiRoutineCommandUseCase;
-    private readonly IRoutineExecutionService _routineExecutionService;
-    private readonly IRoutineCommandService _routineCommandService;
+    private readonly IExecuteCommandsUseCase _executeCommandsUseCase;
+    private readonly ICommandExecutionService _commandExecutionService;
     private readonly IInternalRoutineRepository _internalRoutineRepository;
+    private readonly IGetActuatorAnalyticsUseCase _getActuatorAnalyticsUseCase;
 
     public CommandsController(
-        IExecuteMultiRoutineCommandUseCase executeMultiRoutineCommandUseCase,
-        IRoutineExecutionService routineExecutionService,
-        IRoutineCommandService routineCommandService,
-        IInternalRoutineRepository internalRoutineRepository)
+        IExecuteCommandsUseCase executeCommandsUseCase,
+        ICommandExecutionService commandExecutionService,
+        IInternalRoutineRepository internalRoutineRepository,
+        IGetActuatorAnalyticsUseCase getActuatorAnalyticsUseCase)
     {
-        _executeMultiRoutineCommandUseCase = executeMultiRoutineCommandUseCase;
-        _routineExecutionService = routineExecutionService;
-        _routineCommandService = routineCommandService;
+        _executeCommandsUseCase = executeCommandsUseCase;
+        _commandExecutionService = commandExecutionService;
         _internalRoutineRepository = internalRoutineRepository;
+        _getActuatorAnalyticsUseCase = getActuatorAnalyticsUseCase;
     }
 
-    [HttpPost]
+    [HttpPost("execute")]
     [Authorize(Policy = PolicyNames.CommandCreate)]
-    public async Task<IActionResult> ExecuteRoutines([FromBody] List<RoutineCommandDto> routines)
+    public async Task<IActionResult> ExecuteCommands([FromBody] ExecuteCommandsDto executeCommands)
     {
-        var commandIds = await _executeMultiRoutineCommandUseCase.ExecuteAsync(
-            new MultiRoutineCommandDto { Routines = routines }
-        );
-
+        var commandIds = await _executeCommandsUseCase.ExecuteAsync(executeCommands);
         return Ok(new { CommandIds = commandIds });
     }
 
@@ -44,20 +44,19 @@ public class CommandsController : ControllerBase
     [Authorize(Policy = PolicyNames.CommandRead)]
     public async Task<IActionResult> GetJobsStatus([FromQuery] string? esp32Id = null)
     {
-        var jobStatus = await _routineExecutionService.GetStatusAsync(esp32Id);
-        var stats = await _routineExecutionService.GetStatsAsync();
+        var jobStatus = await _commandExecutionService.GetStatusAsync(esp32Id);
+        var stats = await _commandExecutionService.GetStatsAsync();
 
-        // Get internal routines info
         var internalRoutines = await _internalRoutineRepository.GetActiveRoutinesAsync();
-        var now = DateTime.UtcNow;
 
         var internalRoutinesInfo = internalRoutines.Select(r => new
         {
             r.Name,
             r.Description,
             Interval = r.Interval.ToString(@"hh\:mm\:ss"),
-            r.LastExecutedAt,
-            NextExecutionEstimate = CalculateNextExecution(r, now),
+            NextExecutionEstimate = r.IsActive
+                ? InternalRoutineScheduler.GetNextExecution(r.Interval, "America/Bogota")
+                : (DateTime?)null,
             r.IsActive
         }).ToList();
 
@@ -69,48 +68,23 @@ public class CommandsController : ControllerBase
         });
     }
 
-    private DateTime? CalculateNextExecution(Domain.Entities.InternalRoutine routine, DateTime now)
-    {
-        if (!routine.IsActive)
-            return null;
-
-        if (routine.LastExecutedAt == null)
-        {
-            var todayStart = now.Date + routine.StartTime;
-            return todayStart > now ? todayStart : todayStart.Add(routine.Interval);
-        }
-
-        return routine.LastExecutedAt.Value.Add(routine.Interval);
-    }
-
-    [HttpGet("routines")]
-    [Authorize(Policy = PolicyNames.CommandRead)]
-    public async Task<IActionResult> GetRoutineCommands([FromQuery] string? esp32Id = null)
-    {
-        var routineCommands = await _routineCommandService.GetAllRoutineCommandsAsync(esp32Id);
-        return Ok(routineCommands);
-    }
-
-    [HttpGet("routines/{commandId}")]
-    [Authorize(Policy = PolicyNames.CommandRead)]
-    public async Task<IActionResult> GetRoutineCommand(string commandId)
-    {
-        var routineCommand = await _routineCommandService.GetRoutineCommandByIdAsync(commandId);
-        return Ok(routineCommand);
-    }
-
     [HttpDelete("jobs/clear")]
     [Authorize(Policy = PolicyNames.ActuatorControl)]
     public async Task<IActionResult> ClearJobSchedule([FromQuery] string? esp32Id = null)
     {
-        // Clear all scheduled and active routines
-        await _routineExecutionService.ClearAsync(esp32Id);
-
-        // Reset all actuators to OFF state and synchronize with firmware
-        await _routineExecutionService.ResetAllActuatorsAsync(esp32Id);
+        await _commandExecutionService.ClearAsync(esp32Id);
+        await _commandExecutionService.ResetAllActuatorsAsync(esp32Id);
 
         return Ok(new { Message = esp32Id != null
             ? $"Job schedule cleared and all actuators reset for ESP32: {esp32Id}"
             : "All job schedules cleared and all actuators reset" });
+    }
+
+    [HttpPost("analytics")]
+    [Authorize(Policy = PolicyNames.CommandRead)]
+    public async Task<IActionResult> GetActuatorAnalytics([FromBody] ActuatorAnalyticsRequest request)
+    {
+        var result = await _getActuatorAnalyticsUseCase.ExecuteAsync(request);
+        return Ok(result);
     }
 }

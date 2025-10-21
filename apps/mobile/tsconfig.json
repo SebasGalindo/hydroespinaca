@@ -1,0 +1,18 @@
+{
+  "extends": "../../tools/typescript-config/react-native.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@hydroespinaca/shared/*": ["../../packages/shared/src/*"]
+    },
+    "jsx": "react-jsx",
+    "types": ["react"],
+    "skipLibCheck": true,
+    "lib": ["es2020"]
+  },
+  "include": [
+    "src",
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

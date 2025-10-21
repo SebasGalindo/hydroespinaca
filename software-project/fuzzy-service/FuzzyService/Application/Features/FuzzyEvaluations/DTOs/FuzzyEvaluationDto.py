@@ -6,7 +6,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from FuzzyService.Domain.Entities.fuzzy_evaluation import FuzzyEvaluation, InputValue, RuleActivation, OutputValue
-from FuzzyService.Domain.Enums import PowerRange, DurationRange
 
 
 class InputValueDto(BaseModel):
@@ -43,55 +42,47 @@ class InputValueDto(BaseModel):
 
 class OutputValueDto(BaseModel):
     """DTO para un valor de salida hacia actuador."""
-    
+
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
-    
-    actuator_id: str = Field(..., description="ID del actuador")
-    power_range: str = Field(..., description="Rango de potencia")
-    duration_range: str = Field(..., description="Rango de duración")
-    
-    @field_validator('actuator_id')
+
+    reference_code: str = Field(..., description="Código del actuador")
+    power: Optional[str] = Field(None, description="Estado de power: ON/OFF")
+    dutyCycle: Optional[float] = Field(None, ge=0.0, le=100.0, description="Duty cycle (0-100)")
+    duration: float = Field(..., ge=0.0, description="Duración en segundos")
+
+    @field_validator('reference_code')
     @classmethod
-    def validate_actuator_id(cls, v: str) -> str:
-        """Valida que el ID del actuador no esté vacío."""
+    def validate_reference_code(cls, v: str) -> str:
+        """Valida que el código de referencia no esté vacío."""
         if not v or not v.strip():
-            raise ValueError('El ID del actuador no puede estar vacío')
+            raise ValueError('El código de referencia no puede estar vacío')
         return v.strip()
-    
-    @field_validator('power_range')
+
+    @field_validator('power')
     @classmethod
-    def validate_power_range(cls, v: str) -> str:
-        """Valida que el rango de potencia sea válido."""
-        valid_ranges = [pr.value for pr in PowerRange]
-        if v not in valid_ranges:
-            raise ValueError(f'Rango de potencia inválido: {v}. Valores válidos: {", ".join(valid_ranges)}')
+    def validate_power(cls, v: Optional[str]) -> Optional[str]:
+        """Valida que el power sea ON o OFF."""
+        if v is not None and v not in ["ON", "OFF"]:
+            raise ValueError('Power debe ser "ON" o "OFF"')
         return v
-    
-    @field_validator('duration_range')
-    @classmethod
-    def validate_duration_range(cls, v: str) -> str:
-        """Valida que el rango de duración sea válido."""
-        valid_ranges = [dr.value for dr in DurationRange]
-        if v not in valid_ranges:
-            raise ValueError(f'Rango de duración inválido: {v}. Valores válidos: {", ".join(valid_ranges)}')
-        return v
-    
+
     @classmethod
     def from_entity(cls, entity: OutputValue) -> OutputValueDto:
         """Convierte una entidad OutputValue a DTO."""
         return cls(
-            actuator_id=str(entity.actuator_id),
-            power_range=entity.power_range.value if hasattr(entity.power_range, 'value') else str(entity.power_range),
-            duration_range=entity.duration_range.value if hasattr(entity.duration_range, 'value') else str(entity.duration_range)
+            reference_code=entity.reference_code,
+            power=entity.power,
+            dutyCycle=entity.dutyCycle,
+            duration=entity.duration
         )
-    
+
     def to_entity(self) -> OutputValue:
         """Convierte el DTO a entidad OutputValue."""
-        from FuzzyService.Domain.ValueObjects.DomainId import ActuatorId
         return OutputValue(
-            actuator_id=ActuatorId(self.actuator_id),
-            power_range=PowerRange(self.power_range),
-            duration_range=DurationRange(self.duration_range)
+            reference_code=self.reference_code,
+            power=self.power,
+            dutyCycle=self.dutyCycle,
+            duration=self.duration
         )
 
 

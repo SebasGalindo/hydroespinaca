@@ -1,0 +1,56 @@
+<h1>⚠️ Dispositivo ESP32 desconectado</h1>
+
+<p style="font-size: 16px; color: #dc2626; font-weight: 600; margin: 20px 0;">
+  Se ha detectado que un dispositivo ESP32 ha perdido la conexión con el sistema.
+</p>
+
+<div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin: 24px 0; border-radius: 4px;">
+  <h2 style="margin-top: 0; margin-bottom: 12px; font-size: 18px; color: #dc2626;">
+    📡 Información del dispositivo
+  </h2>
+  <p style="margin: 8px 0;">
+    <strong>ESP32 ID:</strong> <code style="background-color: #fff; padding: 2px 6px; border-radius: 3px; font-family: monospace;">{{ esp32Id }}</code>
+  </p>
+  <p style="margin: 8px 0;">
+    <strong>Última actividad:</strong> {{ lastActivity }}
+  </p>
+  <p style="margin: 8px 0;">
+    <strong>Tiempo sin conexión:</strong> {{ timeSinceLastActivity }}
+  </p>
+  <p style="margin: 8px 0;">
+    <strong>Timestamp de la alerta:</strong> {{ timestamp }}
+  </p>
+</div>
+
+<h2 style="margin-top: 32px; margin-bottom: 12px; font-size: 16px; color: #374151;">
+  🔍 Posibles causas
+</h2>
+<ul style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+  <li>Falla en la conexión WiFi del dispositivo</li>
+  <li>Problema de alimentación eléctrica del ESP32</li>
+  <li>Reinicio o falla del microcontrolador</li>
+  <li>Configuración de red incorrecta</li>
+</ul>
+
+<h2 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px; color: #374151;">
+  ⚡ Acciones recomendadas
+</h2>
+<ol style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+  <li>Verificar la alimentación del dispositivo ESP32</li>
+  <li>Comprobar la conexión WiFi y acceso a internet</li>
+  <li>Revisar los logs del sistema para identificar errores</li>
+  <li>Reiniciar el dispositivo si es necesario</li>
+  <li>Contactar al equipo técnico si el problema persiste</li>
+</ol>
+
+<div style="margin-top: 32px; padding: 16px; background-color: #f9fafb; border-radius: 4px;">
+  <p style="margin: 0; font-size: 13px; color: #6b7280;">
+    ℹ️ <strong>Nota:</strong> Esta alerta se genera automáticamente cuando un dispositivo ESP32
+    no envía datos durante un período de tiempo prolongado. El sistema continuará monitoreando
+    y notificará cuando el dispositivo se reconnecte.
+  </p>
+</div>
+
+<p style="margin-top: 24px; font-style: italic; color: #374151; font-size: 14px;">
+  Este correo ha sido generado automáticamente por el sistema de monitoreo HydroEspinaca.
+</p>

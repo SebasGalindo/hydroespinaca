@@ -83,9 +83,6 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         # Incluir reference_code (código estable)
         if v.reference_code is not None:
             doc["reference_code"] = v.reference_code
-        # Incluir actuator_code (agrupación de variables de salida)
-        if v.actuator_code is not None:
-            doc["actuator_code"] = v.actuator_code
         # Incluir actuator_type solo si está definido
         if v.actuator_type is not None:
             doc["actuator_type"] = v.actuator_type
@@ -129,8 +126,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             defuzzification_threshold=doc.get("defuzzification_threshold", 50.0),
             universe_min=doc.get("universe_min"),
             universe_max=doc.get("universe_max"),
-            reference_code=doc.get("reference_code"),  # Código estable
-            actuator_code=doc.get("actuator_code"),    # Agrupación de variables de salida
+            reference_code=doc.get("reference_code"),
             terms=[FuzzyTermId(str(t)) for t in (doc.get("terms") or [])],
             created_at=doc.get("created_at"),
             updated_at=doc.get("updated_at"),
@@ -214,8 +210,6 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         # Incluir campos opcionales si están presentes
         if fuzzy_variable.reference_code is not None:
             update_doc["$set"]["reference_code"] = fuzzy_variable.reference_code
-        if fuzzy_variable.actuator_code is not None:
-            update_doc["$set"]["actuator_code"] = fuzzy_variable.actuator_code
         if fuzzy_variable.actuator_type is not None:
             update_doc["$set"]["actuator_type"] = fuzzy_variable.actuator_type
         if fuzzy_variable.universe_min is not None:

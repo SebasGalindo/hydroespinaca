@@ -1,4 +1,3 @@
-using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
@@ -27,9 +26,9 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.GetByIdAsync(id);
     }
 
-    public async Task<List<SensorAlert>> GetBySensorCodeAsync(string sensorCode)
+    public async Task<List<SensorAlert>> GetByVariableCodeAsync(string variableCode)
     {
-        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.SensorCode, sensorCode);
+        var filter = Builders<SensorAlertDocument>.Filter.Eq(x => x.VariableCode, variableCode);
         return await _baseRepo.FindManyAsync(filter);
     }
 
@@ -38,23 +37,10 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         await _baseRepo.UpdateAsync(sensorAlert);
     }
 
-    public async Task<SensorAlert?> GetUnacknowledgedBySensorAndTypeAsync(string sensorCode, AlertType type)
+    public async Task<SensorAlert?> GetActiveByVariableCodeAsync(string variableCode)
     {
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorCode, sensorCode),
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false)
-        );
-
-        return await _baseRepo.FindOneAsync(filter);
-    }
-
-    public async Task<SensorAlert?> GetActiveBySensorVariableAndTypeAsync(string sensorCode, string variableCode, AlertType type)
-    {
-        var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.SensorCode, sensorCode),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.VariableCode, variableCode),
-            Builders<SensorAlertDocument>.Filter.Eq(a => a.Type, type),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
         );
@@ -69,15 +55,15 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return (int)result.DeletedCount;
     }
 
-    public async Task<int> CountActiveAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default)
+    public async Task<int> CountActiveAlertsByVariablesAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default)
     {
-        var sensorCodeList = sensorCodes.ToList();
+        var variableCodeList = variableCodes.ToList();
 
-        if (!sensorCodeList.Any())
+        if (!variableCodeList.Any())
             return 0;
 
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.In(a => a.SensorCode, sensorCodeList),
+            Builders<SensorAlertDocument>.Filter.In(a => a.VariableCode, variableCodeList),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null)
         );
@@ -96,15 +82,15 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         await _baseRepo.UpdateAsync(alert);
     }
 
-    public async Task<List<SensorAlert>> GetUnsentEmailAlertsBySensorsAsync(IEnumerable<string> sensorCodes, CancellationToken cancellationToken = default)
+    public async Task<List<SensorAlert>> GetUnsentEmailAlertsByVariablesAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default)
     {
-        var sensorCodeList = sensorCodes.ToList();
+        var variableCodeList = variableCodes.ToList();
 
-        if (!sensorCodeList.Any())
+        if (!variableCodeList.Any())
             return new List<SensorAlert>();
 
         var filter = Builders<SensorAlertDocument>.Filter.And(
-            Builders<SensorAlertDocument>.Filter.In(a => a.SensorCode, sensorCodeList),
+            Builders<SensorAlertDocument>.Filter.In(a => a.VariableCode, variableCodeList),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.Acknowledged, false),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.ResolvedAt, null),
             Builders<SensorAlertDocument>.Filter.Eq(a => a.EmailSentAt, null)

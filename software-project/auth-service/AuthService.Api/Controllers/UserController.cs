@@ -1,7 +1,7 @@
 using AuthService.Application.Features.Users.Commands.CreateUser;
 using AuthService.Application.Features.Users.Commands.DeleteUser;
 using AuthService.Application.Features.Users.Commands.UpdateUser;
-using AuthService.Application.Features.Users.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Application.Features.Users.Queries.GetAllUsers;
 using AuthService.Application.Features.Users.Queries.GetUser;
 using HydroEspinaca.Shared.Extensions;
@@ -26,7 +26,7 @@ public class UserController : ControllerBase
     [Authorize(Policy = PolicyNames.UserCreate)]
     public async Task<ActionResult<UserResponseDto>> Create([FromBody] UserCreateDto request)
     {
-        var command = new CreateUserCommand(request.Email, request.Password, request.RoleId);
+        var command = new CreateUserCommand(request.Username, request.Email, request.Password, request.RoleId);
         var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
@@ -56,7 +56,7 @@ public class UserController : ControllerBase
     [Authorize(Policy = PolicyNames.UserUpdate)]
     public async Task<ActionResult<UserResponseDto>> Update(string id, [FromBody] UserUpdateDto request)
     {
-        var command = new UpdateUserCommand(id, request.Email, request.Password, request.RoleId);
+        var command = new UpdateUserCommand(id, request.Username, request.Email, request.Password, request.RoleId);
         var result = await _mediator.Send(command);
         return Ok(result);
     }

@@ -1,0 +1,36 @@
+{
+  "extends": "../../tools/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@hydroespinaca/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
+    "allowJs": true,
+    "strictNullChecks": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "out",
+    "build",
+    "coverage",
+    "**/*.native.ts",
+    "**/*.native.tsx",
+    "../../packages/shared/src/**/*.native.ts",
+    "../../packages/shared/src/**/*.native.tsx"
+  ]
+}

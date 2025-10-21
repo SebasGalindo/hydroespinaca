@@ -9,6 +9,7 @@ public class UserMapper : IEntityMapper<User, UserDocument>
     public User ToEntity(UserDocument doc)
     {
         var user = new User(
+            doc.Username,
             new Email(doc.Email),
             new HashedPassword(doc.Password),
             doc.RoleId
@@ -21,7 +22,8 @@ public class UserMapper : IEntityMapper<User, UserDocument>
     {
         return new UserDocument
         {
-            Id = entity.Id.ToString(),
+            Id = entity.Id, // MongoDB will auto-generate if null/empty
+            Username = entity.Username,
             Email = entity.Email.Value,
             Password = entity.Password.Value,
             RoleId = entity.RoleId

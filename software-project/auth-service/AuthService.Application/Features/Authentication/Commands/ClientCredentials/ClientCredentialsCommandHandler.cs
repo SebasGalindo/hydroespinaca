@@ -39,9 +39,8 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             throw new InvalidClientCredentialsException();
         }
 
-        // ✅ Get actual scopes from database - convert permission IDs to scopes
-        var permissions = await _permissionRepository.FindByIdsAsync(clientApp.Scopes);
-        var scopes = permissions.Select(p => p.Code).ToArray();
+    // ✅ ClientApp.Scopes already stores permission codes (scopes)
+    var scopes = clientApp.Scopes.ToArray();
 
         // ✅ Use explicit scopes from database instead of hardcoded ones
         var tokens = await _tokenService.GenerateTokensAsync(
@@ -57,8 +56,12 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             tokens.RefreshToken,
             tokens.ExpiresAt,
             tokens.Role,
+            null, // Username - N/A for client credentials
+            null, // Email - N/A for client credentials
             tokens.ClientId,
-            tokens.Scopes
+            tokens.Scopes,
+            null, // SessionId - N/A for client credentials
+            null  // RefreshTokenExpiresAt
         );
     }
 }

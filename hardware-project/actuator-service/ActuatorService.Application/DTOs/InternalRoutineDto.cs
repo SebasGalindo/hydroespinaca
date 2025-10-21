@@ -2,6 +2,7 @@ namespace ActuatorService.Application.DTOs;
 
 /// <summary>
 /// DTO for internal routine information
+/// Execution schedule is deterministic, calculated from 00:00 Colombia time (America/Bogota)
 /// </summary>
 public class InternalRoutineDto
 {
@@ -10,9 +11,7 @@ public class InternalRoutineDto
     public string Description { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
     public TimeSpan Interval { get; set; }
-    public TimeSpan StartTime { get; set; }
     public List<InternalRoutineStepDto> Steps { get; set; } = new();
-    public DateTime? LastExecutedAt { get; set; }
     public DateTime? NextExecutionEstimate { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -20,7 +19,7 @@ public class InternalRoutineDto
 }
 
 /// <summary>
-/// DTO for creating or updating an internal routine
+/// DTO for creating an internal routine
 /// </summary>
 public class CreateInternalRoutineDto
 {
@@ -28,7 +27,6 @@ public class CreateInternalRoutineDto
     public string Description { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
     public TimeSpan Interval { get; set; }
-    public TimeSpan StartTime { get; set; }
     public List<InternalRoutineStepDto> Steps { get; set; } = new();
     public bool IsActive { get; set; } = true;
 }
@@ -42,7 +40,6 @@ public class UpdateInternalRoutineDto
     public string? Description { get; set; }
     public string? Esp32Id { get; set; }
     public TimeSpan? Interval { get; set; }
-    public TimeSpan? StartTime { get; set; }
     public List<InternalRoutineStepDto>? Steps { get; set; }
     public bool? IsActive { get; set; }
 }

@@ -1,8 +1,8 @@
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using SensorService.Domain.Entities;
-using SensorService.Domain.Exceptions;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
 
@@ -47,4 +47,31 @@ public class MongoReadingRepository : IReadingRepository
         var sort = Builders<ReadingDocument>.Sort.Descending(r => r.Timestamp);
         return await _baseRepo.FindLastOneAsync(filter, sort);
     }
+
+    public async Task<List<Reading>> GetLatestReadingsByVariableAsync()
+    {
+        // Paso 1: obtener el timestamp más reciente
+        var latestTimestampDocs = await _baseRepo.AggregateAsync(new[]
+        {
+        new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
+        new BsonDocument("$limit", 1),
+        new BsonDocument("$project", new BsonDocument("timestamp", 1))
+    });
+
+        if (!latestTimestampDocs.Any())
+            return new List<Reading>();
+
+        var latestTimestamp = latestTimestampDocs.First().Timestamp;
+
+        // Paso 2: traer todas las lecturas con ese timestamp
+        var pipeline = new[]
+        {
+        new BsonDocument("$match", new BsonDocument("timestamp", latestTimestamp)),
+        new BsonDocument("$sort", new BsonDocument("variableCode", 1))
+    };
+
+        return await _baseRepo.AggregateAsync(pipeline);
+    }
+
+
 }

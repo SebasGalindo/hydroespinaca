@@ -2,84 +2,66 @@
 
 # =================================================
 # Mosquitto Startup Script with Profile Support
-# HydroEspinaca Project - Profile-aware Configuration
+# HydroEspinaca Project
 # =================================================
 
 set -e
 
+# -----------------------------
 # Colors for output
+# -----------------------------
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-log() {
-    echo -e "${GREEN}[$(date)] MOSQUITTO-STARTUP: $1${NC}"
-}
+log()    { echo -e "${GREEN}[$(date)] MOSQUITTO-STARTUP: $1${NC}"; }
+info()   { echo -e "${BLUE}[$(date)] MOSQUITTO-STARTUP: $1${NC}"; }
+warn()   { echo -e "${YELLOW}[$(date)] MOSQUITTO-STARTUP: $1${NC}"; }
+error()  { echo -e "${RED}[$(date)] MOSQUITTO-STARTUP: $1${NC}"; }
 
-info() {
-    echo -e "${BLUE}[$(date)] MOSQUITTO-STARTUP: $1${NC}"
-}
-
-warn() {
-    echo -e "${YELLOW}[$(date)] MOSQUITTO-STARTUP: $1${NC}"
-}
-
-error() {
-    echo -e "${RED}[$(date)] MOSQUITTO-STARTUP: $1${NC}"
-}
-
+# -----------------------------
 # Load environment variables
+# -----------------------------
 USE_TLS=${USE_TLS:-false}
 ENVIRONMENT=${ENVIRONMENT:-Development}
 DOMAIN=${DOMAIN:-hydroespinaca.online}
 MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
 COMPOSE_PROFILE=${COMPOSE_PROFILE:-development}
 
-# Derived variables
 MQTT_DOMAIN="${MQTT_SUBDOMAIN}.${DOMAIN}"
 
 info "Starting Mosquitto with profile: $COMPOSE_PROFILE"
 info "Environment: $ENVIRONMENT (TLS: $USE_TLS)"
 
-# Determine configuration strategy based on profile
-if [ "$COMPOSE_PROFILE" = "production" ]; then
+# -----------------------------
+# Profile-specific configuration
+# -----------------------------
+case "$COMPOSE_PROFILE" in
+  production)
     info "Production profile detected - full TLS configuration"
-    
-    # Ensure certificates exist for production
+
+    # Check certificates only in production
     if [ "$USE_TLS" = "true" ]; then
-        info "Checking TLS certificates for production mode..."
-        info "Expected certificate path: /etc/mosquitto/certs/fullchain.pem"
-        
-        # Debug: List certificate mount point
-        info "Certificate mount debugging:"
-        ls -la /etc/mosquitto/ || warn "/etc/mosquitto directory not found"
-        ls -la /etc/mosquitto/certs/ || warn "/etc/mosquitto/certs directory not found"
-        
-        # Check each required certificate file
+        log "Checking TLS certificates..."
+        MISSING_CERTS=0
         for cert_file in fullchain.pem privkey.pem; do
-            cert_path="/etc/mosquitto/certs/${cert_file}"
+            cert_path="/etc/mosquitto/certs/$cert_file"
             if [ -f "$cert_path" ]; then
                 info "✓ Found: $cert_path"
-                ls -la "$cert_path"
             else
                 error "✗ Missing: $cert_path"
+                MISSING_CERTS=1
             fi
         done
-        
-        # If any certificate is missing, use fallback or exit
-        if [ ! -f "/etc/mosquitto/certs/fullchain.pem" ] || [ ! -f "/etc/mosquitto/certs/privkey.pem" ]; then
-            error "Production mode requires TLS certificates but they don't exist"
-            error "Available files in /etc/mosquitto/certs/:"
-            ls -la /etc/mosquitto/certs/ || error "Cannot list /etc/mosquitto/certs/"
-            warn "Falling back to development mode for this startup..."
+
+        if [ $MISSING_CERTS -eq 1 ]; then
+            warn "Certificates missing, falling back to development profile"
             export COMPOSE_PROFILE="development"
         fi
     fi
-    
-    # Production: Use dynamic template with TLS
-    export MQTT_WEBSOCKET_DEV=""
+
     export MQTT_TLS_LISTENERS="
 # External MQTT listener with TLS (for ESP32 nodes)
 listener 8883 0.0.0.0
@@ -87,59 +69,58 @@ protocol mqtt
 certfile /etc/mosquitto/certs/fullchain.pem
 keyfile /etc/mosquitto/certs/privkey.pem
 
-# WebSocket TLS listener (production - with TLS)
+# WebSocket TLS listener (production - TLS)
 listener 9002 0.0.0.0
 protocol websockets
 certfile /etc/mosquitto/certs/fullchain.pem
 keyfile /etc/mosquitto/certs/privkey.pem"
 
-elif [ "$COMPOSE_PROFILE" = "development" ]; then
-    info "Development profile detected - minimal configuration (no TLS)"
-    
-    # Development: Only basic listeners, no TLS
-    export MQTT_WEBSOCKET_DEV="
-# WebSocket listener (development - no TLS)
-listener 9001 0.0.0.0
-protocol websockets"
-    
-    export MQTT_TLS_LISTENERS=""
-    
-else
-    warn "Unknown profile '$COMPOSE_PROFILE', defaulting to development"
-    # Default to development configuration
-    export MQTT_WEBSOCKET_DEV="
-# WebSocket listener (development - no TLS)
-listener 9001 0.0.0.0
-protocol websockets"
-    
-    export MQTT_TLS_LISTENERS=""
-fi
+    export MQTT_WEBSOCKET_DEV=""
+    ;;
 
-# Check if template exists
-if [ ! -f "/mosquitto/config/mosquitto.conf.tpl" ]; then
-    error "Template file /mosquitto/config/mosquitto.conf.tpl not found!"
-    error "Expected locations:"
-    error "  - /mosquitto/config/mosquitto.conf.tpl"
-    error "  - /scripts/mosquitto.conf.tpl"
-    
-    # Try to use fallback template from scripts
+  development)
+    info "Development profile detected - minimal configuration (no TLS)"
+    export MQTT_WEBSOCKET_DEV="
+# WebSocket listener (development - no TLS)
+listener 9001 0.0.0.0
+protocol websockets"
+    export MQTT_TLS_LISTENERS=""
+    info "Skipping TLS certificate check in development"
+    ;;
+
+  *)
+    warn "Unknown profile '$COMPOSE_PROFILE', defaulting to development"
+    export MQTT_WEBSOCKET_DEV="
+# WebSocket listener (development - no TLS)
+listener 9001 0.0.0.0
+protocol websockets"
+    export MQTT_TLS_LISTENERS=""
+    ;;
+esac
+
+# -----------------------------
+# Template check
+# -----------------------------
+TEMPLATE_PATH="/mosquitto/config/mosquitto.conf.tpl"
+if [ ! -f "$TEMPLATE_PATH" ]; then
+    error "Template file not found: $TEMPLATE_PATH"
     if [ -f "/scripts/mosquitto.conf.tpl" ]; then
         warn "Using fallback template from /scripts/"
-        cp /scripts/mosquitto.conf.tpl /mosquitto/config/mosquitto.conf.tpl
+        cp /scripts/mosquitto.conf.tpl "$TEMPLATE_PATH"
     else
-        error "No template found. Exiting..."
+        error "No template available, aborting..."
         exit 1
     fi
 fi
 
-# Generate the final mosquitto.conf
+# -----------------------------
+# Generate final mosquitto.conf
+# -----------------------------
 log "Generating mosquitto.conf from template..."
-envsubst '${MQTT_WEBSOCKET_DEV} ${MQTT_TLS_LISTENERS}' \
-    < /mosquitto/config/mosquitto.conf.tpl > /mosquitto/config/mosquitto.conf
-
+envsubst '${MQTT_WEBSOCKET_DEV} ${MQTT_TLS_LISTENERS}' < "$TEMPLATE_PATH" > /mosquitto/config/mosquitto.conf
 log "Mosquitto configuration generated for profile: $COMPOSE_PROFILE"
 
-# Show configuration preview
+# Preview first 30 lines in development
 if [ "$ENVIRONMENT" = "Development" ]; then
     log "Configuration preview (first 30 lines):"
     echo "=========================="
@@ -147,30 +128,11 @@ if [ "$ENVIRONMENT" = "Development" ]; then
     echo "=========================="
 fi
 
-info "Skipping pre-validation - mosquitto will validate on startup"
-
-# Start Mosquitto (PID 1)
-log "Starting Mosquitto daemon..."
-log "Current user: $(whoami)"
-log "Current UID: $(id)"
-
-# Test certificate access first
-log "Testing certificate access..."
-if [ -r "/etc/mosquitto/certs/privkey.pem" ]; then
-    log "✓ Can read privkey.pem"
-else
-    error "✗ Cannot read privkey.pem"
-    ls -la /etc/mosquitto/certs/
-fi
-
-log "Starting mosquitto with detailed error output..."
+info "Launching Mosquitto..."
 mosquitto -c /mosquitto/config/mosquitto.conf -v 2>&1 || {
     error "Mosquitto failed with exit code $?"
     error "Last 10 lines of mosquitto log:"
     tail -10 /mosquitto/log/mosquitto.log 2>/dev/null || error "No mosquitto.log found"
-    error "Checking write permissions on log directory:"
-    ls -la /mosquitto/log/ || error "Cannot access log directory"
-    ls -la /mosquitto/data/ || error "Cannot access data directory"
-    sleep 30  # Prevent rapid restart
+    sleep 30
     exit 1
 }

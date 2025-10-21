@@ -1,0 +1,13 @@
+{
+  "name": "@hidroespinaca/typescript-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configuración compartida de TypeScript para el monorepo",
+  "main": "index.js",
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "react-native.json",
+    "node.json"
+  ]
+}

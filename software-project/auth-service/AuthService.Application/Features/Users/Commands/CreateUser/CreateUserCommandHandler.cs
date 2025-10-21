@@ -1,4 +1,4 @@
-using AuthService.Application.Features.Users.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
@@ -33,8 +33,9 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserR
 
         var hashedPassword = _passwordHasher.Hash(request.Password);
         var user = new User(
-            new Email(request.Email), 
-            new HashedPassword(hashedPassword), 
+            request.Username,
+            new Email(request.Email),
+            new HashedPassword(hashedPassword),
             request.RoleId);
 
         await _userRepository.CreateAsync(user);

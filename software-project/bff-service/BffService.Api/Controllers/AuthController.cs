@@ -24,19 +24,34 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("login/web")]   
+    [HttpPost("login/web")]
     public async Task<ActionResult<WebLoginResponseDto>> LoginWeb([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await _sessionService.LoginAsync(request, cancellationToken);
+        // Capture client information from the current HTTP context
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+        // Enrich the request with client information
+        var enrichedRequest = new LoginRequestDto(
+            request.Email,
+            request.Password,
+            request.SessionId,
+            ipAddress,
+            userAgent,
+            request.CsrfToken
+        );
+
+        var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
 
         // Configure cookie options from appsettings
+        // Cookies expire at the same time as the refresh token (fixed session, not rolling)
         var sessionCookieOptions = new CookieOptions
         {
             HttpOnly = true, // SessionId should be HttpOnly for security
             Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+            Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
         };
 
         var csrfCookieOptions = new CookieOptions
@@ -45,7 +60,7 @@ public class AuthController : ControllerBase
             Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
-            Expires = DateTimeOffset.UtcNow.AddMinutes(_configuration.GetValue<int>("Sessions:AccessTokenExpiryMinutes", 15))
+            Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
         };
 
         // Only set domain if configured
@@ -64,10 +79,24 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("login/mobile")]   
+    [HttpPost("login/mobile")]
     public async Task<ActionResult<MobileLoginResponseDto>> LoginMobile([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await _sessionService.LoginAsync(request, cancellationToken);
+        // Capture client information from the current HTTP context
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+        // Enrich the request with client information
+        var enrichedRequest = new LoginRequestDto(
+            request.Email,
+            request.Password,
+            request.SessionId,
+            ipAddress,
+            userAgent,
+            request.CsrfToken
+        );
+
+        var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
 
         // Set headers for mobile clients
         var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
@@ -109,23 +138,51 @@ public class AuthController : ControllerBase
             }
         }
 
-        if (string.IsNullOrEmpty(sessionId))
+        // Try to logout from session repository if we have a sessionId
+        if (!string.IsNullOrEmpty(sessionId))
         {
-            return BadRequest(new { message = "No active session to logout" });
+            var logoutRequest = new LogoutRequestDto(sessionId);
+            try
+            {
+                await _sessionService.LogoutAsync(logoutRequest, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during logout for session {SessionId}, will still clear cookies", sessionId);
+            }
         }
 
-        var logoutRequest = new LogoutRequestDto(sessionId);
-        await _sessionService.LogoutAsync(logoutRequest, cancellationToken);
+        // ALWAYS clear cookies for web clients, even if there's no active session
+        // This handles cases where cookies persist after session was deleted (e.g., server restart, session limit)
+        var sessionCookieOptions = new CookieOptions
+        {
+            HttpOnly = true, // SessionId is HttpOnly
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
+        };
 
-        // Clear cookies for web clients
-        if (Request.Cookies.ContainsKey("SessionId"))
+        var csrfCookieOptions = new CookieOptions
         {
-            Response.Cookies.Delete("SessionId");
-        }
-        if (Request.Cookies.ContainsKey("CsrfToken"))
+            HttpOnly = false, // CsrfToken is NOT HttpOnly
+            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
+            Path = "/",
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
+        };
+
+        // Only set domain if configured (must match creation)
+        var domain = _configuration.GetValue<string>("Cookies:Domain");
+        if (!string.IsNullOrEmpty(domain))
         {
-            Response.Cookies.Delete("CsrfToken");
+            sessionCookieOptions.Domain = domain;
+            csrfCookieOptions.Domain = domain;
         }
+
+        // Always delete both cookies (SessionId is HttpOnly, CsrfToken is not)
+        Response.Cookies.Append("SessionId", "", sessionCookieOptions);
+        Response.Cookies.Append("CsrfToken", "", csrfCookieOptions);
 
         return Ok(new { message = "Logged out successfully" });
     }
@@ -174,9 +231,49 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new { message = "Invalid or expired session" });
         }
-        
-        // Return only essential user information
-        return Ok(new UserSessionDto(sessionInfo.UserId, sessionInfo.UserRole));
+
+        // Get full session to access username and email
+        var fullSession = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
+
+        if (fullSession == null)
+        {
+            return Unauthorized(new { message = "Session not found" });
+        }
+
+        // Format role: remove "role_" prefix if present and capitalize
+        var formattedRole = FormatRole(fullSession.UserRole ?? sessionInfo.UserRole);
+
+        // Return user information for frontend
+        return Ok(new UserSessionDto(
+            fullSession.Username ?? "Usuario",
+            fullSession.Email ?? "",
+            formattedRole
+        ));
+    }
+
+    private static string FormatRole(string role)
+    {
+        if (string.IsNullOrEmpty(role))
+            return "Usuario";
+
+        // Remove "role_" prefix if present
+        var cleanRole = role.StartsWith("role_", StringComparison.OrdinalIgnoreCase)
+            ? role.Substring(5)
+            : role;
+
+        // Capitalize first letter
+        if (cleanRole.Length > 0)
+        {
+            cleanRole = char.ToUpper(cleanRole[0]) + cleanRole.Substring(1).ToLower();
+        }
+
+        // Map specific roles to Spanish
+        return cleanRole.ToLower() switch
+        {
+            "admin" => "Administrador",
+            "user" => "Usuario",
+            _ => cleanRole
+        };
     }
 
     [HttpGet("session/{sessionId}")]

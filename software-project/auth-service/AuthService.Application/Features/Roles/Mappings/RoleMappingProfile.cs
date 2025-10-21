@@ -1,4 +1,4 @@
-using AuthService.Application.Features.Roles.DTOs;
+using HydroEspinaca.Shared.DTOs.Authentication;
 using AuthService.Domain.Entities;
 using AutoMapper;
 
@@ -9,6 +9,6 @@ public class RoleMappingProfile : Profile
     public RoleMappingProfile()
     {
         CreateMap<Role, RoleResponseDto>()
-            .ForMember(dest => dest.PermissionCodes, opt => opt.Ignore());
+           .ForMember(dest => dest.PermissionCodes, opt => opt.MapFrom(src => src.Permissions));
     }
 }

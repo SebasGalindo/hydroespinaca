@@ -11,12 +11,13 @@ public class Esp32AlertMapper : IEntityMapper<Esp32Alert, Esp32AlertDocument>
         var entity = new Esp32Alert
         {
             Esp32Id = doc.Esp32Id,
-            Type = doc.Type,
             Timestamp = doc.Timestamp,
             Message = doc.Message,
-            Severity = doc.Severity,
             Acknowledged = doc.Acknowledged,
-            ResolvedAt = doc.ResolvedAt
+            ResolvedAt = doc.ResolvedAt,
+            EmailSentAt = doc.EmailSentAt,
+            Type = doc.Type,
+            Severity = doc.Severity
         };
         entity.SetId(doc.Id);
         return entity;
@@ -27,12 +28,13 @@ public class Esp32AlertMapper : IEntityMapper<Esp32Alert, Esp32AlertDocument>
         var document = new Esp32AlertDocument
         {
             Esp32Id = entity.Esp32Id,
-            Type = entity.Type,
             Timestamp = entity.Timestamp,
             Message = entity.Message,
-            Severity = entity.Severity,
             Acknowledged = entity.Acknowledged,
-            ResolvedAt = entity.ResolvedAt
+            ResolvedAt = entity.ResolvedAt,
+            EmailSentAt = entity.EmailSentAt,
+            Type = entity.Type,
+            Severity = entity.Severity
         };
         document.SetId(entity.Id);
         return document;

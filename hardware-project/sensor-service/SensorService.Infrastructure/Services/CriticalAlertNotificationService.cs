@@ -21,15 +21,6 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     private readonly string _notificationServiceUrl;
     private readonly Template _alertTemplate;
 
-    // In-memory alert state management (synchronized with database)
-    // TODO: In production with multiple replicas, migrate to Redis for distributed deployments
-    private readonly Dictionary<string, HashSet<string>> _activeAlerts = new();
-    private readonly object _alertStateLock = new();
-
-    // ✅ Cooldown cache: Track when alerts were last sent to prevent spam
-    // Key: "esp32Id:variableName", Value: timestamp of last email sent
-    private readonly Dictionary<string, DateTime> _lastEmailSentCache = new();
-    private readonly TimeSpan _emailCooldownPeriod = TimeSpan.FromMinutes(30);
 
     public CriticalAlertNotificationService(
         HttpClient httpClient,
@@ -104,265 +95,58 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
         }
     }
 
-    public async Task<bool> ShouldSendAlertAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    public async Task<bool> ShouldSendAlertAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default)
     {
-        var variableList = alertVariables.ToList();
+        var variableList = variableCodes.ToList();
 
-        // ✅ FIRST LAYER: Cooldown check (prevents spam for persistent conditions)
-        var recentlySentVariables = variableList.Where(v => WasAlertSentRecently(esp32Id, v)).ToList();
+        if (!variableList.Any())
+            return false;
 
-        if (recentlySentVariables.Any())
-        {
-            _logger.LogWarning("⚠️ Duplicate alert suppressed for {Esp32Id} - variables: [{Variables}] (sent within last {Cooldown} min)",
-                esp32Id, string.Join(", ", recentlySentVariables), _emailCooldownPeriod.TotalMinutes);
-
-            // If ALL variables were recently sent, skip completely
-            if (recentlySentVariables.Count == variableList.Count)
-            {
-                return false;
-            }
-
-            // Otherwise, filter out recently sent variables
-            variableList = variableList.Except(recentlySentVariables).ToList();
-            _logger.LogInformation("📧 Will send email only for new variables: [{Variables}]",
-                string.Join(", ", variableList));
-        }
-
-        lock (_alertStateLock)
-        {
-            // ✅ Log del estado actual en memoria
-            var memoryCount = _activeAlerts.TryGetValue(esp32Id, out var activeVariables)
-                ? activeVariables.Count
-                : 0;
-
-            _logger.LogDebug("📊 Memory state for ESP32 {Esp32Id}: {MemoryCount} active variables in memory",
-                esp32Id, memoryCount);
-
-            if (activeVariables != null)
-            {
-                _logger.LogDebug("   Active in memory: [{Variables}]",
-                    string.Join(", ", activeVariables));
-            }
-
-            _logger.LogDebug("   Incoming alerts: [{Variables}]",
-                string.Join(", ", variableList));
-
-            // Check if there are new alerts not in memory
-            var newAlertsInMemory = activeVariables == null
-                ? variableList
-                : variableList.Except(activeVariables).ToList();
-
-            if (newAlertsInMemory.Any())
-            {
-                _logger.LogDebug("🆕 New variables not in memory: [{Variables}]",
-                    string.Join(", ", newAlertsInMemory));
-            }
-        }
-
-        // ✅ SECOND LAYER: Query database to check for unsent email alerts (source of truth)
+        // Query database to check for unsent email alerts (source of truth)
         List<SensorAlert> unsentAlerts;
         using (var scope = _serviceScopeFactory.CreateScope())
         {
             var sensorAlertRepository = scope.ServiceProvider.GetRequiredService<ISensorAlertRepository>();
-            var sensorRepository = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
-            unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, sensorRepository, sensorAlertRepository, cancellationToken);
+            unsentAlerts = await sensorAlertRepository.GetUnsentEmailAlertsByVariablesAsync(variableList, cancellationToken);
         }
 
-        _logger.LogDebug("📊 Database state for ESP32 {Esp32Id}: {DbCount} unsent email alerts in sensor_alerts",
-            esp32Id, unsentAlerts.Count);
-
-        // ✅ Decision logic based on database (source of truth)
         if (!unsentAlerts.Any())
         {
             _logger.LogInformation("🚫 All active alerts already have emails sent → skip email");
-
-            // Re-sync memory from current state (all variables are already notified)
-            lock (_alertStateLock)
-            {
-                _activeAlerts[esp32Id] = new HashSet<string>(variableList);
-            }
-
             return false;
         }
 
-        // There are unsent alerts in the database → must send email
         _logger.LogInformation("✅ Found {Count} unsent email alerts in database → will send email",
             unsentAlerts.Count);
 
         return true;
     }
 
-    public async Task MarkAlertAsSentAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
+    public async Task MarkAlertAsSentAsync(IEnumerable<string> variableCodes, CancellationToken cancellationToken = default)
     {
-        var variableList = alertVariables.ToList();
+        var variableList = variableCodes.ToList();
         var sentAt = DateTime.UtcNow;
 
-        // ✅ CRITICAL: Persist email sent timestamp in database
+        if (!variableList.Any())
+            return;
+
+        // Persist email sent timestamp in database
         using (var scope = _serviceScopeFactory.CreateScope())
         {
             var sensorAlertRepository = scope.ServiceProvider.GetRequiredService<ISensorAlertRepository>();
-            var sensorRepository = scope.ServiceProvider.GetRequiredService<ISensorRepository>();
-            var unsentAlerts = await GetUnsentEmailAlertsFromDatabaseAsync(esp32Id, sensorRepository, sensorAlertRepository, cancellationToken);
+            var unsentAlerts = await sensorAlertRepository.GetUnsentEmailAlertsByVariablesAsync(variableList, cancellationToken);
 
             foreach (var alert in unsentAlerts)
             {
-                await sensorAlertRepository.MarkEmailAsSentAsync(alert.Id, sentAt, cancellationToken);
+                alert.EmailSentAt = sentAt;
+                await sensorAlertRepository.UpdateAsync(alert);
             }
 
-            _logger.LogInformation("💾 Persisted email sent timestamp for {Count} alerts in database", unsentAlerts.Count);
-        }
-
-        // ✅ Update cooldown cache (primary anti-spam mechanism)
-        MarkAlertAsSentInCache(esp32Id, variableList);
-
-        // Also update in-memory cache for performance
-        lock (_alertStateLock)
-        {
-            if (!_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
-            {
-                activeVariables = new HashSet<string>();
-                _activeAlerts[esp32Id] = activeVariables;
-            }
-
-            var newVariables = 0;
-            foreach (var variable in variableList)
-            {
-                if (activeVariables.Add(variable))
-                    newVariables++;
-            }
-
-            _logger.LogInformation("📌 Marked {New}/{Total} variables as sent in memory for ESP32: {Esp32Id}",
-                newVariables, variableList.Count, esp32Id);
-
-            _logger.LogDebug("   Now tracking: [{Variables}]",
-                string.Join(", ", activeVariables));
+            _logger.LogInformation("💾 Marked {Count} alerts as sent (emailSentAt updated)", unsentAlerts.Count);
         }
     }
 
-    public Task MarkAlertAsResolvedAsync(string esp32Id, IEnumerable<string> alertVariables, CancellationToken cancellationToken = default)
-    {
-        var variableList = alertVariables.ToList();
 
-        lock (_alertStateLock)
-        {
-            if (_activeAlerts.TryGetValue(esp32Id, out var activeVariables))
-            {
-                var removed = 0;
-                foreach (var variable in variableList)
-                {
-                    if (activeVariables.Remove(variable))
-                        removed++;
-
-                    // ✅ Also clear from cooldown cache (allow new emails if condition recurs)
-                    var cacheKey = $"{esp32Id}:{variable}";
-                    _lastEmailSentCache.Remove(cacheKey);
-                }
-
-                // Remove the ESP32 entry if no active alerts remain
-                if (!activeVariables.Any())
-                {
-                    _activeAlerts.Remove(esp32Id);
-                    _logger.LogInformation("✅ All alerts resolved for ESP32: {Esp32Id} → removed from memory and cooldown cache",
-                        esp32Id);
-                }
-                else
-                {
-                    _logger.LogInformation("✅ Resolved {Removed} variables for ESP32: {Esp32Id}, {Remaining} still active",
-                        removed, esp32Id, activeVariables.Count);
-                }
-            }
-            else
-            {
-                _logger.LogDebug("ℹ️ No active alerts in memory for ESP32: {Esp32Id} (already clean)",
-                    esp32Id);
-            }
-        }
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Check if an alert was sent recently (within cooldown period).
-    /// Prevents spam for the same alert condition.
-    /// </summary>
-    private bool WasAlertSentRecently(string esp32Id, string variableName)
-    {
-        var cacheKey = $"{esp32Id}:{variableName}";
-
-        lock (_alertStateLock)
-        {
-            if (_lastEmailSentCache.TryGetValue(cacheKey, out var lastSentTime))
-            {
-                var timeSinceLastEmail = DateTime.UtcNow - lastSentTime;
-
-                if (timeSinceLastEmail < _emailCooldownPeriod)
-                {
-                    _logger.LogDebug("⏱️ Alert for {Variable} on {Esp32Id} was sent {Minutes:F1} minutes ago (cooldown: {Cooldown} min)",
-                        variableName, esp32Id, timeSinceLastEmail.TotalMinutes, _emailCooldownPeriod.TotalMinutes);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Mark an alert as recently sent in the cooldown cache.
-    /// </summary>
-    private void MarkAlertAsSentInCache(string esp32Id, IEnumerable<string> variableNames)
-    {
-        var now = DateTime.UtcNow;
-
-        lock (_alertStateLock)
-        {
-            foreach (var variableName in variableNames)
-            {
-                var cacheKey = $"{esp32Id}:{variableName}";
-                _lastEmailSentCache[cacheKey] = now;
-            }
-
-            _logger.LogDebug("🕒 Updated cooldown cache for {Count} variables on {Esp32Id}",
-                variableNames.Count(), esp32Id);
-        }
-    }
-
-    /// <summary>
-    /// Query database to get unsent email alerts for the ESP32.
-    /// This prevents sending duplicate emails when memory state is lost (e.g., after restart).
-    /// </summary>
-    private async Task<List<SensorAlert>> GetUnsentEmailAlertsFromDatabaseAsync(
-        string esp32Id,
-        ISensorRepository sensorRepository,
-        ISensorAlertRepository sensorAlertRepository,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            // Get all sensors for this ESP32 to find their IDs
-            var sensors = await sensorRepository.GetSensorsByEsp32IdAsync(esp32Id, cancellationToken);
-            var sensorIds = sensors.Select(s => s.Id).ToList();
-
-            if (!sensorIds.Any())
-            {
-                _logger.LogDebug("No sensors found for ESP32 {Esp32Id}", esp32Id);
-                return new List<SensorAlert>();
-            }
-
-            // Get active alerts that haven't been emailed yet
-            var unsentAlerts = await sensorAlertRepository.GetUnsentEmailAlertsBySensorsAsync(sensorIds, cancellationToken);
-
-            _logger.LogDebug("Found {Count} unsent email alerts in DB for {SensorCount} sensors of ESP32 {Esp32Id}",
-                unsentAlerts.Count, sensorIds.Count, esp32Id);
-
-            return unsentAlerts;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to query database for unsent alerts - assuming no pending alerts");
-            return new List<SensorAlert>();
-        }
-    }
 
     private Template LoadAlertTemplate()
     {
@@ -426,12 +210,13 @@ public class CriticalAlertNotificationService : ICriticalAlertNotificationServic
     private static string GenerateSubject(CriticalAlertData alertData)
     {
         var alertReadings = alertData.AlertReadings.ToList();
-        
+
         if (alertReadings.Count == 1)
         {
             return $"⚠️ Alerta de sensor - {alertReadings.First().Name} crítico";
         }
-        
+
         return "⚠️ Alerta de sensor - Variables críticas fuera de rango";
     }
+
 }

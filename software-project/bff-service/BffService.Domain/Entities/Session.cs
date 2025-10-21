@@ -10,6 +10,8 @@ public class Session
     public DateTime ExpiresAt { get; private set; }
     public DateTime? RefreshTokenExpiresAt { get; private set; }
     public string? UserId { get; private set; }
+    public string? Username { get; private set; }
+    public string? Email { get; private set; }
     public string? UserRole { get; private set; }
     public List<string> Scopes { get; private set; }
 
@@ -34,9 +36,11 @@ public class Session
         RefreshTokenExpiresAt = refreshTokenExpiresAt;
     }
 
-    public void SetUserInfo(string userId, string userRole, List<string> scopes)
+    public void SetUserInfo(string userId, string username, string email, string userRole, List<string> scopes)
     {
         UserId = userId;
+        Username = username;
+        Email = email;
         UserRole = userRole;
         Scopes = scopes ?? new List<string>();
     }

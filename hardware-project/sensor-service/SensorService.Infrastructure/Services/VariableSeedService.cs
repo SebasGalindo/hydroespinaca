@@ -65,7 +65,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "EC",
-                Name = "Electrical Conductivity",
+                Name = "Conductividad eléctrica",
                 Unit = "mS/cm",
                 Description = "Ion concentration in the nutrient solution",
                 Type = VariableTypes.Analog,
@@ -79,21 +79,21 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "T_AMB",
-                Name = "Ambient Temperature",
+                Name = "Temp ambiente",
                 Unit = "°C",
                 Description = "Ambient temperature",
                 Type = VariableTypes.Analog,
                 PhysicalMin = -10,
                 PhysicalMax = 40,
                 OptimalMin = 18,
-                OptimalMax = 24,
+                OptimalMax = 22,
                 RegulationType = HydroEspinaca.Shared.Enums.RegulationType.Automatic,
                 LastModified = DateTime.UtcNow
             },
             new VariableDocument
             {
                 Code = "HUM",
-                Name = "Humidity",
+                Name = "Humedad",
                 Unit = "%",
                 Description = "Relative humidity of the environment",
                 Type = VariableTypes.Analog,
@@ -107,7 +107,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "T_WAT",
-                Name = "Water Temperature",
+                Name = "Temp del Agua",
                 Unit = "°C",
                 Description = "Water temperature",
                 Type = VariableTypes.Analog,
@@ -121,7 +121,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "WL",
-                Name = "Water Level",
+                Name = "Nivel de agua",
                 Unit = "cm",
                 Description = "Nivel de agua en el tanque medido por sensor ultrasónico",
                 Type = VariableTypes.Analog,
@@ -135,7 +135,7 @@ public class VariableSeedService : IVariableSeedService
             new VariableDocument
             {
                 Code = "LUMINOSITY",
-                Name = "Luminosity",
+                Name = "Luminosidad",
                 Unit = "lux",
                 Description = "Light intensity measured by BH1750 sensor",
                 Type = VariableTypes.Analog,
@@ -148,8 +148,8 @@ public class VariableSeedService : IVariableSeedService
             },
             new VariableDocument
             {
-                Code = "pH",
-                Name = "pH Level",
+                Code = "PH",
+                Name = "Nivel de pH",
                 Unit = "pH",
                 Description = "Acidity or alkalinity of the nutrient solution",
                 Type = VariableTypes.Analog,

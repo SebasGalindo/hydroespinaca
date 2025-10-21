@@ -1,9 +1,7 @@
-using AuthService.Application.Features.Permissions.DTOs;
-using AuthService.Application.Features.Roles.DTOs;
 using AuthService.Domain.Entities;
 using AuthService.Domain.ValueObjects;
-using HydroEspinaca.Shared.DTOs.Authentication;
 using AutoMapper;
+using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace AuthService.Application.Mappers;
 
@@ -15,7 +13,7 @@ public class DomainMappingProfile : Profile
         CreateMap<CreatePermissionRequestDto, Permission>()
             .ConstructUsing(src => new Permission(src.Code, src.Name, src.Description));
 
-        CreateMap<Permission, PermissionResponseDto>();
+    CreateMap<Permission, HydroEspinaca.Shared.DTOs.Authentication.PermissionResponseDto>();
 
         CreateMap<UpdatePermissionRequestDto, Permission>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

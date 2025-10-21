@@ -50,11 +50,16 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddScoped<IVariableMigrationService, VariableMigrationService>();
         services.AddScoped<IVariableSeedService, VariableSeedService>();
         services.AddScoped<ISensorSeedService, SensorSeedService>();
+        services.AddScoped<AggregateIndexService>();
 
         // ✅ CRITICAL: Singleton to maintain in-memory alert state across requests
         // IMPORTANT: In production with multiple replicas, migrate to Redis/Distributed Cache
         services.AddSingleton<ICriticalAlertNotificationService, CriticalAlertNotificationService>();
         services.AddHttpClient<CriticalAlertNotificationService>(); // Only for HttpClient injection
+
+        // ESP32 Offline Notification Service
+        services.AddSingleton<IEsp32OfflineNotificationService, Esp32OfflineNotificationService>();
+        services.AddHttpClient<Esp32OfflineNotificationService>(); // Only for HttpClient injection
 
         // Database initialization service - runs on startup
         services.AddHostedService<DatabaseInitializationService>();

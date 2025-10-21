@@ -1,5 +1,4 @@
-﻿using HydroEspinaca.Shared.Enums;
-using HydroEspinaca.Shared.Utils;
+﻿using HydroEspinaca.Shared.Utils;
 using Microsoft.Extensions.Logging;
 using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
@@ -74,41 +73,54 @@ public class Esp32StatusService : IEsp32StatusService
         Esp32StatusRecord status,
         DateTime timestamp)
     {
-        var existingAlert = await _esp32AlertRepository
-            .GetUnacknowledgedByEsp32AndTypeAsync(status.Esp32Id.Value, AlertType.Esp32Offline);
+        var existingAlert = await _esp32AlertRepository.GetActiveByEsp32IdAsync(status.Esp32Id.Value);
 
         var readableDuration = TimeFormatter.FormatInactivity(status.TimeSinceLastActivity);
-        var message = $"ESP32 '{status.Esp32Id}' no ha enviado datos en más de {readableDuration}.";
+        var message = $"El dispositivo {status.Esp32Id.Value} se ha desconectado del sistema. No envía datos desde hace {readableDuration}.";
 
         if (existingAlert is not null)
         {
+            // Update existing alert with latest disconnect info
             existingAlert.Message = message;
             existingAlert.Timestamp = timestamp;
-
             await _esp32AlertRepository.UpdateAsync(existingAlert);
-        }
 
+            _logger.LogDebug("Updated existing offline alert for ESP32: {Esp32Id}", status.Esp32Id.Value);
+        }
         else
         {
+            // Create new offline alert
             var newAlert = new Esp32Alert
             {
                 Esp32Id = status.Esp32Id.Value,
-                Type = AlertType.Esp32Offline,
                 Timestamp = timestamp,
-                Severity = AlertSeverity.Critical,
                 Message = message,
                 Acknowledged = false
             };
 
             await _esp32AlertRepository.CreateAsync(newAlert);
+
+            _logger.LogWarning("Created offline alert for ESP32: {Esp32Id}", status.Esp32Id.Value);
         }
     }
 
+    public async Task ResolveOfflineAlertAsync(string esp32Id, DateTime timestamp)
+    {
+        var activeAlert = await _esp32AlertRepository.GetActiveByEsp32IdAsync(esp32Id);
+
+        if (activeAlert is null)
+            return;
+
+        activeAlert.ResolvedAt = timestamp;
+        activeAlert.Message = $"El dispositivo {esp32Id} se ha reconectado exitosamente.";
+        await _esp32AlertRepository.UpdateAsync(activeAlert);
+
+        _logger.LogInformation("Resolved offline alert for ESP32: {Esp32Id}", esp32Id);
+    }
 
     public async Task AcknowledgeOfflineAlertAsync(string esp32Id)
     {
-        var alert = await _esp32AlertRepository
-            .GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline);
+        var alert = await _esp32AlertRepository.GetActiveByEsp32IdAsync(esp32Id);
 
         if (alert is null)
             return;

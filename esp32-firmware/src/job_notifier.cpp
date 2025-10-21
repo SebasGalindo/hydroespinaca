@@ -40,44 +40,12 @@ void JobNotifier::publishNotification(const String& decision, int channelId,
 }
 
 void JobNotifier::publishCompletion(const Job& job) {
-    StaticJsonDocument<1536> doc;
-    
+    StaticJsonDocument<256> doc;
+
     doc["esp32Id"] = ESP32_ID;
     doc["commandId"] = job.commandId;
-    
-    String completionTypeStr = "completed";
-    if (job.completionType == JOB_COMPLETED_MODIFIED) completionTypeStr = "modified";
-    else if (job.completionType == JOB_COMPLETED_CANCELLED) completionTypeStr = "cancelled";
-    else if (job.completionType == JOB_COMPLETED_ERROR) completionTypeStr = "error";
-    doc["completionType"] = completionTypeStr;
-    
-    doc["connectivityStatus"] = hasInternetConnectivity() ? "connected" : "disconnected";
-    
-    JsonArray stepsArray = doc.createNestedArray("steps");
-    
-    for (const auto& step : job.steps) {
-        JsonObject stepObj = stepsArray.createNestedObject();
-        stepObj["pin"] = step.pin;
-        
-        String statusStr = "ok";
-        if (step.status == STEP_CANCELLED) statusStr = "cancelled";
-        else if (step.status == STEP_ERROR) statusStr = "error";
-        else if (step.status == STEP_IN_PROGRESS) statusStr = "running";
-        else if (step.status == STEP_PENDING) statusStr = "pending";
-        
-        // For modified jobs, if step is still active, show as "running" not "cancelled"
-        if (job.completionType == JOB_COMPLETED_MODIFIED && step.status == STEP_IN_PROGRESS) {
-            statusStr = "running";
-        }
-        
-        stepObj["status"] = statusStr;
-        
-        JsonArray logArray = stepObj.createNestedArray("executionLog");
-        for (const auto& logEntry : step.executionLog) {
-            logArray.add(logEntry);
-        }
-    }
-    
+    doc["status"] = "completed";
+
     if (mqttHandler && mqttHandler->isConnected()) {
         mqttHandler->publishCompletion(doc);
     } else {

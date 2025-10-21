@@ -37,7 +37,13 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<TokenResultDto>> Login([FromBody] HydroEspinaca.Shared.DTOs.Authentication.LoginRequestDto dto)
     {
-        var command = new LoginCommand(dto.Email, dto.Password);
+        var command = new LoginCommand(
+            dto.Email,
+            dto.Password,
+            dto.SessionId,
+            dto.IpAddress ?? HttpContext.Connection.RemoteIpAddress?.ToString(),
+            dto.UserAgent ?? HttpContext.Request.Headers.UserAgent.ToString(),
+            dto.CsrfToken);
         var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }
@@ -46,7 +52,12 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<ActionResult<TokenResultDto>> Refresh([FromBody] HydroEspinaca.Shared.DTOs.Authentication.RefreshRequestDto dto)
     {
-        var command = new RefreshTokenCommand(dto.RefreshToken, dto.ClientId);
+        var command = new RefreshTokenCommand(
+            dto.RefreshToken,
+            dto.ClientId,
+            dto.SessionId,
+            dto.IpAddress ?? HttpContext.Connection.RemoteIpAddress?.ToString(),
+            dto.UserAgent ?? HttpContext.Request.Headers.UserAgent.ToString());
         var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }

@@ -1,4 +1,5 @@
 using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Services;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Extensions;
@@ -12,16 +13,16 @@ namespace ActuatorService.Api.Controllers;
 public class InternalRoutinesController : ControllerBase
 {
     private readonly IInternalRoutineRepository _repository;
-    private readonly IControlOutputRepository _controlOutputRepository;
+    private readonly IActuatorRepository _actuatorRepository;
     private readonly ILogger<InternalRoutinesController> _logger;
 
     public InternalRoutinesController(
         IInternalRoutineRepository repository,
-        IControlOutputRepository controlOutputRepository,
+        IActuatorRepository actuatorRepository,
         ILogger<InternalRoutinesController> logger)
     {
         _repository = repository;
-        _controlOutputRepository = controlOutputRepository;
+        _actuatorRepository = actuatorRepository;
         _logger = logger;
     }
 
@@ -64,15 +65,16 @@ public class InternalRoutinesController : ControllerBase
     [Authorize(Policy = PolicyNames.CommandCreate)]
     public async Task<IActionResult> Create([FromBody] CreateInternalRoutineDto dto)
     {
-        // Validate that all OutputVariables exist
+        // Validate that all OutputVariables (ActuatorCodes) exist
+        var allActuators = await _actuatorRepository.GetAllAsync();
         foreach (var step in dto.Steps)
         {
-            var controlOutput = await _controlOutputRepository.GetByIdAsync(step.OutputVariable);
-            if (controlOutput == null)
+            var actuator = allActuators.FirstOrDefault(a => a.Code == step.OutputVariable);
+            if (actuator == null)
             {
                 return BadRequest(new
                 {
-                    Message = $"OutputVariable '{step.OutputVariable}' not found in control_outputs collection"
+                    Message = $"Actuator with code '{step.OutputVariable}' not found"
                 });
             }
         }
@@ -84,7 +86,6 @@ public class InternalRoutinesController : ControllerBase
             Description = dto.Description,
             Esp32Id = dto.Esp32Id,
             Interval = dto.Interval,
-            StartTime = dto.StartTime,
             IsActive = dto.IsActive,
             Steps = dto.Steps.Select(s => new InternalRoutineStep
             {
@@ -130,23 +131,21 @@ public class InternalRoutinesController : ControllerBase
         if (dto.Interval.HasValue)
             routine.Interval = dto.Interval.Value;
 
-        if (dto.StartTime.HasValue)
-            routine.StartTime = dto.StartTime.Value;
-
         if (dto.IsActive.HasValue)
             routine.IsActive = dto.IsActive.Value;
 
         if (dto.Steps != null)
         {
-            // Validate OutputVariables
+            // Validate OutputVariables (ActuatorCodes)
+            var allActuators = await _actuatorRepository.GetAllAsync();
             foreach (var step in dto.Steps)
             {
-                var controlOutput = await _controlOutputRepository.GetByIdAsync(step.OutputVariable);
-                if (controlOutput == null)
+                var actuator = allActuators.FirstOrDefault(a => a.Code == step.OutputVariable);
+                if (actuator == null)
                 {
                     return BadRequest(new
                     {
-                        Message = $"OutputVariable '{step.OutputVariable}' not found in control_outputs collection"
+                        Message = $"Actuator with code '{step.OutputVariable}' not found"
                     });
                 }
             }
@@ -191,22 +190,12 @@ public class InternalRoutinesController : ControllerBase
 
     private InternalRoutineDto MapToDto(InternalRoutine routine)
     {
-        var now = DateTime.UtcNow;
         DateTime? nextExecution = null;
 
         if (routine.IsActive)
         {
-            if (routine.LastExecutedAt == null)
-            {
-                // First execution: calculate from today's start time
-                var todayStart = now.Date + routine.StartTime;
-                nextExecution = todayStart > now ? todayStart : todayStart.Add(routine.Interval);
-            }
-            else
-            {
-                // Next execution based on last execution + interval
-                nextExecution = routine.LastExecutedAt.Value.Add(routine.Interval);
-            }
+            // Use deterministic calculation from InternalRoutineScheduler
+            nextExecution = InternalRoutineScheduler.GetNextExecution(routine.Interval, "America/Bogota");
         }
 
         return new InternalRoutineDto
@@ -216,7 +205,6 @@ public class InternalRoutinesController : ControllerBase
             Description = routine.Description,
             Esp32Id = routine.Esp32Id,
             Interval = routine.Interval,
-            StartTime = routine.StartTime,
             Steps = routine.Steps.Select(s => new InternalRoutineStepDto
             {
                 OutputVariable = s.OutputVariable,
@@ -225,7 +213,6 @@ public class InternalRoutinesController : ControllerBase
                 DutyCycle = s.DutyCycle,
                 Mode = s.Mode
             }).ToList(),
-            LastExecutedAt = routine.LastExecutedAt,
             NextExecutionEstimate = nextExecution,
             IsActive = routine.IsActive,
             CreatedAt = routine.CreatedAt,

@@ -5,7 +5,7 @@
 		<ProjectReference Include="..\NotificationService.Domain\NotificationService.Domain.csproj" />
 		<PackageReference Include="Fluid.Core" Version="2.25.0" />
 		<PackageReference Include="HtmlSanitizer" Version="9.0.886" />
-		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20251012002045" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20251020055805" />
 		<PackageReference Include="MailKit" Version="4.13.0" />
 		<PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.8" />
 		<PackageReference Include="MongoDB.Driver" Version="3.4.2" />

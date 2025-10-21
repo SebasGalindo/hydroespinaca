@@ -11,13 +11,19 @@ namespace ActuatorService.Application.Services;
 
 /// <summary>
 /// Background service that schedules and executes internal recurring routines.
-/// Checks every minute if any routine should be triggered based on their interval and last execution time.
+/// Uses deterministic scheduling based on 00:00 Colombia time without persisted state.
+/// Checks every minute if any routine should be triggered.
 /// </summary>
 public class InternalRoutineScheduler : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<InternalRoutineScheduler> _logger;
     private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(1);
+    private static readonly TimeZoneInfo ColombiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+
+    // Track last execution time in memory to avoid duplicate triggers within the same minute
+    private readonly Dictionary<string, DateTime> _lastExecutions = new();
+    private readonly object _lock = new();
 
     public InternalRoutineScheduler(
         IServiceProvider serviceProvider,
@@ -27,9 +33,76 @@ public class InternalRoutineScheduler : BackgroundService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Gets current time in Colombia timezone
+    /// </summary>
+    private DateTime GetColombiaTime()
+    {
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ColombiaTimeZone);
+    }
+
+    /// <summary>
+    /// Calculates the next execution time for a routine based on its interval.
+    /// Pure function - always returns the same result for the same inputs.
+    /// </summary>
+    /// <param name="interval">Routine interval (e.g., 02:00:00 for 2 hours)</param>
+    /// <param name="timezoneId">Timezone ID (default: America/Bogota)</param>
+    /// <returns>Next execution time in UTC</returns>
+    public static DateTime GetNextExecution(TimeSpan interval, string timezoneId = "America/Bogota")
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var baseTime = nowLocal.Date; // 00:00 of today in local time
+        var elapsed = nowLocal - baseTime;
+
+        // Calculate how many intervals have passed since midnight
+        var intervalsPassed = (long)(elapsed.Ticks / interval.Ticks);
+
+        // Next execution is the next interval boundary
+        var next = baseTime + TimeSpan.FromTicks((intervalsPassed + 1) * interval.Ticks);
+
+        return TimeZoneInfo.ConvertTimeToUtc(next, tz);
+    }
+
+    /// <summary>
+    /// Determines if a routine should execute now based on deterministic calculation from 00:00
+    /// </summary>
+    private bool ShouldExecuteNow(InternalRoutine routine, DateTime nowColombia)
+    {
+        var baseTime = nowColombia.Date; // 00:00 today
+        var elapsed = nowColombia - baseTime;
+
+        // Calculate minutes since midnight
+        var minutesSinceMidnight = (int)elapsed.TotalMinutes;
+        var intervalMinutes = (int)routine.Interval.TotalMinutes;
+
+        // Check if we're on an interval boundary (within 1-minute tolerance)
+        var isOnBoundary = minutesSinceMidnight % intervalMinutes == 0;
+
+        if (!isOnBoundary)
+            return false;
+
+        // Check if we already executed this routine in the last 2 minutes (avoid duplicates)
+        lock (_lock)
+        {
+            if (_lastExecutions.TryGetValue(routine.Id, out var lastExec))
+            {
+                var timeSinceLast = nowColombia - lastExec;
+                if (timeSinceLast < TimeSpan.FromMinutes(2))
+                {
+                    _logger.LogDebug("⏭️ Skipping {RoutineName} - already executed {Seconds}s ago",
+                        routine.Name, (int)timeSinceLast.TotalSeconds);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🕐 Internal Routine Scheduler started");
+        _logger.LogInformation("🕐 Internal Routine Scheduler started (deterministic mode, timezone: America/Bogota)");
 
         // Wait a bit on startup to ensure other services are ready
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
@@ -55,29 +128,87 @@ public class InternalRoutineScheduler : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IInternalRoutineRepository>();
-        var routineValidationService = scope.ServiceProvider.GetRequiredService<IRoutineValidationService>();
-        var routineExecutionService = scope.ServiceProvider.GetRequiredService<IRoutineExecutionService>();
+        var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
+        var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
 
         var routines = await repository.GetActiveRoutinesAsync();
-        var now = DateTime.UtcNow;
+        var nowColombia = GetColombiaTime();
+        var nowUtc = DateTime.UtcNow;
 
-        _logger.LogDebug("🔍 Checking {Count} active internal routines", routines.Count);
+        _logger.LogDebug("🔍 Checking {Count} active internal routines at {ColombiaTime} (Colombia)",
+            routines.Count, nowColombia.ToString("yyyy-MM-dd HH:mm:ss"));
 
+        // Determine which routines should run based on deterministic calculation
+        var routinesToRun = new List<InternalRoutine>();
         foreach (var routine in routines)
+        {
+            if (ShouldExecuteNow(routine, nowColombia))
+            {
+                routinesToRun.Add(routine);
+
+                var nextExec = GetNextExecution(routine.Interval);
+                var nextExecColombia = TimeZoneInfo.ConvertTimeFromUtc(nextExec, ColombiaTimeZone);
+
+                _logger.LogDebug("📅 {RoutineName} scheduled to run now. Next execution: {NextTime} (Colombia)",
+                    routine.Name, nextExecColombia.ToString("HH:mm"));
+            }
+        }
+
+        if (!routinesToRun.Any())
+        {
+            return;
+        }
+
+        // Check for conflicts: Recirculation has priority over Aeration
+        var recirculationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Recirculation");
+        var aerationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Aeration");
+
+        if (recirculationRoutine != null && aerationRoutine != null)
+        {
+            // Conflict detected: both should run at the same time
+            _logger.LogWarning("⚠️ Routine conflict detected at {ColombiaTime}: Both Recirculation and Aeration scheduled",
+                nowColombia.ToString("HH:mm"));
+            _logger.LogInformation("🔝 Recirculation has priority - Aeration will be skipped");
+
+            // Remove Aeration from execution list
+            routinesToRun.Remove(aerationRoutine);
+
+            _logger.LogWarning("⛔ Aeration skipped due to Recirculation priority at {ColombiaTime}",
+                nowColombia.ToString("HH:mm"));
+        }
+
+        // Execute remaining routines
+        foreach (var routine in routinesToRun)
         {
             try
             {
-                if (ShouldRun(routine, now))
+                var isPriorityRoutine = routine.Name == "Recirculation";
+                var priorityTag = isPriorityRoutine ? " (priority routine)" : "";
+
+                _logger.LogInformation("⏰ Triggering internal routine: {RoutineName}{PriorityTag} at {ColombiaTime}",
+                    routine.Name, priorityTag, nowColombia.ToString("HH:mm"));
+
+                await ExecuteRoutineAsync(routine, actuatorCodeResolver, commandExecutionService);
+
+                // Mark as executed in memory
+                lock (_lock)
                 {
-                    _logger.LogInformation("⏰ Triggering internal routine: {RoutineName} (ID: {RoutineId})",
-                        routine.Name, routine.Id);
+                    _lastExecutions[routine.Id] = nowColombia;
+                }
 
-                    await ExecuteRoutineAsync(routine, routineValidationService, routineExecutionService);
+                // Calculate and log next execution
+                var nextExec = GetNextExecution(routine.Interval);
+                var nextExecColombia = TimeZoneInfo.ConvertTimeFromUtc(nextExec, ColombiaTimeZone);
 
-                    // Update last execution time
-                    await repository.UpdateLastExecutedAtAsync(routine.Id, now);
-
-                    _logger.LogInformation("✅ Internal routine {RoutineName} scheduled successfully", routine.Name);
+                if (isPriorityRoutine)
+                {
+                    _logger.LogInformation("✅ Recirculation triggered successfully (priority routine) at {ColombiaTime}. Next: {NextTime}",
+                        nowColombia.ToString("HH:mm"), nextExecColombia.ToString("HH:mm"));
+                }
+                else
+                {
+                    _logger.LogInformation("✅ Internal routine {RoutineName} scheduled successfully at {ColombiaTime}. Next: {NextTime}",
+                        routine.Name, nowColombia.ToString("HH:mm"), nextExecColombia.ToString("HH:mm"));
                 }
             }
             catch (Exception ex)
@@ -88,82 +219,109 @@ public class InternalRoutineScheduler : BackgroundService
         }
     }
 
-    private bool ShouldRun(InternalRoutine routine, DateTime now)
-    {
-        // If never executed, check if we're past the start time today
-        if (routine.LastExecutedAt == null)
-        {
-            var todayStart = now.Date + routine.StartTime;
-            var shouldRunFirstTime = now >= todayStart;
-
-            if (shouldRunFirstTime)
-            {
-                _logger.LogDebug("⭐ Routine {RoutineName} has never run and is past start time", routine.Name);
-            }
-
-            return shouldRunFirstTime;
-        }
-
-        // Check if enough time has passed since last execution
-        var timeSinceLastExecution = now - routine.LastExecutedAt.Value;
-        var shouldRunAgain = timeSinceLastExecution >= routine.Interval;
-
-        if (shouldRunAgain)
-        {
-            _logger.LogDebug("🔄 Routine {RoutineName} interval elapsed (last: {LastExecution}, interval: {Interval})",
-                routine.Name, routine.LastExecutedAt, routine.Interval);
-        }
-
-        return shouldRunAgain;
-    }
-
     private async Task ExecuteRoutineAsync(
         InternalRoutine routine,
-        IRoutineValidationService validationService,
-        IRoutineExecutionService executionService)
+        IActuatorCodeResolver actuatorCodeResolver,
+        ICommandExecutionService commandExecutionService)
     {
-        // Convert InternalRoutineStep to RoutineStepDto (same format as fuzzy-service)
-        var steps = routine.Steps.Select(step => new RoutineStepDto
-        {
-            OutputVariable = step.OutputVariable,
-            Power = step.Power,
-            Duration = step.Duration,
-            DutyCycle = step.DutyCycle
-        }).ToList();
+        using var scope = _serviceProvider.CreateScope();
+        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
 
-        // Validate and resolve steps (OutputVariable -> ControlOutput -> Actuator)
-        var resolvedSteps = await validationService.ValidateAndResolveStepsAsync(steps);
+        // Convert InternalRoutineStep to individual commands
+        var resolvedCommands = new List<ResolvedCommandDto>();
 
-        // Ensure all steps belong to the same ESP32
-        var esp32Ids = resolvedSteps.Select(s => s.Esp32Id).Distinct().ToList();
-        if (esp32Ids.Count > 1)
+        foreach (var step in routine.Steps)
         {
-            throw new InvalidOperationException(
-                $"Internal routine '{routine.Name}' contains steps from multiple ESP32 devices: {string.Join(", ", esp32Ids)}");
+            try
+            {
+                // Resolve actuator by code
+                var actuator = await actuatorCodeResolver.ResolveAsync(step.OutputVariable);
+
+                if (actuator == null)
+                {
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} not found for routine {RoutineName}, skipping step",
+                        step.OutputVariable, routine.Name);
+                    continue;
+                }
+
+                // Validate that actuator belongs to the configured ESP32
+                if (actuator.Esp32Id != routine.Esp32Id)
+                {
+                    _logger.LogWarning("⚠️ Actuator {ActuatorCode} belongs to ESP32 {ActualEsp32}, but routine {RoutineName} is configured for ESP32 {ConfiguredEsp32}",
+                        step.OutputVariable, actuator.Esp32Id, routine.Name, routine.Esp32Id);
+                    continue;
+                }
+
+                resolvedCommands.Add(new ResolvedCommandDto
+                {
+                    ActuatorCode = step.OutputVariable,
+                    ActuatorId = actuator.Id,
+                    Esp32Id = actuator.Esp32Id,
+                    Pin = actuator.Pin,
+                    Mode = actuator.Mode,
+                    Power = step.Power,
+                    DutyCycle = step.DutyCycle,
+                    Duration = step.Duration
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolving actuator {ActuatorCode} for routine {RoutineName}",
+                    step.OutputVariable, routine.Name);
+            }
         }
 
-        if (esp32Ids.Count() == 0)
+        if (resolvedCommands.Count == 0)
         {
-            throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid steps");
+            throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid commands after resolution");
         }
 
-        var esp32Id = esp32Ids.First();
-
-        // Verify it matches the configured ESP32
-        if (esp32Id != routine.Esp32Id)
+        // Persist commands to database (same logic as ExecuteCommandsUseCase)
+        foreach (var resolvedCommand in resolvedCommands)
         {
-            _logger.LogWarning("⚠️ Routine {RoutineName} configured for ESP32 {ConfiguredEsp32} but resolved to {ActualEsp32}",
-                routine.Name, routine.Esp32Id, esp32Id);
+            var power = resolvedCommand.Power ?? resolvedCommand.DutyCycle?.ToString();
+            var isPowerOff = power?.Equals(HydroEspinaca.Shared.Constants.ActuatorConstants.PowerStates.Off, StringComparison.OrdinalIgnoreCase) == true;
+
+            // Check for existing RUNNING command for this actuator
+            var existingRunningCommand = await routineCommandRepository.GetRunningByActuatorCodeAsync(resolvedCommand.ActuatorCode);
+
+            if (existingRunningCommand != null)
+            {
+                // Update existing RUNNING command (extend it)
+                // Note: We only update ExtendedAt timestamp. Power/Duration are not stored.
+                // The MQTT message will contain the new parameters for the firmware.
+                existingRunningCommand.ExtendedAt = DateTime.UtcNow;
+
+                await routineCommandRepository.UpdateAsync(existingRunningCommand);
+
+                _logger.LogInformation("🔄 Extended existing RUNNING command for {ActuatorCode} from routine {RoutineName}",
+                    resolvedCommand.ActuatorCode, routine.Name);
+            }
+            else if (!isPowerOff)
+            {
+                // Create new RUNNING command (only if not OFF)
+                var commandId = $"{resolvedCommand.ActuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                var routineCommandEntity = new RoutineCommand
+                {
+                    CommandId = commandId,
+                    ActuatorCode = resolvedCommand.ActuatorCode,
+                    Esp32Id = routine.Esp32Id,
+                    StatusGeneral = HydroEspinaca.Shared.Enums.RoutineCommandStatus.RUNNING,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await routineCommandRepository.AddAsync(routineCommandEntity);
+
+                _logger.LogInformation("💾 Created RUNNING command for {ActuatorCode} from routine {RoutineName}",
+                    resolvedCommand.ActuatorCode, routine.Name);
+            }
         }
 
-        var resolvedRoutine = new ResolvedRoutineDto
-        {
-            RoutineId = $"internal_{routine.Name.ToLower()}",
-            Esp32Id = esp32Id,
-            ResolvedSteps = resolvedSteps
-        };
+        // Schedule individual commands (respects pin locks and queuing)
+        await commandExecutionService.ScheduleCommandsAsync(resolvedCommands, routine.Esp32Id);
 
-        // Schedule using the same execution service (respects pin locks)
-        await executionService.ScheduleRoutinesAsync(new List<ResolvedRoutineDto> { resolvedRoutine }, esp32Id);
+        _logger.LogDebug("📤 Scheduled {CommandCount} commands for internal routine {RoutineName}",
+            resolvedCommands.Count, routine.Name);
     }
 }

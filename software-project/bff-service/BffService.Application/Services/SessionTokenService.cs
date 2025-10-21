@@ -1,0 +1,157 @@
+using BffService.Application.Interfaces;
+using BffService.Domain.Entities;
+using BffService.Domain.Exceptions;
+using BffService.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
+
+namespace BffService.Application.Services;
+
+/// <summary>
+/// Service for managing session tokens including automatic refresh
+/// </summary>
+public class SessionTokenService : ISessionTokenService
+{
+    private readonly ISessionService _sessionService;
+    private readonly IAuthService _authService;
+    private readonly ILogger<SessionTokenService> _logger;
+
+    /// <summary>
+    /// Static dictionary to maintain per-session locks to prevent concurrent token refresh operations
+    /// across multiple service instances (required because SessionTokenService is registered as Scoped).
+    /// This ensures that concurrent HTTP requests attempting to refresh the same session will be serialized.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshLocks = new();
+
+    public SessionTokenService(
+        ISessionService sessionService,
+        IAuthService authService,
+        ILogger<SessionTokenService> logger)
+    {
+        _sessionService = sessionService;
+        _authService = authService;
+        _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public async Task<Session> GetSessionWithValidTokensAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Get the full session with all token information
+            var session = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
+            if (session == null)
+            {
+                _logger.LogWarning("Session not found: {SessionId}", sessionId);
+                throw new SessionNotFoundException(sessionId);
+            }
+
+            // Check if the access token is expired and needs refreshing
+            if (session.IsExpired())
+            {
+                if (!session.CanRefresh())
+                {
+                    _logger.LogWarning("Session expired and cannot be refreshed: {SessionId}", sessionId);
+                    throw new SessionExpiredException(sessionId);
+                }
+
+                // Get or create a semaphore for this session to prevent concurrent refresh operations
+                var semaphore = _refreshLocks.GetOrAdd(sessionId, _ => new SemaphoreSlim(1, 1));
+
+                _logger.LogDebug("Acquiring lock for token refresh: {SessionId}", sessionId);
+
+                // Wait for exclusive access to refresh this session's token
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    _logger.LogDebug("Lock acquired for session: {SessionId}", sessionId);
+
+                    // Re-check if token is still expired after acquiring the lock
+                    // Another thread might have already refreshed it while we were waiting
+                    session = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
+
+                    if (session == null)
+                    {
+                        _logger.LogWarning("Session not found after acquiring lock: {SessionId}", sessionId);
+                        throw new SessionNotFoundException(sessionId);
+                    }
+
+                    // Double-check: only refresh if still expired
+                    if (session.IsExpired())
+                    {
+                        if (!session.CanRefresh())
+                        {
+                            _logger.LogWarning("Session expired and cannot be refreshed after lock: {SessionId}", sessionId);
+                            throw new SessionExpiredException(sessionId);
+                        }
+
+                        _logger.LogInformation("Refreshing expired token for session: {SessionId}", sessionId);
+
+                        try
+                        {
+                            // Use the auth service to refresh the token
+                            var newTokenInfo = await _authService.RefreshTokenAsync(session.RefreshToken, sessionId, cancellationToken);
+
+                            // Update the session with the new tokens
+                            session.UpdateAccessToken(newTokenInfo.AccessToken, newTokenInfo.ExpiresAt);
+
+                            // If we got a new refresh token, update that too
+                            if (!string.IsNullOrEmpty(newTokenInfo.RefreshToken))
+                            {
+                                session.SetTokens(
+                                    newTokenInfo.AccessToken,
+                                    newTokenInfo.RefreshToken,
+                                    newTokenInfo.ExpiresAt,
+                                    newTokenInfo.RefreshTokenExpiresAt
+                                );
+                            }
+
+                            // Save the updated session
+                            await _sessionService.UpdateSessionAsync(session, cancellationToken);
+
+                            _logger.LogInformation("Token refreshed successfully for session: {SessionId}", sessionId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to refresh token for session {SessionId}", sessionId);
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Token already refreshed by another thread for session: {SessionId}", sessionId);
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                    _logger.LogDebug("Lock released for session: {SessionId}", sessionId);
+
+                    // Clean up the semaphore from the dictionary to prevent memory leaks
+                    // Only remove if no other threads are waiting
+                    if (semaphore.CurrentCount == 1)
+                    {
+                        _refreshLocks.TryRemove(sessionId, out _);
+                        _logger.LogTrace("Semaphore cleaned up for session: {SessionId}", sessionId);
+                    }
+                }
+            }
+
+            // Validate tokens only if not expired or after successful refresh
+            if (string.IsNullOrEmpty(session.AccessToken))
+            {
+                _logger.LogError("Session has invalid tokens: {SessionId}", sessionId);
+                throw new InvalidTokenException("Session tokens are invalid");
+            }
+
+            return session;
+        }
+        catch (Exception ex) when (ex is not SessionNotFoundException && ex is not SessionExpiredException && ex is not InvalidTokenException)
+        {
+            _logger.LogError(ex, "Error validating session tokens for {SessionId}", sessionId);
+            throw;
+        }
+    }
+}

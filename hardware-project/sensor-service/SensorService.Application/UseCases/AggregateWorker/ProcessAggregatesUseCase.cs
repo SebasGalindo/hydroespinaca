@@ -33,11 +33,15 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
     public async Task<ProcessAggregatesResult> ExecuteAsync(DateTime referenceTime)
     {
         var window = TimeWindow.CreateAggregationWindow(referenceTime);
+        _logger.LogDebug("📅 Aggregation window: {Start} to {End}", window.Start, window.End);
+
         var sensors = await _sensorRepository.GetAllAsync();
 
         var expectedSensors = sensors
            .Where(s => s.Status == SensorStatus.Active)
            .ToList();
+
+        _logger.LogDebug("🔍 Active sensors: {Count}", expectedSensors.Count);
 
         var processedAggregates = 0;
         var skippedAggregates = 0;
@@ -46,7 +50,7 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         {
             foreach (var variableId in sensor.Variables)
             {
-                var result = await ProcessSensorVariableAsync(sensor.Id, variableId, window);
+                var result = await ProcessSensorVariableAsync(sensor.Code, variableId, window);
 
                 if (result.WasProcessed)
                     processedAggregates++;
@@ -65,22 +69,29 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
     }
 
     private async Task<SensorVariableProcessResult> ProcessSensorVariableAsync(
-        string sensorId,
+        string sensorCode,
         string variableId,
         TimeWindow window)
     {
+        _logger.LogDebug("🔎 Processing sensorCode={SensorCode}, variableId={VariableId}", sensorCode, variableId);
+
         // Check if aggregate already exists
         var existing = await _aggregateRepository.GetBySensorAndVariableAndTimestampAsync(
-            sensorId, variableId, window.End);
+            sensorCode, variableId, window.End);
 
         if (existing is not null)
         {
+            _logger.LogDebug("⏭️  Aggregate already exists for {SensorCode}-{VariableId} at {Timestamp}",
+                sensorCode, variableId, window.End);
             return new SensorVariableProcessResult(false);
         }
 
         // Get readings for the time window
         var readings = await _readingRepository.GetBySensorAndVariableAsync(
-            sensorId, variableId, window.Start, window.End);
+            sensorCode, variableId, window.Start, window.End);
+
+        _logger.LogDebug("📊 Found {Count} readings for {SensorCode}-{VariableId} in window",
+            readings.Count, sensorCode, variableId);
 
         if (readings.Count == 0)
         {
@@ -90,7 +101,7 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         // Create aggregate using domain service
         var values = readings.Select(x => x.Value);
         var aggregateData = AggregateData.FromValues(values);
-        var aggregate = _aggregationService.CreateAggregate(sensorId, variableId, window, aggregateData);
+        var aggregate = _aggregationService.CreateAggregate(sensorCode, variableId, window, aggregateData);
 
         await _aggregateRepository.CreateAsync(aggregate);
 

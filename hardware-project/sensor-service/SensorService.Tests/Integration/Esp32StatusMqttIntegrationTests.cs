@@ -43,17 +43,15 @@ public class Esp32StatusMqttIntegrationTests
         var timestamp = DateTime.UtcNow;
         
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync((Esp32Alert?)null);
 
         // Act
         await _useCase.HandleOfflineAsync(esp32Id, timestamp);
 
         // Assert
-        _mockAlertRepository.Verify(r => r.CreateAsync(It.Is<Esp32Alert>(a => 
+        _mockAlertRepository.Verify(r => r.CreateAsync(It.Is<Esp32Alert>(a =>
             a.Esp32Id == esp32Id &&
-            a.Type == AlertType.Esp32Offline &&
-            a.Severity == AlertSeverity.Critical &&
             a.Acknowledged == false &&
             a.ResolvedAt == null &&
             a.Message.Contains("desconectado")
@@ -69,12 +67,11 @@ public class Esp32StatusMqttIntegrationTests
         var existingAlert = new Esp32Alert
         {
             Esp32Id = esp32Id,
-            Type = AlertType.Esp32Offline,
             Acknowledged = false
         };
         
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync(existingAlert);
 
         // Act
@@ -93,14 +90,13 @@ public class Esp32StatusMqttIntegrationTests
         var activeAlert = new Esp32Alert
         {
             Esp32Id = esp32Id,
-            Type = AlertType.Esp32Offline,
             Acknowledged = false,
             ResolvedAt = null
         };
         activeAlert.SetId("test-alert-id");
         
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync(activeAlert);
 
         // Act
@@ -123,7 +119,7 @@ public class Esp32StatusMqttIntegrationTests
         var timestamp = DateTime.UtcNow;
         
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync((Esp32Alert?)null);
 
         // Act
@@ -147,7 +143,7 @@ public class Esp32StatusMqttIntegrationTests
         {
             // Simulate no existing alert for offline scenario
             _mockAlertRepository
-                .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+                .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
                 .ReturnsAsync((Esp32Alert?)null);
         }
         else
@@ -156,14 +152,13 @@ public class Esp32StatusMqttIntegrationTests
             var existingAlert = new Esp32Alert
             {
                 Esp32Id = esp32Id,
-                Type = AlertType.Esp32Offline,
                 Acknowledged = false,
                 ResolvedAt = null
             };
             existingAlert.SetId("integration-alert-id");
 
             _mockAlertRepository
-                .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+                .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
                 .ReturnsAsync(existingAlert);
         }
 
@@ -198,15 +193,14 @@ public class Esp32StatusMqttIntegrationTests
 
         // Step 1: ESP32 goes offline (no existing alert)
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync((Esp32Alert?)null);
 
         await _useCase.HandleOfflineAsync(esp32Id, offlineTimestamp);
 
         // Verify offline alert creation
-        _mockAlertRepository.Verify(r => r.CreateAsync(It.Is<Esp32Alert>(a => 
+        _mockAlertRepository.Verify(r => r.CreateAsync(It.Is<Esp32Alert>(a =>
             a.Esp32Id == esp32Id &&
-            a.Type == AlertType.Esp32Offline &&
             !a.Acknowledged &&
             a.ResolvedAt == null
         )), Times.Once);
@@ -215,7 +209,6 @@ public class Esp32StatusMqttIntegrationTests
         var createdAlert = new Esp32Alert
         {
             Esp32Id = esp32Id,
-            Type = AlertType.Esp32Offline,
             Acknowledged = false,
             ResolvedAt = null,
             Timestamp = offlineTimestamp
@@ -223,7 +216,7 @@ public class Esp32StatusMqttIntegrationTests
         createdAlert.SetId("flow-test-alert-id");
 
         _mockAlertRepository
-            .Setup(r => r.GetUnacknowledgedByEsp32AndTypeAsync(esp32Id, AlertType.Esp32Offline))
+            .Setup(r => r.GetActiveByEsp32IdAsync(esp32Id))
             .ReturnsAsync(createdAlert);
 
         // Step 3: ESP32 comes back online

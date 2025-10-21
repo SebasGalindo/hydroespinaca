@@ -1,5 +1,6 @@
 using AuthService.Domain.Enums;
 using AuthService.Domain.Interfaces;
+using AuthService.Domain.Settings;
 using AuthService.Infrastructure.Security.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -202,8 +203,8 @@ namespace AuthService.Infrastructure.Security
                 }
 
                 // Get permissions for the role - permission.code is already the scope
-                var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
-                return permissions.Select(p => p.Code);
+                // Role.Permissions is a list of permission codes (scopes)
+                return role.Permissions;
             }
             catch
             {

@@ -1,4 +1,5 @@
 using ActuatorService.Application.Interfaces;
+using ActuatorService.Application.Services;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Constants;
 using HydroEspinaca.Shared.DTOs.Actuator;
@@ -68,13 +69,12 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
         }
 
         using var scope = _serviceProvider.CreateScope();
+        var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
         var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
-        var routineExecutionService = scope.ServiceProvider.GetRequiredService<IRoutineExecutionService>();
-        var stateMachine = scope.ServiceProvider.GetRequiredService<IActuatorStateMachine>();
 
         try
         {
-            _logger.LogDebug("📨 Received routine completion on topic: {Topic}", topic);
+            _logger.LogDebug("📨 Received command completion on topic: {Topic}", topic);
 
             var completion = JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase);
 
@@ -83,47 +83,51 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
                 _logger.LogWarning("⚠️ Received null completion data from topic: {Topic}", topic);
                 return;
             }
-            Console.WriteLine($"Received routine completion: {JsonSerializer.Serialize(completion, JsonConstants.SerializerOptions.CamelCase)}");
-            
-            // Update routine command in database
-            var routineCommand = await routineCommandRepository.GetByCommandIdAsync(completion.CommandId);
-            
-            if (routineCommand == null)
+
+            _logger.LogDebug("📦 Received command completion: CommandId={CommandId}, Status={Status}",
+                completion.CommandId, completion.Status);
+
+            // 1. Process command completion in memory (releases pin, updates state, activates pending)
+            try
             {
-                _logger.LogWarning("⚠️ Routine command not found for CommandId: {CommandId}", completion.CommandId);
-                return;
+                await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            {
+                _logger.LogDebug("ℹ️ Command {CommandId} not found in active commands (may be a power OFF command or already processed)",
+                    completion.CommandId);
             }
 
-            // Update the routine command with completion data
-            routineCommand.StatusGeneral = completion.Status;
-            routineCommand.FinishedAt = completion.FinishedAt;
-            routineCommand.Results = completion.Steps?.Select(step => new Domain.Entities.RoutineResult
+            // 2. Update database record to FINISHED (if it exists)
+            var routineCommand = await routineCommandRepository.GetByCommandIdAsync(completion.CommandId);
+            if (routineCommand != null)
             {
-                Pin = step.Pin.ToString(),
-                Status = step.Status,
-                ExecutionLog = step.ExecutionLog
-            }).ToList();
-            
+                // Update status and timestamps
+                routineCommand.StatusGeneral = RoutineCommandStatus.FINISHED;
+                routineCommand.FinishedAt = DateTime.UtcNow;
 
-            await routineCommandRepository.UpdateAsync(routineCommand);
+                // Calculate total duration in seconds
+                var totalDuration = (routineCommand.FinishedAt.Value - routineCommand.CreatedAt).TotalSeconds;
+                routineCommand.TotalDurationSeconds = totalDuration;
 
-            // Notify execution service that routine completed
-            // This will:
-            // 1. Release pin locks
-            // 2. Update actuator states to OFF
-            // 3. Activate pending routines that were waiting for these pins
-            await routineExecutionService.OnRoutineCompletedAsync(completion.CommandId);
+                await routineCommandRepository.UpdateAsync(routineCommand);
 
-            _logger.LogInformation("✅ Processed completion for routine {CommandId} with status: {Status}",
-                completion.CommandId, completion.Status);
+                _logger.LogInformation("✅ Marked command {CommandId} as FINISHED at {FinishedAt} - Total duration: {Duration}s - Firmware status: {FirmwareStatus}",
+                    completion.CommandId, routineCommand.FinishedAt, totalDuration, completion.Status);
+            }
+            else
+            {
+                _logger.LogDebug("ℹ️ Command {CommandId} not found in database (likely a power OFF command)",
+                    completion.CommandId);
+            }
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "❌ Failed to deserialize routine completion from topic: {Topic}, Payload: {Payload}", topic, payload);
+            _logger.LogError(ex, "❌ Failed to deserialize command completion from topic: {Topic}, Payload: {Payload}", topic, payload);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error processing routine completion from topic: {Topic}", topic);
+            _logger.LogError(ex, "❌ Error processing command completion from topic: {Topic}", topic);
         }
     }
 }

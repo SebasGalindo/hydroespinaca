@@ -34,8 +34,6 @@ class UpdateFuzzyVariableHandler(CommandHandler[UpdateFuzzyVariableCommand]):
             entity.variable_type = request.variable_type
         if request.reference_code is not None:
             entity.reference_code = request.reference_code
-        if request.actuator_code is not None:
-            entity.actuator_code = request.actuator_code
         if request.actuator_type is not None:
             entity.actuator_type = request.actuator_type
         if request.defuzzification_threshold is not None:

@@ -36,19 +36,18 @@ public class MqttRoutineCommandPublisher : IRoutineCommandPublisher
         try
         {
             _logger.LogDebug("📤 Preparing to publish job schedule for ESP32: {Esp32Id}", jobSchedule.Esp32Id);
-            
-            var routineCount = jobSchedule.JobSchedule?.Sum(channel => channel.Queue?.Count ?? 0) ?? 0;
-            var channelCount = jobSchedule.JobSchedule?.Count ?? 0;
+
+            var routineCount = jobSchedule.Queue?.Count ?? 0;
 
             var jsonPayload = JsonSerializer.Serialize(jobSchedule, JsonConstants.SerializerOptions.CamelCase);
             var payloadSizeBytes = System.Text.Encoding.UTF8.GetByteCount(jsonPayload);
-            
+
             _logger.LogInformation("📊 MQTT payload size: {PayloadSize} bytes for ESP32 {Esp32Id}", payloadSizeBytes, jobSchedule.Esp32Id);
-            
+
             await _mqttClient.PublishAsync(JOB_SCHEDULE_TOPIC, jsonPayload);
-            
-            _logger.LogInformation("✅ Published job schedule for ESP32 {Esp32Id} to topic {Topic} - {ChannelCount} channels, {RoutineCount} total routines", 
-                jobSchedule.Esp32Id, JOB_SCHEDULE_TOPIC, channelCount, routineCount);
+
+            _logger.LogInformation("✅ Published job schedule for ESP32 {Esp32Id} to topic {Topic} - {RoutineCount} routines in queue",
+                jobSchedule.Esp32Id, JOB_SCHEDULE_TOPIC, routineCount);
         }
         catch (JsonException ex)
         {

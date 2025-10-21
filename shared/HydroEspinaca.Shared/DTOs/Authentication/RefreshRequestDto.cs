@@ -5,5 +5,8 @@ namespace HydroEspinaca.Shared.DTOs.Authentication;
 /// </summary>
 public record RefreshRequestDto(
     string RefreshToken,
-    string? ClientId = null
+    string? ClientId = null,
+    string? SessionId = null,
+    string? IpAddress = null,
+    string? UserAgent = null
 );

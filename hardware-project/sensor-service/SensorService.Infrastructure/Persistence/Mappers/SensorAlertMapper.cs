@@ -10,20 +10,17 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
     {
         var entity = new SensorAlert
         {
-            SensorCode = doc.SensorCode,
             VariableCode = doc.VariableCode,
-            Type = doc.Type,
             Value = doc.Value,
-            Threshold = doc.Threshold,
-            Count = doc.Count,
             LastSeen = doc.LastSeen,
             LatestValue = doc.LatestValue,
-            ResolutionReason = doc.ResolutionReason,
             Timestamp = doc.Timestamp,
             Message = doc.Message,
-            Severity = doc.Severity,
             Acknowledged = doc.Acknowledged,
-            ResolvedAt = doc.ResolvedAt
+            ResolvedAt = doc.ResolvedAt,
+            EmailSentAt = doc.EmailSentAt,
+            Type = doc.Type,
+            Severity = doc.Severity
         };
         entity.SetId(doc.Id);
         return entity;
@@ -33,20 +30,17 @@ public class SensorAlertMapper : IEntityMapper<SensorAlert, SensorAlertDocument>
     {
         var document = new SensorAlertDocument
         {
-            SensorCode = entity.SensorCode,
             VariableCode = entity.VariableCode,
-            Type = entity.Type,
             Value = entity.Value,
-            Threshold = entity.Threshold,
-            Count = entity.Count,
             LastSeen = entity.LastSeen,
             LatestValue = entity.LatestValue,
-            ResolutionReason = entity.ResolutionReason,
             Timestamp = entity.Timestamp,
             Message = entity.Message,
-            Severity = entity.Severity,
             Acknowledged = entity.Acknowledged,
-            ResolvedAt = entity.ResolvedAt
+            ResolvedAt = entity.ResolvedAt,
+            EmailSentAt = entity.EmailSentAt,
+            Type = entity.Type,
+            Severity = entity.Severity
         };
         document.SetId(entity.Id);
         return document;

@@ -8,6 +8,9 @@ services:
       dockerfile: deploy-artifacts/nginx/Dockerfile
     container_name: nginx-proxy
     restart: unless-stopped
+    depends_on:
+      bff-service:
+        condition: service_healthy
     ports:
       - "80:80"   # HTTP from Cloudflare
       - "443:443" # HTTPS for Full Strict TLS
@@ -19,7 +22,6 @@ services:
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot
       - nginx_logs:/var/log/nginx
-      - frontend_build:/var/www/frontend:ro  # Mount built frontend files
     environment:
       - USE_TLS=${USE_TLS:-false}
       - ENVIRONMENT=${ENVIRONMENT:-Development}
@@ -192,6 +194,7 @@ services:
       - Jwt__Issuer=${Jwt_Issuer}
       - Jwt__Audience=${Jwt_Audience}
       - Jwt__AccessTokenExpiryMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - Jwt__RefreshTokenExpiryDays=${Jwt_RefreshTokenExpiryDays}
       # M2M Configuration for auth-service to communicate with other services
       - M2M__ClientId=${AUTH_SERVICE_CLIENT_ID}
       - M2M__ClientSecret=${AUTH_SERVICE_CLIENT_SECRET}
@@ -219,6 +222,12 @@ services:
       - auth-service
       - sensor-service
       - actuator-service
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     environment:
       - JWT__Issuer=${Jwt_Issuer}
       - JWT__Audience=${Jwt_Audience}
@@ -237,6 +246,7 @@ services:
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
+      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
       - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
@@ -244,6 +254,7 @@ services:
     profiles:
       - production
       - development
+  
 
   notification-service:
     build:
@@ -333,58 +344,84 @@ services:
 
 
   # -----------------------------
-  # Frontend
+  # Frontend - Next.js Web App
   # -----------------------------
 
-  # Frontend for development (Vite dev server) - New Monorepo Web App
-  frontend-dev:
+  # Unified web-app service (profile-based deployment)
+  # Development: Turbopack dev server with HMR
+  # Production: Optimized production build
+  web-app:
     build:
       context: .
-      dockerfile: ./apps/frontend/Dockerfile
-      target: development
-    container_name: frontend
+      dockerfile: ./apps/web/Dockerfile
+      target: ${WEB_TARGET:-production}
+    container_name: web-app
     depends_on:
-      - nginx-proxy
+      bff-service:
+        condition: service_healthy
     expose:
       - "3000"
     environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+
+
+
+  # Development version with volume mount for HMR
+  web-app-dev:
+    container_name: web-app-dev
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: development
+    depends_on:
+      bff-service:
+        condition: service_healthy
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000" # Expose dev server on host for convenience
+    environment:
       - NODE_ENV=development
-      - VITE_API_URL=/api
-      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+      - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
     volumes:
-      # Mount source code for hot reload in development
+      # Bind mount: source code from host with live reload
       - .:/workspace:cached
+      # Anonymous volumes: protect node_modules from being overwritten by bind mount
       - /workspace/node_modules
-      - /workspace/apps/frontend/node_modules
-      - /workspace/packages/shared-ui/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/packages/shared/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     networks:
       - espinaca-net
     profiles:
       - development
 
-  # Frontend for production (build static files) - New Monorepo Web App
-  frontend-build:
-    build:
-      context: .
-      dockerfile: ./apps/frontend/Dockerfile
-      target: build
-    container_name: frontend-build
-    volumes:
-      - frontend_build:/var/www/frontend
-    environment:
-      - NODE_ENV=production
-      - VITE_API_URL=/api
-    profiles:
-      - production
-    command: sh -c "cp -r /workspace/apps/frontend/dist/* /var/www/frontend/ && echo 'Frontend build completed and copied to volume'"
-
 volumes:
-  mqtt_data: 
+  mqtt_data:
   mqtt_log:
   certbot_certs:
   certbot_www:
   nginx_logs:
-  frontend_build:
 
 networks:
   espinaca-net:

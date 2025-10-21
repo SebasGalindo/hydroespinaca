@@ -66,7 +66,7 @@ public class DataSeedingService
             }
 
             // Verify admin password
-            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "Admin123!");
+            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "dF^J`c'662:W");
             if (!adminPasswordValid)
             {
                 return false;
@@ -86,7 +86,7 @@ public class DataSeedingService
             }
 
             // Verify test user password
-            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "User123!");
+            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "N16'+4a597|V!");
             if (!userPasswordValid)
             {
                 return false;
@@ -120,7 +120,7 @@ public class DataSeedingService
                 return $"User {email} exists but role not found";
             }
 
-            var permissions = await _permissionRepository.FindByIdsAsync(role.Permissions);
+                var permissions = await _permissionRepository.FindByCodesAsync(role.Permissions);
             var permissionCodes = permissions.Select(p => p.Code).ToList();
 
             return $"User: {email}, Role: {role.Code}, Permissions: [{string.Join(", ", permissionCodes)}]";
@@ -252,8 +252,8 @@ public class DataSeedingService
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, 
         };
 
-        var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
-        var adminPermissionIds = adminPermissions.Select(p => p.Id).ToList();
+    var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
+    var adminPermissionCodesList = adminPermissions.Select(p => p.Code).ToList();
 
         // Debug: Verificar que se encontraron los permisos
         Console.WriteLine($"🔍 Admin role: Found {adminPermissions.Count} permissions out of {adminPermissionCodes.Length} requested");
@@ -264,12 +264,12 @@ public class DataSeedingService
             Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
         }
 
-        var adminRole = new Role(HydroEspinaca.Shared.Constants.SystemRoles.Admin, "Administrator", adminPermissionIds);
+    var adminRole = new Role(HydroEspinaca.Shared.Constants.SystemRoles.Admin, "Administrator", adminPermissionCodesList);
         var existingAdminRole = await _roleRepository.FindByCodeAsync(adminRole.Code);
         if (existingAdminRole == null)
         {
             await _roleRepository.CreateAsync(adminRole);
-            Console.WriteLine($"✅ Created Admin role with {adminPermissionIds.Count} permissions");
+            Console.WriteLine($"✅ Created Admin role with {adminPermissionCodesList.Count} permissions");
         }
         else
         {
@@ -293,8 +293,8 @@ public class DataSeedingService
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
         };
 
-        var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
-        var userPermissionIds = userPermissions.Select(p => p.Id).ToList();
+    var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
+    var userPermissionCodesList = userPermissions.Select(p => p.Code).ToList();
 
         // Debug: Verificar que se encontraron los permisos de usuario
         Console.WriteLine($"🔍 User role: Found {userPermissions.Count} permissions out of {userPermissionCodes.Length} requested");
@@ -305,12 +305,12 @@ public class DataSeedingService
             Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
         }
 
-        var userRole = new Domain.Entities.Role(HydroEspinaca.Shared.Constants.SystemRoles.User, "User", userPermissionIds);
+    var userRole = new Domain.Entities.Role(HydroEspinaca.Shared.Constants.SystemRoles.User, "User", userPermissionCodesList);
         var existingUserRole = await _roleRepository.FindByCodeAsync(userRole.Code);
         if (existingUserRole == null)
         {
             await _roleRepository.CreateAsync(userRole);
-            Console.WriteLine($"✅ Created User role with {userPermissionIds.Count} permissions");
+            Console.WriteLine($"✅ Created User role with {userPermissionCodesList.Count} permissions");
         }
         else
         {
@@ -321,7 +321,7 @@ public class DataSeedingService
     private async Task SeedAdminUserAsync()
     {
         const string adminEmail = "admin@demo.com";
-        const string adminPassword = "Admin123!";
+        const string adminPassword = "dF^J`c'662:W";
 
 
         var existingUser = await _userRepository.FindByEmailAsync(adminEmail);
@@ -344,6 +344,7 @@ public class DataSeedingService
             }
 
             var adminUser = new User(
+                "Administrador",
                 new Email(adminEmail),
                 new HashedPassword(hashedPassword),
                 adminRole.Id
@@ -368,7 +369,7 @@ public class DataSeedingService
     private async Task SeedTestUserAsync()
     {
         const string userEmail = "user@demo.com";
-        const string userPassword = "User123!";
+        const string userPassword = "N16'+4a597|V!";
 
 
         var existingUser = await _userRepository.FindByEmailAsync(userEmail);
@@ -384,6 +385,7 @@ public class DataSeedingService
             var hashedPassword = _passwordHasher.Hash(userPassword);
 
             var testUser = new User(
+                "Usuario Demo",
                 new Email(userEmail),
                 new HashedPassword(hashedPassword),
                 userRole.Id
@@ -520,9 +522,9 @@ public class DataSeedingService
             var existing = await _clientAppRepository.FindByClientIdAsync(client.ClientId);
             if (existing == null)
             {
-                // Buscar permission IDs por sus codes (scopes)
+                // Usar scopes como codes (permission codes)
                 var permissions = await _permissionRepository.FindByCodesAsync(client.Scopes);
-                var permissionIds = permissions.Select(p => p.Id).ToList();
+                var permissionCodes = permissions.Select(p => p.Code).ToList();
                 
                 // Debug: Verificar que se encontraron los permisos
                 Console.WriteLine($"🔍 M2M Client {client.ClientId}: Found {permissions.Count} permissions out of {client.Scopes.Length} requested");
@@ -538,11 +540,11 @@ public class DataSeedingService
                     client.Code,      // Code - Identificador interno único
                     client.ClientId,  // ClientId - Para protocolo OAuth2
                     new HashedPassword(hashedSecret), 
-                    permissionIds     // Usar IDs de permisos encontrados
+                    permissionCodes     // Usar codes de permisos encontrados
                 );
                 await _clientAppRepository.AddAsync(clientApp);
                 
-                Console.WriteLine($"✅ Created M2M client: Code='{client.Code}', ClientId='{client.ClientId}' with {permissionIds.Count} permission IDs");
+                Console.WriteLine($"✅ Created M2M client: Code='{client.Code}', ClientId='{client.ClientId}' with {permissionCodes.Count} permission codes");
             }
             else
             {

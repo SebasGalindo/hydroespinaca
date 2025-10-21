@@ -8,4 +8,5 @@ public interface IReadingRepository
     Task<List<Reading>> GetBySensorAndVariableAsync(string sensorCode, string variableCode, DateTime from, DateTime to);
     Task<int> DeleteOlderThanAsync(DateTime cutoff);
     Task<Reading?> GetLatestBySensorCodesAsync(List<string> sensorCodes);
+    Task<List<Reading>> GetLatestReadingsByVariableAsync();
 }

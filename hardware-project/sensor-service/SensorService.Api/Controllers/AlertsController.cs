@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
+using SensorService.Domain.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
@@ -32,5 +33,4 @@ public class AlertsController : ControllerBase
         await _service.AcknowledgeAsync(alertId, dto);
         return NoContent();
     }
-
 }

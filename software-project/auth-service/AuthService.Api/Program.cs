@@ -21,7 +21,7 @@ builder.Logging.AddSimpleConsole(options =>
 
 
 // Configura settings y capas...
-builder.Services.Configure<AuthService.Infrastructure.Security.JwtSettings>(
+builder.Services.Configure<AuthService.Domain.Settings.JwtSettings>(
     builder.Configuration.GetSection("Jwt")
 );
 builder.Services.Configure<MongoSettings>(

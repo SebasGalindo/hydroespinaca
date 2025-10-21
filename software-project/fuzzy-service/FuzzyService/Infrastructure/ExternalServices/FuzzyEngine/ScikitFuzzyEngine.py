@@ -316,7 +316,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 "message": f"Fuzzificación y evaluación de reglas completadas. {rule_evaluation_result.rules_activated}/{rule_evaluation_result.rules_evaluated} reglas activadas",
                 "sensor_data_received": sensor_data,
                 "fuzzification_results": self._serialize_fuzzification_results(fuzzification_results),
-                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result),
+                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result, None, rules, variables),
                 "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000
             }
 
@@ -410,21 +410,25 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         self,
         result: BatchRuleEvaluationResult,
         routines_payload: List[Dict[str, Any]] = None,
-        fuzzy_rules: List["FuzzyRule"] = None
+        fuzzy_rules: List["FuzzyRule"] = None,
+        fuzzy_variables: List["FuzzyVariable"] = None
     ) -> Dict[str, Any]:
          """Serializa el resultado de evaluación de reglas para la respuesta (modelo Mamdani)."""
          if routines_payload is None:
              routines_payload = []
          if fuzzy_rules is None:
              fuzzy_rules = []
+         if fuzzy_variables is None:
+             fuzzy_variables = []
 
          # Crear índice de routines por variable_id para búsqueda rápida
-         # Soporta dos formatos: nuevo (variable_id) y antiguo (_routine_id)
          routines_by_variable = {}
          for r in routines_payload:
              if "variable_id" in r:
                  routines_by_variable[r["variable_id"]] = r
-             # Formato antiguo basado en rutinas se maneja más abajo
+
+         # Crear índice de variables por ID para obtener reference_code
+         variables_by_id = {str(var.id): var for var in fuzzy_variables}
 
          # Crear índice de reglas por ID
          rules_by_id = {str(rule.id): rule for rule in fuzzy_rules}
@@ -449,42 +453,43 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                      variable_id = str(consequent.variable_id)
                      routine = routines_by_variable.get(variable_id)
 
-                     if routine:
-                         # Construir output_value con el formato esperado
-                         command = routine.get("command", {})
-                         variable_name = routine.get("variable_name", "")
+                     if not routine:
+                         continue
 
-                         # Skip variables de duración (se manejarán por actuator_code)
-                         if "Duración" in variable_name or "DURACION" in variable_name.upper():
-                             continue
+                     variable = variables_by_id.get(variable_id)
+                     if not variable:
+                         self.logger.warning(f"Variable not found for ID {variable_id}")
+                         continue
 
-                         output_dict = {
-                             "actuator_id": variable_id,
-                             "duration": 0.5  # Valor mínimo por defecto
-                         }
+                     command = routine.get("command", {})
+                     variable_name = routine.get("variable_name", "")
 
-                         # Buscar variable de duración asociada
-                         duration_routine = self._find_duration_variable(variable_name, routines_payload)
-                         if duration_routine:
-                             # Usar el valor defuzzificado de duración
-                             duration_value = duration_routine.get("crisp_value", 0.5)
-                             # Asegurar que esté en el rango válido [0.5, 10000]
-                             output_dict["duration"] = max(0.5, min(10000.0, float(duration_value)))
-                             self.logger.debug(
-                                 f"Duración encontrada para {variable_name}: {output_dict['duration']:.1f}s"
-                             )
-                         else:
-                             self.logger.warning(
-                                 f"No se encontró duración para {variable_name}, usando valor mínimo 0.5s"
-                             )
+                     if "Duración" in variable_name or "DURACION" in variable_name.upper():
+                         continue
 
-                         # Incluir power o dutyCycle según tipo de actuador
-                         if "power" in command:
-                             output_dict["power"] = command["power"]
-                         elif "dutyCycle" in command:
-                             output_dict["dutyCycle"] = command["dutyCycle"]
+                     output_dict = {
+                         "reference_code": variable.reference_code,
+                         "duration": 0.5
+                     }
 
-                         mapped_outputs.append(output_dict)
+                     duration_routine = self._find_duration_variable(variable_name, routines_payload)
+                     if duration_routine:
+                         duration_value = duration_routine.get("crisp_value", 0.5)
+                         output_dict["duration"] = max(0.5, min(10000.0, float(duration_value)))
+                         self.logger.debug(
+                             f"Duración encontrada para {variable_name}: {output_dict['duration']:.1f}s"
+                         )
+                     else:
+                         self.logger.warning(
+                             f"No se encontró duración para {variable_name}, usando valor mínimo 0.5s"
+                         )
+
+                     if "power" in command:
+                         output_dict["power"] = command["power"]
+                     elif "dutyCycle" in command:
+                         output_dict["dutyCycle"] = command["dutyCycle"]
+
+                     mapped_outputs.append(output_dict)
 
              # Fallback: formato antiguo con rutinas basadas en consequent string
              elif rule_result.consequent and routines_by_routine_id:
@@ -493,7 +498,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                      # Formato antiguo: extraer de steps
                      for step in routine["steps"]:
                          output_dict = {
-                             "actuator_id": step.get("outputVariable", "unknown"),
+                             "reference_code": step.get("outputVariable", "unknown"),
                              "duration": step.get("duration", 0.5)
                          }
                          if "power" in step:
@@ -1255,14 +1260,14 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             
             # Construir respuesta completa
             total_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             result = {
                 "system_id": system.id,
                 "system_name": system.name,
                 "evaluation_timestamp": start_time.isoformat(),
                 "sensor_readings": sensor_readings,
                 "fuzzification_results": self._serialize_fuzzification_results(fuzzification_results),
-                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result, routines_payload, rules),
+                "rule_evaluation": self._serialize_rule_evaluation_result(rule_evaluation_result, routines_payload, rules, variables),
                 "routines_payload": routines_payload,
                 "total_processing_time_ms": total_time,
                 "status": "completed"
