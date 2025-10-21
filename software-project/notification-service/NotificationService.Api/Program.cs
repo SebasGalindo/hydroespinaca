@@ -1,13 +1,3 @@
-// Programa de arranque del Notification Service.
-// Resumen del flujo (alto nivel):
-// Paso 0: Configuración de servicios (Options Jwt/Mongo, Infrastructure, Application, WebApi).
-// Paso 1: El cliente llama al endpoint POST /api/notifications/email con JWT e Idempotency-Key.
-// Paso 2: Controller valida el DTO y pasa al UseCase.
-// Paso 3: UseCase aplica idempotencia (Mongo), sanitiza, renderiza y encola el email.
-// Paso 4: Se responde 202 Accepted (queued) con correlationId.
-// Paso 5: Un BackgroundService consume la cola y envía el correo (proveedor primario/fallback),
-//         actualizando el log en Mongo y el estado de idempotencia.
-
 using NotificationService.Api.Extensions;
 using NotificationService.Infrastructure;
 using NotificationService.Application;
@@ -51,7 +41,15 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notification Service API v1")
     );
 }
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
+}
 
+// ⚠️ IMPORTANTE: Orden de middleware (crítico para seguridad y manejo de errores)
+// 1. GlobalExceptionMiddleware - DEBE ir primero para capturar todas las excepciones
+// 2. Authentication - Validar y decodificar JWT
+// 3. Authorization - Verificar scopes/policies (depende de Authentication)
 app.UseMiddleware<NotificationService.Api.Middleware.GlobalExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();

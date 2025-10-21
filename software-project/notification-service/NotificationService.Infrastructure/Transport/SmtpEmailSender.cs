@@ -53,9 +53,9 @@ public class SmtpEmailSender : IEmailSender
                 catch (Exception ex) { _logger.LogWarning(ex, "SMTP: skipped invalid {Kind} address: {Addr}", kind, v); }
             }
         }
-        SafeAdd(mime.To, message.To, "to");
-        SafeAdd(mime.Cc, message.Cc, "cc");
-        SafeAdd(mime.Bcc, message.Bcc, "bcc");
+            SafeAdd(mime.To, message.To ?? Array.Empty<string>(), "to");
+        SafeAdd(mime.Cc, message.Cc ?? Array.Empty<string>(), "cc");
+        SafeAdd(mime.Bcc, message.Bcc ?? Array.Empty<string>(), "bcc");
         mime.Subject = message.Subject;
 
         var builder = new BodyBuilder { HtmlBody = message.HtmlBody };
