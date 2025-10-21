@@ -28,17 +28,5 @@ public class Esp32AlertDocument : IIdentifiableMutable
 
     [BsonElement("emailSentAt")]
     public DateTime? EmailSentAt { get; set; }
-
-    // Legacy fields (kept for backward compatibility during migration)
-    [BsonElement("type")]
-    [BsonRepresentation(BsonType.String)]
-    [BsonIgnoreIfNull]
-    public AlertType? Type { get; set; }
-
-    [BsonElement("severity")]
-    [BsonRepresentation(BsonType.String)]
-    [BsonIgnoreIfNull]
-    public AlertSeverity? Severity { get; set; }
-
     public void SetId(string id) => Id = id;
 }

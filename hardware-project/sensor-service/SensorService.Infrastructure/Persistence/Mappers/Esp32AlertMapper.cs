@@ -15,9 +15,7 @@ public class Esp32AlertMapper : IEntityMapper<Esp32Alert, Esp32AlertDocument>
             Message = doc.Message,
             Acknowledged = doc.Acknowledged,
             ResolvedAt = doc.ResolvedAt,
-            EmailSentAt = doc.EmailSentAt,
-            Type = doc.Type,
-            Severity = doc.Severity
+            EmailSentAt = doc.EmailSentAt
         };
         entity.SetId(doc.Id);
         return entity;
@@ -32,9 +30,7 @@ public class Esp32AlertMapper : IEntityMapper<Esp32Alert, Esp32AlertDocument>
             Message = entity.Message,
             Acknowledged = entity.Acknowledged,
             ResolvedAt = entity.ResolvedAt,
-            EmailSentAt = entity.EmailSentAt,
-            Type = entity.Type,
-            Severity = entity.Severity
+            EmailSentAt = entity.EmailSentAt
         };
         document.SetId(entity.Id);
         return document;

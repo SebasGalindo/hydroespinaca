@@ -47,7 +47,7 @@ public class InternalRoutineStepDocument
     public string OutputVariable { get; set; } = default!;
 
     [BsonElement("power")]
-    public string Power { get; set; } = default!;
+    public string? Power { get; set; }
 
     [BsonElement("duration")]
     public double Duration { get; set; }

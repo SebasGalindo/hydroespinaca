@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SensorService.Application.Interfaces;
 using SensorService.Application.Services;
-using SharpCompress.Common;
 
 namespace SensorService.API.Controllers;
 

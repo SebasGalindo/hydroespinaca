@@ -28,47 +28,39 @@ public class SessionController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<UserSessionsDto>>> GetSessions()
     {
-        try
+        var sessionsByUser = await _sessionRepository.GetAllActiveSessionsGroupedByUserAsync();
+        
+        var result = new List<UserSessionsDto>();
+
+        foreach (var (userId, sessions) in sessionsByUser)
         {
-            var sessionsByUser = await _sessionRepository.GetAllActiveSessionsGroupedByUserAsync();
-            
-            var result = new List<UserSessionsDto>();
-
-            foreach (var (userId, sessions) in sessionsByUser)
+            var user = await _userRepository.FindByIdAsync(userId);
+            if (user == null)
             {
-                var user = await _userRepository.FindByIdAsync(userId);
-                if (user == null)
-                {
-                    _logger.LogWarning("User {UserId} not found for existing sessions", userId);
-                    continue;
-                }
-
-                var sessionDtos = sessions.Select(s => new SessionMonitorDto
-                {
-                    SessionId = s.SessionId,
-                    ClientId = s.ClientId,
-                    CreatedAt = s.CreatedAt,
-                    ExpiresAt = s.ExpiresAt,
-                    LastActivity = s.LastActivity,
-                    Revoked = s.Revoked,
-                    RevokedAt = s.RevokedAt
-                }).ToList();
-
-                result.Add(new UserSessionsDto
-                {
-                    UserId = user.Id,
-                    UserName = user.Username,
-                    Sessions = sessionDtos
-                });
+                _logger.LogWarning("User {UserId} not found for existing sessions", userId);
+                continue;
             }
 
-            return Ok(result);
+            var sessionDtos = sessions.Select(s => new SessionMonitorDto
+            {
+                SessionId = s.SessionId,
+                ClientId = s.ClientId,
+                CreatedAt = s.CreatedAt,
+                ExpiresAt = s.ExpiresAt,
+                LastActivity = s.LastActivity,
+                Revoked = s.Revoked,
+                RevokedAt = s.RevokedAt
+            }).ToList();
+
+            result.Add(new UserSessionsDto
+            {
+                UserId = user.Id,
+                UserName = user.Username,
+                Sessions = sessionDtos
+            });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving sessions");
-            return StatusCode(500, new { message = "Error retrieving sessions" });
-        }
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -77,23 +69,15 @@ public class SessionController : ControllerBase
     [HttpDelete("{sessionId}")]
     public async Task<ActionResult> RevokeSession(string sessionId)
     {
-        try
+        var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
+        if (session == null)
         {
-            var session = await _sessionRepository.FindBySessionIdAsync(sessionId);
-            if (session == null)
-            {
-                return NotFound(new { message = "Session not found" });
-            }
-
-            session.Revoke();
-            await _sessionRepository.UpdateAsync(session);
-
-            return Ok(new { message = "Session revoked successfully" });
+            return NotFound(new { message = "Session not found" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error revoking session {SessionId}", sessionId);
-            return StatusCode(500, new { message = "Error revoking session" });
-        }
+
+        session.Revoke();
+        await _sessionRepository.UpdateAsync(session);
+
+        return Ok(new { message = "Session revoked successfully" });
     }
 }

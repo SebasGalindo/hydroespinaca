@@ -12,6 +12,7 @@ public static class ServiceCollectionDomainExtensions
         services.AddScoped<IAggregationService, AggregationService>();
         services.AddScoped<IAlertResolutionService, AlertResolutionService>();
         services.AddScoped<ICriticalReadingEvaluationService, CriticalReadingEvaluationService>();
+        services.AddScoped<IEsp32StatusService, Esp32StatusService>();
 
         return services;
     }

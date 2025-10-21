@@ -1,18 +1,26 @@
 using HydroEspinaca.Shared.DTOs.Notifications;
+using Microsoft.Extensions.Logging;
 using NotificationService.Application.Interfaces;
 using NotificationService.Domain.Interfaces;
 using NotificationService.Domain.Models;
 
 namespace NotificationService.Application.UseCases;
 
-// Caso de uso principal: prepara y encola el envío de correo.
-// Soporta envío directo (To/Cc/Bcc) o por grupo (Group).
-// Paso 2 al 4 del flujo general (ver Program/Controller):
-// - Genera/Gestiona Idempotency-Key (Mongo)
-// - Resuelve destinatarios (directo o grupo)
-// - Sanitiza el HTML y renderiza el layout
-// - Encola el mensaje
-// - Registra EmailLog (Queued)
+/// <summary>
+/// Caso de uso principal: prepara y encola el envío de correo.
+/// Soporta dos modos de envío:
+/// 1. Directo: Especificando To/Cc/Bcc directamente
+/// 2. Por Grupo: Usando grupos de destinatarios almacenados en MongoDB
+/// 
+/// Flujo completo:
+/// 1. Validar modo de envío (Group XOR To)
+/// 2. Resolver destinatarios (grupo o directo)
+/// 3. Gestionar idempotencia (evitar duplicados con TTL 24h)
+/// 4. Sanitizar HTML (prevenir XSS)
+/// 5. Renderizar plantilla (layout + contenido)
+/// 6. Encolar mensaje (procesamiento asíncrono)
+/// 7. Registrar log inicial (estado: Queued)
+/// </summary>
 public class SendEmailUseCase : IEmailNotificationService
 {
     private readonly IEmailQueue _queue;
@@ -21,6 +29,7 @@ public class SendEmailUseCase : IEmailNotificationService
     private readonly IEmailLogRepository _logRepo;
     private readonly ISanitizer _sanitizer;
     private readonly INotificationGroupRepository _groupRepo;
+    private readonly ILogger<SendEmailUseCase> _logger;
 
     public SendEmailUseCase(
         IEmailQueue queue, 
@@ -28,7 +37,8 @@ public class SendEmailUseCase : IEmailNotificationService
         IIdempotencyStore idempotency, 
         IEmailLogRepository logRepo, 
         ISanitizer sanitizer,
-        INotificationGroupRepository groupRepo)
+        INotificationGroupRepository groupRepo,
+        ILogger<SendEmailUseCase> logger)
     {
         _queue = queue;
         _renderer = renderer;
@@ -36,11 +46,11 @@ public class SendEmailUseCase : IEmailNotificationService
         _logRepo = logRepo;
         _sanitizer = sanitizer;
         _groupRepo = groupRepo;
+        _logger = logger;
     }
 
     public async Task<SendEmailResponseDto> SendAsync(SendEmailRequestDto request, string? idempotencyKey, CancellationToken ct)
     {
-        // Generar un correlationId para trazabilidad entre capas
         var correlationId = Guid.NewGuid().ToString("N");
 
         // Validar que solo una opción esté presente (Group o To)
@@ -56,19 +66,22 @@ public class SendEmailUseCase : IEmailNotificationService
 
         // Resolver destinatarios basado en el modo
         string[] toList, ccList, bccList;
-        string primaryRecipient; // Para logging y idempotencia
+        string primaryRecipient;
 
         if (!string.IsNullOrWhiteSpace(request.Group))
         {
-            // Modo grupo: resolver destinatarios desde MongoDB
+            _logger.LogInformation("📬 Resolving recipients for group: {GroupName}", request.Group);
+            
             var group = await _groupRepo.GetByGroupNameAsync(request.Group, ct);
             if (group == null)
             {
+                _logger.LogWarning("⚠️  Notification group '{GroupName}' not found", request.Group);
                 throw new ArgumentException($"Notification group '{request.Group}' not found.");
             }
 
             if (!group.HasActiveRecipients())
             {
+                _logger.LogWarning("⚠️  Notification group '{GroupName}' has no active recipients", request.Group);
                 throw new ArgumentException($"Notification group '{request.Group}' has no active recipients.");
             }
 
@@ -77,14 +90,18 @@ public class SendEmailUseCase : IEmailNotificationService
             ccList = groupCc;
             bccList = groupBcc;
             primaryRecipient = $"group:{request.Group}";
+            
+            _logger.LogInformation("✅ Group resolved: {ToCount} TO, {CcCount} CC, {BccCount} BCC", 
+                toList.Length, ccList.Length, bccList.Length);
         }
         else
         {
-            // Modo directo: usar campos To/Cc/Bcc
             toList = new[] { request.To! }.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
             ccList = request.Cc?.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray() ?? Array.Empty<string>();
             bccList = request.Bcc?.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray() ?? Array.Empty<string>();
             primaryRecipient = request.To!;
+            
+            _logger.LogInformation("📧 Direct send mode: To={To}", primaryRecipient);
         }
 
         if (toList.Length == 0)
@@ -92,28 +109,28 @@ public class SendEmailUseCase : IEmailNotificationService
             throw new ArgumentException("At least one valid 'to' email address is required.");
         }
 
-        // Si no llega header Idempotency-Key, derivarlo de un hash del payload
+        // Gestión de idempotencia
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             using var sha = System.Security.Cryptography.SHA256.Create();
             var raw = $"{primaryRecipient}|{request.Subject}|{request.HtmlBody}|{(request.Attachments?.Count ?? 0)}";
             idempotencyKey = Convert.ToHexString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw)));
+            _logger.LogDebug("🔑 Generated idempotency key from payload hash");
         }
 
-        // Intentar reservar la idempotencia (TTL 24h). Si ya existe, devolvemos el estado previo
         var (acquired, record) = await _idempotency.TryReserveAsync(idempotencyKey!, correlationId, TimeSpan.FromHours(24), ct);
         if (!acquired)
         {
+            _logger.LogInformation("🔄 Idempotent request detected. Returning cached result: {Status}", record.Status);
             return new SendEmailResponseDto { Id = record.CorrelationId, Status = record.Status.ToString().ToLowerInvariant() };
         }
 
-        // Sanitizar el HTML para prevenir scripts/atributos peligrosos
+        // Sanitización y renderizado
+        _logger.LogDebug("🧹 Sanitizing HTML body");
         var safeBody = _sanitizer.Sanitize(request.HtmlBody);
-        // Renderizar usando el layout base (simplificado)
         var finalHtml = await _renderer.RenderAsync("base", safeBody, model: null, ct);
 
-
-        // Encolar el mensaje para envío asíncrono (BackgroundService lo consumirá)
+        // Encolar mensaje
         await _queue.EnqueueAsync(new Domain.Entities.EmailMessage
         {
             CorrelationId = correlationId,
@@ -132,23 +149,25 @@ public class SendEmailUseCase : IEmailNotificationService
             }).ToList() ?? new()
         }, ct);
 
-    // Guardar log "Queued" para auditoría y seguimiento
+        // Auditoría
         await _logRepo.InsertAsync(new EmailLog
         {
             Id = correlationId,
             CorrelationId = correlationId,
-            To = primaryRecipient, // Usar primaryRecipient (directo o grupo)
+            To = primaryRecipient,
             Subject = request.Subject,
             Status = EmailDeliveryStatus.Queued
         }, ct);
 
-    // Actualizar la reserva de idempotencia a estado "Queued"
         await _idempotency.UpdateAsync(idempotencyKey!, rec =>
         {
             rec.Status = IdempotencyStatus.Queued;
             rec.ResponseJson = null;
         }, ct);
 
-    return new SendEmailResponseDto { Id = correlationId, Status = "queued" };
+        _logger.LogInformation("✅ Email queued successfully. CorrelationId={CorrelationId}, IdempotencyKey={IdempotencyKey}", 
+            correlationId, idempotencyKey);
+
+        return new SendEmailResponseDto { Id = correlationId, Status = "queued" };
     }
 }

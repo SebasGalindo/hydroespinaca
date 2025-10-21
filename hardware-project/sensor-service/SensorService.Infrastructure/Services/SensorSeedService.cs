@@ -121,7 +121,7 @@ public class SensorSeedService : ISensorSeedService
                 Location = "nutrient-tank",
                 Esp32Id = esp32Id,
                 SamplingFrequency = 60,
-                Variables = new List<string> { "PH" }, // TODO: Create PH variable in VariableSeedService if needed
+                Variables = new List<string> { "PH" },
                 Status = SensorStatus.Active,
                 CreatedAt = DateTime.UtcNow,
                 AllowMissing = false

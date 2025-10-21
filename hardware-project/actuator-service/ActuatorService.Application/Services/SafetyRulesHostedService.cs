@@ -1,4 +1,5 @@
 using ActuatorService.Application.Configuration;
+using ActuatorService.Application.DTOs;
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Interfaces;
 using HydroEspinaca.Shared.Enums;
@@ -12,21 +13,25 @@ namespace ActuatorService.Application.Services;
 /// <summary>
 /// Background service that monitors actuators and applies safety rules.
 /// Automatically turns off actuators that exceed their maximum allowed ON time.
+/// Sends physical shutdown commands via MQTT when violations are detected.
 /// </summary>
 public class SafetyRulesHostedService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SafetyRulesHostedService> _logger;
     private readonly SafetyRulesConfiguration _config;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public SafetyRulesHostedService(
         IServiceProvider serviceProvider,
         IOptions<SafetyRulesConfiguration> config,
-        ILogger<SafetyRulesHostedService> logger)
+        ILogger<SafetyRulesHostedService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _serviceProvider = serviceProvider;
         _config = config.Value;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -109,13 +114,57 @@ public class SafetyRulesHostedService : BackgroundService
                 // Update state machine to OFF
                 stateMachine.UpdateState(actuator.Id, PowerState.OFF, commandId: "safety_shutdown");
 
-                _logger.LogWarning("🛡️ Safety shutdown executed for {ActuatorCode} ({PhysicalId})",
-                    actuator.Code, actuator.PhysicalId);
+                // Send physical shutdown command to ESP32
+                await SendPhysicalShutdownAsync(actuator);
 
-                // TODO: Consider publishing MQTT command to physically turn off the actuator
-                // This requires accessing the MQTT publisher which is scoped
-                // For now, we just update the state machine which will prevent new commands
+                _logger.LogWarning("🛡️ Safety shutdown executed for {ActuatorCode} ({PhysicalId}) - State updated and physical OFF command sent",
+                    actuator.Code, actuator.PhysicalId);
             }
+        }
+    }
+
+    private async Task SendPhysicalShutdownAsync(Domain.Entities.Actuator actuator)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
+            var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
+
+            // Resolve actuator to get latest configuration
+            var resolvedActuator = await actuatorCodeResolver.ResolveAsync(actuator.Code);
+
+            if (resolvedActuator == null)
+            {
+                _logger.LogWarning("⚠️ Cannot send physical shutdown for {ActuatorCode} - actuator not found",
+                    actuator.Code);
+                return;
+            }
+
+            // Create OFF command
+            var shutdownCommand = new DTOs.ResolvedCommandDto
+            {
+                ActuatorCode = resolvedActuator.Code,
+                ActuatorId = resolvedActuator.Id,
+                Esp32Id = resolvedActuator.Esp32Id,
+                Pin = resolvedActuator.Pin,
+                Mode = resolvedActuator.Mode,
+                Power = HydroEspinaca.Shared.Constants.ActuatorConstants.PowerStates.Off,
+                DutyCycle = null,
+                Duration = 0
+            };
+
+            // Send immediate reset command (bypasses pin locking for safety)
+            await commandExecutionService.SendImmediateResetCommandsAsync(
+                new List<DTOs.ResolvedCommandDto> { shutdownCommand },
+                resolvedActuator.Esp32Id);
+
+            _logger.LogInformation("✅ Physical shutdown command sent to ESP32 {Esp32Id} for {ActuatorCode}",
+                resolvedActuator.Esp32Id, actuator.Code);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Failed to send physical shutdown command for {ActuatorCode}", actuator.Code);
         }
     }
 }

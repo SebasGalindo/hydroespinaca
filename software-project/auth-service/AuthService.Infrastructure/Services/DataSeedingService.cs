@@ -12,37 +12,34 @@ public class DataSeedingService
     private readonly IUserRepository _userRepository;
     private readonly IClientAppRepository _clientAppRepository;
     private readonly IPasswordHasher _passwordHasher;
-
+    private readonly ILogger<DataSeedingService> _logger;
 
     public DataSeedingService(
         IPermissionRepository permissionRepository,
         IRoleRepository roleRepository,
         IUserRepository userRepository,
         IClientAppRepository clientAppRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        ILogger<DataSeedingService> logger)
     {
         _permissionRepository = permissionRepository;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
         _clientAppRepository = clientAppRepository;
         _passwordHasher = passwordHasher;
+        _logger = logger;
     }
 
     public async Task SeedInitialDataAsync()
     {
-        try
-        {
-            await SeedPermissionsAsync();
-            await SeedRolesAsync();
-            await SeedM2MClientsAsync();
-            await SeedAdminUserAsync();
-            await SeedTestUserAsync();
-            await VerifyDataIntegrityAsync();
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
+        _logger.LogInformation("Starting data seeding for auth-service");
+        await SeedPermissionsAsync();
+        await SeedRolesAsync();
+        await SeedM2MClientsAsync();
+        await SeedAdminUserAsync();
+        await SeedTestUserAsync();
+        await VerifyDataIntegrityAsync();
+        _logger.LogInformation("Data seeding completed successfully");
     }
 
     /// <summary>
@@ -241,80 +238,68 @@ public class DataSeedingService
                 createdCount++;
             }
         }
-        Console.WriteLine($"🛠️  Permissions: Created {createdCount} new permissions, {totalPermissions - createdCount} already existed. Total: {totalPermissions}");
+        
+        if (createdCount > 0)
+        {
+            _logger.LogInformation("Created {CreatedCount} new permissions. Total: {TotalPermissions}", 
+                createdCount, totalPermissions);
+        }
     }
 
     private async Task SeedRolesAsync()
     {
-        // Admin role with full management permissions - usar los CODES (scopes)
         var adminPermissionCodes = new[]
         {
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, 
         };
 
-    var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
-    var adminPermissionCodesList = adminPermissions.Select(p => p.Code).ToList();
+        var adminPermissions = await _permissionRepository.FindByCodesAsync(adminPermissionCodes);
+        var adminPermissionCodesList = adminPermissions.Select(p => p.Code).ToList();
 
-        // Debug: Verificar que se encontraron los permisos
-        Console.WriteLine($"🔍 Admin role: Found {adminPermissions.Count} permissions out of {adminPermissionCodes.Length} requested");
         if (adminPermissions.Count != adminPermissionCodes.Length)
         {
             var foundCodes = adminPermissions.Select(p => p.Code).ToHashSet();
             var missingCodes = adminPermissionCodes.Where(code => !foundCodes.Contains(code)).ToList();
-            Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
+            _logger.LogWarning("Missing admin permission codes: {MissingCodes}", string.Join(", ", missingCodes));
         }
 
-    var adminRole = new Role(HydroEspinaca.Shared.Constants.SystemRoles.Admin, "Administrator", adminPermissionCodesList);
+        var adminRole = new Role(HydroEspinaca.Shared.Constants.SystemRoles.Admin, "Administrator", adminPermissionCodesList);
         var existingAdminRole = await _roleRepository.FindByCodeAsync(adminRole.Code);
         if (existingAdminRole == null)
         {
             await _roleRepository.CreateAsync(adminRole);
-            Console.WriteLine($"✅ Created Admin role with {adminPermissionCodesList.Count} permissions");
-        }
-        else
-        {
-            Console.WriteLine($"ℹ️  Admin role already exists with {existingAdminRole.Permissions.Count()} permissions");
+            _logger.LogInformation("Created Admin role with {PermissionCount} permissions", adminPermissionCodesList.Count);
         }
 
-        // Regular user role with basic read permissions
         var userPermissionCodes = new[]
         {
-            // Basic read permissions
             HydroEspinaca.Shared.Enums.AuthorizationScopes.UserRead, 
             HydroEspinaca.Shared.Enums.AuthorizationScopes.RoleRead, 
             HydroEspinaca.Shared.Enums.AuthorizationScopes.PermissionRead,
-            // Profile and password management (self-service)
             HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileRead,
             HydroEspinaca.Shared.Enums.AuthorizationScopes.ProfileUpdate,
             HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordChange,
             HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordReset,
             HydroEspinaca.Shared.Enums.AuthorizationScopes.PasswordResetRequest,
-            // System health for basic users
             HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
         };
 
-    var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
-    var userPermissionCodesList = userPermissions.Select(p => p.Code).ToList();
+        var userPermissions = await _permissionRepository.FindByCodesAsync(userPermissionCodes);
+        var userPermissionCodesList = userPermissions.Select(p => p.Code).ToList();
 
-        // Debug: Verificar que se encontraron los permisos de usuario
-        Console.WriteLine($"🔍 User role: Found {userPermissions.Count} permissions out of {userPermissionCodes.Length} requested");
         if (userPermissions.Count != userPermissionCodes.Length)
         {
             var foundCodes = userPermissions.Select(p => p.Code).ToHashSet();
             var missingCodes = userPermissionCodes.Where(code => !foundCodes.Contains(code)).ToList();
-            Console.WriteLine($"⚠️  Missing permission codes: {string.Join(", ", missingCodes)}");
+            _logger.LogWarning("Missing user permission codes: {MissingCodes}", string.Join(", ", missingCodes));
         }
 
-    var userRole = new Domain.Entities.Role(HydroEspinaca.Shared.Constants.SystemRoles.User, "User", userPermissionCodesList);
+        var userRole = new Domain.Entities.Role(HydroEspinaca.Shared.Constants.SystemRoles.User, "User", userPermissionCodesList);
         var existingUserRole = await _roleRepository.FindByCodeAsync(userRole.Code);
         if (existingUserRole == null)
         {
             await _roleRepository.CreateAsync(userRole);
-            Console.WriteLine($"✅ Created User role with {userPermissionCodesList.Count} permissions");
-        }
-        else
-        {
-            Console.WriteLine($"ℹ️  User role already exists with {existingUserRole.Permissions.Count()} permissions");
+            _logger.LogInformation("Created User role with {PermissionCount} permissions", userPermissionCodesList.Count);
         }
     }
 
@@ -323,26 +308,17 @@ public class DataSeedingService
         const string adminEmail = "admin@demo.com";
         const string adminPassword = "dF^J`c'662:W";
 
-
         var existingUser = await _userRepository.FindByEmailAsync(adminEmail);
         if (existingUser == null)
         {
             var adminRole = await _roleRepository.FindByCodeAsync(HydroEspinaca.Shared.Constants.SystemRoles.Admin);
             if (adminRole == null)
             {
+                _logger.LogWarning("Admin role not found, skipping admin user creation");
                 return;
             }
 
             var hashedPassword = _passwordHasher.Hash(adminPassword);
-
-            var immediateVerification = _passwordHasher.Verify(hashedPassword, adminPassword);
-
-            if (!immediateVerification)
-            {
-                var alternativeHash = _passwordHasher.Hash(adminPassword);
-                var alternativeVerification = _passwordHasher.Verify(alternativeHash, adminPassword);
-            }
-
             var adminUser = new User(
                 "Administrador",
                 new Email(adminEmail),
@@ -351,18 +327,7 @@ public class DataSeedingService
             );
 
             await _userRepository.CreateAsync(adminUser);
-
-            var postSaveVerification = _passwordHasher.Verify(hashedPassword, adminPassword);
-        }
-        else
-        {
-            var verificationResult = _passwordHasher.Verify(existingUser.Password.Value, adminPassword);
-
-            if (!verificationResult)
-            {
-                var newHash = _passwordHasher.Hash(adminPassword);
-                var newHashVerification = _passwordHasher.Verify(newHash, adminPassword);
-            }
+            _logger.LogInformation("Created admin user: {Email}", adminEmail);
         }
     }
 
@@ -371,19 +336,17 @@ public class DataSeedingService
         const string userEmail = "user@demo.com";
         const string userPassword = "N16'+4a597|V!";
 
-
         var existingUser = await _userRepository.FindByEmailAsync(userEmail);
         if (existingUser == null)
         {
-            // Resolve role code to ObjectId
             var userRole = await _roleRepository.FindByCodeAsync(HydroEspinaca.Shared.Constants.SystemRoles.User);
             if (userRole == null)
             {
+                _logger.LogWarning("User role not found, skipping test user creation");
                 return;
             }
 
             var hashedPassword = _passwordHasher.Hash(userPassword);
-
             var testUser = new User(
                 "Usuario Demo",
                 new Email(userEmail),
@@ -392,13 +355,7 @@ public class DataSeedingService
             );
 
             await _userRepository.CreateAsync(testUser);
-
-            var verificationResult = _passwordHasher.Verify(hashedPassword, userPassword);
-        }
-        else
-        {
-            // Test the existing hash
-            var verificationResult = _passwordHasher.Verify(existingUser.Password.Value, userPassword);
+            _logger.LogInformation("Created test user: {Email}", userEmail);
         }
     }
 
@@ -423,8 +380,6 @@ public class DataSeedingService
     {
         var m2mClients = new[]
         {
-            // === BFF-SERVICE M2M CLIENT ===
-            // BFF solo necesita acceso a otros microservicios para proxy (no scopes propios de BFF)
             new {
                 Code = "bff-service-client",
                 ClientId = "bff-service-m2m",
@@ -435,121 +390,95 @@ public class DataSeedingService
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }
             },
-            
-            // === AUTH-SERVICE M2M CLIENT ===
-            // Auth-service solo necesita comunicarse con otros servicios (no scopes propios de auth)
             new {
                 Code = "auth-service-client",
                 ClientId = "auth-service-m2m",
                 ClientSecret = "Arfmk2Fk7r4f",
                 Scopes = new[]
                 {
-                    // NOTIFICATION-SERVICE: Para enviar notificaciones de seguridad
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
-                    // System health de otros servicios
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }
             },
-            
-            // === SENSOR-SERVICE M2M CLIENT ===
-            // Sensor-service solo necesita acceso a otros servicios (no scopes propios de sensor)
             new {
                 Code = "sensor-service-client",
                 ClientId = "sensor-service-m2m",
                 ClientSecret = "sFv6IkmZX2V98",
                 Scopes = new[]
                 {
-                    // NOTIFICATION-SERVICE: Para envío de alertas críticas
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
-                    // System monitoring de otros servicios
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
                 }
             },
-            
-            // === ACTUATOR-SERVICE M2M CLIENT ===
-            // Actuator-service solo necesita acceso a otros servicios (no scopes propios de actuator/command/esp32)
             new {
                 Code = "actuator-service-client",
                 ClientId = "actuator-service-m2m",
                 ClientSecret = "lMag54vgU56x",
                 Scopes = new[]
                 {
-                    // SENSOR-SERVICE: Para leer datos de sensores antes de actuar
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.VariableRead,
-                    // NOTIFICATION-SERVICE: Para notificaciones de status
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
-                    // System monitoring de otros servicios
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth
                 }
             },
-            
-            // === NOTIFICATION-SERVICE M2M CLIENT ===
-            // Notification-service solo necesita acceso a otros servicios (no scopes propios de notification)
             new {
                 Code = "notification-service-client",
                 ClientId = "notification-service-m2m",
                 ClientSecret = "Jl04aOK21mWk",
                 Scopes = new[]
                 {
-                    // System monitoring de otros servicios
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }
             },
-            
-            // === FUZZY-SERVICE M2M CLIENT ===
-            // Fuzzy-service solo necesita acceso a otros servicios (no scopes propios de fuzzy)
             new {
                 Code = "fuzzy-service-client",
                 ClientId = "fuzzy-service-m2m",
                 ClientSecret = "12RreUNF23Rc",
                 Scopes = new[]
                 {
-                    // ACTUATOR-SERVICE: Para control basado en lógica fuzzy
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandCreate,
-                    // System monitoring de otros servicios
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }
             }
         };
 
+        var createdCount = 0;
         foreach (var client in m2mClients)
         {
             var existing = await _clientAppRepository.FindByClientIdAsync(client.ClientId);
             if (existing == null)
             {
-                // Usar scopes como codes (permission codes)
                 var permissions = await _permissionRepository.FindByCodesAsync(client.Scopes);
                 var permissionCodes = permissions.Select(p => p.Code).ToList();
                 
-                // Debug: Verificar que se encontraron los permisos
-                Console.WriteLine($"🔍 M2M Client {client.ClientId}: Found {permissions.Count} permissions out of {client.Scopes.Length} requested");
                 if (permissions.Count != client.Scopes.Length)
                 {
                     var foundCodes = permissions.Select(p => p.Code).ToHashSet();
                     var missingCodes = client.Scopes.Where(code => !foundCodes.Contains(code)).ToList();
-                    Console.WriteLine($"⚠️  Missing permission codes for {client.ClientId}: {string.Join(", ", missingCodes)}");
+                    _logger.LogWarning("M2M Client {ClientId}: Missing permission codes: {MissingCodes}", 
+                        client.ClientId, string.Join(", ", missingCodes));
                 }
                 
                 var hashedSecret = _passwordHasher.Hash(client.ClientSecret);
                 var clientApp = new ClientApp(
-                    client.Code,      // Code - Identificador interno único
-                    client.ClientId,  // ClientId - Para protocolo OAuth2
+                    client.Code,
+                    client.ClientId,
                     new HashedPassword(hashedSecret), 
-                    permissionCodes     // Usar codes de permisos encontrados
+                    permissionCodes
                 );
                 await _clientAppRepository.AddAsync(clientApp);
-                
-                Console.WriteLine($"✅ Created M2M client: Code='{client.Code}', ClientId='{client.ClientId}' with {permissionCodes.Count} permission codes");
+                createdCount++;
             }
-            else
-            {
-                Console.WriteLine($"ℹ️  M2M client already exists: {client.ClientId} with {existing.Scopes.Count()} scopes");
-            }
+        }
+        
+        if (createdCount > 0)
+        {
+            _logger.LogInformation("Created {CreatedCount} M2M clients", createdCount);
         }
     }
 }
