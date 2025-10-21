@@ -52,24 +52,11 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo</h3>
               <p className="text-gray-600">
-                Supervisa los parámetros críticos de tus cultivos.
+                Supervisa los parámetros críticos de tus cultivos y los actuadores activos.
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-green-50 p-6 rounded-lg">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Control automatizado</h3>
-              <p className="text-gray-600">
-                Automatiza el control de tus sistemas hidropónicos con reglas personalizables y alertas inteligentes.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
             <div className="bg-green-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -78,7 +65,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Análisis de datos</h3>
               <p className="text-gray-600">
-                Obtén insights valiosos con análisis detallados y reportes personalizados sobre el estado de tus cultivos.
+                Obtén insights valiosos con análisis detallados y reportes sobre el estado de tus cultivos.
               </p>
             </div>
           </div>
