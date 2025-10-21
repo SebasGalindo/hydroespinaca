@@ -50,7 +50,7 @@ public class UpdateInternalRoutineDto
 public class InternalRoutineStepDto
 {
     public string OutputVariable { get; set; } = default!;
-    public string Power { get; set; } = default!;
+    public string? Power { get; set; }
     public double Duration { get; set; }
     public double? DutyCycle { get; set; }
     public string? Mode { get; set; }

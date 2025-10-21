@@ -1,4 +1,5 @@
 using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Helpers;
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
@@ -300,7 +301,7 @@ public class InternalRoutineScheduler : BackgroundService
             else if (!isPowerOff)
             {
                 // Create new RUNNING command (only if not OFF)
-                var commandId = $"{resolvedCommand.ActuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                var commandId = CommandIdHelper.GenerateCommandId(resolvedCommand.ActuatorCode);
 
                 var routineCommandEntity = new RoutineCommand
                 {

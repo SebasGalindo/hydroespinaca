@@ -58,17 +58,6 @@ public class RoutineScheduleConflictException : ConflictException
 }
 
 /// <summary>
-/// Exception thrown when a control output is not found
-/// </summary>
-public class ControlOutputNotFoundException : NotFoundException
-{
-    public ControlOutputNotFoundException(string controlOutputId)
-        : base($"Control output con el ID {controlOutputId} no encontrado.")
-    {
-    }
-}
-
-/// <summary>
 /// Exception thrown when trying to control an inactive actuator
 /// </summary>
 public class ActuatorInactiveException : ConflictException

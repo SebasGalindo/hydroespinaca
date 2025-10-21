@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Helpers;
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Interfaces;
@@ -60,7 +61,7 @@ public class CommandExecutionService : ICommandExecutionService
 
         foreach (var command in commands)
         {
-            var commandId = GenerateCommandId(command.ActuatorCode);
+            var commandId = CommandIdHelper.GenerateCommandId(command.ActuatorCode);
             var pins = new List<string> { command.Pin };
 
             // Check if pin already has 1 running + 1 pending (maximum allowed)
@@ -362,7 +363,7 @@ public class CommandExecutionService : ICommandExecutionService
 
         foreach (var command in commands)
         {
-            var commandId = GenerateCommandId($"reset_{command.ActuatorCode}");
+            var commandId = CommandIdHelper.GenerateCommandId($"reset_{command.ActuatorCode}");
 
             // Register command in active commands for MQTT confirmation tracking
             var activeCommand = new ActiveCommand
@@ -480,11 +481,6 @@ public class CommandExecutionService : ICommandExecutionService
         }
 
         _logger.LogInformation("🏁 Reset complete: {Count} actuators set to OFF", resolvedCommands.Count);
-    }
-
-    private static string GenerateCommandId(string actuatorCode)
-    {
-        return $"{actuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
     }
 
     private class ActiveCommand

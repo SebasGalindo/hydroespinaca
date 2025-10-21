@@ -33,12 +33,7 @@ public class InternalRoutinesController : ControllerBase
     [Authorize(Policy = PolicyNames.CommandRead)]
     public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = false)
     {
-        var routines = activeOnly
-            ? await _repository.GetActiveRoutinesAsync()
-            : (await _repository.GetActiveRoutinesAsync())
-                .Concat(await GetInactiveRoutinesAsync())
-                .ToList();
-
+        var routines = await _repository.GetActiveRoutinesAsync();
         var dtos = routines.Select(MapToDto).ToList();
         return Ok(dtos);
     }
@@ -218,12 +213,5 @@ public class InternalRoutinesController : ControllerBase
             CreatedAt = routine.CreatedAt,
             UpdatedAt = routine.UpdatedAt
         };
-    }
-
-    private async Task<List<InternalRoutine>> GetInactiveRoutinesAsync()
-    {
-        // This would require a new repository method or filtering
-        // For now, return empty list - can be extended later
-        return new List<InternalRoutine>();
     }
 }
