@@ -106,9 +106,13 @@ Thumbs.db
 **/packages/**/lib/
 **/packages/**/build/
 shared/HydroEspinaca.Shared/nupkg/
-
+ 
 # ===============================
-# SCRIPTS INTERNOS
+# EXPO / REACT NATIVE
 # ===============================
-build-shared-and-install.sh
-
+**/.expo/
+**/android/
+**/ios/
+**/*.apk
+**/*.aab
+**/*.ipa
