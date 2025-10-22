@@ -43,46 +43,46 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-green-50 p-6 rounded-lg">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Feature 1 */}
+              <div className="bg-green-50 p-6 rounded-lg">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo</h3>
+                <p className="text-gray-600">
+                  Supervisa los parámetros críticos de tus cultivos y los actuadores activos.
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Monitoreo</h3>
-              <p className="text-gray-600">
-                Supervisa los parámetros críticos de tus cultivos y los actuadores activos.
-              </p>
-            </div>
 
-            {/* Feature 2 */}
-            <div className="bg-green-50 p-6 rounded-lg">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+              {/* Feature 2 */}
+              <div className="bg-green-50 p-6 rounded-lg">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Análisis de Datos</h3>
+                <p className="text-gray-600">
+                  Obtén insights valiosos con análisis detallados y reportes sobre el estado de tus cultivos.
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Análisis de datos</h3>
-              <p className="text-gray-600">
-                Obtén insights valiosos con análisis detallados y reportes sobre el estado de tus cultivos.
-              </p>
-            </div>
 
-            {/* Feature 3 - Seguridad de Usuarios */}
-            <div className="bg-red-50 p-6 rounded-lg">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v1h1a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5a2 2 0 012-2h1v-1c0-1.657 1.343-3 3-3z" />
-                </svg>
+              {/* Feature 3 - Seguridad de Usuarios */}
+              <div className="bg-emerald-50 p-6 rounded-lg">
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v1h1a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5a2 2 0 012-2h1v-1c0-1.657 1.343-3 3-3z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Seguridad de Usuarios</h3>
+                <p className="text-gray-600">
+                  Administra el acceso al sistema mediante la gestión de usuarios, roles y monitoreo de sesiones activas.
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Seguridad de Usuarios</h3>
-              <p className="text-gray-600">
-                Administra el acceso al sistema mediante la gestión de usuarios, roles y monitoreo de sesiones activas.
-              </p>
             </div>
-
-
           </div>
         </div>
       </section>
