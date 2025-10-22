@@ -34,12 +34,6 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
       icon: TrendingUpIcon,
       label: 'Análisis',
       active: pathname === '/analytics'
-    },
-    {
-      href: '/dashboard/sistemas-fuzzy',
-      icon: BrainIcon,
-      label: 'Fuzzy',
-      active: pathname?.startsWith('/dashboard/sistemas-fuzzy')
     }
   ];
 
