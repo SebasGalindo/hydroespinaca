@@ -4,6 +4,8 @@
 .env*
 */.env*
 **/.env*
+# Allow example env file
+!.env.example
 **/secrets.json
 **/credentials.json
 **/*.pem
