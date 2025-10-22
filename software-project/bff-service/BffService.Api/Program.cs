@@ -38,10 +38,6 @@ if (app.Environment.IsDevelopment())
     );
 }
 
-if (app.Environment.IsProduction())
-{
-    app.UseHsts();
-}
 
 app.UseMiddleware<BffService.Api.Middleware.GlobalExceptionMiddleware>();
 app.UseCors("AllowFrontend");

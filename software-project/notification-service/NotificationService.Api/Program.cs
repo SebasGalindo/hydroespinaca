@@ -41,10 +41,6 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notification Service API v1")
     );
 }
-if (app.Environment.IsProduction())
-{
-    app.UseHsts();
-}
 
 // ⚠️ IMPORTANTE: Orden de middleware (crítico para seguridad y manejo de errores)
 // 1. GlobalExceptionMiddleware - DEBE ir primero para capturar todas las excepciones
