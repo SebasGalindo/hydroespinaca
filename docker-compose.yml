@@ -72,6 +72,7 @@ services:
       - espinaca-net
     profiles:
       - production
+  
   # -----------------------------
   # Proyecto 1: Hardware
   # -----------------------------
@@ -210,7 +211,6 @@ services:
       - production
       - development
 
-
   bff-service:
     build:
       context: .
@@ -254,7 +254,6 @@ services:
     profiles:
       - production
       - development
-  
 
   notification-service:
     build:
@@ -270,7 +269,7 @@ services:
       - JWT__Issuer=${Jwt_Issuer}
       - JWT__Audience=${Jwt_Audience}
       # MongoDB Configuration (notification-specific)
-      - MONGO__ConnectionString=${NOTIFICATION_MONGO_CONNECTION_STRING}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
       - MONGO__Database=${MONGO_DATABASE}
       # M2M Configuration
       - M2M__ClientId=${NOTIFICATION_SERVICE_CLIENT_ID}
@@ -315,7 +314,7 @@ services:
       - JWT_AUDIENCE=${Jwt_Audience}
       - JWT_PUBLIC_KEY_PATH=/app/Keys/public.pem
       # MongoDB Configuration
-      - MONGO_CONNECTION_STRING=${FUZZY_MONGO_CONNECTION_STRING}
+      - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
       - MONGO_DATABASE=${MONGO_DATABASE}
       # M2M Configuration
       - M2M_CLIENT_ID=${FUZZY_SERVICE_CLIENT_ID}
