@@ -32,20 +32,61 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Unhandled exception in auth-service");
+            var statusCode = _exceptionMapper.GetStatusCode(ex);
+
+            // Log with appropriate severity based on error type
+            LogException(ex, statusCode, context.Request.Path);
 
             var problemDetails = _exceptionMapper.MapToProblemDetails(
-                ex, 
-                context.Request.Path, 
+                ex,
+                context.Request.Path,
                 _env.IsDevelopment()
             );
 
-            var statusCode = _exceptionMapper.GetStatusCode(ex);
-            
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/problem+json";
-            
+
             await context.Response.WriteAsJsonAsync(problemDetails);
         }
+    }
+
+    /// <summary>
+    /// Logs exceptions with appropriate severity level based on HTTP status code
+    /// </summary>
+    private void LogException(Exception ex, int statusCode, string requestPath)
+    {
+        var exceptionType = ex.GetType().Name;
+
+        if (IsExpectedClientError(statusCode))
+        {
+            // Expected business/validation errors (4xx) - log as warning
+            _logger.LogWarning(
+                ex,
+                "⚠️  Expected client error in auth-service: {ExceptionType} at {Path} (Status: {StatusCode})",
+                exceptionType,
+                requestPath,
+                statusCode
+            );
+        }
+        else
+        {
+            // Unexpected server errors (5xx) or other errors - log as error
+            _logger.LogError(
+                ex,
+                "❌ Unexpected exception in auth-service: {ExceptionType} at {Path} (Status: {StatusCode})",
+                exceptionType,
+                requestPath,
+                statusCode
+            );
+        }
+    }
+
+    /// <summary>
+    /// Determines if an HTTP status code represents an expected client error
+    /// </summary>
+    private static bool IsExpectedClientError(int statusCode)
+    {
+        // 4xx status codes are client errors and generally expected
+        return statusCode >= 400 && statusCode < 500;
     }
 }

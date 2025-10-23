@@ -410,15 +410,15 @@ public class CommandExecutionService : ICommandExecutionService
         var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
         var actuatorRepository = scope.ServiceProvider.GetRequiredService<IActuatorRepository>();
 
-        var systemResetRoutine = await internalRoutineRepository.GetByNameAsync("SystemReset");
+        var systemResetRoutine = await internalRoutineRepository.GetByNameAsync("Reinicio del sistema");
 
         if (systemResetRoutine == null)
         {
-            _logger.LogError("❌ SystemReset routine not found in database");
-            throw new InvalidOperationException("SystemReset routine not found");
+            _logger.LogError("❌ Reinicio del sistema routine not found in database");
+            throw new InvalidOperationException("Reinicio del sistema routine not found");
         }
 
-        _logger.LogInformation("📋 Found SystemReset routine with {StepCount} steps", systemResetRoutine.Steps.Count);
+        _logger.LogInformation("📋 Found Reinicio del sistema routine with {StepCount} steps", systemResetRoutine.Steps.Count);
 
         var resolvedCommands = new List<ResolvedCommandDto>();
 

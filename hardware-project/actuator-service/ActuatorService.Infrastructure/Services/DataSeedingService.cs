@@ -150,7 +150,7 @@ public class DataSeedingService
     {
         var esp32Id = "6883fff7b079309f3ba4f238"; // Same ESP32 as actuators
 
-        // Build SystemReset routine with steps for all actuators using ActuatorCode
+        // Build Reinicio del sistema routine with steps for all actuators using ActuatorCode
         var systemResetSteps = await BuildSystemResetStepsAsync();
 
         var routines = new[]
@@ -217,7 +217,7 @@ public class DataSeedingService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             },
-            // SystemReset routine - manual trigger via /commands/jobs/clear
+            // Reinicio del sistema routine - manual trigger via /commands/jobs/clear
             new InternalRoutine
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
@@ -293,7 +293,7 @@ public class DataSeedingService
                 actuator.Code, actuator.Pin, actuator.Mode);
         }
 
-        _logger.LogInformation("🔧 Built SystemReset routine with {StepCount} steps using ActuatorCode", resetSteps.Count);
+        _logger.LogInformation("🔧 Built Reinicio del sistema routine with {StepCount} steps using ActuatorCode", resetSteps.Count);
         return resetSteps;
     }
 }
