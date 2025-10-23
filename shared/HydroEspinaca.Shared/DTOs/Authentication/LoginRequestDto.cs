@@ -6,6 +6,7 @@ namespace HydroEspinaca.Shared.DTOs.Authentication;
 public record LoginRequestDto(
     string Email,
     string Password,
+    string? ClientId = null,
     string? SessionId = null,
     string? IpAddress = null,
     string? UserAgent = null,

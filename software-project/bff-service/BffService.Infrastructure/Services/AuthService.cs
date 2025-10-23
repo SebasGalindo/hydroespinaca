@@ -37,6 +37,7 @@ public class AuthService : IAuthService
     public async Task<AuthenticationResult> LoginAsync(
         string email,
         string password,
+        string? clientId = null,
         string? sessionId = null,
         string? csrfToken = null,
         string? ipAddress = null,
@@ -45,12 +46,13 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogInformation("Attempting authentication with auth service for user: {Email}", email);
+            _logger.LogInformation("Attempting authentication with auth service for user: {Email}, clientId: {ClientId}", email, clientId);
 
             var loginRequest = new
             {
                 email,
                 password,
+                clientId,
                 sessionId,
                 csrfToken,
                 ipAddress,

@@ -36,10 +36,11 @@ public class SessionApplicationService : ISessionService
         var sessionId = GenerateSessionId();
         var csrfToken = GenerateCsrfToken();
 
-        // Pass sessionId, csrfToken, ipAddress, and userAgent to auth service so it can store them
+        // Pass clientId, sessionId, csrfToken, ipAddress, and userAgent to auth service so it can store them
         var authResult = await _authService.LoginAsync(
             request.Email,
             request.Password,
+            request.ClientId,
             sessionId,
             csrfToken,
             request.IpAddress,

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { UserSessionsDto, SessionMonitorDto } from '@hydroespinaca/shared';
+import Swal from 'sweetalert2';
 
 interface SessionsTableProps {
   sessions: UserSessionsDto[];
@@ -112,6 +113,22 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   };
 
   const handleRevoke = async (sessionId: string) => {
+    // Confirm before proceeding
+    const result = await Swal.fire({
+      title: '¿Revocar sesión?',
+      text: 'Esta acción revocará la sesión seleccionada. ¿Deseas continuar?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, revocar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+      focusCancel: true
+    });
+
+    if (!result.isConfirmed) return;
+
     setRevoking(prev => new Set(prev).add(sessionId));
     try {
       await onRevokeSession(sessionId);

@@ -11,6 +11,11 @@ public static class ClientIdentifiers
     public const string WebApp = "web";
 
     /// <summary>
+    /// Mobile application client identifier
+    /// </summary>
+    public const string MobileApp = "mobile";
+
+    /// <summary>
     /// Sensor service client identifier
     /// </summary>
     public const string SensorService = "sensor-service";

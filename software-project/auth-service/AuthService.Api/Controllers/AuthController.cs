@@ -40,6 +40,7 @@ public class AuthController : ControllerBase
         var command = new LoginCommand(
             dto.Email,
             dto.Password,
+            dto.ClientId,
             dto.SessionId,
             dto.IpAddress ?? HttpContext.Connection.RemoteIpAddress?.ToString(),
             dto.UserAgent ?? HttpContext.Request.Headers.UserAgent.ToString(),

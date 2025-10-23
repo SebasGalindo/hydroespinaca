@@ -6,6 +6,7 @@ namespace AuthService.Application.Features.Authentication.Commands.Login;
 public record LoginCommand(
     string Email,
     string Password,
+    string? ClientId = null,
     string? SessionId = null,
     string? IpAddress = null,
     string? UserAgent = null,

@@ -95,10 +95,15 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
         // Generate SessionId if not provided by BFF
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString("N");
 
+        // Use ClientId from request, default to WebApp if not provided for backward compatibility
+        var clientId = !string.IsNullOrWhiteSpace(request.ClientId)
+            ? request.ClientId
+            : HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp;
+
         // Create user session
         await _sessionService.CreateSessionAsync(
             user.Id,
-            HydroEspinaca.Shared.Constants.ClientIdentifiers.WebApp,
+            clientId,
             sessionId,
             tokens.RefreshToken,
             tokens.AccessToken,

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using BffService.Application.Interfaces;
 using BffService.Domain.Constants;
 using HydroEspinaca.Shared.DTOs.Authentication;
+using HydroEspinaca.Shared.Constants;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using BffService.Application.DTOs;
@@ -31,10 +32,11 @@ public class AuthController : ControllerBase
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
         var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
 
-        // Enrich the request with client information
+        // Enrich the request with client information and web clientId
         var enrichedRequest = new LoginRequestDto(
             request.Email,
             request.Password,
+            ClientIdentifiers.WebApp,
             request.SessionId,
             ipAddress,
             userAgent,
@@ -86,10 +88,11 @@ public class AuthController : ControllerBase
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
         var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
 
-        // Enrich the request with client information
+        // Enrich the request with client information and mobile clientId
         var enrichedRequest = new LoginRequestDto(
             request.Email,
             request.Password,
+            ClientIdentifiers.MobileApp,
             request.SessionId,
             ipAddress,
             userAgent,

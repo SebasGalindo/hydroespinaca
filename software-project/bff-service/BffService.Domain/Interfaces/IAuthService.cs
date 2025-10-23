@@ -7,6 +7,7 @@ public interface IAuthService
     Task<AuthenticationResult> LoginAsync(
         string email,
         string password,
+        string? clientId = null,
         string? sessionId = null,
         string? csrfToken = null,
         string? ipAddress = null,
