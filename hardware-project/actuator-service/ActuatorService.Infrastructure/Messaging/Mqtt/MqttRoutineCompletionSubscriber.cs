@@ -76,49 +76,50 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
         {
             _logger.LogDebug("📨 Received command completion on topic: {Topic}", topic);
 
-            var completion = JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase);
+            // Try to detect if this is a batch or individual completion
+            // Batch format: { "completions": [ {...}, {...} ] }
+            // Individual format: { "esp32Id": "...", "commandId": "...", "status": "..." }
 
-            if (completion == null)
-            {
-                _logger.LogWarning("⚠️ Received null completion data from topic: {Topic}", topic);
-                return;
-            }
+            List<RoutineCompletionDto> completions;
 
-            _logger.LogDebug("📦 Received command completion: CommandId={CommandId}, Status={Status}",
-                completion.CommandId, completion.Status);
-
-            // 1. Process command completion in memory (releases pin, updates state, activates pending)
+            // Try to deserialize as batch first
             try
             {
-                await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
+                var batch = JsonSerializer.Deserialize<RoutineCompletionBatchDto>(payload, JsonConstants.SerializerOptions.CamelCase);
+                if (batch?.Completions != null && batch.Completions.Count > 0)
+                {
+                    completions = batch.Completions;
+                    _logger.LogInformation("📦 Received BATCH completion with {Count} commands", completions.Count);
+                }
+                else
+                {
+                    // Not a batch, try individual
+                    var singleCompletion = JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase);
+                    if (singleCompletion == null)
+                    {
+                        _logger.LogWarning("⚠️ Received null completion data from topic: {Topic}", topic);
+                        return;
+                    }
+                    completions = new List<RoutineCompletionDto> { singleCompletion };
+                    _logger.LogDebug("📦 Received INDIVIDUAL completion: CommandId={CommandId}", singleCompletion.CommandId);
+                }
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            catch (JsonException)
             {
-                _logger.LogDebug("ℹ️ Command {CommandId} not found in active commands (may be a power OFF command or already processed)",
-                    completion.CommandId);
+                // Fallback: try individual format
+                var singleCompletion = JsonSerializer.Deserialize<RoutineCompletionDto>(payload, JsonConstants.SerializerOptions.CamelCase);
+                if (singleCompletion == null)
+                {
+                    _logger.LogWarning("⚠️ Received null completion data from topic: {Topic}", topic);
+                    return;
+                }
+                completions = new List<RoutineCompletionDto> { singleCompletion };
             }
 
-            // 2. Update database record to FINISHED (if it exists)
-            var routineCommand = await routineCommandRepository.GetByCommandIdAsync(completion.CommandId);
-            if (routineCommand != null)
+            // Process all completions
+            foreach (var completion in completions)
             {
-                // Update status and timestamps
-                routineCommand.StatusGeneral = RoutineCommandStatus.FINISHED;
-                routineCommand.FinishedAt = DateTime.UtcNow;
-
-                // Calculate total duration in seconds
-                var totalDuration = (routineCommand.FinishedAt.Value - routineCommand.CreatedAt).TotalSeconds;
-                routineCommand.TotalDurationSeconds = totalDuration;
-
-                await routineCommandRepository.UpdateAsync(routineCommand);
-
-                _logger.LogInformation("✅ Marked command {CommandId} as FINISHED at {FinishedAt} - Total duration: {Duration}s - Firmware status: {FirmwareStatus}",
-                    completion.CommandId, routineCommand.FinishedAt, totalDuration, completion.Status);
-            }
-            else
-            {
-                _logger.LogDebug("ℹ️ Command {CommandId} not found in database (likely a power OFF command)",
-                    completion.CommandId);
+                await ProcessSingleCompletionAsync(completion, commandExecutionService, routineCommandRepository);
             }
         }
         catch (JsonException ex)
@@ -128,6 +129,49 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Error processing command completion from topic: {Topic}", topic);
+        }
+    }
+
+    private async Task ProcessSingleCompletionAsync(
+        RoutineCompletionDto completion,
+        ICommandExecutionService commandExecutionService,
+        IRoutineCommandRepository routineCommandRepository)
+    {
+        _logger.LogDebug("📦 Processing completion: CommandId={CommandId}, Status={Status}",
+            completion.CommandId, completion.Status);
+
+        // 1. Process command completion in memory (releases pin, updates state, activates pending)
+        try
+        {
+            await commandExecutionService.OnCommandCompletedAsync(completion.CommandId);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            _logger.LogDebug("ℹ️ Command {CommandId} not found in active commands (may be a power OFF command or already processed)",
+                completion.CommandId);
+        }
+
+        // 2. Update database record to FINISHED (if it exists)
+        var routineCommand = await routineCommandRepository.GetByCommandIdAsync(completion.CommandId);
+        if (routineCommand != null)
+        {
+            // Update status and timestamps
+            routineCommand.StatusGeneral = RoutineCommandStatus.FINISHED;
+            routineCommand.FinishedAt = DateTime.UtcNow;
+
+            // Calculate total duration in seconds
+            var totalDuration = (routineCommand.FinishedAt.Value - routineCommand.CreatedAt).TotalSeconds;
+            routineCommand.TotalDurationSeconds = totalDuration;
+
+            await routineCommandRepository.UpdateAsync(routineCommand);
+
+            _logger.LogInformation("✅ Marked command {CommandId} as FINISHED at {FinishedAt} - Total duration: {Duration}s - Firmware status: {FirmwareStatus}",
+                completion.CommandId, routineCommand.FinishedAt, totalDuration, completion.Status);
+        }
+        else
+        {
+            _logger.LogDebug("ℹ️ Command {CommandId} not found in database (likely a power OFF command)",
+                completion.CommandId);
         }
     }
 }

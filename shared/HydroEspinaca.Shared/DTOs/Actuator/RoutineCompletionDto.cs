@@ -15,3 +15,12 @@ public class RoutineCompletionDto
     /// </summary>
     public string Status { get; set; } = default!;
 }
+
+/// <summary>
+/// Represents a batch of command completions from the firmware via MQTT.
+/// Used when multiple commands complete simultaneously (e.g., multiple OFF commands).
+/// </summary>
+public class RoutineCompletionBatchDto
+{
+    public List<RoutineCompletionDto> Completions { get; set; } = new();
+}
