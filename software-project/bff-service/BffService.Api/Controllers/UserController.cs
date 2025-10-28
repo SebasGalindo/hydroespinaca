@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using BffService.Application.Interfaces;
-using BffService.Domain.Exceptions;
 using BffService.Domain.Interfaces;
+using BffService.Api.Controllers.Base;
 using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace BffService.Api.Controllers;
@@ -10,7 +10,7 @@ namespace BffService.Api.Controllers;
 [ApiController]
 [Route("users")]
 [AllowAnonymous] // We'll validate session and role manually
-public class UserController : BaseAuthenticatedController
+public class UserController : CrudControllerBase
 {
     private readonly IAuthServiceClient _authServiceClient;
 
@@ -33,32 +33,10 @@ public class UserController : BaseAuthenticatedController
     [ProducesResponseType(500)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        try
-        {
-            var session = await ValidateSessionAsync(cancellationToken);
-            var users = await _authServiceClient.GetAllUsersAsync(session.AccessToken, cancellationToken);
-            return Ok(users);
-        }
-        catch (SessionNotFoundException ex)
-        {
-            Logger.LogWarning(ex, "Session not found");
-            return Unauthorized(new { message = "Session not found" });
-        }
-        catch (SessionExpiredException ex)
-        {
-            Logger.LogWarning(ex, "Session expired");
-            return Unauthorized(new { message = "Session expired, please login again" });
-        }
-        catch (InvalidTokenException ex)
-        {
-            Logger.LogWarning(ex, "Invalid or revoked token");
-            return Unauthorized(new { message = "Session is no longer valid, please login again" });
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error getting users");
-            return StatusCode(500, new { message = "Internal server error" });
-        }
+        return await ExecuteAuthenticatedAsync(
+            _authServiceClient.GetAllUsersAsync,
+            "getting users",
+            cancellationToken);
     }
 
     /// <summary>
@@ -71,35 +49,12 @@ public class UserController : BaseAuthenticatedController
     [ProducesResponseType(500)]
     public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
     {
-        try
-        {
-            var session = await ValidateSessionAsync(cancellationToken);
-            var user = await _authServiceClient.GetUserByIdAsync(id, session.AccessToken, cancellationToken);
-            if (user == null)
-                return NotFound(new { message = "User not found" });
-
-            return Ok(user);
-        }
-        catch (SessionNotFoundException ex)
-        {
-            Logger.LogWarning(ex, "Session not found");
-            return Unauthorized(new { message = "Session not found" });
-        }
-        catch (SessionExpiredException ex)
-        {
-            Logger.LogWarning(ex, "Session expired");
-            return Unauthorized(new { message = "Session expired, please login again" });
-        }
-        catch (InvalidTokenException ex)
-        {
-            Logger.LogWarning(ex, "Invalid or revoked token");
-            return Unauthorized(new { message = "Session is no longer valid, please login again" });
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error getting user {UserId}", id);
-            return StatusCode(500, new { message = "Internal server error" });
-        }
+        return await ExecuteAuthenticatedWithIdAsync(
+            id,
+            _authServiceClient.GetUserByIdAsync,
+            "getting user",
+            cancellationToken,
+            result => HandleNullResult(result, "User"));
     }
 
     /// <summary>
@@ -112,37 +67,12 @@ public class UserController : BaseAuthenticatedController
     [ProducesResponseType(500)]
     public async Task<IActionResult> Create([FromBody] UserCreateDto request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var session = await ValidateSessionAsync(cancellationToken);
-            var user = await _authServiceClient.CreateUserAsync(request, session.AccessToken, cancellationToken);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
-        catch (SessionNotFoundException ex)
-        {
-            Logger.LogWarning(ex, "Session not found");
-            return Unauthorized(new { message = "Session not found" });
-        }
-        catch (SessionExpiredException ex)
-        {
-            Logger.LogWarning(ex, "Session expired");
-            return Unauthorized(new { message = "Session expired, please login again" });
-        }
-        catch (InvalidTokenException ex)
-        {
-            Logger.LogWarning(ex, "Invalid or revoked token");
-            return Unauthorized(new { message = "Session is no longer valid, please login again" });
-        }
-        catch (HttpRequestException ex)
-        {
-            Logger.LogWarning(ex, "Error from auth service creating user");
-            return BadRequest(new { message = "Failed to create user" });
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error creating user");
-            return StatusCode(500, new { message = "Internal server error" });
-        }
+        return await ExecuteAuthenticatedWithBodyAsync(
+            request,
+            _authServiceClient.CreateUserAsync,
+            "creating user",
+            cancellationToken,
+            result => CreatedResult(nameof(GetById), new { id = result.Id }, result));
     }
 
     /// <summary>
@@ -156,37 +86,12 @@ public class UserController : BaseAuthenticatedController
     [ProducesResponseType(500)]
     public async Task<IActionResult> Update(string id, [FromBody] UserUpdateDto request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var session = await ValidateSessionAsync(cancellationToken);
-            var user = await _authServiceClient.UpdateUserAsync(id, request, session.AccessToken, cancellationToken);
-            return Ok(user);
-        }
-        catch (SessionNotFoundException ex)
-        {
-            Logger.LogWarning(ex, "Session not found");
-            return Unauthorized(new { message = "Session not found" });
-        }
-        catch (SessionExpiredException ex)
-        {
-            Logger.LogWarning(ex, "Session expired");
-            return Unauthorized(new { message = "Session expired, please login again" });
-        }
-        catch (InvalidTokenException ex)
-        {
-            Logger.LogWarning(ex, "Invalid or revoked token");
-            return Unauthorized(new { message = "Session is no longer valid, please login again" });
-        }
-        catch (HttpRequestException ex)
-        {
-            Logger.LogWarning(ex, "Error from auth service updating user");
-            return BadRequest(new { message = "Failed to update user" });
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error updating user {UserId}", id);
-            return StatusCode(500, new { message = "Internal server error" });
-        }
+        return await ExecuteAuthenticatedWithIdAndBodyAsync(
+            id,
+            request,
+            _authServiceClient.UpdateUserAsync,
+            "updating user",
+            cancellationToken);
     }
 
     /// <summary>
@@ -194,6 +99,7 @@ public class UserController : BaseAuthenticatedController
     /// </summary>
     [HttpDelete("{id}")]
     [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
     [ProducesResponseType(500)]
@@ -202,33 +108,25 @@ public class UserController : BaseAuthenticatedController
         try
         {
             var session = await ValidateSessionAsync(cancellationToken);
+
+            // Prevent self-deletion
+            if (session.UserId == id)
+            {
+                Logger.LogWarning("User {UserId} attempted to delete themselves", id);
+                return BadRequest(new { message = "No puedes eliminar tu propia cuenta de usuario" });
+            }
+
             await _authServiceClient.DeleteUserAsync(id, session.AccessToken, cancellationToken);
             return NoContent();
         }
-        catch (SessionNotFoundException ex)
-        {
-            Logger.LogWarning(ex, "Session not found");
-            return Unauthorized(new { message = "Session not found" });
-        }
-        catch (SessionExpiredException ex)
-        {
-            Logger.LogWarning(ex, "Session expired");
-            return Unauthorized(new { message = "Session expired, please login again" });
-        }
-        catch (InvalidTokenException ex)
-        {
-            Logger.LogWarning(ex, "Invalid or revoked token");
-            return Unauthorized(new { message = "Session is no longer valid, please login again" });
-        }
-        catch (HttpRequestException ex)
-        {
-            Logger.LogWarning(ex, "Error from auth service deleting user");
-            return NotFound(new { message = "User not found" });
-        }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error deleting user {UserId}", id);
-            return StatusCode(500, new { message = "Internal server error" });
+            return BffService.Api.Helpers.ControllerExceptionHandler.HandleException(
+                ex,
+                Logger,
+                "deleting user",
+                id,
+                HttpContext);
         }
     }
 }

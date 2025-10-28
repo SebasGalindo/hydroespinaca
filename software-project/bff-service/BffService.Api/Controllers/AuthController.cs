@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using BffService.Application.Interfaces;
 using BffService.Domain.Constants;
+using BffService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using HydroEspinaca.Shared.Constants;
 using Microsoft.Extensions.Configuration;
@@ -14,14 +15,38 @@ namespace BffService.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ISessionService _sessionService;
+    private readonly ISessionTokenService _sessionTokenService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public AuthController(ISessionService sessionService, IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(
+        ISessionService sessionService,
+        ISessionTokenService sessionTokenService,
+        IConfiguration configuration,
+        ILogger<AuthController> logger,
+        IWebHostEnvironment environment)
     {
         _sessionService = sessionService;
+        _sessionTokenService = sessionTokenService;
         _configuration = configuration;
         _logger = logger;
+        _environment = environment;
+    }
+
+    /// <summary>
+    /// Ensures Secure flag is true in production for cookie security.
+    /// SonarQube rule S2092: Cookies should be "secure" in production deployments.
+    /// </summary>
+    private bool GetSecureCookieSetting()
+    {
+        // In production, always use Secure cookies (HTTPS only)
+        if (_environment.IsProduction())
+        {
+            return true;
+        }
+        // In development, allow configuration override for local testing
+        return _configuration.GetValue<bool>("Cookies:Secure", true);
     }
 
     [AllowAnonymous]
@@ -45,12 +70,11 @@ public class AuthController : ControllerBase
 
         var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
 
-        // Configure cookie options from appsettings
-        // Cookies expire at the same time as the refresh token (fixed session, not rolling)
+        // Set cookies for web clients with SessionId in HttpOnly cookie
         var sessionCookieOptions = new CookieOptions
         {
-            HttpOnly = true, // SessionId should be HttpOnly for security
-            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            HttpOnly = true, // SessionId must be HttpOnly for security
+            Secure = GetSecureCookieSetting(), // Ensures Secure=true in production (S2092)
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
             Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
@@ -59,13 +83,11 @@ public class AuthController : ControllerBase
         var csrfCookieOptions = new CookieOptions
         {
             HttpOnly = false, // CSRF token needs to be accessible by JavaScript
-            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            Secure = GetSecureCookieSetting(), // Ensures Secure=true in production (S2092)
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
             Expires = DateTimeOffset.UtcNow.AddDays(_configuration.GetValue<int>("Sessions:RefreshTokenExpiryDays", 7))
-        };
-
-        // Only set domain if configured
+        };        // Only set domain if configured
         var domain = _configuration.GetValue<string>("Cookies:Domain");
         if (!string.IsNullOrEmpty(domain))
         {
@@ -160,7 +182,7 @@ public class AuthController : ControllerBase
         var sessionCookieOptions = new CookieOptions
         {
             HttpOnly = true, // SessionId is HttpOnly
-            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            Secure = GetSecureCookieSetting(), // Ensures Secure=true in production (S2092)
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
             Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
@@ -169,7 +191,7 @@ public class AuthController : ControllerBase
         var csrfCookieOptions = new CookieOptions
         {
             HttpOnly = false, // CsrfToken is NOT HttpOnly
-            Secure = _configuration.GetValue<bool>("Cookies:Secure", true),
+            Secure = GetSecureCookieSetting(), // Ensures Secure=true in production (S2092)
             SameSite = Enum.Parse<SameSiteMode>(_configuration.GetValue<string>("Cookies:SameSite", "Strict")),
             Path = "/",
             Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past to delete
@@ -204,54 +226,73 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("session")]
-    public async Task<ActionResult<UserSessionDto>> GetCurrentSession(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetCurrentSession(CancellationToken cancellationToken)
     {
-        string? sessionId = null;
-        
-        // For web: try to read SessionId from HttpOnly cookie first
+        try
+        {
+            string? sessionId = null;
+
+            // For web: try to read SessionId from HttpOnly cookie first
+            if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
+            {
+                sessionId = cookieSessionId;
+            }
+            // For mobile: try to read from headers
+            else
+            {
+                var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+                if (Request.Headers.TryGetValue(sessionIdHeader, out var headerSessionId))
+                {
+                    sessionId = headerSessionId.FirstOrDefault();
+                }
+            }
+
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized(new { message = "No active session" });
+            }
+
+            // Validate session and auto-refresh tokens if needed
+            var session = await _sessionTokenService.GetSessionWithValidTokensAsync(sessionId, cancellationToken);
+
+            // Format role: remove "role_" prefix if present and capitalize
+            var formattedRole = FormatRole(session.UserRole ?? "user");
+
+            // Return user information for frontend
+            return Ok(new UserSessionDto(
+                session.UserId ?? "",
+                session.SessionId,
+                session.Username ?? "Usuario",
+                session.Email ?? "",
+                formattedRole
+            ));
+        }
+        catch (Exception ex)
+        {
+            var sessionId = GetSessionIdFromRequest();
+            return BffService.Api.Helpers.ControllerExceptionHandler.HandleException(
+                ex,
+                _logger,
+                "checking session",
+                sessionId,
+                HttpContext);
+        }
+    }
+
+    private string? GetSessionIdFromRequest()
+    {
         if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
         {
-            sessionId = cookieSessionId;
+            return cookieSessionId;
         }
-        // For mobile: try to read from headers
-        else
+
+        var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+        if (Request.Headers.TryGetValue(sessionIdHeader, out var headerSessionId))
         {
-            var sessionIdHeader = _configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-            if (Request.Headers.TryGetValue(sessionIdHeader, out var headerSessionId))
-            {
-                sessionId = headerSessionId.FirstOrDefault();
-            }
-        }
-        
-        if (string.IsNullOrEmpty(sessionId))
-        {
-            return Unauthorized(new { message = "No active session" });
+            return headerSessionId.FirstOrDefault();
         }
 
-        var sessionInfo = await _sessionService.GetSessionInfoAsync(sessionId, cancellationToken);
-        
-        if (sessionInfo == null || !sessionInfo.IsValid)
-        {
-            return Unauthorized(new { message = "Invalid or expired session" });
-        }
-
-        // Get full session to access username and email
-        var fullSession = await _sessionService.GetFullSessionAsync(sessionId, cancellationToken);
-
-        if (fullSession == null)
-        {
-            return Unauthorized(new { message = "Session not found" });
-        }
-
-        // Format role: remove "role_" prefix if present and capitalize
-        var formattedRole = FormatRole(fullSession.UserRole ?? sessionInfo.UserRole);
-
-        // Return user information for frontend
-        return Ok(new UserSessionDto(
-            fullSession.Username ?? "Usuario",
-            fullSession.Email ?? "",
-            formattedRole
-        ));
+        return null;
     }
 
     private static string FormatRole(string role)

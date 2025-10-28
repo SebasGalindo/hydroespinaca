@@ -23,14 +23,12 @@ public class SessionValidationService
         }
     }
 
+    /// <summary>
+    /// Checks if the session requires token refresh.
+    /// Uses proactive refresh strategy: refreshes 30 seconds before expiration.
+    /// </summary>
     public bool RequiresRefresh(Session session)
     {
-        if (session.IsExpired())
-        {
-            return session.CanRefresh();
-        }
-
-        var timeToExpiry = session.ExpiresAt - DateTime.UtcNow;
-        return timeToExpiry.TotalMinutes < 15 && session.CanRefresh();
+        return session.IsExpiringSoon() && session.CanRefresh();
     }
 }

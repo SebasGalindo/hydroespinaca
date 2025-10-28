@@ -66,6 +66,7 @@ public class SessionController : BaseAuthenticatedController
     /// </summary>
     [HttpDelete("{sessionId}")]
     [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
     [ProducesResponseType(500)]
@@ -74,6 +75,14 @@ public class SessionController : BaseAuthenticatedController
         try
         {
             var session = await ValidateSessionAsync(cancellationToken);
+
+            // Prevent revoking own active session
+            if (session.SessionId == sessionId)
+            {
+                Logger.LogWarning("User with session {SessionId} attempted to revoke their own active session", sessionId);
+                return BadRequest(new { message = "No puedes revocar tu propia sesión activa" });
+            }
+
             await _authServiceClient.RevokeSessionAsync(sessionId, session.AccessToken, cancellationToken);
             return Ok(new { message = "Session revoked successfully" });
         }

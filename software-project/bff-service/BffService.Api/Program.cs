@@ -46,6 +46,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program { } // For integration tests

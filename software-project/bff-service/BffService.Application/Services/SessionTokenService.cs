@@ -48,19 +48,19 @@ public class SessionTokenService : ISessionTokenService
                 throw new SessionNotFoundException(sessionId);
             }
 
-            // Check if the access token is expired and needs refreshing
-            if (session.IsExpired())
+            // Check if the access token is expired or expiring soon (proactive refresh)
+            if (session.IsExpiringSoon())
             {
                 if (!session.CanRefresh())
                 {
-                    _logger.LogWarning("Session expired and cannot be refreshed: {SessionId}", sessionId);
+                    _logger.LogWarning("Session expired/expiring and cannot be refreshed: {SessionId}", sessionId);
                     throw new SessionExpiredException(sessionId);
                 }
 
                 // Get or create a semaphore for this session to prevent concurrent refresh operations
                 var semaphore = _refreshLocks.GetOrAdd(sessionId, _ => new SemaphoreSlim(1, 1));
 
-                _logger.LogDebug("Acquiring lock for token refresh: {SessionId}", sessionId);
+                _logger.LogDebug("Acquiring lock for token refresh (proactive): {SessionId}", sessionId);
 
                 // Wait for exclusive access to refresh this session's token
                 await semaphore.WaitAsync(cancellationToken);
@@ -78,16 +78,17 @@ public class SessionTokenService : ISessionTokenService
                         throw new SessionNotFoundException(sessionId);
                     }
 
-                    // Double-check: only refresh if still expired
-                    if (session.IsExpired())
+                    // Double-check: only refresh if still expiring soon (another thread might have already refreshed it)
+                    if (session.IsExpiringSoon())
                     {
                         if (!session.CanRefresh())
                         {
-                            _logger.LogWarning("Session expired and cannot be refreshed after lock: {SessionId}", sessionId);
+                            _logger.LogWarning("Session expired/expiring and cannot be refreshed after lock: {SessionId}", sessionId);
                             throw new SessionExpiredException(sessionId);
                         }
 
-                        _logger.LogInformation("Refreshing expired token for session: {SessionId}", sessionId);
+                        var timeToExpiry = session.ExpiresAt - DateTime.UtcNow;
+                        _logger.LogInformation("Refreshing token for session: {SessionId} (expires in {Seconds}s)", sessionId, timeToExpiry.TotalSeconds);
 
                         try
                         {
@@ -148,7 +149,21 @@ public class SessionTokenService : ISessionTokenService
 
             return session;
         }
-        catch (Exception ex) when (ex is not SessionNotFoundException && ex is not SessionExpiredException && ex is not InvalidTokenException)
+        catch (SessionExpiredException)
+        {
+            // Session has truly expired (7 days from login), remove from cache
+            _logger.LogWarning("Session {SessionId} expired and cannot be refreshed, removing from cache", sessionId);
+            try
+            {
+                await _sessionService.DeleteSessionAsync(sessionId, cancellationToken);
+            }
+            catch (Exception deleteEx)
+            {
+                _logger.LogError(deleteEx, "Failed to delete expired session {SessionId} from cache", sessionId);
+            }
+            throw; // Re-throw to trigger cookie cleanup in controller
+        }
+        catch (Exception ex) when (ex is not SessionNotFoundException && ex is not InvalidTokenException)
         {
             _logger.LogError(ex, "Error validating session tokens for {SessionId}", sessionId);
             throw;

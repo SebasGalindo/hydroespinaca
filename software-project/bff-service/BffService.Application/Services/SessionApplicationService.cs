@@ -185,6 +185,12 @@ public class SessionApplicationService : ISessionService
         _logger.LogDebug("Session updated: {SessionId}", session.SessionId);
     }
 
+    public async Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        await _sessionRepository.DeleteAsync(sessionId, cancellationToken);
+        _logger.LogInformation("Session deleted: {SessionId}", sessionId);
+    }
+
     private static string GenerateSessionId()
     {
         return Guid.NewGuid().ToString("N");

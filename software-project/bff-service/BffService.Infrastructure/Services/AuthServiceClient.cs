@@ -1,6 +1,8 @@
 using BffService.Application.Interfaces;
 using BffService.Domain.Constants;
+using BffService.Domain.Exceptions;
 using HydroEspinaca.Shared.DTOs.Authentication;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
@@ -29,6 +31,84 @@ public class AuthServiceClient : IAuthServiceClient
         _logger = logger;
         _authServiceUrl = _configuration[BffConstants.Auth.AuthServiceUrlConfigKey]
             ?? throw new InvalidOperationException("AuthServiceUrl not configured");
+    }
+
+    /// <summary>
+    /// Ensures the HTTP response is successful, otherwise extracts and throws a ServiceException with the error message
+    /// </summary>
+    private async Task EnsureSuccessWithDetailAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var statusCode = (int)response.StatusCode;
+        string errorMessage = "Request failed";
+
+        try
+        {
+            var contentType = response.Content.Headers.ContentType?.MediaType;
+
+            if (contentType?.Contains("application/problem+json") == true || contentType?.Contains("application/json") == true)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                // Try to parse as ValidationProblemDetails first
+                try
+                {
+                    var validationProblem = JsonSerializer.Deserialize<ValidationProblemDetails>(errorContent, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (validationProblem?.Errors != null && validationProblem.Errors.Count > 0)
+                    {
+                        // Combine all validation errors into a readable message
+                        var errorMessages = validationProblem.Errors
+                            .SelectMany(kvp => kvp.Value.Select(v => $"{kvp.Key}: {v}"))
+                            .ToList();
+
+                        errorMessage = string.Join(". ", errorMessages);
+                        throw new ServiceException(errorMessage, statusCode);
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Not a ValidationProblemDetails, try regular ProblemDetails
+                }
+
+                // Try to parse as ProblemDetails
+                var problemDetails = JsonSerializer.Deserialize<ProblemDetails>(errorContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                errorMessage = problemDetails?.Detail ?? problemDetails?.Title ?? errorMessage;
+            }
+            else
+            {
+                errorMessage = await response.Content.ReadAsStringAsync(cancellationToken);
+            }
+        }
+        catch (ServiceException)
+        {
+            // Re-throw ServiceException from validation handling
+            throw;
+        }
+        catch
+        {
+            // If we can't extract the message, use a default based on status code
+            errorMessage = statusCode switch
+            {
+                400 => "Bad request",
+                401 => "Unauthorized",
+                403 => "Forbidden",
+                404 => "Resource not found",
+                409 => "Conflict",
+                _ => $"Request failed with status {statusCode}"
+            };
+        }
+
+        throw new ServiceException(errorMessage, statusCode);
     }
 
     #region User Operations
@@ -83,7 +163,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PostAsJsonAsync($"{_authServiceUrl}/api/users", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var user = await response.Content.ReadFromJsonAsync<UserResponseDto>(cancellationToken: cancellationToken);
             return user ?? throw new InvalidOperationException("Failed to create user");
@@ -103,7 +183,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PutAsJsonAsync($"{_authServiceUrl}/api/users/{id}", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var user = await response.Content.ReadFromJsonAsync<UserResponseDto>(cancellationToken: cancellationToken);
             return user ?? throw new InvalidOperationException("Failed to update user");
@@ -123,7 +203,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.DeleteAsync($"{_authServiceUrl}/api/users/{id}", cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -186,7 +266,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PostAsJsonAsync($"{_authServiceUrl}/api/roles", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var role = await response.Content.ReadFromJsonAsync<RoleResponseDto>(cancellationToken: cancellationToken);
             return role ?? throw new InvalidOperationException("Failed to create role");
@@ -206,7 +286,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PutAsJsonAsync($"{_authServiceUrl}/api/roles/{code}", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var role = await response.Content.ReadFromJsonAsync<RoleResponseDto>(cancellationToken: cancellationToken);
             return role ?? throw new InvalidOperationException("Failed to update role");
@@ -226,7 +306,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.DeleteAsync($"{_authServiceUrl}/api/roles/{code}", cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -309,7 +389,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PostAsJsonAsync($"{_authServiceUrl}/api/permissions", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var permission = await response.Content.ReadFromJsonAsync<PermissionResponseDto>(cancellationToken: cancellationToken);
             return permission ?? throw new InvalidOperationException("Failed to create permission");
@@ -329,7 +409,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.PutAsJsonAsync($"{_authServiceUrl}/api/permissions/{code}", request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
 
             var permission = await response.Content.ReadFromJsonAsync<PermissionResponseDto>(cancellationToken: cancellationToken);
             return permission ?? throw new InvalidOperationException("Failed to update permission");
@@ -349,7 +429,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.DeleteAsync($"{_authServiceUrl}/api/permissions/{code}", cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -390,7 +470,7 @@ public class AuthServiceClient : IAuthServiceClient
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await _httpClient.DeleteAsync($"{_authServiceUrl}/api/sessions/{sessionId}", cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessWithDetailAsync(response, cancellationToken);
         }
         catch (Exception ex)
         {

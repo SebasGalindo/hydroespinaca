@@ -19,7 +19,6 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly string _authServiceUrl;
     private readonly string _clientId;
-    private readonly string _clientSecret;
 
     public AuthService(HttpClient httpClient, IConfiguration configuration, ILogger<AuthService> logger)
     {
@@ -30,8 +29,6 @@ public class AuthService : IAuthService
             ?? throw new InvalidOperationException("AuthServiceUrl not configured");
         _clientId = _configuration[BffConstants.Auth.ClientIdConfigKey] 
             ?? throw new InvalidOperationException("ClientId not configured");
-        _clientSecret = _configuration[BffConstants.Auth.ClientSecretConfigKey] 
-            ?? throw new InvalidOperationException("ClientSecret not configured");
     }
 
     public async Task<AuthenticationResult> LoginAsync(

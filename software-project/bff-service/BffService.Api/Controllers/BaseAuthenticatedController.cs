@@ -35,19 +35,7 @@ public abstract class BaseAuthenticatedController : ControllerBase
     /// <exception cref="SessionExpiredException">Session has expired</exception>
     protected async Task<Domain.Entities.Session> ValidateSessionAsync(CancellationToken cancellationToken)
     {
-        var sessionIdHeaderKey = Configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
-        string? sessionId = null;
-
-        // Try to read from cookie (web)
-        if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
-        {
-            sessionId = cookieSessionId;
-        }
-        // Fallback to header (mobile or external clients)
-        else if (Request.Headers.TryGetValue(sessionIdHeaderKey, out var headerSessionId))
-        {
-            sessionId = headerSessionId.FirstOrDefault();
-        }
+        var sessionId = GetSessionIdFromRequest();
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -56,5 +44,29 @@ public abstract class BaseAuthenticatedController : ControllerBase
 
         // Ensure we have a valid access token (refresh if needed)
         return await SessionTokenService.GetSessionWithValidTokensAsync(sessionId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Extracts session ID from the current request (cookie or header).
+    /// Returns null if not found.
+    /// </summary>
+    /// <returns>Session ID or null</returns>
+    protected string? GetSessionIdFromRequest()
+    {
+        var sessionIdHeaderKey = Configuration[BffConstants.Sessions.SessionIdHeaderConfigKey] ?? "X-Session-Id";
+
+        // Try to read from cookie (web)
+        if (Request.Cookies.TryGetValue("SessionId", out var cookieSessionId))
+        {
+            return cookieSessionId;
+        }
+
+        // Fallback to header (mobile or external clients)
+        if (Request.Headers.TryGetValue(sessionIdHeaderKey, out var headerSessionId))
+        {
+            return headerSessionId.FirstOrDefault();
+        }
+
+        return null;
     }
 }

@@ -35,3 +35,18 @@ public class ProxyException : ServiceUnavailableException
     {
     }
 }
+
+public class ServiceException : DomainException
+{
+    public int StatusCode { get; }
+
+    public ServiceException(string message, int statusCode) : base(message)
+    {
+        StatusCode = statusCode;
+    }
+
+    public ServiceException(string message, int statusCode, Exception innerException) : base(message, innerException)
+    {
+        StatusCode = statusCode;
+    }
+}

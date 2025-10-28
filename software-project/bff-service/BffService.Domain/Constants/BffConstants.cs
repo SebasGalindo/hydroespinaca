@@ -33,7 +33,7 @@ public static class BffConstants
             
         }
 
-        public static readonly Dictionary<string, string> ServiceRoutes = new()
+        public static readonly IReadOnlyDictionary<string, string> ServiceRoutes = new Dictionary<string, string>
         {
             { "/sensor", Services.SensorService },
             { "/actuator", Services.ActuatorService },
@@ -42,7 +42,7 @@ public static class BffConstants
         };
 
         // API prefixes for each service (added to target URLs)
-        public static readonly Dictionary<string, string> ServiceApiPrefixes = new()
+        public static readonly IReadOnlyDictionary<string, string> ServiceApiPrefixes = new Dictionary<string, string>
         {
             { Services.AuthService, "/api/auth" },
             { Services.SensorService, "/api" },

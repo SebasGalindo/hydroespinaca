@@ -56,6 +56,18 @@ public class Session
         return DateTime.UtcNow >= ExpiresAt;
     }
 
+    /// <summary>
+    /// Checks if the access token is about to expire soon (within 30 seconds).
+    /// Used for proactive token refresh to avoid 401 errors.
+    /// </summary>
+    /// <returns>True if token expires within 30 seconds, false otherwise</returns>
+    public bool IsExpiringSoon()
+    {
+        // Refresh 30 seconds before actual expiration to prevent 401 errors
+        var bufferTime = TimeSpan.FromSeconds(30);
+        return DateTime.UtcNow >= ExpiresAt.Subtract(bufferTime);
+    }
+
     public bool IsRefreshTokenExpired()
     {
         return RefreshTokenExpiresAt.HasValue && DateTime.UtcNow >= RefreshTokenExpiresAt.Value;

@@ -1,4 +1,5 @@
 using BffService.Application.Interfaces;
+using BffService.Application.Helpers;
 using BffService.Domain.Constants;
 using BffService.Domain.DTOs;
 using BffService.Domain.Interfaces;
@@ -13,9 +14,10 @@ namespace BffService.Application.Services;
 public class AnalyticsService : IAnalyticsService
 {
     private readonly IProxyService _proxyService;
-    private readonly IMemoryCache _cache;
     private readonly ILogger<AnalyticsService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly AnalyticsCacheHelper<EnvironmentalAggregatesResponse> _envCacheHelper;
+    private readonly AnalyticsCacheHelper<ActuatorAnalyticsResponse> _actuatorCacheHelper;
     private static readonly TimeSpan CacheTTL = TimeSpan.FromMinutes(5);
 
     public AnalyticsService(
@@ -24,12 +26,13 @@ public class AnalyticsService : IAnalyticsService
         ILogger<AnalyticsService> logger)
     {
         _proxyService = proxyService;
-        _cache = cache;
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         };
+        _envCacheHelper = new AnalyticsCacheHelper<EnvironmentalAggregatesResponse>(cache, logger, CacheTTL);
+        _actuatorCacheHelper = new AnalyticsCacheHelper<ActuatorAnalyticsResponse>(cache, logger, CacheTTL);
     }
 
     public async Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(
@@ -39,72 +42,31 @@ public class AnalyticsService : IAnalyticsService
     {
         var startTime = DateTime.UtcNow;
 
-        // Validate view parameter - only hourly, daily, weekly, monthly allowed
-        var validViews = new[] { "hourly", "daily", "weekly", "monthly" };
-        var viewLower = request.View.ToLower();
-        if (!validViews.Contains(viewLower))
-        {
-            throw new InvalidOperationException($"Vista inválida '{request.View}'. Valores permitidos: {string.Join(", ", validViews)}");
-        }
+        // Validate request parameters using shared validator
+        AnalyticsRequestValidator.ValidateRequest(request.View, request.StartDate, request.EndDate);
 
-        // Validate date range - allow same day for any view
-        if (request.StartDate > request.EndDate)
-        {
-            throw new InvalidOperationException("La fecha inicial no puede ser mayor a la fecha final.");
-        }
-
-        // Validate maximum date range based on view (date comparison only)
-        var daysDifference = (request.EndDate.Date - request.StartDate.Date).Days;
-        var maxDaysAllowed = viewLower switch
-        {
-            "hourly" => 1,    // Max 1 day
-            "daily" => 14,    // Max 14 days
-            "weekly" => 84,   // Max 12 weeks
-            "monthly" => 365, // Max 12 months
-            _ => 14
-        };
-
-        if (daysDifference > maxDaysAllowed)
-        {
-            var viewLabel = viewLower switch
-            {
-                "hourly" => "horaria (máximo 1 día)",
-                "daily" => "diaria (máximo 14 días)",
-                "weekly" => "semanal (máximo 84 días)",
-                "monthly" => "mensual (máximo 365 días)",
-                _ => $"{viewLower} (máximo {maxDaysAllowed} días)"
-            };
-            throw new InvalidOperationException($"Rango de fechas inválido para vista {viewLabel}. Días seleccionados: {daysDifference}");
-        }
-
-        // Generate cache key based on request parameters
-        var cacheKey = $"env_aggregates_{request.StartDate:yyyyMMddHHmmss}_{request.EndDate:yyyyMMddHHmmss}_{request.View.ToLower()}";
+        // Generate cache key
+        var cacheKey = AnalyticsCacheHelper<EnvironmentalAggregatesResponse>.GenerateCacheKey(
+            "env_aggregates", request.StartDate, request.EndDate, request.View);
 
         try
         {
             // Try to get from cache
-            if (_cache.TryGetValue<EnvironmentalAggregatesResponse>(cacheKey, out var cachedResult))
+            if (_envCacheHelper.TryGetCached(cacheKey, out var cachedResult, startTime))
             {
-                var cacheDuration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                _logger.LogInformation(
-                    "✅ Cache hit for environmental aggregates. Duration: {Duration}ms, Key: {CacheKey}",
-                    cacheDuration, cacheKey);
                 return cachedResult!;
             }
 
             _logger.LogInformation(
-                "Cache miss. Requesting environmental aggregates: StartDate={StartDate}, EndDate={EndDate}, View={View}",
+                "Requesting environmental aggregates: StartDate={StartDate}, EndDate={EndDate}, View={View}",
                 request.StartDate, request.EndDate, request.View);
 
+            // Build and send proxy request
             var requestBody = JsonSerializer.Serialize(request, _jsonOptions);
-
             var proxyRequest = new ProxyRequest(
                 "POST",
                 "/aggregates/environmental",
-                new Dictionary<string, string>
-                {
-                    { "Content-Type", "application/json" }
-                },
+                new Dictionary<string, string> { { "Content-Type", "application/json" } },
                 requestBody
             );
 
@@ -115,57 +77,30 @@ public class AnalyticsService : IAnalyticsService
                 cancellationToken
             );
 
-            var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
+            // Handle response using shared helper
+            var result = AnalyticsProxyHelper.HandleProxyResponse(
+                response,
+                _logger,
+                "environmental aggregates",
+                () => new EnvironmentalAggregatesResponse { Variables = new List<EnvironmentalAggregateResponse>() },
+                _jsonOptions,
+                startTime
+            );
 
-            if (response.StatusCode != 200)
-            {
-                _logger.LogWarning(
-                    "Sensor service returned status code {StatusCode} for environmental aggregates. Duration: {Duration}ms",
-                    response.StatusCode, duration);
+            // Cache the result
+            _envCacheHelper.SetCache(
+                cacheKey,
+                result,
+                startTime,
+                r => r.Variables != null && r.Variables.Count > 0
+            );
 
-                // Return empty response or throw exception based on status code
-                if (response.StatusCode == 400)
-                {
-                    throw new InvalidOperationException($"Invalid request: {response.Body}");
-                }
-
-                return new EnvironmentalAggregatesResponse { Variables = new List<EnvironmentalAggregateResponse>() };
-            }
-
-            if (string.IsNullOrEmpty(response.Body))
-            {
-                _logger.LogWarning("Sensor service returned empty body for environmental aggregates");
-                return new EnvironmentalAggregatesResponse { Variables = new List<EnvironmentalAggregateResponse>() };
-            }
-
-            var result = JsonSerializer.Deserialize<EnvironmentalAggregatesResponse>(response.Body, _jsonOptions);
-
-            // Store in cache with TTL
-            if (result != null && result.Variables != null && result.Variables.Any())
-            {
-                _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = CacheTTL
-                });
-
-                _logger.LogInformation(
-                    "Successfully retrieved and cached environmental aggregates. Variables: {Count}, Duration: {Duration}ms, TTL: {TTL}min",
-                    result.Variables.Count, duration, CacheTTL.TotalMinutes);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "Successfully retrieved environmental aggregates (no data to cache). Duration: {Duration}ms",
-                    duration);
-            }
-
-            return result ?? new EnvironmentalAggregatesResponse { Variables = new List<EnvironmentalAggregateResponse>() };
+            return result;
         }
         catch (Exception ex)
         {
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-            _logger.LogError(ex,
-                "Error getting environmental aggregates. Duration: {Duration}ms", duration);
+            _logger.LogError(ex, "Error getting environmental aggregates. Duration: {Duration}ms", duration);
             throw;
         }
     }
@@ -177,48 +112,31 @@ public class AnalyticsService : IAnalyticsService
     {
         var startTime = DateTime.UtcNow;
 
-        // Validate view parameter - only hourly, daily, weekly, monthly allowed
-        var validViews = new[] { "hourly", "daily", "weekly", "monthly" };
-        var viewLower = request.View.ToLower();
-        if (!validViews.Contains(viewLower))
-        {
-            throw new InvalidOperationException($"Vista inválida '{request.View}'. Valores permitidos: {string.Join(", ", validViews)}");
-        }
+        // Validate request parameters using shared validator
+        AnalyticsRequestValidator.ValidateRequest(request.View, request.StartDate, request.EndDate);
 
-        // Validate date range
-        if (request.StartDate > request.EndDate)
-        {
-            throw new InvalidOperationException("La fecha inicial no puede ser mayor a la fecha final.");
-        }
-
-        // Generate cache key based on request parameters
-        var cacheKey = $"actuator_analytics_{request.StartDate:yyyyMMddHHmmss}_{request.EndDate:yyyyMMddHHmmss}_{request.View.ToLower()}";
+        // Generate cache key
+        var cacheKey = AnalyticsCacheHelper<ActuatorAnalyticsResponse>.GenerateCacheKey(
+            "actuator_analytics", request.StartDate, request.EndDate, request.View);
 
         try
         {
             // Try to get from cache
-            if (_cache.TryGetValue<ActuatorAnalyticsResponse>(cacheKey, out var cachedResult))
+            if (_actuatorCacheHelper.TryGetCached(cacheKey, out var cachedResult, startTime))
             {
-                var cacheDuration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                _logger.LogInformation(
-                    "✅ Cache hit for actuator analytics. Duration: {Duration}ms, Key: {CacheKey}",
-                    cacheDuration, cacheKey);
                 return cachedResult!;
             }
 
             _logger.LogInformation(
-                "Cache miss. Requesting actuator analytics: StartDate={StartDate}, EndDate={EndDate}, View={View}",
+                "Requesting actuator analytics: StartDate={StartDate}, EndDate={EndDate}, View={View}",
                 request.StartDate, request.EndDate, request.View);
 
+            // Build and send proxy request
             var requestBody = JsonSerializer.Serialize(request, _jsonOptions);
-
             var proxyRequest = new ProxyRequest(
                 "POST",
                 "/commands/analytics",
-                new Dictionary<string, string>
-                {
-                    { "Content-Type", "application/json" }
-                },
+                new Dictionary<string, string> { { "Content-Type", "application/json" } },
                 requestBody
             );
 
@@ -229,71 +147,35 @@ public class AnalyticsService : IAnalyticsService
                 cancellationToken
             );
 
-            var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-            if (response.StatusCode != 200)
-            {
-                _logger.LogWarning(
-                    "Actuator service returned status code {StatusCode} for actuator analytics. Duration: {Duration}ms",
-                    response.StatusCode, duration);
-
-                if (response.StatusCode == 400)
-                {
-                    throw new InvalidOperationException($"Invalid request: {response.Body}");
-                }
-
-                return new ActuatorAnalyticsResponse
+            // Handle response using shared helper
+            var result = AnalyticsProxyHelper.HandleProxyResponse(
+                response,
+                _logger,
+                "actuator analytics",
+                () => new ActuatorAnalyticsResponse
                 {
                     Timeline = new List<ActuatorTimelineItem>(),
                     TotalDurationByActuator = new List<ActuatorTotalDurationItem>(),
                     ActiveTimeProportion = new List<ActuatorActiveTimeProportionItem>()
-                };
-            }
+                },
+                _jsonOptions,
+                startTime
+            );
 
-            if (string.IsNullOrEmpty(response.Body))
-            {
-                _logger.LogWarning("Actuator service returned empty body for actuator analytics");
-                return new ActuatorAnalyticsResponse
-                {
-                    Timeline = new List<ActuatorTimelineItem>(),
-                    TotalDurationByActuator = new List<ActuatorTotalDurationItem>(),
-                    ActiveTimeProportion = new List<ActuatorActiveTimeProportionItem>()
-                };
-            }
+            // Cache the result
+            _actuatorCacheHelper.SetCache(
+                cacheKey,
+                result,
+                startTime,
+                r => r.Timeline.Count > 0 || r.TotalDurationByActuator.Count > 0
+            );
 
-            var result = JsonSerializer.Deserialize<ActuatorAnalyticsResponse>(response.Body, _jsonOptions);
-
-            // Store in cache with TTL
-            if (result != null && (result.Timeline.Any() || result.TotalDurationByActuator.Any()))
-            {
-                _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = CacheTTL
-                });
-
-                _logger.LogInformation(
-                    "Successfully retrieved and cached actuator analytics. Timeline: {TimelineCount}, Duration: {Duration}ms, TTL: {TTL}min",
-                    result.Timeline.Count, duration, CacheTTL.TotalMinutes);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "Successfully retrieved actuator analytics (no data to cache). Duration: {Duration}ms",
-                    duration);
-            }
-
-            return result ?? new ActuatorAnalyticsResponse
-            {
-                Timeline = new List<ActuatorTimelineItem>(),
-                TotalDurationByActuator = new List<ActuatorTotalDurationItem>(),
-                ActiveTimeProportion = new List<ActuatorActiveTimeProportionItem>()
-            };
+            return result;
         }
         catch (Exception ex)
         {
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-            _logger.LogError(ex,
-                "Error getting actuator analytics. Duration: {Duration}ms", duration);
+            _logger.LogError(ex, "Error getting actuator analytics. Duration: {Duration}ms", duration);
             throw;
         }
     }

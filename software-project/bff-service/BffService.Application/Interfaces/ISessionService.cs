@@ -21,4 +21,9 @@ public interface ISessionService
     /// Updates a session entity (used when tokens are refreshed)
     /// </summary>
     Task UpdateSessionAsync(Session session, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a session from the cache
+    /// </summary>
+    Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default);
 }
