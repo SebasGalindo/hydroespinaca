@@ -1,3 +1,4 @@
+using SensorService.Domain.Entities;
 using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Domain.Interfaces;

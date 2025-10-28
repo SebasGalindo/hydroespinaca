@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using SensorService.Application.UseCases.ProcessReadingBatch;
 using System.Text;
 
+namespace SensorService.Infrastructure.Services;
+
 public class SensorMqttWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;

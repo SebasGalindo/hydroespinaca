@@ -32,9 +32,9 @@ public class MongoSensorAlertRepository : ISensorAlertRepository
         return await _baseRepo.FindManyAsync(filter);
     }
 
-    public async Task UpdateAsync(SensorAlert sensorAlert)
+    public async Task UpdateAsync(SensorAlert alert)
     {
-        await _baseRepo.UpdateAsync(sensorAlert);
+        await _baseRepo.UpdateAsync(alert);
     }
 
     public async Task<SensorAlert?> GetActiveByVariableCodeAsync(string variableCode)

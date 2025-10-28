@@ -2,6 +2,7 @@ using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 using MongoDB.Driver;
+using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 using SensorService.Infrastructure.Persistence.Models;
 

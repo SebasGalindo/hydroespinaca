@@ -18,7 +18,11 @@ public class Esp32StatusMqttWorker : BackgroundService
     
     // Pattern: sensor/{esp32Id}/status
     private const string STATUS_TOPIC_PATTERN = "sensor/+/status";
-    private static readonly Regex TopicRegex = new(@"^sensor/([^/]+)/status$", RegexOptions.Compiled);
+    private static readonly Regex TopicRegex = new(
+        @"^sensor/([^/]+)/status$", 
+        RegexOptions.Compiled, 
+        TimeSpan.FromMilliseconds(100)
+    );
 
     public Esp32StatusMqttWorker(
         IServiceProvider serviceProvider, 

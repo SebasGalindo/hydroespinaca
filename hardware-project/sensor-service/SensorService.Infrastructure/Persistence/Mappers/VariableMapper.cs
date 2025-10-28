@@ -1,4 +1,5 @@
 ﻿using HydroEspinaca.Shared.Mongo.Interfaces;
+using SensorService.Domain.Entities;
 using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;

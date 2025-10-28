@@ -1,6 +1,8 @@
 using HydroEspinaca.Shared.Abstractions;
 using HydroEspinaca.Shared.Enums;
 
+namespace SensorService.Domain.Entities;
+
 public class Variable : IIdentifiableMutable
 {
     public string Id { get; private set; } = default!;

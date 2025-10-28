@@ -4,6 +4,8 @@ using HydroEspinaca.Shared.Extensions;
 using SensorService.Application.DTOs.Alert;
 using SensorService.Application.Interfaces;
 
+namespace SensorService.Api.Controllers;
+
 [ApiController]
 [Route("api/esp32-alerts")]
 public class Esp32AlertController : ControllerBase

@@ -1,4 +1,5 @@
-﻿using HydroEspinaca.Shared.DTOs.Variables;
+﻿using SensorService.Domain.Entities;
+using HydroEspinaca.Shared.DTOs.Variables;
 using HydroEspinaca.Shared.Enums;
 using MongoDB.Driver;
 
