@@ -1,6 +1,8 @@
 ﻿using HydroEspinaca.Shared.DTOs.Actuator;
 using FluentValidation;
 
+namespace ActuatorService.Application.Validators;
+
 public class CommandMetadataDtoValidator : AbstractValidator<CommandMetadataDto>
 {
     public CommandMetadataDtoValidator()

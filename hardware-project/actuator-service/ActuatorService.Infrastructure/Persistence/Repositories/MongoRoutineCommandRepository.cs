@@ -159,9 +159,10 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             })
         };
 
-        var cursor = await _collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
+        var cursor = await _collection.AggregateAsync<BsonDocument>(pipeline);
+        var results = await cursor.ToListAsync();
 
-        return cursor.Select(doc => new TimelineData
+        return results.Select(doc => new TimelineData
         {
             Timestamp = doc["timestamp"].ToUniversalTime(),
             ActuatorCode = doc["actuatorCode"].AsString,
@@ -208,9 +209,10 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             })
         };
 
-        var cursor = await _collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
+        var cursor = await _collection.AggregateAsync<BsonDocument>(pipeline);
+        var results = await cursor.ToListAsync();
 
-        return cursor.Select(doc => new TotalDurationData
+        return results.Select(doc => new TotalDurationData
         {
             ActuatorCode = doc["actuatorCode"].AsString,
             TotalDurationSeconds = doc["totalDurationSeconds"].ToDouble(),
@@ -222,7 +224,9 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
     {
         var totalSeconds = totalDurationData.Sum(x => x.TotalDurationSeconds);
 
-        if (totalSeconds == 0)
+        // Use tolerance for floating-point comparison
+        const double tolerance = 1e-9;
+        if (Math.Abs(totalSeconds) < tolerance)
             return new List<ActiveTimeProportionData>();
 
         return totalDurationData.Select(item => new ActiveTimeProportionData

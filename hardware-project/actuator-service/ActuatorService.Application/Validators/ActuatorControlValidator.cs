@@ -6,6 +6,9 @@ namespace ActuatorService.Application.Validators;
 
 public class ActuatorControlValidator : AbstractValidator<ActuatorControlDto>
 {
+    // Tolerance for floating-point comparisons
+    private const double FloatTolerance = 1e-9;
+
     public ActuatorControlValidator()
     {
         RuleFor(x => x.ActuatorCode)
@@ -50,10 +53,11 @@ public class ActuatorControlValidator : AbstractValidator<ActuatorControlDto>
             return false;
 
         // Duration = 0 is only allowed for control commands (power=Off or dutyCycle=0)
-        if (cmd.Duration == 0)
+        // Use tolerance for floating-point comparison
+        if (Math.Abs(cmd.Duration) < FloatTolerance)
         {
             bool isControlCommand = (cmd.Power == ActuatorConstants.PowerStates.Off) ||
-                                  (cmd.DutyCycle == ActuatorConstants.Validation.MinDutyCycle);
+                                  (cmd.DutyCycle.HasValue && Math.Abs(cmd.DutyCycle.Value - ActuatorConstants.Validation.MinDutyCycle) < FloatTolerance);
             return isControlCommand;
         }
 

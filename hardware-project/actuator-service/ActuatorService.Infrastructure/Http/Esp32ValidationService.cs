@@ -20,19 +20,19 @@ public class Esp32ValidationService : IEsp32ValidationService
         _logger = logger;
     }
 
-    public async Task<bool> ExistsAsync(string id)
+    public async Task<bool> ExistsAsync(string esp32Id)
     {
         try
         {
             // Configure HttpClient with M2M authentication
             await _tokenService.ConfigureHttpClientAsync(_httpClient);
 
-            var response = await _httpClient.GetAsync($"/api/esp32nodes/{id}/exists");
+            var response = await _httpClient.GetAsync($"/api/esp32nodes/{esp32Id}/exists");
 
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("ESP32 validation request failed with status {StatusCode} for ID {Id}", 
-                    response.StatusCode, id);
+                    response.StatusCode, esp32Id);
                 return false;
             }
 
@@ -43,7 +43,7 @@ public class Esp32ValidationService : IEsp32ValidationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validating ESP32 existence for ID {Id}", id);
+            _logger.LogError(ex, "Error validating ESP32 existence for ID {Id}", esp32Id);
             return false;
         }
     }

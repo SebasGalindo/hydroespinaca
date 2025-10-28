@@ -55,6 +55,6 @@ using (var scope = app.Services.CreateScope())
     await startupSyncService.SynchronizeOnStartupAsync();
 }
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program { }

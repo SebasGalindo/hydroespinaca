@@ -10,7 +10,6 @@ namespace ActuatorService.Infrastructure.Persistence.Repositories;
 public class MongoInternalRoutineRepository : IInternalRoutineRepository
 {
     private readonly BaseMongoRepository<InternalRoutine, InternalRoutineDocument> _baseRepo;
-    private readonly IMongoCollection<InternalRoutineDocument> _collection;
 
     public MongoInternalRoutineRepository(
         MongoDbContext ctx,
@@ -18,7 +17,6 @@ public class MongoInternalRoutineRepository : IInternalRoutineRepository
     {
         _baseRepo = new BaseMongoRepository<InternalRoutine, InternalRoutineDocument>(
             ctx.Database, "internal_routines", mapper);
-        _collection = ctx.Database.GetCollection<InternalRoutineDocument>("internal_routines");
     }
 
     public async Task<List<InternalRoutine>> GetActiveRoutinesAsync()
