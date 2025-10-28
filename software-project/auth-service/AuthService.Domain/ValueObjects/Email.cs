@@ -17,7 +17,7 @@ public sealed class Email
     private static bool IsValidEmail(string email)
     {
         string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-        return Regex.IsMatch(email, emailPattern);
+        return Regex.IsMatch(email, emailPattern, RegexOptions.None, TimeSpan.FromMilliseconds(100));
     }
 
     public override bool Equals(object? obj) => obj is Email other && Value == other.Value;

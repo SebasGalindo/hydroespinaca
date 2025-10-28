@@ -25,32 +25,37 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
         return exception switch
         {
             InvalidClientCredentialsException ex => CreateProblemDetails(
-                "Unauthorized", ex.Message, 401, 
-                "https://tools.ietf.org/html/rfc9110#section-15.5.2", 
+                "Unauthorized", ex.Message, 401,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2",
                 requestPath, isDevelopment),
-                
+
             TokenExpiredException ex => CreateProblemDetails(
-                "Unauthorized", ex.Message, 401, 
-                "https://tools.ietf.org/html/rfc9110#section-15.5.2", 
+                "Unauthorized", ex.Message, 401,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2",
                 requestPath, isDevelopment),
-                
+
             InvalidRefreshTokenException ex => CreateProblemDetails(
-                "Unauthorized", ex.Message, 401, 
-                "https://tools.ietf.org/html/rfc9110#section-15.5.2", 
+                "Unauthorized", ex.Message, 401,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2",
                 requestPath, isDevelopment),
-                
+
             InvalidCredentialsException ex => CreateProblemDetails(
-                "Unauthorized", ex.Message, 401, 
-                "https://tools.ietf.org/html/rfc9110#section-15.5.2", 
+                "Unauthorized", ex.Message, 401,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.2",
                 requestPath, isDevelopment),
-                
+
             ClientAppAlreadyExistsException ex => CreateProblemDetails(
-                "Conflict", ex.Message, 409, 
-                "https://tools.ietf.org/html/rfc9110#section-15.5.8", 
+                "Conflict", ex.Message, 409,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.8",
                 requestPath, isDevelopment),
-                
+
+            RoleHasAssignedUsersException ex => CreateProblemDetails(
+                "Bad Request", ex.Message, 400,
+                "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                requestPath, isDevelopment),
+
             ValidationException ex => CreateValidationProblemDetails(ex, requestPath),
-            
+
             // Delegate to shared mapper for all other exceptions
             _ => _sharedMapper.MapToProblemDetails(exception, requestPath, isDevelopment)
         };
@@ -63,6 +68,7 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
                InvalidRefreshTokenException or
                InvalidCredentialsException or
                ClientAppAlreadyExistsException or
+               RoleHasAssignedUsersException or
                ValidationException ||
                _sharedMapper.CanHandle(exception);
     }
@@ -76,6 +82,7 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
             InvalidRefreshTokenException => 401,
             InvalidCredentialsException => 401,
             ClientAppAlreadyExistsException => 409,
+            RoleHasAssignedUsersException => 400,
             ValidationException => 400,
             _ => _sharedMapper.GetStatusCode(exception)
         };

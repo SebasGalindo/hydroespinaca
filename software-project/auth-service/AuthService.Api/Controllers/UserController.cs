@@ -8,6 +8,7 @@ using HydroEspinaca.Shared.Extensions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AuthService.Api.Controllers;
 
@@ -65,6 +66,15 @@ public class UserController : ControllerBase
     [Authorize(Policy = PolicyNames.UserDelete)]
     public async Task<ActionResult> Delete(string id)
     {
+        // Get current user ID from JWT claims
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // Prevent self-deletion
+        if (currentUserId == id)
+        {
+            return BadRequest(new { message = "No puedes eliminar tu propia cuenta de usuario" });
+        }
+
         var command = new DeleteUserCommand(id);
         await _mediator.Send(command);
         return NoContent();

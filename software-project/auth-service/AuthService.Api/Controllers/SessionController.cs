@@ -1,6 +1,7 @@
 using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AuthService.Api.Controllers;
 
@@ -73,6 +74,16 @@ public class SessionController : ControllerBase
         if (session == null)
         {
             return NotFound(new { message = "Session not found" });
+        }
+
+        // Get current user ID from JWT claims (defense in depth - BFF already checks this)
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // Prevent revoking sessions belonging to the current user if they match
+        if (!string.IsNullOrEmpty(currentUserId) && session.UserId == currentUserId)
+        {
+            _logger.LogWarning("User {UserId} attempted to revoke one of their own sessions {SessionId}", currentUserId, sessionId);
+            return BadRequest(new { message = "No puedes revocar tu propia sesión activa" });
         }
 
         session.Revoke();

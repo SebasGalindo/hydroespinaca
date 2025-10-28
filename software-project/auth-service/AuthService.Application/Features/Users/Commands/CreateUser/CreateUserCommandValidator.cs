@@ -7,6 +7,12 @@ public class CreateUserCommandValidator : BaseValidator<CreateUserCommand>
 {
     public CreateUserCommandValidator()
     {
+        RuleFor(x => x.Username)
+            .NotEmpty()
+            .WithMessage("El nombre de usuario es requerido")
+            .MaximumLength(100)
+            .WithMessage("El nombre de usuario no puede tener más de 100 caracteres");
+
         RuleFor(x => x.Email)
             .NotEmpty()
             .WithMessage("El email es requerido")
@@ -18,8 +24,8 @@ public class CreateUserCommandValidator : BaseValidator<CreateUserCommand>
         RuleFor(x => x.Password)
             .NotEmpty()
             .WithMessage("La contraseña es requerida")
-            .MinimumLength(MinPasswordLength)
-            .WithMessage($"La contraseña debe tener al menos {MinPasswordLength} caracteres")
+            .MinimumLength(8)
+            .WithMessage("La contraseña debe tener al menos 8 caracteres")
             .MaximumLength(MaxPasswordLength)
             .WithMessage($"La contraseña no puede tener más de {MaxPasswordLength} caracteres");
 

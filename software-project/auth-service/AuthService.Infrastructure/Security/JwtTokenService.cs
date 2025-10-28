@@ -20,18 +20,15 @@ namespace AuthService.Infrastructure.Security
         private readonly IKeyStore _keyStore;
         private readonly JwtSettings _settings;
         private readonly IRoleRepository _roleRepository;
-        private readonly IPermissionRepository _permissionRepository;
 
         public JwtTokenService(
             IKeyStore keyStore, 
             IOptions<JwtSettings> options,
-            IRoleRepository roleRepository,
-            IPermissionRepository permissionRepository)
+            IRoleRepository roleRepository)
         {
             _keyStore = keyStore;
             _settings = options.Value;
             _roleRepository = roleRepository;
-            _permissionRepository = permissionRepository;
         }
 
         public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
@@ -87,9 +84,9 @@ namespace AuthService.Infrastructure.Security
             // 2. Claims for access token
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredNames.Sub, userId),
-                new Claim(JwtRegisteredNames.Email, email),
-                new Claim("role", role), // Use simple "role" claim for better microservices compatibility
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.Role, role),
                 new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
             };
             

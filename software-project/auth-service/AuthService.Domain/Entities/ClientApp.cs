@@ -28,7 +28,7 @@ public class ClientApp : IIdentifiableMutable
 
     public bool VerifySecret(string plainSecret, IPasswordHasher hasher)
     {
-        return hasher.Verify(plainSecret, Secret.Value);
+        return hasher.Verify(Secret.Value, plainSecret);
     }
 
     public void SetId(string id)

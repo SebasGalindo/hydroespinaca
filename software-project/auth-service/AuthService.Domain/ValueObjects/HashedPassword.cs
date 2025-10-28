@@ -4,7 +4,7 @@ public sealed class HashedPassword
     public string Value { get; }
     public HashedPassword(string hashedValue)
     {
-        if (string.IsNullOrWhiteSpace(hashedValue)) throw new ArgumentException("Password hasheado inválido.");
+        if (string.IsNullOrWhiteSpace(hashedValue)) throw new ArgumentException("El hash de la contraseña no puede estar vacío.");
         Value = hashedValue;
     }
 

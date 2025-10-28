@@ -9,12 +9,10 @@ namespace AuthService.Application.Features.Permissions.Queries.GetGroupedPermiss
 public class GetGroupedPermissionsQueryHandler : IRequestHandler<GetGroupedPermissionsQuery, List<GroupedPermissionResponseDto>>
 {
     private readonly IPermissionRepository _permissionRepository;
-    private readonly IMapper _mapper;
 
-    public GetGroupedPermissionsQueryHandler(IPermissionRepository permissionRepository, IMapper mapper)
+    public GetGroupedPermissionsQueryHandler(IPermissionRepository permissionRepository)
     {
         _permissionRepository = permissionRepository;
-        _mapper = mapper;
     }
 
     public async Task<List<GroupedPermissionResponseDto>> Handle(GetGroupedPermissionsQuery request, CancellationToken cancellationToken)

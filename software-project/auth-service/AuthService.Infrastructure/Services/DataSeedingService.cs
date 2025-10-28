@@ -49,6 +49,15 @@ public class DataSeedingService
     {
         try
         {
+            var adminPassword = Environment.GetEnvironmentVariable("HYDRO_ADMIN_PASSWORD");
+            var testUserPassword = Environment.GetEnvironmentVariable("HYDRO_TEST_USER_PASSWORD");
+
+            if (string.IsNullOrWhiteSpace(adminPassword) || string.IsNullOrWhiteSpace(testUserPassword))
+            {
+                _logger.LogWarning("Password environment variables not set; cannot validate test users");
+                return false;
+            }
+
             // Check admin user
             var adminUser = await _userRepository.FindByEmailAsync("admin@demo.com");
             if (adminUser == null)
@@ -63,7 +72,7 @@ public class DataSeedingService
             }
 
             // Verify admin password
-            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, "dF^J`c'662:W");
+            var adminPasswordValid = _passwordHasher.Verify(adminUser.Password.Value, adminPassword);
             if (!adminPasswordValid)
             {
                 return false;
@@ -83,7 +92,7 @@ public class DataSeedingService
             }
 
             // Verify test user password
-            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, "N16'+4a597|V!");
+            var userPasswordValid = _passwordHasher.Verify(testUser.Password.Value, testUserPassword);
             if (!userPasswordValid)
             {
                 return false;
@@ -306,7 +315,13 @@ public class DataSeedingService
     private async Task SeedAdminUserAsync()
     {
         const string adminEmail = "admin@demo.com";
-        const string adminPassword = "dF^J`c'662:W";
+        var adminPassword = Environment.GetEnvironmentVariable("HYDRO_ADMIN_PASSWORD");
+
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            _logger.LogWarning("HYDRO_ADMIN_PASSWORD environment variable not set; skipping admin user creation");
+            return;
+        }
 
         var existingUser = await _userRepository.FindByEmailAsync(adminEmail);
         if (existingUser == null)
@@ -334,7 +349,13 @@ public class DataSeedingService
     private async Task SeedTestUserAsync()
     {
         const string userEmail = "user@demo.com";
-        const string userPassword = "N16'+4a597|V!";
+        var userPassword = Environment.GetEnvironmentVariable("HYDRO_TEST_USER_PASSWORD");
+
+        if (string.IsNullOrWhiteSpace(userPassword))
+        {
+            _logger.LogWarning("HYDRO_TEST_USER_PASSWORD environment variable not set; skipping test user creation");
+            return;
+        }
 
         var existingUser = await _userRepository.FindByEmailAsync(userEmail);
         if (existingUser == null)

@@ -10,7 +10,6 @@ namespace AuthService.Infrastructure.Persistence.Repositories;
 public class MongoUserSessionRepository : IUserSessionRepository
 {
     private readonly BaseMongoRepository<UserSession, UserSessionDocument> _baseRepo;
-    private readonly IMongoCollection<UserSessionDocument> _collection;
 
     public MongoUserSessionRepository(IMongoDatabase db)
     {
@@ -19,7 +18,6 @@ public class MongoUserSessionRepository : IUserSessionRepository
             "user_sessions",
             new UserSessionMapper()
         );
-        _collection = db.GetCollection<UserSessionDocument>("user_sessions");
     }
 
     public async Task<UserSession?> FindBySessionIdAsync(string sessionId)

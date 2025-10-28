@@ -10,4 +10,5 @@ public interface IUserRepository
     Task CreateAsync(User user);
     Task UpdateAsync(User variable);
     Task DeleteAsync(string id);
+    Task<long> CountByRoleIdAsync(string roleId);
 }

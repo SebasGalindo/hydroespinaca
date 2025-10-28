@@ -69,7 +69,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
 
-app.Run();
+await app.RunAsync();
 
 // Make Program class accessible for integration tests
 public partial class Program { }

@@ -54,4 +54,10 @@ public class MongoUserRepository : IUserRepository
 
     public Task DeleteAsync(string id)
         => _baseRepo.DeleteAsync(id);
+
+    public async Task<long> CountByRoleIdAsync(string roleId)
+    {
+        var filter = Builders<UserDocument>.Filter.Eq(x => x.RoleId, roleId);
+        return await _baseRepo.CountAsync(filter);
+    }
 }

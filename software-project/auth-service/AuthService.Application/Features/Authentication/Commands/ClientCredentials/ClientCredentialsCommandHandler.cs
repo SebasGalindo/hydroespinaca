@@ -11,18 +11,15 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
     private readonly IClientAppRepository _clientAppRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
-    private readonly IPermissionRepository _permissionRepository;
 
     public ClientCredentialsCommandHandler(
         IClientAppRepository clientAppRepository,
         IPasswordHasher passwordHasher,
-        ITokenService tokenService,
-        IPermissionRepository permissionRepository)
+        ITokenService tokenService)
     {
         _clientAppRepository = clientAppRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
-        _permissionRepository = permissionRepository;
     }
 
     public async Task<TokenResultDto> Handle(ClientCredentialsCommand request, CancellationToken cancellationToken)
