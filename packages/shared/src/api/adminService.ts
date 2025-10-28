@@ -55,11 +55,29 @@ export class AdminApiService {
       const errorText = await response.text();
       let errorMessage = `Request failed with status ${response.status}`;
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AdminApiService] Error response:', {
+          status: response.status,
+          errorText,
+          url: fullUrl
+        });
+      }
+
       try {
         const errorJson = JSON.parse(errorText);
         errorMessage = errorJson.message || errorMessage;
-      } catch {
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AdminApiService] Parsed error JSON:', errorJson);
+          console.log('[AdminApiService] Final error message:', errorMessage);
+        }
+      } catch (parseError) {
         errorMessage = errorText || errorMessage;
+
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[AdminApiService] Failed to parse error JSON:', parseError);
+          console.log('[AdminApiService] Using raw error text:', errorText);
+        }
       }
 
       // Handle 401 Unauthorized - session is invalid/expired/revoked

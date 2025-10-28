@@ -15,6 +15,8 @@ export interface WebLoginResponse {
 }
 
 export interface UserSession {
+  userId: string;
+  sessionId: string;
   username: string;
   email: string;
   role: string;

@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const userSession = await authService.getCurrentSession('web');
 
         const session: Session = {
-          sessionId: null, // HttpOnly cookie
+          sessionId: userSession.sessionId, // Available from backend response
           csrfToken: null, // Cookie
           username: userSession.username,
           email: userSession.email,
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         };
 
         const user: User = {
-          id: userSession.email,
+          id: userSession.userId,
           email: userSession.email,
           name: userSession.username,
           role: userSession.role,
@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         };
 
         const user: User = {
-          id: userSession.email,
+          id: userSession.userId,
           email: userSession.email,
           name: userSession.username,
           role: userSession.role,
@@ -208,7 +208,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         : null;
 
       const session: Session = {
-        sessionId,
+        sessionId: userSession.sessionId, // Use sessionId from backend response
         csrfToken,
         username: userSession.username,
         email: userSession.email,
@@ -216,7 +216,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
 
       const user: User = {
-        id: userSession.email,
+        id: userSession.userId,
         email: userSession.email,
         name: userSession.username,
         role: userSession.role,
