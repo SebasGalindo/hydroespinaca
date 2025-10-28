@@ -16,6 +16,7 @@ anyio==4.10.0
 h11==0.16.0
 websockets==15.0.1
 aiomqtt==2.4.0
+aiofiles==24.1.0
 # Authentication dependencies
 PyJWT[crypto]==2.8.0
 cryptography==42.0.5

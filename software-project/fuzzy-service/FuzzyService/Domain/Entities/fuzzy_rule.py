@@ -110,7 +110,15 @@ class FuzzyRule(DomainBaseModel):
             # Coerción de variableId
             if isinstance(var, dict):
                 var = extract_oid(var)
-            var_id = var if isinstance(var, FuzzyVariableId) else (FuzzyVariableId(var) if var is not None else None)
+            
+            # Simplificación del condicional anidado
+            if isinstance(var, FuzzyVariableId):
+                var_id = var
+            elif var is not None:
+                var_id = FuzzyVariableId(var)
+            else:
+                var_id = None
+            
             if var_id is None:
                 raise ValueError(f"Condición #{i}: variableId es requerido")
             # Coerción de operador

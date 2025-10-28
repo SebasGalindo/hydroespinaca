@@ -26,6 +26,15 @@ from FuzzyService.Domain.Interfaces.IFuzzyRuleRepository import IFuzzyRuleReposi
 _logger = logging.getLogger(__name__)
 
 
+# Variable names constants (Sonar: avoid duplicated string literals)
+class VariableNames:
+    """Centralized variable name constants for seed data."""
+    AMBIENT_TEMPERATURE = "Ambient Temperature"
+    WATER_TEMPERATURE = "Water Temperature"
+    WATER_LEVEL = "Water Level"
+    NIVEL_OPTIMO = "NivelÓptimo"
+
+
 class SeedDataConfig:
     """Configuration class for seed data with predefined IDs."""
 
@@ -51,7 +60,7 @@ class SeedDataConfig:
                 "terms": []  # Se llenarán con IDs de términos creados
             },
             {
-                "name": "Ambient Temperature",
+                "name": VariableNames.AMBIENT_TEMPERATURE,
                 "description": "Temperatura ambiente del invernadero",
                 "type": "input",
                 "reference_code": "T_AMB",
@@ -65,14 +74,14 @@ class SeedDataConfig:
                 "terms": []
             },
             {
-                "name": "Water Temperature",
+                "name": VariableNames.WATER_TEMPERATURE,
                 "description": "Temperatura del agua del sistema",
                 "type": "input",
                 "reference_code": "T_WAT",
                 "terms": []
             },
             {
-                "name": "Water Level",
+                "name": VariableNames.WATER_LEVEL,
                 "description": "Nivel de agua en el reservorio (seguridad crítica)",
                 "type": "input",
                 "reference_code": "WL",
@@ -383,7 +392,7 @@ class SeedDataConfig:
             {
                 "_id": "68e05364d86d6edc398828D9",
                 "variable_id": "68e05364d86d6edc398828D8",
-                "label": "NivelÓptimo",
+                "label": VariableNames.NIVEL_OPTIMO,
                 "membership_function": {
                     "function_type": "triangular",
                     "parameters": [0.0, 3.0, 6.0],
@@ -914,7 +923,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
-                        "variable_name": "Ambient Temperature",
+                        "variable_name": VariableNames.AMBIENT_TEMPERATURE,
                         "operator": "IS",
                         "value": "frioAmbiental"
                     }
@@ -940,7 +949,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
-                        "variable_name": "Ambient Temperature",
+                        "variable_name": VariableNames.AMBIENT_TEMPERATURE,
                         "operator": "IS",
                         "value": "temperaturaOptima"
                     }
@@ -966,7 +975,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
-                        "variable_name": "Ambient Temperature",
+                        "variable_name": VariableNames.AMBIENT_TEMPERATURE,
                         "operator": "IS",
                         "value": "calorAmbiental"
                     }
@@ -993,15 +1002,15 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982871",  # Ambient Temperature
-                        "variable_name": "Ambient Temperature",
+                        "variable_name": VariableNames.AMBIENT_TEMPERATURE,
                         "operator": "IS",
                         "value": "calorAmbiental"
                     },
                     {
                         "variable_id": "68e05364d86d6edc398828D8",  # Water Level
-                        "variable_name": "Water Level",
+                        "variable_name": VariableNames.WATER_LEVEL,
                         "operator": "IS",
-                        "value": "NivelÓptimo"
+                        "value": VariableNames.NIVEL_OPTIMO
                     }
                 ],
                 "connectors": ["AND"],
@@ -1089,15 +1098,15 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
-                        "variable_name": "Water Temperature",
+                        "variable_name": VariableNames.WATER_TEMPERATURE,
                         "operator": "IS",
                         "value": "aguaFria"
                     },
                     {
                         "variable_id": "68e05364d86d6edc398828D8",  # Water Level
-                        "variable_name": "Water Level",
+                        "variable_name": VariableNames.WATER_LEVEL,
                         "operator": "IS",
-                        "value": "NivelÓptimo"
+                        "value": VariableNames.NIVEL_OPTIMO
                     }
                 ],
                 "connectors": ["AND"],
@@ -1121,7 +1130,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
-                        "variable_name": "Water Temperature",
+                        "variable_name": VariableNames.WATER_TEMPERATURE,
                         "operator": "IS",
                         "value": "temperaturaAguaOptima"
                     }
@@ -1147,7 +1156,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
-                        "variable_name": "Water Temperature",
+                        "variable_name": VariableNames.WATER_TEMPERATURE,
                         "operator": "IS",
                         "value": "aguaCaliente"
                     }
@@ -1225,7 +1234,7 @@ class SeedDataConfig:
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc398828D8",  # Water Level
-                        "variable_name": "Water Level",
+                        "variable_name": VariableNames.WATER_LEVEL,
                         "operator": "IS",
                         "value": "NivelCrítico"
                     }
@@ -1360,10 +1369,10 @@ async def _create_variables_and_terms(repo_variable, repo_term):
     # Mapping of variable names to old predefined IDs (for backward compatibility with terms config)
     VARIABLE_NAME_TO_OLD_ID = {
         "Luminosity": "68e05364d86d6edc39982870",
-        "Ambient Temperature": "68e05364d86d6edc39982871",
+        VariableNames.AMBIENT_TEMPERATURE: "68e05364d86d6edc39982871",
         "Humidity": "68e05364d86d6edc39982872",
-        "Water Temperature": "68e05364d86d6edc39982873",
-        "Water Level": "68e05364d86d6edc398828D8",
+        VariableNames.WATER_TEMPERATURE: "68e05364d86d6edc39982873",
+        VariableNames.WATER_LEVEL: "68e05364d86d6edc398828D8",
         "Potencia del Ventilador": "68e05364d86d6edc39982875",
         "Control Calefactor Aire": "68e05364d86d6edc398828B0",
         "Control Calefactor Agua": "68e05364d86d6edc398828B1",

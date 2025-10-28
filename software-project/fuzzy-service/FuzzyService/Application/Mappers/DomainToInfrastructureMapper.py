@@ -64,7 +64,7 @@ class InfraFuzzyVariable:  # type: ignore
     variable_id: str
     name: str
     universe_range: tuple[float, float] | None = None
-    terms: Dict[str, InfraFuzzyTerm] = None  # type: ignore
+    terms: Dict[str, InfraFuzzyTerm] | None = None
     sensor_mapping: Optional[str] = None
 
 

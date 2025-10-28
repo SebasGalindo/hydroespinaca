@@ -45,6 +45,8 @@ class MqttClient:
             return None
             
         tls_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        # Enforce minimum TLS version to prevent weak protocols (TLS 1.0/1.1)
+        tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
         if self._settings.tls_ca_file:
             tls_context.load_verify_locations(self._settings.tls_ca_file)
         if self._settings.tls_cert_file and self._settings.tls_key_file:
@@ -96,16 +98,16 @@ class MqttClient:
                 _logger.error(f"Error al suscribirse al tópico '{topic}': {e}")
                 raise
     
-    async def _calculate_reconnect_delay(self) -> float:
+    def _calculate_reconnect_delay(self) -> float:
         """Calcula el delay de reconexión usando backoff exponencial."""
         if self._reconnect_attempts >= self._settings.max_reconnect_attempts:
             return self._settings.max_reconnect_delay
-        
+
         delay = min(
             self._settings.reconnect_delay * (self._settings.reconnect_exponential_base ** self._reconnect_attempts),
             self._settings.max_reconnect_delay
         )
-        
+
         return delay
     
     async def reconnect_with_backoff(self) -> bool:
@@ -116,7 +118,7 @@ class MqttClient:
         """
         while self._reconnect_attempts < self._settings.max_reconnect_attempts:
             self._reconnect_attempts += 1
-            delay = await self._calculate_reconnect_delay()
+            delay = self._calculate_reconnect_delay()
             
             _logger.info(
                 f"Intento de reconexión {self._reconnect_attempts}/{self._settings.max_reconnect_attempts} "
@@ -134,7 +136,7 @@ class MqttClient:
         _logger.error(f"Se agotaron los {self._settings.max_reconnect_attempts} intentos de reconexión")
         return False
     
-    async def disconnect(self) -> None:
+    def disconnect(self) -> None:
         """Desconecta el cliente MQTT de forma segura."""
         try:
             # Simplemente marcar como desconectado

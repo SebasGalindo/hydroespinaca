@@ -14,6 +14,15 @@ from FuzzyService.Domain.ValueObjects.OperatorsConfig import OperatorsConfig
 from FuzzyService.Domain.Interfaces.IFuzzySystemRepository import IFuzzySystemRepository
 from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
 from FuzzyService.Infrastructure.Configuration.DatabaseConfiguration import get_collection
+from FuzzyService.Infrastructure.Constants.RepositoryConstants import (
+    MONGO_SIZE_OPERATOR,
+    MONGO_EXPR_OPERATOR,
+    MONGO_ADD_OPERATOR,
+    MONGO_GT_OPERATOR,
+    MONGO_GTE_OPERATOR,
+    MONGO_LTE_OPERATOR,
+    MONGO_AND_OPERATOR,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -282,24 +291,24 @@ class FuzzySystemRepository(IFuzzySystemRepository):
             query.setdefault("created_at", {})["$lte"] = created_before
         if (has_vars := filters.get("has_variables")) is True:
             _logger.warning("Query using $expr/$size to check variable counts may be expensive. Consider maintaining a denormalized count.")
-            query["$expr"] = {"$gt": [{"$add": [{"$size": "$input_variable_ids"}, {"$size": "$output_variable_ids"}]}, 0]}
+            query[MONGO_EXPR_OPERATOR] = {MONGO_GT_OPERATOR: [{MONGO_ADD_OPERATOR: [{MONGO_SIZE_OPERATOR: "$input_variable_ids"}, {MONGO_SIZE_OPERATOR: "$output_variable_ids"}]}, 0]}
         cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_systems_with_variable_count(self, min_variables: int = 0, max_variables: Optional[int] = None) -> List[FuzzySystem]:
-        expr = {"$add": [{"$size": "$input_variable_ids"}, {"$size": "$output_variable_ids"}]}
-        query: Dict[str, Any] = {"$expr": {"$gte": [expr, int(min_variables)]}}
+        expr = {MONGO_ADD_OPERATOR: [{MONGO_SIZE_OPERATOR: "$input_variable_ids"}, {MONGO_SIZE_OPERATOR: "$output_variable_ids"}]}
+        query: Dict[str, Any] = {MONGO_EXPR_OPERATOR: {MONGO_GTE_OPERATOR: [expr, int(min_variables)]}}
         if max_variables is not None:
-            query = {"$and": [query, {"$expr": {"$lte": [expr, int(max_variables)]}}]}
+            query = {MONGO_AND_OPERATOR: [query, {MONGO_EXPR_OPERATOR: {MONGO_LTE_OPERATOR: [expr, int(max_variables)]}}]}
         _logger.warning("Query using $expr/$size for variable_count may be expensive on large collections.")
         cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1})
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_systems_with_rule_count(self, min_rules: int = 0, max_rules: Optional[int] = None) -> List[FuzzySystem]:
-        expr = {"$size": "$rule_ids"}
-        query: Dict[str, Any] = {"$expr": {"$gte": [expr, int(min_rules)]}}
+        expr = {MONGO_SIZE_OPERATOR: "$rule_ids"}
+        query: Dict[str, Any] = {MONGO_EXPR_OPERATOR: {MONGO_GTE_OPERATOR: [expr, int(min_rules)]}}
         if max_rules is not None:
-            query = {"$and": [query, {"$expr": {"$lte": [expr, int(max_rules)]}}]}
+            query = {MONGO_AND_OPERATOR: [query, {MONGO_EXPR_OPERATOR: {MONGO_LTE_OPERATOR: [expr, int(max_rules)]}}]}
         _logger.warning("Query using $expr/$size for rule_count may be expensive on large collections.")
         cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1})
         return [self._doc_to_entity(d) async for d in cursor]

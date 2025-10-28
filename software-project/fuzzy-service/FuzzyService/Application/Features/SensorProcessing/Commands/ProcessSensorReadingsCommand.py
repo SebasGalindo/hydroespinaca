@@ -45,7 +45,9 @@ class SensorReading(DomainBaseModel):
     def validate_value(cls, v: float) -> float:
         if not isinstance(v, (int, float)):
             raise ValueError("El valor debe ser numérico")
-        if v != v or v == float('inf') or v == float('-inf'):  # NaN or infinity check
+        # Check for NaN using math.isnan() and infinity
+        import math
+        if math.isnan(v) or math.isinf(v):
             raise ValueError("El valor debe ser finito")
         return float(v)
     

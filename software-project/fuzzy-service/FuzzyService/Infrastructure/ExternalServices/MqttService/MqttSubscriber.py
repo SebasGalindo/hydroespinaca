@@ -88,7 +88,7 @@ class MqttSubscriber:
             return parts[1]
         return None
     
-    async def _validate_and_parse_message(self, message: Message) -> Optional[dict]:
+    def _validate_and_parse_message(self, message: Message) -> Optional[dict]:
         """Valida y parsea un mensaje MQTT.
         
         Returns:
@@ -173,23 +173,31 @@ class MqttSubscriber:
             self._is_running = False
             raise
     
-    async def stop(self) -> None:
-        """Detiene el suscriptor MQTT."""
+    def stop(self) -> None:
+        """Detiene el suscriptor MQTT.
+
+        Convertido a síncrono: No realiza operaciones I/O ni llamadas asíncronas.
+        Solo actualiza el flag _is_running para señalar al loop que debe detenerse.
+        """
         if not self._is_running:
             return
-        
+
         _logger.info("Deteniendo suscriptor MQTT...")
-        
+
         try:
             self._is_running = False
             _logger.info("Suscriptor MQTT detenido")
-            
+
         except Exception as e:
             _logger.error(f"Error al detener suscriptor MQTT: {e}")
     
-    async def stop_subscription(self) -> None:
-        """Detiene la suscripción MQTT (alias para stop)."""
-        await self.stop()
+    def stop_subscription(self) -> None:
+        """Detiene la suscripción MQTT (alias síncrono de stop()).
+
+        Convertido a síncrono: Simplemente delega a stop() que también es síncrono.
+        No hay operaciones asíncronas involucradas en el proceso de detención.
+        """
+        self.stop()
     
     async def _process_messages(self) -> None:
         """Procesa mensajes MQTT de forma continua."""
@@ -214,7 +222,7 @@ class MqttSubscriber:
         """Maneja un mensaje MQTT individual."""
         try:
             # Validar y parsear mensaje
-            parsed_payload = await self._validate_and_parse_message(message)
+            parsed_payload = self._validate_and_parse_message(message)
             
             if parsed_payload is None:
                 return  # Mensaje inválido, ya se registró el error

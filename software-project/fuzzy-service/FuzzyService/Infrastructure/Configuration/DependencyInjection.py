@@ -5,6 +5,7 @@ Dependency Injection configuration for Infrastructure using kink.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Callable, Awaitable, List
@@ -211,7 +212,7 @@ async def on_startup() -> None:
         await _seed_initial_data(di)
         
         # Initialize MQTT services
-        await _initialize_mqtt_services(di)
+        _initialize_mqtt_services(di)
     except Exception:
         _logger.exception("Error initializing repositories on startup")
         raise
@@ -237,7 +238,7 @@ async def _seed_initial_data(di):
         _logger.exception("Error during seeding initial data")
 
 
-async def _initialize_mqtt_services(di) -> None:
+def _initialize_mqtt_services(di) -> None:
     """Initialize MQTT services and start background subscription."""
     try:
         from FuzzyService.Infrastructure.ExternalServices.MqttService.MqttClient import MqttClient
@@ -259,8 +260,9 @@ async def _initialize_mqtt_services(di) -> None:
         di["mqtt_subscriber"] = mqtt_subscriber
         
         # Start MQTT subscription in background
-        import asyncio
-        asyncio.create_task(mqtt_subscriber.start())
+        # Guardar la tarea para prevenir recolección prematura por el GC (Sonar rule python:S7502)
+        mqtt_task = asyncio.create_task(mqtt_subscriber.start())
+        di["mqtt_task"] = mqtt_task
         
         _logger.info("MQTT services initialized and subscription started")
     except Exception:
@@ -271,12 +273,22 @@ async def on_shutdown() -> None:
     """Hook to cleanly dispose infrastructure resources (e.g., Mongo)."""
     # Clean up MQTT services
     try:
+        # Cancel MQTT background task if exists
+        mqtt_task = di.get("mqtt_task")
+        if mqtt_task and not mqtt_task.done():
+            mqtt_task.cancel()
+            try:
+                await mqtt_task
+            except asyncio.CancelledError:
+                _logger.info("MQTT background task cancelled")
+                raise  # Re-lanzar para mantener la semántica de cancelación (Sonar python:S7497)
+        
         mqtt_subscriber = di["mqtt_subscriber"]
         if mqtt_subscriber:
-            await mqtt_subscriber.stop_subscription()
+            mqtt_subscriber.stop_subscription()  # Síncrono: solo actualiza flag _is_running
         mqtt_client = di["mqtt_client"]
         if mqtt_client:
-            await mqtt_client.disconnect()
+            mqtt_client.disconnect()
         _logger.info("MQTT services cleaned up")
     except Exception:
         _logger.exception("Error cleaning up MQTT services")

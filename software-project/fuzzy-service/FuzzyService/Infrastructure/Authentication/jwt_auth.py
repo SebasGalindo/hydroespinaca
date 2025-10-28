@@ -15,6 +15,7 @@ from jwt import PyJWKClient
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+import aiofiles
 
 _logger = logging.getLogger(__name__)
 
@@ -85,8 +86,8 @@ class AuthenticationService:
             self._public_key = self.jwt_settings.public_key_content
             _logger.info("Using configured public key content")
         elif self.jwt_settings.public_key_path and os.path.exists(self.jwt_settings.public_key_path):
-            with open(self.jwt_settings.public_key_path, 'r') as f:
-                self._public_key = f.read()
+            async with aiofiles.open(self.jwt_settings.public_key_path, 'r') as f:
+                self._public_key = await f.read()
             _logger.info(f"Loaded public key from file: {self.jwt_settings.public_key_path}")
         else:
             _logger.warning("No JWT public key or JWKS URL configured. JWT validation will fail.")
@@ -275,7 +276,7 @@ async def initialize_auth_service():
     _logger.info("Authentication service initialized")
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> UserClaims:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> UserClaims:
     """FastAPI dependency to get current authenticated user."""
     if not credentials:
         raise HTTPException(status_code=401, detail="Authentication required")

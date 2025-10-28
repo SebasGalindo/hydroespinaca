@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -94,7 +94,7 @@ async def health() -> JSONResponse:
             "status": "Healthy",
             "service": "fuzzy-service",
             "environment": environment,
-            "timestamp": datetime.utcnow().isoformat() + "Z"
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         # In development, add more details

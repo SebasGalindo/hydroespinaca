@@ -1,4 +1,4 @@
-from typing import Union, List, Optional
+from typing import List
 from pydantic import field_validator, model_validator
 from ..Enums import LogicalOperator
 from ..Common import DomainBaseModel
@@ -12,7 +12,7 @@ class RuleCondition(DomainBaseModel):
     condition_id: str
     sensor_name: str  # Nombre de la variable de entrada
     operator: LogicalOperator
-    target_value: Union[str, List[str]]  # Etiqueta lingüística o lista de etiquetas
+    target_value: str | List[str]  # Etiqueta lingüística o lista de etiquetas
 
     @field_validator("condition_id", "sensor_name")
     @classmethod
@@ -76,7 +76,7 @@ class RuleCondition(DomainBaseModel):
             return [float(v) for v in self.target_value if isinstance(v, (int, float))]
         return []
 
-    def get_linguistic_term(self) -> Optional[str]:
+    def get_linguistic_term(self) -> str | None:
         """Retorna el término lingüístico si aplica (solo para target_value str)."""
         return self.target_value if isinstance(self.target_value, str) else None
 

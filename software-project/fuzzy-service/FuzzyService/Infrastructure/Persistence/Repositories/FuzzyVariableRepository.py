@@ -13,6 +13,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import FuzzyVariableId, FuzzySyst
 from FuzzyService.Domain.Enums.EntityStatus import FuzzyVariableType
 from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
 from FuzzyService.Infrastructure.Configuration.DatabaseConfiguration import get_collection
+from FuzzyService.Infrastructure.Constants.RepositoryConstants import ERROR_SYSTEM_NOT_FOUND
 
 _logger = logging.getLogger(__name__)
 
@@ -253,7 +254,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
         sid = str(system_id)
         sys_doc = await self._systems.find_one({"_id": self._to_object_id(system_id)})
         if not sys_doc:
-            raise EntityNotFoundError("Sistema no encontrado")
+            raise EntityNotFoundError(ERROR_SYSTEM_NOT_FOUND)
         var_ids = [self._to_object_id(v) for v in (sys_doc.get("input_variable_ids", []) + sys_doc.get("output_variable_ids", []))]
         cursor = self._coll.find({"_id": {"$in": var_ids}}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
@@ -266,7 +267,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
     async def get_input_variables_by_system(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
         sys_doc = await self._systems.find_one({"_id": self._to_object_id(system_id)})
         if not sys_doc:
-            raise EntityNotFoundError("Sistema no encontrado")
+            raise EntityNotFoundError(ERROR_SYSTEM_NOT_FOUND)
         ids = [self._to_object_id(v) for v in (sys_doc.get("input_variable_ids") or [])]
         if not ids:
             return []
@@ -276,7 +277,7 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
     async def get_output_variables_by_system(self, system_id: FuzzySystemId) -> List[FuzzyVariable]:
         sys_doc = await self._systems.find_one({"_id": self._to_object_id(system_id)})
         if not sys_doc:
-            raise EntityNotFoundError("Sistema no encontrado")
+            raise EntityNotFoundError(ERROR_SYSTEM_NOT_FOUND)
         ids = [self._to_object_id(v) for v in (sys_doc.get("output_variable_ids") or [])]
         if not ids:
             return []

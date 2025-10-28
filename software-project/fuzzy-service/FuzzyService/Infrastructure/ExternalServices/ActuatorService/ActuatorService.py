@@ -7,6 +7,7 @@ import asyncio
 
 from FuzzyService.Domain.Interfaces.IActuatorService import IActuatorService
 from FuzzyService.Infrastructure.Authentication.jwt_auth import get_auth_service
+from FuzzyService.Infrastructure.Constants.RepositoryConstants import CONTENT_TYPE_JSON
 
 _logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class ActuatorService(IActuatorService):
         Returns:
             True si el servicio aceptó las rutinas, False en caso contrario
         """
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": CONTENT_TYPE_JSON}
 
         # Obtener M2M token para autenticación service-to-service
         try:
@@ -64,7 +65,7 @@ class ActuatorService(IActuatorService):
             # Fallback a API key si está configurado
             if self.api_key:
                 headers[self.auth_header] = self.api_key
-                _logger.debug(f"Usando API key como fallback")
+                _logger.debug("Usando API key como fallback")
 
         # El controller espera List<RoutineCommandDto> directamente, NO envuelto en objeto
         # Ver CommandsController.cs:29 - [FromBody] List<RoutineCommandDto> routines
@@ -147,7 +148,7 @@ class ActuatorService(IActuatorService):
         Returns:
             True si el output existe (HTTP 200), False en caso contrario (HTTP 404)
         """
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": CONTENT_TYPE_JSON}
 
         # Obtener M2M token
         try:
@@ -201,7 +202,7 @@ class ActuatorService(IActuatorService):
         Returns:
             Diccionario con los detalles del output o None si no existe (HTTP 404)
         """
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": CONTENT_TYPE_JSON}
 
         # Obtener M2M token
         try:

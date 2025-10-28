@@ -18,6 +18,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
 )
 from FuzzyService.Domain.Enums import RuleConnector
 from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
+from FuzzyService.Infrastructure.Constants.RepositoryConstants import FIELD_CONDITIONS_VARIABLE_ID
     
 _logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
             await self._coll.create_index([("system_id", 1), ("name", 1)], unique=True, name="uq_rule_system_name")
             await self._coll.create_index([("system_id", 1)], name="ix_system_id")
             await self._coll.create_index([("created_at", -1)], name="ix_created_at_desc")
-            await self._coll.create_index([("conditions.variableId", 1)], name="ix_conditions_variable")
+            await self._coll.create_index([(FIELD_CONDITIONS_VARIABLE_ID, 1)], name="ix_conditions_variable")
             await self._coll.create_index([("connectors", 1)], name="ix_connectors_array")
             await self._coll.create_index([("name", "text")], name="ix_text_name")
             _logger.info("FuzzyRule indexes ensured.")
@@ -176,7 +177,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
 
     # ---------------------------- Conditions/connectors queries ----------------------------
     async def get_rules_using_variable(self, variable_id: FuzzyVariableId, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
-        cursor = self._coll.find({"conditions.variableId": str(variable_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find({FIELD_CONDITIONS_VARIABLE_ID: str(variable_id)}, projection={"_id": 1, "name": 1, "system_id": 1, "conditions": 1, "connectors": 1, "consequents": 1, "created_at": 1}).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_rules_with_connector(self, connector: RuleConnector, skip: int = 0, limit: int = 100) -> List[FuzzyRule]:
@@ -200,7 +201,7 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
         if (has_consequent := filters.get("has_consequent")) is not None:
             query["consequents"] = {"$ne": []} if bool(has_consequent) else []
         if (variable_id := filters.get("variable_id")):
-            query["conditions.variableId"] = str(variable_id)
+            query[FIELD_CONDITIONS_VARIABLE_ID] = str(variable_id)
         if (created_from := filters.get("created_from")) or (created_to := filters.get("created_to")):
             dr: Dict[str, Any] = {}
             if created_from:

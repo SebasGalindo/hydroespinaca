@@ -19,6 +19,7 @@ from FuzzyService.Domain.ValueObjects.DomainId import (
     FuzzyRuleId,
 )
 from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, ValidationError
+from FuzzyService.Infrastructure.Constants.RepositoryConstants import FIELD_ACTIVATED_RULES_RULE_ID
 
 _logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             await self._coll.create_index([("system_id", 1), ("timestamp", -1)], name="ix_system_time")
             await self._coll.create_index([("timestamp", -1)], name="ix_timestamp_desc")
             await self._coll.create_index([("inputs.sensor_id", 1)], name="ix_inputs_sensor")
-            await self._coll.create_index([("activated_rules.ruleId", 1)], name="ix_activations_rule")
+            await self._coll.create_index([(FIELD_ACTIVATED_RULES_RULE_ID, 1)], name="ix_activations_rule")
             await self._coll.create_index([("activated_rules.firingStrength", -1)], name="ix_activations_strength_desc")
             await self._coll.create_index([("activated_rules.output_values.reference_code", 1)], name="ix_outputs_reference")
             _logger.info("FuzzyEvaluation indexes ensured.")
@@ -180,7 +181,7 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
 
     async def get_by_rule_id(self, rule_id: FuzzyRuleId, skip: int = 0, limit: int = 100) -> List[FuzzyEvaluation]:
         cursor = (
-            self._coll.find({"activated_rules.ruleId": str(rule_id)})
+            self._coll.find({FIELD_ACTIVATED_RULES_RULE_ID: str(rule_id)})
             .skip(int(skip))
             .limit(int(limit))
             .sort("timestamp", -1)
@@ -207,7 +208,7 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
         # Rule filter
         rule_id = filters.get("rule_id")
         if rule_id:
-            query["activated_rules.ruleId"] = str(rule_id)
+            query[FIELD_ACTIVATED_RULES_RULE_ID] = str(rule_id)
         # Sensor filter
         sensor_id = filters.get("sensor_id")
         if sensor_id:

@@ -32,22 +32,25 @@ class RuleEvaluationEngine:
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
-    async def evaluate_rules(
+    def evaluate_rules(
         self,
         system: FuzzySystem,
         rules: List[FuzzyRule],
         fuzzification_results: List[FuzzificationResult]
     ) -> BatchRuleEvaluationResult:
         """Evalúa todas las reglas del sistema con los resultados de fuzzificación.
-        
+
+        Convertido a síncrono: No realiza operaciones I/O ni llamadas asíncronas.
+        Solo ejecuta cálculos computacionales para evaluación de reglas fuzzy.
+
         Args:
             system: Sistema fuzzy con configuración de operadores
             rules: Lista de reglas del sistema activo
             fuzzification_results: Resultados de la fuzzificación de variables
-            
+
         Returns:
             Resultado de la evaluación de todas las reglas
-            
+
         Raises:
             ValidationError: Si hay problemas con la configuración o datos
         """
@@ -73,7 +76,7 @@ class RuleEvaluationEngine:
             # Evaluar cada regla individualmente
             for rule in rules:
                 try:
-                    rule_result = await self._evaluate_single_rule(
+                    rule_result = self._evaluate_single_rule(
                         rule, system, fuzz_index
                     )
                     batch_result.add_rule_result(rule_result)
@@ -151,7 +154,7 @@ class RuleEvaluationEngine:
         
         return index
     
-    async def _evaluate_single_rule(
+    def _evaluate_single_rule(
         self,
         rule: FuzzyRule,
         system: FuzzySystem,
@@ -185,7 +188,7 @@ class RuleEvaluationEngine:
             condition_values = []
             for i, condition_data in enumerate(rule.conditions):
                 try:
-                    condition_value = await self._evaluate_condition(
+                    condition_value = self._evaluate_condition(
                         condition_data, fuzz_index, result
                     )
                     condition_values.append(condition_value)
@@ -220,7 +223,7 @@ class RuleEvaluationEngine:
             result.error_message = str(e)
             return result
     
-    async def _evaluate_condition(
+    def _evaluate_condition(
         self,
         condition_data: Dict[str, Any],
         fuzz_index: Dict[str, FuzzificationResult],

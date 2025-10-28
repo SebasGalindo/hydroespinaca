@@ -1,3 +1,4 @@
+import math
 from typing import Optional, Tuple
 from pydantic import field_validator
 from ..Common import DomainBaseModel
@@ -20,13 +21,16 @@ class FuzzyValue(DomainBaseModel):
         return float(v)
 
     def is_fully_member(self) -> bool:
-        return self.membership_degree == 1.0
+        # Use tolerance for floating-point comparison
+        return abs(self.membership_degree - 1.0) < 1e-9
 
     def is_not_member(self) -> bool:
-        return self.membership_degree == 0.0
+        # Use tolerance for floating-point comparison
+        return abs(self.membership_degree) < 1e-9
 
     def is_partial_member(self) -> bool:
-        return 0.0 < self.membership_degree < 1.0
+        # Member but not fully: between 0 and 1, exclusive
+        return self.membership_degree > 1e-9 and self.membership_degree < (1.0 - 1e-9)
 
     def to_dict(self) -> dict:
         return self.model_dump()
@@ -72,7 +76,7 @@ class FuzzySet(DomainBaseModel):
         return tuple(v for v in self.values if v.membership_degree > 0.0)
 
     def get_core(self) -> Tuple[FuzzyValue, ...]:
-        return tuple(v for v in self.values if v.membership_degree == 1.0)
+        return tuple(v for v in self.values if math.isclose(v.membership_degree, 1.0, rel_tol=1e-9, abs_tol=1e-9))
 
     def get_alpha_cut(self, alpha: float) -> Tuple[FuzzyValue, ...]:
         if not (0.0 <= alpha <= 1.0):

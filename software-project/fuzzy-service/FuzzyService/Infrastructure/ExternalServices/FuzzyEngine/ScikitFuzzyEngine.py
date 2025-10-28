@@ -302,8 +302,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 self.logger.warning("No se proporcionaron reglas para evaluar")
                 rules = []
             
-            # Evaluar reglas usando el motor de evaluación
-            rule_evaluation_result = await self.rule_evaluation_engine.evaluate_rules(
+            # Evaluar reglas usando el motor de evaluación (síncrono)
+            rule_evaluation_result = self.rule_evaluation_engine.evaluate_rules(
                 system=system,
                 rules=rules,
                 fuzzification_results=fuzzification_results
@@ -538,7 +538,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
              ]
          }
 
-    async def evaluate_rules(
+    def evaluate_rules(
         self,
         system: FuzzySystem,
         rules: List[FuzzyRule],
@@ -546,22 +546,24 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         variables: List[FuzzyVariable]
     ) -> BatchRuleEvaluationResult:
         """Evalúa las reglas fuzzy usando los resultados de fuzzificación.
-        
+
+        Convertido a síncrono: Delega a RuleEvaluationEngine que es síncrono.
+
         Args:
             system: Sistema fuzzy que contiene las reglas
             rules: Lista de reglas fuzzy a evaluar
             fuzzification_results: Resultados de la fuzzificación
             variables: Variables del sistema fuzzy
-            
+
         Returns:
             Resultado de la evaluación de reglas con firing strengths
-            
+
         Raises:
             ValidationError: Si hay problemas con las reglas o datos
         """
         try:
-            # Usar el motor de evaluación de reglas existente con el sistema proporcionado
-            return await self.rule_evaluation_engine.evaluate_rules(
+            # Usar el motor de evaluación de reglas existente con el sistema proporcionado (síncrono)
+            return self.rule_evaluation_engine.evaluate_rules(
                 system=system,
                 rules=rules,
                 fuzzification_results=fuzzification_results
@@ -681,11 +683,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         var_terms = [t for t in all_terms if t.variable_id == variable.id]
 
         if not var_terms:
-            # Fallback: universo por defecto según actuator_type
-            if variable.actuator_type == "PWM":
-                return 0.0, 100.0
-            else:
-                return 0.0, 100.0
+            # Fallback: universo por defecto para cualquier tipo de actuador
+            return 0.0, 100.0
 
         # Obtener min/max de todos los términos
         min_vals = [t.membership_function.universe_min for t in var_terms]
@@ -1017,8 +1016,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 sensor_readings=sensor_readings
             )
             
-            # Paso 2: Evaluación de reglas
-            rule_evaluation_result = await self.evaluate_rules(
+            # Paso 2: Evaluación de reglas (síncrono)
+            rule_evaluation_result = self.evaluate_rules(
                 system=system,
                 rules=rules,
                 fuzzification_results=fuzzification_results,

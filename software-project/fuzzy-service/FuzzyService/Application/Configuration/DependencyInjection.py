@@ -217,15 +217,62 @@ def configure_application_di() -> None:
     _logger.info("Application DI configured: Medyator registered in kink and handlers wired.")
 
 
+# Global lifecycle hooks (configurable externally)
+_init_hook: Callable[[], Awaitable[None]] | None = None
+_close_hook: Callable[[], Awaitable[None]] | None = None
+
+
+def register_lifecycle_hooks(
+    init: Callable[[], Awaitable[None]] | None = None,
+    close: Callable[[], Awaitable[None]] | None = None
+) -> None:
+    """Register optional lifecycle hooks for application startup and shutdown.
+    
+    Args:
+        init: Optional async function to run during application startup
+        close: Optional async function to run during application shutdown
+        
+    Example:
+        async def custom_init():
+            print("Custom initialization")
+            
+        async def custom_cleanup():
+            print("Custom cleanup")
+            
+        register_lifecycle_hooks(init=custom_init, close=custom_cleanup)
+    """
+    global _init_hook, _close_hook
+    _init_hook = init
+    _close_hook = close
+    _logger.info("Lifecycle hooks registered (init: %s, close: %s)", 
+                 init is not None, close is not None)
+
+
 async def on_app_startup() -> None:
-    """Hook opcional para inicialización de Application (si se requiere async)."""
-    init: Callable[[], Awaitable] | None = None
-    if init:
-        await init()
+    """Hook opcional para inicialización de Application (si se requiere async).
+    
+    Este hook ejecuta la función de inicialización registrada mediante
+    `register_lifecycle_hooks()`, si existe.
+    
+    Nota para análisis estático (SonarQube, mypy):
+        - El hook `_init_hook` es configurable globalmente, no una constante.
+        - Se usa `is not None` para verificación explícita de tipo.
+        - Esto evita falsos positivos de "always False" en analizadores estáticos.
+    """
+    if _init_hook is not None:
+        await _init_hook()
 
 
 async def on_app_shutdown() -> None:
-    """Hook opcional para limpieza de Application (si se requiere async)."""
-    close: Callable[[], Awaitable] | None = None
-    if close:
-        await close()
+    """Hook opcional para limpieza de Application (si se requiere async).
+    
+    Este hook ejecuta la función de limpieza registrada mediante
+    `register_lifecycle_hooks()`, si existe.
+    
+    Nota para análisis estático (SonarQube, mypy):
+        - El hook `_close_hook` es configurable globalmente, no una constante.
+        - Se usa `is not None` para verificación explícita de tipo.
+        - Esto evita falsos positivos de "always False" en analizadores estáticos.
+    """
+    if _close_hook is not None:
+        await _close_hook()
