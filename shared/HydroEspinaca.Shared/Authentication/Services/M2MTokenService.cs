@@ -10,7 +10,7 @@ namespace HydroEspinaca.Shared.Authentication.Services;
 /// <summary>
 /// Service for obtaining M2M tokens from auth-service
 /// </summary>
-public class M2MTokenService
+public class M2MTokenService : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly M2MAuthOptions _options;
@@ -19,6 +19,7 @@ public class M2MTokenService
     
     private string? _cachedToken;
     private DateTime _tokenExpiresAt = DateTime.MinValue;
+    private bool _disposed;
 
     public M2MTokenService(
         HttpClient httpClient,
@@ -159,9 +160,29 @@ public class M2MTokenService
         return httpClient;
     }
 
+    /// <summary>
+    /// Disposes managed resources (SemaphoreSlim)
+    /// </summary>
     public void Dispose()
     {
-        _tokenSemaphore?.Dispose();
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Protected implementation of Dispose pattern
+    /// </summary>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _tokenSemaphore?.Dispose();
+            }
+
+            _disposed = true;
+        }
     }
 }
 
