@@ -28,10 +28,13 @@ public class NotificationController : ControllerBase
     /// </summary>
     [HttpPost("email")]
     [Authorize(Policy = PolicyNames.NotificationSend)]
-    public async Task<ActionResult<SendEmailResponseDto>> SendEmail([FromBody] SendEmailRequestDto dto, CancellationToken ct)
+    public async Task<ActionResult<SendEmailResponseDto>> SendEmail(
+        [FromBody] SendEmailRequestDto dto,
+        [FromHeader(Name = "Idempotency-Key")] string? idemKey,
+        CancellationToken ct)
     {
-        // Paso 1: Obtener la clave de idempotencia del header (preferido). Si no llega, el UseCase generará un hash del payload.
-        var idemKey = Request.Headers["Idempotency-Key"].FirstOrDefault();
+        // Paso 1: La clave de idempotencia se obtiene automáticamente del header vía model binding.
+        // Si no llega, el UseCase generará un hash del payload.
         // Paso 2-4: Ejecutar el caso de uso
     var result = await _emailService.SendAsync(dto, idemKey, ct);
         // Paso 5: Responder según estado

@@ -62,6 +62,6 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
     }
 }).AllowAnonymous();
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program { } // For integration tests
