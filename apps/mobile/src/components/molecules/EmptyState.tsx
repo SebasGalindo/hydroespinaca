@@ -189,7 +189,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <View style={[styles.content, contentStyle]}>
         {renderImage()}
 
-        {title && (
+        {!!title && (
           <Text
             style={[
               styles.title,
@@ -204,7 +204,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </Text>
         )}
 
-        {description && (
+        {!!description && (
           <Text
             style={[
               styles.description,
@@ -221,7 +221,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
         {children}
 
-        {enableButton && buttonText && onButtonPress && (
+        {!!(enableButton && buttonText && onButtonPress) && (
           <View style={[styles.buttonContainer, { marginTop: sizeStyles.spacing }]}>
             <TouchableOpacity
               onPress={onButtonPress}

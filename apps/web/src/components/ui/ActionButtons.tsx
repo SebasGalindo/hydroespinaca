@@ -25,29 +25,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   className = ''
 }) => {
   const getPrimaryIcon = () => {
-    switch (primaryIcon) {
-      case 'save':
-        return <SaveIcon size={16} />;
-      case 'submit':
-        return <SaveIcon size={16} />;
-      case 'add':
-        return <SaveIcon size={16} />;
-      default:
-        return <SaveIcon size={16} />;
-    }
+    // All cases return the same icon, so we can simplify
+    return <SaveIcon size={16} />;
   };
 
   const getSecondaryIcon = () => {
-    switch (secondaryIcon) {
-      case 'cancel':
-        return <RefreshIcon size={16} />;
-      case 'reset':
-        return <RefreshIcon size={16} />;
-      case 'back':
-        return <RefreshIcon size={16} />;
-      default:
-        return <RefreshIcon size={16} />;
-    }
+    // All cases return the same icon, so we can simplify
+    return <RefreshIcon size={16} />;
   };
 
   const containerClasses = layout === 'vertical' 

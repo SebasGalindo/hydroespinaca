@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuthStore } from '@hydroespinaca/shared';
+import { useAuthStore, setAuthCallbacks } from '@hydroespinaca/shared';
 
 // Configuración del refresco de sesión
-const SESSION_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
+// IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
+const SESSION_REFRESH_INTERVAL = 90 * 1000; // 90 segundos (1.5 minutos)
 const MIN_TIME_BETWEEN_CHECKS = 30 * 1000; // 30 segundos (throttle)
 
 export function StoreInitializer() {
@@ -24,8 +25,27 @@ export function StoreInitializer() {
   }, []);
 
   const checkSession = useAuthStore(state => state.checkSession);
+  const logout = useAuthStore(state => state.logout);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isLoading = useAuthStore(state => state.isLoading);
+
+  // Configurar callbacks globales para authFetch
+  useEffect(() => {
+    setAuthCallbacks(
+      async () => {
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StoreInitializer] authFetch triggered logout (401 detected)');
+        }
+        await logout();
+      },
+      (path: string) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[StoreInitializer] authFetch triggered redirect to:', path);
+        }
+        router.push(path);
+      }
+    );
+  }, [logout, router]);
 
   // Función para verificar sesión con throttle
   const checkSessionThrottled = async () => {
@@ -72,14 +92,14 @@ export function StoreInitializer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, sessionChecked]);
 
-  // Refresco periódico de sesión (cada 5 minutos)
+  // Refresco periódico de sesión (cada 90 segundos - antes de que expire el access token de 2 minutos)
   useEffect(() => {
     if (!isClient || !sessionChecked || !isAuthenticated) {
       return;
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.info('[StoreInitializer] Setting up periodic session refresh');
+      console.info('[StoreInitializer] Setting up periodic session refresh (every 90 seconds)');
     }
 
     const intervalId = setInterval(() => {

@@ -133,7 +133,7 @@ export function TabBar({
             )}
             <Text
               style={{
-                fontSize: size === 'lg' ? 16 : size === 'sm' ? 14 : 14,
+                fontSize: size === 'lg' ? 16 : size === 'sm' ? 12 : 14,
                 color: textColor,
                 fontWeight: isActive ? '500' : '400',
               }}

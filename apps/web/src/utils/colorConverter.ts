@@ -59,6 +59,10 @@ function oklchToRgb(l: number, c: number, h: number, alpha: number = 1): string 
  * - oklch(0.5 0.1 180 / 0.5)
  */
 function parseOklch(colorString: string): string | null {
+  // Safe: input length limited to 100 chars to prevent ReDoS (Sonar typescript:S5852)
+  // Complex regex pattern below is protected against catastrophic backtracking
+  if (colorString.length > 100) return null;
+
   const match = colorString.match(
     /oklch\(\s*([0-9.]+%?)\s+([0-9.]+)\s+([0-9.]+)(?:deg)?\s*(?:\/\s*([0-9.]+%?))?\s*\)/i
   );
@@ -91,6 +95,10 @@ function parseOklch(colorString: string): string | null {
  * - oklab(50% 0.1 -0.1 / 0.5)
  */
 function parseOklab(colorString: string): string | null {
+  // Safe: input length limited to 100 chars to prevent ReDoS (Sonar typescript:S5852)
+  // Complex regex pattern below is protected against catastrophic backtracking
+  if (colorString.length > 100) return null;
+
   const match = colorString.match(
     /oklab\(\s*([0-9.-]+%?)\s+([0-9.-]+)\s+([0-9.-]+)\s*(?:\/\s*([0-9.]+%?))?\s*\)/i
   );

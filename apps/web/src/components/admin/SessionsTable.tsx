@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { UserSessionsDto, SessionMonitorDto } from '@hydroespinaca/shared';
+import { useAuthStore } from '@hydroespinaca/shared';
 import Swal from 'sweetalert2';
 
 interface SessionsTableProps {
@@ -15,6 +16,9 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   onRevokeSession,
   isLoading = false
 }) => {
+  // Get current session ID to prevent revoking own session
+  const currentSession = useAuthStore(state => state.session);
+
   const [revoking, setRevoking] = useState<Set<string>>(new Set());
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -146,6 +150,10 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
     return `${sessionId.substring(0, 8)}...${sessionId.substring(sessionId.length - 4)}`;
   };
 
+  const isCurrentSession = (sessionId: string): boolean => {
+    return currentSession?.sessionId === sessionId;
+  };
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -253,8 +261,13 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
                       {!isRevoked && (
                         <button
                           onClick={() => handleRevoke(session.sessionId)}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          title="Revocar sesión"
+                          disabled={isCurrentSession(session.sessionId)}
+                          className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            isCurrentSession(session.sessionId)
+                              ? 'text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                              : 'text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 focus:ring-red-500'
+                          }`}
+                          title={isCurrentSession(session.sessionId) ? 'No puedes revocar tu propia sesión activa' : 'Revocar sesión'}
                         >
                           <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />

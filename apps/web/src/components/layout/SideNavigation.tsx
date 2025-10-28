@@ -41,7 +41,9 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
 }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user } = useAuthStore();
+  // Suscribirse específicamente a `user` para forzar re-render cuando cambie
+  const user = useAuthStore(state => state.user);
+  const logout = useAuthStore(state => state.logout);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState<string | null>(null);

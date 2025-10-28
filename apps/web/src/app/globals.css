@@ -4,7 +4,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Consolas:wght@400;500;600;700;800&display=swap'); 
 @import "tailwindcss";
 
-@theme {
+:root {
   /* Colores personalizados del proyecto */
   --color-hidro-green-primary: #166534;
   --color-hidro-green-light: #BEEEBE;
@@ -48,7 +48,7 @@
   }
   
   .hidro-gradient {
-    background: linear-gradient(135deg, theme(--color-hidro-green-bg) 0%, theme(--color-hidro-green-bg-light) 100%);
+    background: linear-gradient(135deg, var(--color-hidro-green-bg) 0%, var(--color-hidro-green-bg-light) 100%);
   }
   
   /* Clases para reemplazar estilos inline */
@@ -58,7 +58,7 @@
   }
   
   .modal-overlay {
-    background-color: theme(--color-overlay-dark);
+    background-color: var(--color-overlay-dark);
   }
   
   .backdrop-blur-xs {
@@ -67,20 +67,20 @@
   }
 
   .bg-hidroespinaca {
-    background-image: theme(--bg-hidroespinaca);
+    background-image: var(--bg-hidroespinaca);
   }
 
   .btn-hidro-add {
-    background-color: theme(--color-hidro-green-light);
-    color: theme(--color-hidro-green-primary);
+    background-color: var(--color-hidro-green-light);
+    color: var(--color-hidro-green-primary);
   }
-  
+
   .btn-hidro-add:hover {
-    background-color: theme(--color-hidro-green-hover);
+    background-color: var(--color-hidro-green-hover);
   }
-  
+
   .icon-hidro-green {
-    color: theme(--color-hidro-green-primary);
+    color: var(--color-hidro-green-primary);
   }
   
   .hidro-card {
@@ -142,7 +142,7 @@
 }
 
 body {
-  color: theme(--color-foreground);
-  background: theme(--color-background);
+  color: var(--color-foreground);
+  background: var(--color-background);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
 }

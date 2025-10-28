@@ -7,7 +7,7 @@ import { UsersTable } from '@/components/admin/UsersTable';
 import { RolesTable } from '@/components/admin/RolesTable';
 import { UserForm } from '@/components/admin/UserForm';
 import { RoleForm } from '@/components/admin/RoleForm';
-import { adminService } from '@hydroespinaca/shared';
+import { adminService, useAuthStore } from '@hydroespinaca/shared';
 import Swal from 'sweetalert2';
 import type {
   UserResponseDto,
@@ -74,6 +74,18 @@ export default function AdminAccessPage() {
   };
 
   const handleDeleteUser = async (user: UserResponseDto) => {
+    // Additional check to prevent accidental self-deletion (defense in depth)
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser?.id === user.id) {
+      await Swal.fire({
+        title: 'Acción no permitida',
+        text: 'No puedes eliminar tu propia cuenta de usuario',
+        icon: 'warning',
+        confirmButtonColor: '#16a34a'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: `Se eliminará al usuario "${user.username}"`,
@@ -99,9 +111,36 @@ export default function AdminAccessPage() {
         confirmButtonColor: '#16a34a'
       });
     } catch (err: any) {
+      // Extract the error message from the ApiError
+      console.error('Error deleting user - full error object:', err);
+      console.error('Error message:', err.message);
+      console.error('Error status:', err.status);
+
+      let errorMessage = 'Error desconocido al eliminar usuario';
+
+      // Try to extract message from various possible error formats
+      if (err.message) {
+        errorMessage = err.message;
+
+        // If the message looks like a JSON string, try to parse it
+        if (typeof errorMessage === 'string' && errorMessage.trim().startsWith('{')) {
+          try {
+            const parsedMessage = JSON.parse(errorMessage);
+            errorMessage = parsedMessage.message || errorMessage;
+          } catch {
+            // If parsing fails, use the original message
+          }
+        }
+      }
+
+      // Special handling for 400 errors (likely validation errors)
+      if (err.status === 400 && errorMessage.includes('Request failed')) {
+        errorMessage = 'No puedes eliminar tu propia cuenta de usuario';
+      }
+
       await Swal.fire({
-        title: 'Error',
-        text: `Error al eliminar usuario: ${err.message}`,
+        title: 'No se pudo eliminar',
+        text: errorMessage,
         icon: 'error',
         confirmButtonColor: '#16a34a'
       });

@@ -7,7 +7,7 @@ interface ErrorProps {
   err?: Error;
 }
 
-function Error({ statusCode }: ErrorProps) {
+function ErrorPage({ statusCode }: ErrorProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full text-center">
@@ -49,9 +49,9 @@ function Error({ statusCode }: ErrorProps) {
   );
 }
 
-Error.getInitialProps = ({ res, err }: NextPageContext) => {
+ErrorPage.getInitialProps = ({ res, err }: NextPageContext) => {
   const statusCode = res ? res.statusCode : err ? err.statusCode : 404;
   return { statusCode };
 };
 
-export default Error;
+export default ErrorPage;

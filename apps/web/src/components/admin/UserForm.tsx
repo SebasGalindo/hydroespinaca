@@ -26,6 +26,11 @@ export const UserForm: React.FC<UserFormProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    username?: string;
+    email?: string;
+    password?: string;
+  }>({});
 
   const isEditMode = !!user;
 
@@ -46,11 +51,52 @@ export const UserForm: React.FC<UserFormProps> = ({
       });
     }
     setError(null);
+    setValidationErrors({});
   }, [user, isOpen]);
+
+  const validateForm = (): boolean => {
+    const errors: typeof validationErrors = {};
+
+    // Username validation
+    if (!formData.username.trim()) {
+      errors.username = 'El nombre de usuario es requerido';
+    } else if (formData.username.length > 100) {
+      errors.username = 'El nombre de usuario no puede tener más de 100 caracteres';
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = 'El email es requerido';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'El email no tiene un formato válido';
+    } else if (formData.email.length > 255) {
+      errors.email = 'El email no puede tener más de 255 caracteres';
+    }
+
+    // Password validation (only for create or if password is being changed)
+    if (!isEditMode || formData.password) {
+      if (!formData.password) {
+        errors.password = 'La contraseña es requerida';
+      } else if (formData.password.length < 8) {
+        errors.password = 'La contraseña debe tener al menos 8 caracteres';
+      } else if (formData.password.length > 128) {
+        errors.password = 'La contraseña no puede tener más de 128 caracteres';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setValidationErrors({});
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -118,9 +164,14 @@ export const UserForm: React.FC<UserFormProps> = ({
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
                   autoComplete="name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    validationErrors.username ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Juan Pérez"
                 />
+                {validationErrors.username && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.username}</p>
+                )}
               </div>
 
               <div>
@@ -134,9 +185,14 @@ export const UserForm: React.FC<UserFormProps> = ({
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                   autoComplete="email"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="usuario@ejemplo.com"
                 />
+                {validationErrors.email && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -150,12 +206,22 @@ export const UserForm: React.FC<UserFormProps> = ({
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required={!isEditMode}
                   autoComplete={isEditMode ? "new-password" : "new-password"}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                    validationErrors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder={isEditMode ? 'Dejar en blanco para no cambiar' : '********'}
                 />
-                {isEditMode && (
+                {validationErrors.password && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.password}</p>
+                )}
+                {isEditMode && !validationErrors.password && (
                   <p className="mt-1 text-xs text-gray-500">
                     Dejar en blanco si no desea cambiar la contraseña
+                  </p>
+                )}
+                {!isEditMode && !validationErrors.password && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Mínimo 8 caracteres
                   </p>
                 )}
               </div>

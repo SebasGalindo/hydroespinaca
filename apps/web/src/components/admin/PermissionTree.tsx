@@ -121,6 +121,7 @@ export const PermissionTree: React.FC<PermissionTreeProps> = ({
               <div className="flex items-center">
                 <input
                   type="checkbox"
+                  id={`category-all-${group.category}`}
                   checked={isFullySelected}
                   ref={input => {
                     if (input) {
@@ -132,7 +133,7 @@ export const PermissionTree: React.FC<PermissionTreeProps> = ({
                   className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
                   title="Seleccionar todos"
                 />
-                <label className="ml-2 text-xs text-gray-500">
+                <label htmlFor={`category-all-${group.category}`} className="ml-2 text-xs text-gray-500">
                   Todos
                 </label>
               </div>

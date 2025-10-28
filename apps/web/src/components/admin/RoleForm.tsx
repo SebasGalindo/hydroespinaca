@@ -26,6 +26,10 @@ export const RoleForm: React.FC<RoleFormProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    code?: string;
+    name?: string;
+  }>({});
 
   const isEditMode = !!role;
 
@@ -44,7 +48,34 @@ export const RoleForm: React.FC<RoleFormProps> = ({
       });
     }
     setError(null);
+    setValidationErrors({});
   }, [role, isOpen]);
+
+  const validateForm = (): boolean => {
+    const errors: typeof validationErrors = {};
+
+    // Code validation (only for create mode)
+    if (!isEditMode) {
+      if (!formData.code.trim()) {
+        errors.code = 'El código del rol es requerido';
+      } else {
+        const formatted = formatRoleCode(formData.code);
+        if (formatted.length < 5 || formatted.length > 100) {
+          errors.code = 'El código del rol debe tener entre 5 y 100 caracteres';
+        }
+      }
+    }
+
+    // Name validation
+    if (!formData.name.trim()) {
+      errors.name = 'El nombre del rol es requerido';
+    } else if (formData.name.length < 2 || formData.name.length > 100) {
+      errors.name = 'El nombre del rol debe tener entre 2 y 100 caracteres';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const formatRoleCode = (code: string): string => {
     // Remove spaces and convert to lowercase
@@ -61,6 +92,12 @@ export const RoleForm: React.FC<RoleFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setValidationErrors({});
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -94,6 +131,14 @@ export const RoleForm: React.FC<RoleFormProps> = ({
         <div
           className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
           onClick={onCancel}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              onCancel();
+            }
+          }}
+          aria-label="Cerrar modal"
         ></div>
 
         {/* Modal panel */}
@@ -126,12 +171,22 @@ export const RoleForm: React.FC<RoleFormProps> = ({
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     required
                     disabled={isEditMode}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm ${
+                      validationErrors.code ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="admin, operador, etc."
                   />
-                  {isEditMode && (
+                  {validationErrors.code && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.code}</p>
+                  )}
+                  {isEditMode && !validationErrors.code && (
                     <p className="mt-1 text-xs text-gray-500">
                       El código no puede ser modificado
+                    </p>
+                  )}
+                  {!isEditMode && !validationErrors.code && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Se agregará automáticamente el prefijo "role_"
                     </p>
                   )}
                 </div>
@@ -146,24 +201,31 @@ export const RoleForm: React.FC<RoleFormProps> = ({
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      validationErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Administrador"
                   />
+                  {validationErrors.name && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.name}</p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="role-permissions" className="block text-sm font-medium text-gray-700 mb-2">
                   Permisos
                 </label>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-gray-500 mb-3" id="role-permissions-description">
                   Selecciona los permisos que tendrá este rol. Puedes expandir las categorías para ver todos los permisos disponibles.
                 </p>
-                <PermissionTree
-                  groupedPermissions={groupedPermissions}
-                  selectedPermissionCodes={formData.permissionCodes}
-                  onChange={(permissionCodes) => setFormData({ ...formData, permissionCodes })}
-                />
+                <div id="role-permissions" aria-describedby="role-permissions-description">
+                  <PermissionTree
+                    groupedPermissions={groupedPermissions}
+                    selectedPermissionCodes={formData.permissionCodes}
+                    onChange={(permissionCodes) => setFormData({ ...formData, permissionCodes })}
+                  />
+                </div>
                 <div className="mt-2 text-sm text-gray-600">
                   <strong>{formData.permissionCodes.length}</strong> permiso(s) seleccionado(s)
                 </div>
