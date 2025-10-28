@@ -25,7 +25,8 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/ ./packages/
 
 # Install dependencies for all workspaces
-RUN pnpm install --frozen-lockfile
+# Using --ignore-scripts for security (S6505) to prevent execution of untrusted scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Build shared package first (required for web app)
 # Source code already copied from line 25
@@ -131,6 +132,11 @@ COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next/standalone .
 # Copy static assets
 COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /workspace/apps/web/public ./apps/web/public
+
+# Remove write permissions from all copied files for security (Sonar docker:S6504)
+# This ensures immutable container filesystem in production
+RUN chmod -R a-w ./apps/web/.next ./apps/web/public && \
+    chmod -R go-w /usr/local/bin
 
 # Switch to non-root user
 USER nextjs

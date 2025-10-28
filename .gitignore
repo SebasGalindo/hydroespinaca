@@ -58,6 +58,11 @@ Thumbs.db
 **/.venv/
 **/venv/
 **/env/
+# Coverage reports (locales, temporales)
+**/htmlcov/
+**/.coverage
+**/coverage.xml
+**/coverage-*.xml
 
 # ===============================
 # .NET / C#
@@ -118,3 +123,60 @@ shared/HydroEspinaca.Shared/nupkg/
 **/*.apk
 **/*.aab
 **/*.ipa
+
+
+# SonarQube analysis and temp files
+.scannerwork/
+.sonarqube/
+.sonar/
+.sonar/cache/
+.sonar/tmp/
+.sonar/temp/
+.sonar/report-task.txt
+.sonar/batch/
+.sonar/output/
+.sonar/scanner-report/
+.sonar/.sonartmp/
+.sonar/.sonarcloud/
+.sonartmp/
+.sonarqube/
+.sonarqube-out/
+.sonarqube-report/
+.sonarqube-tests/
+.sonarqube-analysis.xml
+.sonarqube-report.json
+
+# If using SonarScanner for MSBuild/.NET
+.sonarqube/
+.sonarqube/out/
+.sonarqube/conf/
+.sonarqube/bin/
+.sonarqube/.sonartmp/
+.sonarqube-report.html
+.sonarqube-report.xml
+
+# SonarLint (local IDE analysis)
+.sonarlint/
+.sonarlint/target/
+.sonarlint/.sonartmp/
+
+# Optional - logs and generated analysis results
+.sonar-project.properties.backup
+.sonar.log
+sonar-report.xml
+sonar-report.html
+
+# ===============================
+# SONARQUBE
+# ===============================
+# Directorios temporales de análisis
+**/.scannerwork/
+**/.sonarqube/
+
+# Archivos de configuración locales (el script central los genera)
+**/sonar-project.properties
+
+# Reportes de coverage específicos de cada proyecto
+# NOTA: El script central genera estos temporalmente
+software-project/fuzzy-service/coverage.xml
+software-project/fuzzy-service/.coverage

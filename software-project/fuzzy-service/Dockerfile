@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
 COPY software-project/fuzzy-service/requirements.txt .
 
 # Install Python dependencies
+# Security: Using --no-cache-dir to avoid caching potentially vulnerable packages
+# Security: Pinning versions in requirements.txt to prevent supply chain attacks
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

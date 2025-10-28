@@ -32,30 +32,70 @@ info() {
 
 # =================================================
 # FRONTEND BUILD FUNCTION
-# Builds shared dependencies needed by the frontend container
-# Frontend itself is built inside Docker container
+# Development: Build shared on host (required for bind mounts)
+# Production: Build shared in Docker (no host dependencies)
 # =================================================
 build_shared_dependencies() {
-    log "=== Building Shared Dependencies ==="
+    log "=== Shared Dependencies Build ==="
 
-    # Check if pnpm is available
-    if ! command -v pnpm &> /dev/null; then
-        warn "pnpm is not installed. Dependencies will be built inside Docker containers."
+    # In production, shared is built inside Docker
+    if [ "$ENVIRONMENT" = "Production" ]; then
+        info "Production mode: Shared package will be built inside Docker"
+        log "=== Configuration Complete ==="
         return 0
     fi
+
+    # In development, we need shared built on host for bind mounts
+    log "Development mode: Building shared package on host..."
 
     # Navigate to project root (script is in deploy-artifacts/scripts/)
     cd "$(dirname "$0")/../.."
-
     info "Current directory: $(pwd)"
 
-    log "Building shared package (required by web app)..."
-    # Build shared package first (required by web app)
-    if ! pnpm --filter @hydroespinaca/shared build; then
-        warn "Failed to build shared package, will try inside Docker container"
-        return 0
+    # Check if pnpm is available
+    if ! command -v pnpm &> /dev/null; then
+        error "pnpm is NOT installed on host!"
+        error ""
+        error "For DEVELOPMENT mode, you need pnpm installed because:"
+        error "  1. web-app-dev uses bind mounts (live code reload)"
+        error "  2. The host code needs packages/shared/dist/ compiled"
+        error ""
+        error "Options:"
+        error "  A) Install pnpm on host (recommended for development):"
+        error "     npm install -g pnpm"
+        error "     OR: curl -fsSL https://get.pnpm.io/install.sh | sh -"
+        error ""
+        error "  B) Switch to Production mode (builds everything in Docker):"
+        error "     Edit .env and set: ENVIRONMENT=Production"
+        error ""
+        exit 1
     fi
 
+    # Install dependencies if needed
+    log "Installing dependencies..."
+    if ! pnpm install --frozen-lockfile 2>/dev/null; then
+        warn "Failed to install with frozen-lockfile, trying regular install..."
+        pnpm install || {
+            error "Failed to install dependencies!"
+            exit 1
+        }
+    fi
+
+    # Build shared package
+    log "Building @hydroespinaca/shared package..."
+    if ! pnpm --filter @hydroespinaca/shared build; then
+        error "Failed to build shared package!"
+        error "Try running manually: pnpm --filter @hydroespinaca/shared build"
+        exit 1
+    fi
+
+    # Verify dist folder was created
+    if [ ! -d "packages/shared/dist" ]; then
+        error "Build succeeded but dist folder not found!"
+        exit 1
+    fi
+
+    log "✓ Shared package built successfully at packages/shared/dist/"
     log "=== Shared Dependencies Build Complete ==="
 }
 
@@ -155,9 +195,18 @@ start_development() {
     export WEB_TARGET=development
     export NODE_ENV=development
 
-    # Use Docker BuildKit for better build performance
-    export DOCKER_BUILDKIT=1
-    export COMPOSE_DOCKER_CLI_BUILD=1
+    # Check buildx version and set appropriate build mode
+    BUILDX_VERSION=$(docker buildx version 2>/dev/null | grep -oP 'v\K[0-9]+\.[0-9]+' | head -1)
+    if [ -n "$BUILDX_VERSION" ] && [ "${BUILDX_VERSION%%.*}" -ge 17 ]; then
+        info "Using BuildKit (buildx >= 0.17)"
+        export DOCKER_BUILDKIT=1
+        export COMPOSE_DOCKER_CLI_BUILD=1
+    else
+        warn "Buildx version is < 0.17 or not available. Using legacy builder."
+        warn "Consider upgrading: docker buildx install"
+        export DOCKER_BUILDKIT=0
+        unset COMPOSE_DOCKER_CLI_BUILD
+    fi
 
     # ===== STEP 2: Start Docker Services =====
     log "Starting Docker services..."
@@ -205,9 +254,18 @@ start_production() {
     export WEB_TARGET=production
     export NODE_ENV=production
 
-    # Use Docker BuildKit for better build performance
-    export DOCKER_BUILDKIT=1
-    export COMPOSE_DOCKER_CLI_BUILD=1
+    # Check buildx version and set appropriate build mode
+    BUILDX_VERSION=$(docker buildx version 2>/dev/null | grep -oP 'v\K[0-9]+\.[0-9]+' | head -1)
+    if [ -n "$BUILDX_VERSION" ] && [ "${BUILDX_VERSION%%.*}" -ge 17 ]; then
+        info "Using BuildKit (buildx >= 0.17)"
+        export DOCKER_BUILDKIT=1
+        export COMPOSE_DOCKER_CLI_BUILD=1
+    else
+        warn "Buildx version is < 0.17 or not available. Using legacy builder."
+        warn "Consider upgrading: docker buildx install"
+        export DOCKER_BUILDKIT=0
+        unset COMPOSE_DOCKER_CLI_BUILD
+    fi
 
     # ===== STEP 2: Start nginx in certificate-only mode =====
     log "Starting nginx-proxy in certificate-only mode..."
@@ -345,36 +403,49 @@ case "${1:-start}" in
         COMPOSE_FILE=docker-compose.yml docker compose logs -f ${2:-}
         ;;
     "build")
-        # Allow manual shared dependencies rebuild
-        log "Building shared dependencies..."
-        build_shared_dependencies
-        log "Shared dependencies build complete. Restart web container to apply changes: docker compose restart web-app"
+        # Rebuild Docker images (includes shared dependencies)
+        log "Rebuilding Docker images..."
+        info "This will rebuild all images including shared dependencies"
+
+        if [ "$ENVIRONMENT" = "Production" ]; then
+            export COMPOSE_PROFILE=production
+            export WEB_TARGET=production
+            export NODE_ENV=production
+        else
+            export COMPOSE_PROFILE=development
+            export WEB_TARGET=development
+            export NODE_ENV=development
+        fi
+
+        COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" build
+        log "Build complete. Restart services to apply changes: $0 restart"
         ;;
     "refresh-frontend"|"frontend")
-        # Refresh frontend only - rebuild shared deps and restart web container
+        # Refresh frontend only - rebuild Docker image (includes shared package build)
         log "=== Refreshing Frontend Only ==="
         log "Backend services will remain running"
-
-        # Build shared dependencies
-        log "Step 1/3: Building shared dependencies..."
-        build_shared_dependencies
+        log "Shared package will be rebuilt inside Docker during image build"
 
         # Determine the correct profile and container name based on ENVIRONMENT
         if [ "$ENVIRONMENT" = "Production" ]; then
             export COMPOSE_PROFILE=production
+            export WEB_TARGET=production
+            export NODE_ENV=production
             FRONTEND_CONTAINER="web-app"
             log "Using production frontend container: $FRONTEND_CONTAINER"
         else
             export COMPOSE_PROFILE=development
+            export WEB_TARGET=development
+            export NODE_ENV=development
             FRONTEND_CONTAINER="web-app-dev"
             log "Using development frontend container: $FRONTEND_CONTAINER"
         fi
 
         # Rebuild and restart only the appropriate web container
-        log "Step 2/3: Rebuilding $FRONTEND_CONTAINER container..."
+        log "Step 1/2: Rebuilding $FRONTEND_CONTAINER Docker image..."
         COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" build "$FRONTEND_CONTAINER"
 
-        log "Step 3/3: Restarting $FRONTEND_CONTAINER container..."
+        log "Step 2/2: Restarting $FRONTEND_CONTAINER container..."
         COMPOSE_FILE=docker-compose.yml docker compose --profile "$COMPOSE_PROFILE" up -d --no-deps --force-recreate "$FRONTEND_CONTAINER"
 
         log "=== Frontend Refresh Complete ==="

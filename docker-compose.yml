@@ -205,6 +205,9 @@ services:
       # External Service URLs
       - NotificationService__BaseUrl=${NOTIFICATION_SERVICE_URL}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+      # Password seed data
+      - HYDRO_ADMIN_PASSWORD=${HYDRO_ADMIN_PASSWORD}
+      - HYDRO_TEST_USER_PASSWORD=${HYDRO_TEST_USER_PASSWORD}
     networks:
       - espinaca-net
     profiles:
@@ -376,8 +379,6 @@ services:
     profiles:
       - production
 
-
-
   # Development version with volume mount for HMR
   web-app-dev:
     container_name: web-app-dev
@@ -415,12 +416,53 @@ services:
     profiles:
       - development
 
+  # # -----------------------------
+  # # Code Quality Analysis
+  # # -----------------------------
+  # sonarqube-db:
+  #   image: postgres:15-alpine
+  #   container_name: sonarqube-db
+  #   environment:
+  #     - POSTGRES_USER=sonar
+  #     - POSTGRES_PASSWORD=sonar
+  #     - POSTGRES_DB=sonarqube
+  #   volumes:
+  #     - sonarqube_db:/var/lib/postgresql/data
+  #   networks:
+  #     - espinaca-net
+  #   profiles:
+  #     - analysis
+
+  # sonarqube:
+  #   image: sonarqube:25.8.0.112029-community
+  #   container_name: sonarqube
+  #   depends_on:
+  #     - sonarqube-db
+  #   environment:
+  #     - SONAR_JDBC_URL=jdbc:postgresql://sonarqube-db:5432/sonarqube
+  #     - SONAR_JDBC_USERNAME=sonar
+  #     - SONAR_JDBC_PASSWORD=sonar
+  #   volumes:
+  #     - sonarqube_data:/opt/sonarqube/data
+  #     - sonarqube_logs:/opt/sonarqube/logs
+  #     - sonarqube_extensions:/opt/sonarqube/extensions
+  #   ports:
+  #     - "9000:9000"
+  #   networks:
+  #     - espinaca-net
+  #   profiles:
+  #     - analysis
+
 volumes:
   mqtt_data:
   mqtt_log:
   certbot_certs:
   certbot_www:
   nginx_logs:
+  # sonarqube_db:
+  # sonarqube_data:
+  # sonarqube_logs:
+  # sonarqube_extensions:
 
 networks:
   espinaca-net:
