@@ -23,6 +23,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
     private readonly IActuatorCodeResolver _actuatorCodeResolver;
     private readonly ICommandExecutionService _commandExecutionService;
     private readonly IRoutineCommandRepository _routineCommandRepository;
+    private readonly IActuatorStateMachine _stateMachine;
     private readonly ILogger<ExecuteCommandsUseCase> _logger;
 
     public ExecuteCommandsUseCase(
@@ -30,12 +31,14 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         IActuatorCodeResolver actuatorCodeResolver,
         ICommandExecutionService commandExecutionService,
         IRoutineCommandRepository routineCommandRepository,
+        IActuatorStateMachine stateMachine,
         ILogger<ExecuteCommandsUseCase> logger)
     {
         _validator = validator;
         _actuatorCodeResolver = actuatorCodeResolver;
         _commandExecutionService = commandExecutionService;
         _routineCommandRepository = routineCommandRepository;
+        _stateMachine = stateMachine;
         _logger = logger;
     }
 
@@ -48,8 +51,9 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         if (!validationResult.IsValid)
             throw new ValidationException(validationResult.Errors);
 
-        // 2. Resolve all commands (actuatorCode → physical actuator)
+        // 2. Resolve all commands (actuatorCode → physical actuator) and filter redundant commands
         var resolvedCommands = new List<ResolvedCommandDto>();
+        var skippedCommands = new List<string>();
 
         foreach (var command in executeCommands.Commands)
         {
@@ -57,6 +61,47 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
 
             // Validate command parameters for actuator mode
             ValidateCommandForMode(command, actuator);
+
+            // Get current actuator state
+            var currentState = _stateMachine.GetState(actuator.Id);
+            var power = command.Power ?? command.DutyCycle?.ToString();
+            var isPowerOff = power?.Equals(ActuatorConstants.PowerStates.Off, StringComparison.OrdinalIgnoreCase) == true;
+
+            // Skip redundant OFF commands
+            if (isPowerOff && currentState?.State == PowerState.OFF)
+            {
+                _logger.LogInformation("⏭️ Skipping redundant OFF command for {ActuatorCode} - actuator already OFF",
+                    command.ActuatorCode);
+                skippedCommands.Add(command.ActuatorCode);
+                continue;
+            }
+
+            // Skip redundant ON commands with same parameters
+            if (!isPowerOff && currentState?.State == PowerState.ON)
+            {
+                bool isSameCommand = false;
+
+                if (actuator.Mode == ActuatorMode.DIGITAL)
+                {
+                    // For DIGITAL: check if power is ON
+                    isSameCommand = command.Power?.Equals(ActuatorConstants.PowerStates.On, StringComparison.OrdinalIgnoreCase) == true;
+                }
+                else if (actuator.Mode == ActuatorMode.PWM)
+                {
+                    // For PWM: check if dutyCycle matches
+                    isSameCommand = command.DutyCycle.HasValue &&
+                                   currentState.DutyCycle.HasValue &&
+                                   Math.Abs(command.DutyCycle.Value - currentState.DutyCycle.Value) < 0.01;
+                }
+
+                if (isSameCommand)
+                {
+                    _logger.LogInformation("⏭️ Skipping redundant ON command for {ActuatorCode} - actuator already ON with same parameters",
+                        command.ActuatorCode);
+                    skippedCommands.Add(command.ActuatorCode);
+                    continue;
+                }
+            }
 
             var resolvedCommand = new ResolvedCommandDto
             {
@@ -71,6 +116,14 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
             };
 
             resolvedCommands.Add(resolvedCommand);
+        }
+
+        // If all commands were skipped, return empty list
+        if (resolvedCommands.Count == 0)
+        {
+            _logger.LogInformation("✅ All commands were redundant and skipped: {SkippedCommands}",
+                string.Join(", ", skippedCommands));
+            return new List<string>();
         }
 
         // 3. Group by ESP32
@@ -145,7 +198,15 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         // 5. Schedule commands with execution service (handles MQTT publishing)
         await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
 
-        _logger.LogInformation("✅ Processed {Count} commands for ESP32 {Esp32Id}", commandIds.Count, esp32Id);
+        if (skippedCommands.Count > 0)
+        {
+            _logger.LogInformation("✅ Processed {Count} commands for ESP32 {Esp32Id} ({SkippedCount} redundant commands skipped: {SkippedCommands})",
+                commandIds.Count, esp32Id, skippedCommands.Count, string.Join(", ", skippedCommands));
+        }
+        else
+        {
+            _logger.LogInformation("✅ Processed {Count} commands for ESP32 {Esp32Id}", commandIds.Count, esp32Id);
+        }
 
         return commandIds;
     }

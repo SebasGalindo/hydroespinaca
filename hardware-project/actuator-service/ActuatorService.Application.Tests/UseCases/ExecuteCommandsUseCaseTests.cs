@@ -5,6 +5,7 @@ using ActuatorService.Application.UseCases;
 using ActuatorService.Domain.Entities;
 using ActuatorService.Domain.Exceptions;
 using ActuatorService.Domain.Interfaces;
+using ActuatorService.Domain.Models;
 using FluentValidation;
 using FluentValidation.Results;
 using HydroEspinaca.Shared.Constants;
@@ -24,6 +25,7 @@ public class ExecuteCommandsUseCaseTests
     private readonly Mock<IActuatorCodeResolver> _mockActuatorCodeResolver;
     private readonly Mock<ICommandExecutionService> _mockCommandExecutionService;
     private readonly Mock<IRoutineCommandRepository> _mockRoutineCommandRepository;
+    private readonly Mock<IActuatorStateMachine> _mockStateMachine;
     private readonly Mock<ILogger<ExecuteCommandsUseCase>> _mockLogger;
     private readonly ExecuteCommandsUseCase _useCase;
 
@@ -33,6 +35,7 @@ public class ExecuteCommandsUseCaseTests
         _mockActuatorCodeResolver = new Mock<IActuatorCodeResolver>();
         _mockCommandExecutionService = new Mock<ICommandExecutionService>();
         _mockRoutineCommandRepository = new Mock<IRoutineCommandRepository>();
+        _mockStateMachine = new Mock<IActuatorStateMachine>();
         _mockLogger = new Mock<ILogger<ExecuteCommandsUseCase>>();
 
         _useCase = new ExecuteCommandsUseCase(
@@ -40,6 +43,7 @@ public class ExecuteCommandsUseCaseTests
             _mockActuatorCodeResolver.Object,
             _mockCommandExecutionService.Object,
             _mockRoutineCommandRepository.Object,
+            _mockStateMachine.Object,
             _mockLogger.Object
         );
     }
@@ -61,6 +65,8 @@ public class ExecuteCommandsUseCaseTests
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
             .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns((ActuatorState?)null);
         _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("BombaRiego"))
             .ReturnsAsync((RoutineCommand?)null);
         _mockRoutineCommandRepository.Setup(r => r.AddAsync(It.IsAny<RoutineCommand>()))
@@ -96,6 +102,8 @@ public class ExecuteCommandsUseCaseTests
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("Ventiladores"))
             .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns((ActuatorState?)null);
         _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("Ventiladores"))
             .ReturnsAsync((RoutineCommand?)null);
         _mockRoutineCommandRepository.Setup(r => r.AddAsync(It.IsAny<RoutineCommand>()))
@@ -320,6 +328,8 @@ public class ExecuteCommandsUseCaseTests
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
             .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns((ActuatorState?)null);
         _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("BombaRiego"))
             .ReturnsAsync(existingCommand);
         _mockRoutineCommandRepository.Setup(r => r.UpdateAsync(It.IsAny<RoutineCommand>()))
@@ -359,6 +369,8 @@ public class ExecuteCommandsUseCaseTests
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
             .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns((ActuatorState?)null);
         _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("BombaRiego"))
             .ReturnsAsync((RoutineCommand?)null);
         _mockCommandExecutionService.Setup(s => s.ScheduleCommandsAsync(It.IsAny<List<ResolvedCommandDto>>(), It.IsAny<string>()))
@@ -398,7 +410,10 @@ public class ExecuteCommandsUseCaseTests
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego")).ReturnsAsync(actuator1);
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaAire")).ReturnsAsync(actuator2);
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("Ventiladores")).ReturnsAsync(actuator3);
-        
+
+        _mockStateMachine.Setup(s => s.GetState(It.IsAny<string>()))
+            .Returns((ActuatorState?)null);
+
         _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync(It.IsAny<string>()))
             .ReturnsAsync((RoutineCommand?)null);
         _mockRoutineCommandRepository.Setup(r => r.AddAsync(It.IsAny<RoutineCommand>()))
@@ -414,6 +429,163 @@ public class ExecuteCommandsUseCaseTests
         _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
             It.Is<List<ResolvedCommandDto>>(cmds => cmds.Count == 3),
             "esp32-001"
+        ), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RedundantOffCommand_ShouldSkipCommand()
+    {
+        // Arrange
+        var executeCommands = new ExecuteCommandsDto
+        {
+            Commands = new List<ActuatorControlDto>
+            {
+                new() { ActuatorCode = "BombaRiego", Power = ActuatorConstants.PowerStates.Off, Duration = 0 }
+            }
+        };
+
+        var actuator = CreateDigitalActuator("BombaRiego", "actuator-001", "GPIO_15");
+        var currentState = new ActuatorState
+        {
+            ActuatorId = actuator.Id,
+            State = PowerState.OFF,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        SetupValidValidation();
+        _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
+            .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns(currentState);
+
+        // Act
+        var result = await _useCase.ExecuteAsync(executeCommands);
+
+        // Assert
+        result.Should().BeEmpty();
+        _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
+            It.IsAny<List<ResolvedCommandDto>>(),
+            It.IsAny<string>()
+        ), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RedundantOnCommandDigital_ShouldSkipCommand()
+    {
+        // Arrange
+        var executeCommands = new ExecuteCommandsDto
+        {
+            Commands = new List<ActuatorControlDto>
+            {
+                new() { ActuatorCode = "BombaRiego", Power = ActuatorConstants.PowerStates.On, Duration = 60 }
+            }
+        };
+
+        var actuator = CreateDigitalActuator("BombaRiego", "actuator-001", "GPIO_15");
+        var currentState = new ActuatorState
+        {
+            ActuatorId = actuator.Id,
+            State = PowerState.ON,
+            LastUpdated = DateTime.UtcNow,
+            RemainingDuration = 120
+        };
+
+        SetupValidValidation();
+        _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
+            .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns(currentState);
+
+        // Act
+        var result = await _useCase.ExecuteAsync(executeCommands);
+
+        // Assert
+        result.Should().BeEmpty();
+        _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
+            It.IsAny<List<ResolvedCommandDto>>(),
+            It.IsAny<string>()
+        ), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RedundantPwmCommand_ShouldSkipCommand()
+    {
+        // Arrange
+        var executeCommands = new ExecuteCommandsDto
+        {
+            Commands = new List<ActuatorControlDto>
+            {
+                new() { ActuatorCode = "Ventiladores", DutyCycle = 75.0, Duration = 120 }
+            }
+        };
+
+        var actuator = CreatePwmActuator("Ventiladores", "actuator-003", "GPIO_25");
+        var currentState = new ActuatorState
+        {
+            ActuatorId = actuator.Id,
+            State = PowerState.ON,
+            DutyCycle = 75.0,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        SetupValidValidation();
+        _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("Ventiladores"))
+            .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns(currentState);
+
+        // Act
+        var result = await _useCase.ExecuteAsync(executeCommands);
+
+        // Assert
+        result.Should().BeEmpty();
+        _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
+            It.IsAny<List<ResolvedCommandDto>>(),
+            It.IsAny<string>()
+        ), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DifferentPwmDutyCycle_ShouldExecuteCommand()
+    {
+        // Arrange
+        var executeCommands = new ExecuteCommandsDto
+        {
+            Commands = new List<ActuatorControlDto>
+            {
+                new() { ActuatorCode = "Ventiladores", DutyCycle = 85.0, Duration = 120 }
+            }
+        };
+
+        var actuator = CreatePwmActuator("Ventiladores", "actuator-003", "GPIO_25");
+        var currentState = new ActuatorState
+        {
+            ActuatorId = actuator.Id,
+            State = PowerState.ON,
+            DutyCycle = 75.0,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        SetupValidValidation();
+        _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("Ventiladores"))
+            .ReturnsAsync(actuator);
+        _mockStateMachine.Setup(s => s.GetState(actuator.Id))
+            .Returns(currentState);
+        _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("Ventiladores"))
+            .ReturnsAsync((RoutineCommand?)null);
+        _mockRoutineCommandRepository.Setup(r => r.AddAsync(It.IsAny<RoutineCommand>()))
+            .Returns(Task.CompletedTask);
+        _mockCommandExecutionService.Setup(s => s.ScheduleCommandsAsync(It.IsAny<List<ResolvedCommandDto>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string>());
+
+        // Act
+        var result = await _useCase.ExecuteAsync(executeCommands);
+
+        // Assert
+        result.Should().HaveCount(1);
+        _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
+            It.Is<List<ResolvedCommandDto>>(cmds => cmds.Any(c => c.DutyCycle == 85.0)),
+            It.IsAny<string>()
         ), Times.Once);
     }
 

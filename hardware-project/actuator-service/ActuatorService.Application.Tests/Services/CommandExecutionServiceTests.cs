@@ -220,13 +220,13 @@ public class CommandExecutionServiceTests
 
         var firstCommandIds = await _service.ScheduleCommandsAsync(firstCommand, esp32Id);
 
-        // Second command - should go to pending (pin locked)
+        // Second command - DIFFERENT ACTUATOR, same pin - should go to pending (pin locked)
         _mockPinLockRegistry.Setup(r => r.TryLock(It.IsAny<List<string>>(), It.IsAny<string>()))
             .Returns(false);
 
         var secondCommand = new List<ResolvedCommandDto>
         {
-            CreateResolvedCommand("BombaRiego", "actuator-001", pin, "ON", 30)
+            CreateResolvedCommand("BombaAire", "actuator-002", pin, "ON", 30)
         };
 
         await _service.ScheduleCommandsAsync(secondCommand, esp32Id);

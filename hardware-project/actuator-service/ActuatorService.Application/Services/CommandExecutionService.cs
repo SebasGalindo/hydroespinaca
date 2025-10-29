@@ -57,12 +57,30 @@ public class CommandExecutionService : ICommandExecutionService
 
         var scheduledCommandIds = new List<string>();
         var rejectedCommands = new List<string>();
+        var consolidatedCommands = new List<string>();
         var commandsToPublish = new List<JobRoutineDto>();
 
         foreach (var command in commands)
         {
             var commandId = CommandIdHelper.GenerateCommandId(command.ActuatorCode);
             var pins = new List<string> { command.Pin };
+
+            // Check if there's already a running or pending command for this actuator
+            var existingActiveCommand = _activeCommands.Values.FirstOrDefault(c =>
+                c.ActuatorCode == command.ActuatorCode && c.Esp32Id == esp32Id);
+            var existingPendingCommand = _pendingCommands.Values.FirstOrDefault(c =>
+                c.ActuatorCode == command.ActuatorCode && c.Esp32Id == esp32Id);
+
+            // If there's already a command for this actuator, consolidate instead of queuing
+            if (existingActiveCommand != null || existingPendingCommand != null)
+            {
+                var existingCommandId = existingActiveCommand?.CommandId ?? existingPendingCommand!.CommandId;
+                _logger.LogInformation("🔄 Consolidating command for {ActuatorCode} - using existing command {ExistingCommandId}",
+                    command.ActuatorCode, existingCommandId);
+                consolidatedCommands.Add(command.ActuatorCode);
+                scheduledCommandIds.Add(existingCommandId);
+                continue;
+            }
 
             // Check if pin already has 1 running + 1 pending (maximum allowed)
             var hasRunning = _activeCommands.Values.Any(c => c.Pin == command.Pin && c.Esp32Id == esp32Id);
@@ -138,8 +156,14 @@ public class CommandExecutionService : ICommandExecutionService
             await PublishJobScheduleAsync(esp32Id, commandsToPublish);
         }
 
-        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending, {Rejected} rejected",
-            _activeCommands.Count, _pendingCommands.Count, rejectedCommands.Count);
+        _logger.LogInformation("📊 Scheduling complete: {Active} active, {Pending} pending, {Consolidated} consolidated, {Rejected} rejected",
+            _activeCommands.Count, _pendingCommands.Count, consolidatedCommands.Count, rejectedCommands.Count);
+
+        if (consolidatedCommands.Any())
+        {
+            _logger.LogInformation("🔄 Consolidated commands (reused existing): {ConsolidatedCommands}",
+                string.Join(", ", consolidatedCommands));
+        }
 
         if (rejectedCommands.Any())
         {
