@@ -77,7 +77,7 @@ public class SessionController : ControllerBase
         }
 
         // Get current user ID from JWT claims (defense in depth - BFF already checks this)
-        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
         // Prevent revoking sessions belonging to the current user if they match
         if (!string.IsNullOrEmpty(currentUserId) && session.UserId == currentUserId)

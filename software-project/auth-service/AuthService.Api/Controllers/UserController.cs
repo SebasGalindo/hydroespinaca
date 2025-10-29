@@ -67,7 +67,7 @@ public class UserController : ControllerBase
     public async Task<ActionResult> Delete(string id)
     {
         // Get current user ID from JWT claims
-        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var currentUserId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
         // Prevent self-deletion
         if (currentUserId == id)

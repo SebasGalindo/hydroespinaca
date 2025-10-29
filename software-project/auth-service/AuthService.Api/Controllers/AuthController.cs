@@ -99,7 +99,7 @@ public class AuthController : ControllerBase
     [HttpPost("change-password")]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequestDto dto)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
             return BadRequest("User ID not found in token");

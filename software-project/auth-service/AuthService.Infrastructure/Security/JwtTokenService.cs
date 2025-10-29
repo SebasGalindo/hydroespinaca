@@ -84,7 +84,7 @@ namespace AuthService.Infrastructure.Security
             // 2. Claims for access token
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(JwtRegisteredNames.Sub, userId), // Use standard "sub" claim for user ID
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Role, role),
                 new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
