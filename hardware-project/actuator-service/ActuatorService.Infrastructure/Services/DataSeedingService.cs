@@ -106,7 +106,7 @@ public class DataSeedingService
                 PhysicalId = "HUMIDIFIER-001",
                 Code = "humidificador-ultrasonico",
                 Esp32Id = "6883fff7b079309f3ba4f238",
-                Pin = "16",
+                Pin = "14",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Humidifier,
                 Location = "invernadero"
