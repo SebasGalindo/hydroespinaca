@@ -10,12 +10,14 @@ Nota:
 
 from .FuzzyEvaluationMapper import FuzzyEvaluationMapper
 from .FuzzyVariableMapper import FuzzyVariableMapper
-from .FuzzySystemMapper import FuzzySystemMapper
-from .FuzzyRuleMapper import FuzzyRuleMapper
+from .FuzzyTermMapper import FuzzyTermMapper
+# from .FuzzySystemMapper import FuzzySystemMapper  # Not implemented yet
+# from .FuzzyRuleMapper import FuzzyRuleMapper  # Not implemented yet
 
 __all__ = [
     "FuzzyEvaluationMapper",
     "FuzzyVariableMapper",
-    "FuzzySystemMapper",
-    "FuzzyRuleMapper",
+    "FuzzyTermMapper",
+    # "FuzzySystemMapper",  # Not implemented yet
+    # "FuzzyRuleMapper",  # Not implemented yet
 ]
