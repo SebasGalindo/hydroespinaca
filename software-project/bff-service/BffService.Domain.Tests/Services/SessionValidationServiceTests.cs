@@ -116,7 +116,7 @@ public class SessionValidationServiceTests
     }
 
     [Fact]
-    public void RequiresRefresh_WithSessionExpiringIn10Minutes_ShouldReturnTrue()
+    public void RequiresRefresh_WithSessionExpiringIn10Minutes_ShouldReturnFalse()
     {
         // Arrange
         var session = Session.Create("session-id", "csrf-token");
@@ -125,7 +125,21 @@ public class SessionValidationServiceTests
         // Act
         var result = _service.RequiresRefresh(session);
 
-        // Assert
+        // Assert - Should be false because session doesn't expire soon (needs <30 seconds)
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RequiresRefresh_WithSessionExpiringIn20Seconds_ShouldReturnTrue()
+    {
+        // Arrange
+        var session = Session.Create("session-id", "csrf-token");
+        session.SetTokens("token", "refresh-token", DateTime.UtcNow.AddSeconds(20), DateTime.UtcNow.AddDays(7));
+
+        // Act
+        var result = _service.RequiresRefresh(session);
+
+        // Assert - Should be true because session expires in less than 30 seconds
         result.Should().BeTrue();
     }
 
