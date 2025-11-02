@@ -76,32 +76,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
                 continue;
             }
 
-            // Skip redundant ON commands with same parameters
-            if (!isPowerOff && currentState?.State == PowerState.ON)
-            {
-                bool isSameCommand = false;
-
-                if (actuator.Mode == ActuatorMode.DIGITAL)
-                {
-                    // For DIGITAL: check if power is ON
-                    isSameCommand = command.Power?.Equals(ActuatorConstants.PowerStates.On, StringComparison.OrdinalIgnoreCase) == true;
-                }
-                else if (actuator.Mode == ActuatorMode.PWM)
-                {
-                    // For PWM: check if dutyCycle matches
-                    isSameCommand = command.DutyCycle.HasValue &&
-                                   currentState.DutyCycle.HasValue &&
-                                   Math.Abs(command.DutyCycle.Value - currentState.DutyCycle.Value) < 0.01;
-                }
-
-                if (isSameCommand)
-                {
-                    _logger.LogInformation("⏭️ Skipping redundant ON command for {ActuatorCode} - actuator already ON with same parameters",
-                        command.ActuatorCode);
-                    skippedCommands.Add(command.ActuatorCode);
-                    continue;
-                }
-            }
+            // Allow redundant ON commands - they extend/restart actuator duration without needing to turn off/on
 
             var resolvedCommand = new ResolvedCommandDto
             {

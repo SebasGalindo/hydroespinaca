@@ -470,7 +470,7 @@ public class ExecuteCommandsUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_RedundantOnCommandDigital_ShouldSkipCommand()
+    public async Task ExecuteAsync_RedundantOnCommandDigital_ShouldExtendCommand()
     {
         // Arrange
         var executeCommands = new ExecuteCommandsDto
@@ -490,25 +490,49 @@ public class ExecuteCommandsUseCaseTests
             RemainingDuration = 120
         };
 
+        var existingCommand = new RoutineCommand
+        {
+            CommandId = "existing-cmd-001",
+            ActuatorCode = "BombaRiego",
+            Esp32Id = "esp32-001",
+            StatusGeneral = RoutineCommandStatus.RUNNING,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+        };
+
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("BombaRiego"))
             .ReturnsAsync(actuator);
         _mockStateMachine.Setup(s => s.GetState(actuator.Id))
             .Returns(currentState);
+        _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("BombaRiego"))
+            .ReturnsAsync(existingCommand);
+        _mockRoutineCommandRepository.Setup(r => r.UpdateAsync(It.IsAny<RoutineCommand>()))
+            .Returns(Task.CompletedTask);
+        _mockCommandExecutionService.Setup(s => s.ScheduleCommandsAsync(It.IsAny<List<ResolvedCommandDto>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string>());
 
         // Act
         var result = await _useCase.ExecuteAsync(executeCommands);
 
         // Assert
-        result.Should().BeEmpty();
+        result.Should().HaveCount(1);
+        result[0].Should().Be("existing-cmd-001");
+
+        // Should extend the existing command
+        _mockRoutineCommandRepository.Verify(r => r.UpdateAsync(It.Is<RoutineCommand>(cmd =>
+            cmd.CommandId == "existing-cmd-001" &&
+            cmd.ExtendedAt.HasValue
+        )), Times.Once);
+
+        // Should publish to MQTT to restart/extend duration
         _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
             It.IsAny<List<ResolvedCommandDto>>(),
-            It.IsAny<string>()
-        ), Times.Never);
+            "esp32-001"
+        ), Times.Once);
     }
 
     [Fact]
-    public async Task ExecuteAsync_RedundantPwmCommand_ShouldSkipCommand()
+    public async Task ExecuteAsync_RedundantPwmCommand_ShouldExtendCommand()
     {
         // Arrange
         var executeCommands = new ExecuteCommandsDto
@@ -528,21 +552,45 @@ public class ExecuteCommandsUseCaseTests
             LastUpdated = DateTime.UtcNow
         };
 
+        var existingCommand = new RoutineCommand
+        {
+            CommandId = "existing-cmd-002",
+            ActuatorCode = "Ventiladores",
+            Esp32Id = "esp32-001",
+            StatusGeneral = RoutineCommandStatus.RUNNING,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-3)
+        };
+
         SetupValidValidation();
         _mockActuatorCodeResolver.Setup(r => r.ResolveAsync("Ventiladores"))
             .ReturnsAsync(actuator);
         _mockStateMachine.Setup(s => s.GetState(actuator.Id))
             .Returns(currentState);
+        _mockRoutineCommandRepository.Setup(r => r.GetRunningByActuatorCodeAsync("Ventiladores"))
+            .ReturnsAsync(existingCommand);
+        _mockRoutineCommandRepository.Setup(r => r.UpdateAsync(It.IsAny<RoutineCommand>()))
+            .Returns(Task.CompletedTask);
+        _mockCommandExecutionService.Setup(s => s.ScheduleCommandsAsync(It.IsAny<List<ResolvedCommandDto>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string>());
 
         // Act
         var result = await _useCase.ExecuteAsync(executeCommands);
 
         // Assert
-        result.Should().BeEmpty();
+        result.Should().HaveCount(1);
+        result[0].Should().Be("existing-cmd-002");
+
+        // Should extend the existing command
+        _mockRoutineCommandRepository.Verify(r => r.UpdateAsync(It.Is<RoutineCommand>(cmd =>
+            cmd.CommandId == "existing-cmd-002" &&
+            cmd.ExtendedAt.HasValue
+        )), Times.Once);
+
+        // Should publish to MQTT to restart/extend duration
         _mockCommandExecutionService.Verify(s => s.ScheduleCommandsAsync(
             It.IsAny<List<ResolvedCommandDto>>(),
-            It.IsAny<string>()
-        ), Times.Never);
+            "esp32-001"
+        ), Times.Once);
     }
 
     [Fact]
