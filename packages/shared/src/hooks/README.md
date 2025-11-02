@@ -115,7 +115,7 @@ if (sensorsError) {
 - Callbacks para éxito y error
 - Cancelación automática de peticiones
 
-### useSensorData - Datos de Sensores en Tiempo Real
+### useSensorData - Datos de Sensores
 
 **Propósito**: Hook especializado para gestionar datos de sensores con actualizaciones automáticas
 
@@ -189,7 +189,7 @@ interface UseReadingsFilters {
 interface UseReadingsOptions {
   pageSize?: number;
   autoLoad?: boolean;
-  realTime?: boolean;        // Actualizaciones en tiempo real
+  realTime?: boolean;
 }
 
 interface UseReadingsReturn {
@@ -820,7 +820,7 @@ const RealTimeMonitor = () => {
   return (
     <div>
       <div className="flex justify-between items-center">
-        <h2>Monitor en Tiempo Real</h2>
+        <h2>Monitor</h2>
         <Button
           variant={isMonitoring ? 'danger' : 'primary'}
           onClick={toggleMonitoring}

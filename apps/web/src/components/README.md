@@ -20,7 +20,7 @@ components/
 ├── dashboard/               # Componentes específicos del dashboard
 │   ├── actuadores-config/   # Configuración de actuadores
 │   ├── lecturas/           # Lecturas de sensores
-│   ├── monitoreo/          # Monitoreo en tiempo real
+│   ├── monitoreo/          # Monitoreo
 │   ├── nueva-variable/     # Creación de variables
 │   ├── sensores-config/    # Configuración de sensores
 │   └── variables-config/   # Configuración de variables
@@ -158,7 +158,7 @@ Componentes complejos que combinan múltiples moléculas y átomos.
 #### `LoginForm.tsx`
 **Propósito**: Formulario de inicio de sesión
 **Características**:
-- Validación en tiempo real
+- Validación
 - Estados de carga
 - Manejo de errores
 - Recordar sesión

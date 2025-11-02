@@ -9,7 +9,7 @@ El **Actuator Service** gestiona el control de actuadores físicos (bombas, vent
 **Responsabilidades principales:**
 - Ejecutar comandos sobre actuadores conectados a ESP32 vía MQTT
 - Gestionar rutinas internas programadas por tiempo (time-based scheduling)
-- Coordinar máquina de estados de actuadores (ON/OFF/PWM) en tiempo real
+- Coordinar máquina de estados de actuadores (ON/OFF/PWM)
 - Aplicar reglas de seguridad (pin locking, max runtime, cooldowns)
 - Proveer analytics de uso y estado de actuadores
 

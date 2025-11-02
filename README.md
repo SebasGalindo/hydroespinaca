@@ -24,7 +24,7 @@ HydroEspinaca es un ecosistema completo para el monitoreo y control automatizado
 - Procesa las lecturas mediante un motor de lógica difusa que evalúa reglas Mamdani
 - Genera comandos automáticos para actuadores (bombas, ventiladores, luces, humidificadores)
 - Administra usuarios, roles y permisos con autenticación JWT centralizada
-- Provee interfaces web y móvil para monitoreo en tiempo real
+- Provee interfaces web y móvil para monitoreo
 - Envía notificaciones por email para alertas críticas
 
 **Tecnologías principales:** .NET 9, Python 3.12, FastAPI, MongoDB, MQTT, React Native, Docker
@@ -67,7 +67,7 @@ hydroespinaca/
 ### Hardware Project
 
 #### **Sensor Service** (.NET 9)
-Gestiona sensores IoT y procesa lecturas en tiempo real desde nodos ESP32 vía MQTT.
+Gestiona sensores IoT y procesa lecturas desde nodos ESP32 vía MQTT.
 
 - Procesamiento de lecturas de sensores (PH, temperatura, humedad, EC, nivel de agua)
 - Generación de alertas críticas basadas en umbrales físicos y óptimos
@@ -82,7 +82,7 @@ Ejecuta comandos sobre actuadores físicos conectados a ESP32.
 - Coordinación de comandos desde múltiples fuentes (fuzzy logic, rutinas internas, manual)
 - Gestión de rutinas programadas por tiempo (time-based scheduling)
 - Reglas de seguridad (pin locking, max runtime, cooldowns)
-- Máquina de estados de actuadores (ON/OFF/PWM) en tiempo real
+- Máquina de estados de actuadores (ON/OFF/PWM)
 
 [📖 Ver documentación completa](./hardware-project/actuator-service/README.md)
 
@@ -119,7 +119,7 @@ Motor de lógica difusa Mamdani para control autónomo de variables ambientales.
 - Generación de comandos normalizados para actuadores
 - APIs REST completas para sistemas, variables, términos y reglas
 - Historial de evaluaciones con estadísticas agregadas
-- Procesamiento de lecturas de sensores en tiempo real
+- Procesamiento de lecturas de sensores
 
 [📖 Ver documentación completa](./software-project/fuzzy-service/README.md)
 

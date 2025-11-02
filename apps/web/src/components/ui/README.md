@@ -96,7 +96,7 @@ interface InputProps {
 ```
 
 **Características**:
-- Validación en tiempo real
+- Validación
 - Estados visuales (normal, error, disabled, focus)
 - Soporte para iconos
 - Accesibilidad completa (ARIA labels, keyboard navigation)

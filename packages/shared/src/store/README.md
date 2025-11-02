@@ -40,7 +40,7 @@ La aplicación utiliza **Zustand** como biblioteca de gestión de estado por su 
 
 **Acciones**:
 - `generateMockData()`: Generar datos de prueba
-- `updateCurrentMetrics()`: Actualizar métricas en tiempo real
+- `updateCurrentMetrics()`: Actualizar métricas
 - `initializeSystemComponents()`: Inicializar componentes del sistema
 - `updateSystemComponentStatus()`: Actualizar estado de componentes
 

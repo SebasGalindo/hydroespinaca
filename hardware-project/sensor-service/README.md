@@ -4,11 +4,11 @@
 
 ## 📋 Descripción
 
-El **Sensor Service** gestiona sensores IoT conectados a nodos ESP32, procesando lecturas en tiempo real y generando alertas basadas en umbrales configurables. Es el componente central para la telemetría del sistema HydroEspinaca.
+El **Sensor Service** gestiona sensores IoT conectados a nodos ESP32, procesando lecturas y generando alertas basadas en umbrales configurables. Es el componente central para la telemetría del sistema HydroEspinaca.
 
 **Responsabilidades principales:**
 - Gestionar sensores físicos y variables ambientales (PH, temperatura, humedad, EC, etc.)
-- Procesar lecturas en tiempo real desde nodos ESP32 vía MQTT
+- Procesar lecturas desde nodos ESP32 vía MQTT
 - Generar alertas críticas basadas en umbrales físicos y óptimos
 - Calcular agregaciones estadísticas (promedios, tendencias, variabilidad)
 - Monitorear salud de nodos ESP32 (heartbeat, detección offline)
@@ -118,7 +118,7 @@ GET    /health                      # Health check
 
 ## � Background Workers
 
-1. **SensorMqttWorker**: Procesa lecturas de sensores en tiempo real (topic: `sensor/readings`)
+1. **SensorMqttWorker**: Procesa lecturas de sensores (topic: `sensor/readings`)
 2. **Esp32StatusMqttWorker**: Actualiza telemetría de nodos (topic: `esp32/+/status`)
 3. **AggregateWorker**: Calcula agregaciones estadísticas cada 5 minutos
 4. **Esp32OfflineWorker**: Detecta nodos sin heartbeat en 2+ minutos y genera alertas
