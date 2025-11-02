@@ -315,7 +315,7 @@ class SeedDataConfig:
                 "label": "calorAmbiental",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [22.0, 31.0, 40.0],
+                    "parameters": [25.0, 32.5, 40.0],
                     "universe_min": -10.0,
                     "universe_max": 40.0
                 }
