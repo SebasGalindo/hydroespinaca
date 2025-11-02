@@ -5,7 +5,7 @@
 		<ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 		<PackageReference Include="DotLiquid" Version="2.2.692" />
-		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20251028175734" />
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20251102001041" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.13.0" />
 	</ItemGroup>
 
