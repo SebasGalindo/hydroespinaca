@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import ActuatorTimelineChart from '../charts/ActuatorTimelineChart';
 import ActuatorDurationChart from '../charts/ActuatorDurationChart';
@@ -10,15 +10,21 @@ interface ActuatorsLevelProps {
   data: ActuatorActivity[];
   isLoading?: boolean;
   error?: string | null;
+  isSingleDay?: boolean;
 }
 
 type ViewMode = 'timeline' | 'duration' | 'proportion' | 'all';
 
-export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLevelProps) {
+export default function ActuatorsLevel({ data, isLoading, error, isSingleDay = true }: ActuatorsLevelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const [selectedActuators, setSelectedActuators] = useState<string[]>(
-    data.map((a) => a.actuatorId)
-  );
+  const [selectedActuators, setSelectedActuators] = useState<string[]>([]);
+
+  // Update selected actuators when data changes - show all actuators by default
+  useEffect(() => {
+    if (data.length > 0) {
+      setSelectedActuators(data.map((a) => a.actuatorId));
+    }
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -59,17 +65,20 @@ export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLeve
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 'all', label: 'Todos' },
-                { value: 'timeline', label: 'Timeline' },
+                { value: 'timeline', label: 'Timeline', disabled: !isSingleDay },
                 { value: 'duration', label: 'Duración' },
                 { value: 'proportion', label: 'Proporción' },
               ].map((mode) => (
                 <button
                   key={mode.value}
                   onClick={() => setViewMode(mode.value as ViewMode)}
+                  disabled={mode.disabled}
                   className={`
                     px-4 py-2 text-sm rounded-md transition-all border
                     ${
-                      viewMode === mode.value
+                      mode.disabled
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        : viewMode === mode.value
                         ? 'bg-hidro-green-primary text-white border-hidro-green-primary hover:bg-hidro-green-dark hover:border-hidro-green-dark focus:ring-2 focus:ring-hidro-green-primary'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-300'
                     }
@@ -115,9 +124,72 @@ export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLeve
         </div>
       ) : (
         <>
-          {(viewMode === 'all' || viewMode === 'timeline') && (
-            <ActuatorTimelineChart data={filteredData} />
+          {/* Timeline unavailable message for multi-day ranges */}
+          {!isSingleDay && (viewMode === 'all' || viewMode === 'timeline') && (
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-5 rounded-lg">
+              <div className="flex items-start">
+                <svg
+                  className="w-6 h-6 text-amber-600 mr-3 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="text-base font-semibold text-amber-900 mb-2">
+                    Timeline no disponible para este rango de fechas
+                  </h4>
+                  <p className="text-sm text-amber-800 mb-2">
+                    El timeline muestra activaciones individuales, optimizado para monitoreo diario.
+                    Para rangos mayores a un día, este gráfico no se genera.
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    💡 <strong>Sugerencia:</strong> Selecciona un rango de un solo día para visualizar el timeline detallado.
+                    Los gráficos de duración total y proporción están disponibles para cualquier rango.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
+
+          {/* Timeline info message for single day */}
+          {isSingleDay && (viewMode === 'all' || viewMode === 'timeline') && (
+            <>
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
+                <div className="flex items-start">
+                  <svg
+                    className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900">
+                      Vista de monitoreo
+                    </h4>
+                    <p className="text-sm text-blue-800 mt-1">
+                      Este timeline muestra datos sin agrupar (raw) independientemente de la granularidad seleccionada,
+                      permitiendo visualizar cada activación individual para efectos de monitoreo detallado.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <ActuatorTimelineChart data={filteredData} />
+            </>
+          )}
+
+          {/* Duration and proportion charts (always available) */}
           {(viewMode === 'all' || viewMode === 'duration') && (
             <ActuatorDurationChart data={filteredData} />
           )}

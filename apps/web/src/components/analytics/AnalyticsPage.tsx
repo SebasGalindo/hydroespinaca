@@ -67,6 +67,14 @@ export default function AnalyticsPage() {
   // TTL del cache: 5 minutos
   const CACHE_TTL = 5 * 60 * 1000;
 
+  // Detect if the date range is a single day
+  const isSingleDay = useMemo(() => {
+    const from = new Date(appliedFilters.dateRange.from);
+    const to = new Date(appliedFilters.dateRange.to);
+    const diffHours = (to.getTime() - from.getTime()) / (1000 * 60 * 60);
+    return diffHours <= 24;
+  }, [appliedFilters.dateRange]);
+
   // Load initial data
   useEffect(() => {
     loadData(appliedFilters);
@@ -331,7 +339,12 @@ export default function AnalyticsPage() {
             />
           )}
           {activeTab === 'actuators' && (
-            <ActuatorsLevel data={actuatorData} isLoading={isLoading} error={actuatorError} />
+            <ActuatorsLevel
+              data={actuatorData}
+              isLoading={isLoading}
+              error={actuatorError}
+              isSingleDay={isSingleDay}
+            />
           )}
         </div>
       </div>
