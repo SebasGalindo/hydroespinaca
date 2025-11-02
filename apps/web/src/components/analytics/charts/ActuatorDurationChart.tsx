@@ -4,20 +4,13 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import { formatNumericValue } from '@hydroespinaca/shared';
+import { getActuatorColor, formatTooltipValue } from '@/lib/actuator-colors';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
 interface ActuatorDurationChartProps {
   data: ActuatorActivity[];
 }
-
-const actuatorColors: { [key: string]: string } = {
-  'pump-1': '#3b82f6',
-  'heater-1': '#ef4444',
-  'fan-1': '#10b981',
-  'light-1': '#f59e0b',
-  'cooler-1': '#06b6d4',
-};
 
 export default function ActuatorDurationChart({ data }: ActuatorDurationChartProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -36,14 +29,14 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
 
   const trace = {
     x: data.map((a) => a.actuatorName),
-    y: data.map((a) => formatNumericValue(a.totalDuration / 60)), // Convert to hours with formatting
+    y: data.map((a) => a.totalDuration / 60), // Convert to hours
     type: 'bar' as const,
     marker: {
-      color: data.map((a) => actuatorColors[a.actuatorId] || '#6b7280'),
+      color: data.map((a) => getActuatorColor(a.actuatorId)),
     },
-    text: data.map((a) => `${formatNumericValue(a.totalDuration / 60)}h`),
+    text: data.map((a) => `${formatTooltipValue(a.totalDuration / 60)}h`),
     textposition: 'auto' as const,
-    hovertemplate: '<b>%{x}</b><br>Duración: %{y} horas<br>Activaciones: %{customdata}<extra></extra>',
+    hovertemplate: '<b>%{x}</b><br>Duración: %{y:.2f} horas<br>Activaciones: %{customdata}<extra></extra>',
     customdata: data.map((a) => a.activationCount),
   };
 
@@ -57,8 +50,8 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
         data={[trace]}
         layout={{
           autosize: true,
-          height: 400,
-          margin: { l: 60, r: 30, t: 30, b: 100 },
+          height: 500,
+          margin: { l: 80, r: 50, t: 50, b: 120 },
           xaxis: {
             title: { text: '' },
             gridcolor: '#f3f4f6',
@@ -74,7 +67,7 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
           displayModeBar: false,
           responsive: true,
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', minHeight: '500px' }}
       />
 
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -83,7 +76,7 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
             <div className="flex items-center gap-2 mb-1">
               <div
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: actuatorColors[actuator.actuatorId] || '#6b7280' }}
+                style={{ backgroundColor: getActuatorColor(actuator.actuatorId) }}
               ></div>
               <p className="text-xs font-medium text-gray-700 truncate">{actuator.actuatorName}</p>
             </div>

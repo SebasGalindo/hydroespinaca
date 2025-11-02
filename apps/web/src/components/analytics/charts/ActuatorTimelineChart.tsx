@@ -3,20 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
+import { getActuatorColor, formatTooltipValue } from '@/lib/actuator-colors';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
 interface ActuatorTimelineChartProps {
   data: ActuatorActivity[];
 }
-
-const actuatorColors: { [key: string]: string } = {
-  'pump-1': '#3b82f6',
-  'heater-1': '#ef4444',
-  'fan-1': '#10b981',
-  'light-1': '#f59e0b',
-  'cooler-1': '#06b6d4',
-};
 
 export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -50,12 +43,12 @@ export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartPro
       type: 'scatter' as const,
       mode: 'lines' as const,
       line: {
-        color: actuatorColors[actuator.actuatorId] || '#6b7280',
+        color: getActuatorColor(actuator.actuatorId),
         width: 20,
       },
       showlegend: barIndex === 0,
       name: actuator.actuatorName,
-      hovertemplate: `<b>${actuator.actuatorName}</b><br>Duración: ${actuator.activations[barIndex]?.duration} min<extra></extra>`,
+      hovertemplate: `<b>${actuator.actuatorName}</b><br>Duración: ${formatTooltipValue(actuator.activations[barIndex]?.duration || 0)} min<extra></extra>`,
     }));
   }).flat();
 
@@ -69,8 +62,8 @@ export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartPro
         data={traces}
         layout={{
           autosize: true,
-          height: 400,
-          margin: { l: 150, r: 30, t: 30, b: 60 },
+          height: 500,
+          margin: { l: 150, r: 50, t: 50, b: 80 },
           xaxis: {
             title: { text: 'Fecha y Hora' },
             type: 'date',
@@ -90,7 +83,7 @@ export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartPro
           displayModeBar: false,
           responsive: true,
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', minHeight: '500px' }}
       />
 
       <div className="mt-4 p-3 bg-gray-50 rounded-md">

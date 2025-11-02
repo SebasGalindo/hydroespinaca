@@ -4,20 +4,13 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ActuatorActivity } from '@/lib/actuator-analytics-mapper';
 import { formatNumericValue } from '@hydroespinaca/shared';
+import { getActuatorColor, formatTooltipValue } from '@/lib/actuator-colors';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
 interface ActuatorProportionChartProps {
   data: ActuatorActivity[];
 }
-
-const actuatorColors: { [key: string]: string } = {
-  'pump-1': '#3b82f6',
-  'heater-1': '#ef4444',
-  'fan-1': '#10b981',
-  'light-1': '#f59e0b',
-  'cooler-1': '#06b6d4',
-};
 
 export default function ActuatorProportionChart({ data }: ActuatorProportionChartProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -41,7 +34,7 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
     values: data.map((a) => a.totalDuration),
     type: 'pie' as const,
     marker: {
-      colors: data.map((a) => actuatorColors[a.actuatorId] || '#6b7280'),
+      colors: data.map((a) => getActuatorColor(a.actuatorId)),
     },
     customdata: data.map((a) => a.totalDuration),
     textinfo: 'label+percent' as const,
@@ -61,8 +54,8 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
         data={[trace]}
         layout={{
           autosize: true,
-          height: 400,
-          margin: { l: 30, r: 30, t: 30, b: 30 },
+          height: 500,
+          margin: { l: 50, r: 150, t: 50, b: 50 },
           showlegend: true,
           legend: {
             orientation: 'v',
@@ -74,7 +67,7 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
           displayModeBar: false,
           responsive: true,
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', minHeight: '500px' }}
       />
 
       <div className="mt-4 p-3 bg-gray-50 rounded-md">

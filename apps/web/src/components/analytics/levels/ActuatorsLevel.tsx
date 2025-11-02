@@ -67,11 +67,11 @@ export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLeve
                   key={mode.value}
                   onClick={() => setViewMode(mode.value as ViewMode)}
                   className={`
-                    px-4 py-2 text-sm rounded-md transition-all
+                    px-4 py-2 text-sm rounded-md transition-all border
                     ${
                       viewMode === mode.value
-                        ? 'bg-hidro-green-primary text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-hidro-green-primary text-white border-hidro-green-primary hover:bg-hidro-green-dark hover:border-hidro-green-dark focus:ring-2 focus:ring-hidro-green-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-300'
                     }
                   `}
                 >
@@ -90,11 +90,11 @@ export default function ActuatorsLevel({ data, isLoading, error }: ActuatorsLeve
                   key={actuator.actuatorId}
                   onClick={() => handleActuatorToggle(actuator.actuatorId)}
                   className={`
-                    px-3 py-1.5 text-sm rounded-md transition-all
+                    px-3 py-1.5 text-sm rounded-md transition-all border
                     ${
                       selectedActuators.includes(actuator.actuatorId)
-                        ? 'bg-hidro-green-primary text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-hidro-green-primary text-white border-hidro-green-primary hover:bg-hidro-green-dark hover:border-hidro-green-dark focus:ring-2 focus:ring-hidro-green-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-300'
                     }
                   `}
                 >

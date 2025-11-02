@@ -182,8 +182,8 @@ export default function EnvironmentalBoxplotChart({ variables, viewMode }: Envir
         data={traces}
         layout={{
           autosize: true,
-          height: 400,
-          margin: { l: 60, r: 30, t: 30, b: 80 },
+          height: 500,
+          margin: { l: 80, r: 50, t: 50, b: 100 },
           xaxis: {
             title: { text: viewMode === 'hourly' ? 'Hora' : 'Fecha' },
             gridcolor: '#f3f4f6',
@@ -198,7 +198,7 @@ export default function EnvironmentalBoxplotChart({ variables, viewMode }: Envir
           displayModeBar: false,
           responsive: true,
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', minHeight: '500px' }}
       />
 
       <div className="mt-4 p-3 bg-gray-50 rounded-md">

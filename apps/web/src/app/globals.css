@@ -1,29 +1,30 @@
 /* All @import rules must be at the very top of the file */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Icons&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Consolas:wght@400;500;600;700;800&display=swap'); 
+@import url('https://fonts.googleapis.com/css2?family=Consolas:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-:root {
-  /* Colores personalizados del proyecto */
+/* Tailwind v4 theme configuration */
+@theme {
   --color-hidro-green-primary: #166534;
   --color-hidro-green-light: #BEEEBE;
   --color-hidro-green-bg: #dcfce7;
   --color-hidro-green-bg-light: #f0fdf4;
   --color-hidro-green-hover: #A8E6A8;
-  
-  /* Colores de overlay */
-  --color-overlay-dark: rgba(0, 0, 0, 0.5);
-  
-  /* Colores del sistema */
-  --color-background: #ffffff;
-  --color-foreground: #171717;
+  --color-hidro-green-dark: #0f4a24;
   --color-hidro-green: #16a34a;
   --color-hidro-gray: #6b7280;
   --color-hidro-success: #10b981;
   --color-hidro-warning: #f59e0b;
   --color-hidro-error: #ef4444;
   --color-hidro-info: #3b82f6;
+}
+
+:root {
+  /* Colores del sistema para variables CSS (no Tailwind) */
+  --color-overlay-dark: rgba(0, 0, 0, 0.5);
+  --color-background: #ffffff;
+  --color-foreground: #171717;
 
   /* Imágenes de fondo */
   --bg-hidroespinaca: url('/images/hidroespinaca-bg.jpg');

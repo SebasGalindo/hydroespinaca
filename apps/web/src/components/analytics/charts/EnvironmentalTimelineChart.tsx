@@ -81,8 +81,8 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">
           Tendencias de Variables Ambientales
         </h3>
         <div className="flex flex-wrap gap-2">
@@ -91,11 +91,11 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
               key={variable.variableCode || variable.variableName}
               onClick={() => handleVariableToggle(variable.variableName)}
               className={`
-                px-3 py-1.5 text-sm rounded-md transition-all
+                px-3 py-1.5 text-sm rounded-md transition-all border
                 ${
                   selectedVariables.includes(variable.variableName)
-                    ? 'bg-hidro-green-primary text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-hidro-green-primary text-white border-hidro-green-primary hover:bg-hidro-green-dark hover:border-hidro-green-dark focus:ring-2 focus:ring-hidro-green-primary'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-300'
                 }
               `}
             >
@@ -109,8 +109,8 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
         data={traces}
         layout={{
           autosize: true,
-          height: 400,
-          margin: { l: 60, r: 30, t: 30, b: 60 },
+          height: 500,
+          margin: { l: 80, r: 50, t: 50, b: 100 },
           xaxis: {
             title: { text: 'Fecha y Hora' },
             gridcolor: '#f3f4f6',
@@ -123,7 +123,7 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
           showlegend: true,
           legend: {
             orientation: 'h',
-            y: -0.2,
+            y: -0.25,
             x: 0.5,
             xanchor: 'center',
           },
@@ -132,7 +132,7 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
           displayModeBar: false,
           responsive: true,
         }}
-        style={{ width: '100%' }}
+        style={{ width: '100%', minHeight: '500px' }}
       />
     </div>
   );
