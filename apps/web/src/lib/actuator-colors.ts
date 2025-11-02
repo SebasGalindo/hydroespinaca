@@ -38,7 +38,7 @@ export function getActuatorColor(actuatorId: string): string {
 
   // Use absolute value and modulo to get index
   const index = Math.abs(hash) % COLOR_PALETTE.length;
-  return COLOR_PALETTE[index];
+  return COLOR_PALETTE[index]!;
 }
 
 /**
