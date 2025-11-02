@@ -1,4 +1,5 @@
 using ActuatorService.Domain.Entities;
+using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace ActuatorService.Domain.Interfaces;
 
@@ -12,7 +13,8 @@ public interface IRoutineCommandRepository
     Task AddAsync(RoutineCommand routineCommand);
     Task UpdateAsync(RoutineCommand routineCommand);
     Task DeleteAsync(string id);
-    Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(DateTime startDate, DateTime endDate, string view);
+    Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(ActuatorAnalyticsRequest request);
+    Task<List<TimelineData>> GetRawTimelineDataAsync(DateTime startDate, DateTime endDate);
 }
 
 public record ActuatorAnalyticsData

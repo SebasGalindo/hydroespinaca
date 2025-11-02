@@ -3,6 +3,7 @@ using ActuatorService.Domain.Interfaces;
 using ActuatorService.Infrastructure.Persistence.Models;
 using HydroEspinaca.Shared.Mongo;
 using HydroEspinaca.Shared.Mongo.Interfaces;
+using HydroEspinaca.Shared.DTOs.Analytics;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -11,13 +12,13 @@ namespace ActuatorService.Infrastructure.Persistence.Repositories;
 public class MongoRoutineCommandRepository : IRoutineCommandRepository
 {
     private readonly BaseMongoRepository<RoutineCommand, RoutineCommandDocument> _baseRepo;
-    private readonly IMongoCollection<RoutineCommandDocument> _collection;
+    private readonly TimeZoneInfo _colombiaTz;
 
     public MongoRoutineCommandRepository(MongoDbContext ctx,
                                          IEntityMapper<RoutineCommand, RoutineCommandDocument> mapper)
     {
         _baseRepo = new BaseMongoRepository<RoutineCommand, RoutineCommandDocument>(ctx.Database, "routine_commands", mapper);
-        _collection = ctx.Database.GetCollection<RoutineCommandDocument>("routine_commands");
+        _colombiaTz = TryGetColombiaTimeZone();
     }
 
     public async Task<RoutineCommand?> GetByCommandIdAsync(string commandId)
@@ -61,13 +62,21 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
     public Task DeleteAsync(string id)
         => _baseRepo.DeleteAsync(id);
 
-    public async Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(DateTime startDate, DateTime endDate, string view)
+    public async Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(ActuatorAnalyticsRequest request)
     {
+        // Ensure dates are properly marked as UTC (they come from frontend already in UTC)
+        var startUtc = request.StartDate.Kind == DateTimeKind.Utc
+            ? request.StartDate
+            : DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+        var endUtc = request.EndDate.Kind == DateTimeKind.Utc
+            ? request.EndDate
+            : DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
         // 1. Get Timeline data
-        var timelineData = await GetTimelineDataAsync(startDate, endDate, view);
+        var timelineData = await GetTimelineDataAsync(startUtc, endUtc, request.View);
 
         // 2. Get Total Duration by Actuator
-        var totalDurationData = await GetTotalDurationByActuatorAsync(startDate, endDate);
+        var totalDurationData = await GetTotalDurationByActuatorAsync(startUtc, endUtc);
 
         // 3. Get Active Time Proportion
         var activeTimeProportionData = CalculateActiveTimeProportion(totalDurationData);
@@ -84,12 +93,14 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
     {
         var dateFormat = view.ToLower() switch
         {
-            "hourly" => "%Y-%m-%dT%H:00:00.000Z",
-            "daily" => "%Y-%m-%dT00:00:00.000Z",
-            "weekly" => "%Y-W%V",
-            "monthly" => "%Y-%m-01T00:00:00.000Z",
-            _ => "%Y-%m-%dT00:00:00.000Z"
+            "hourly" => "%Y-%m-%dT%H:00:00.000", // Hour precision
+            "daily" => "%Y-%m-%dT%H:00:00.000",  // Hour precision for detailed view
+            "weekly" => "%Y-W%V", // ISO week format
+            "monthly" => "%Y-%m-01T00:00:00.000", // First day of month
+            _ => "%Y-%m-%dT00:00:00.000"
         };
+
+        var tzId = _colombiaTz.Id; // e.g., "America/Bogota"
 
         var pipeline = new BsonDocument[]
         {
@@ -99,8 +110,8 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             {
                 { "FinishedAt", new BsonDocument
                     {
-                        { "$gte", startDate.ToUniversalTime() },
-                        { "$lte", endDate.ToUniversalTime() }
+                        { "$gte", startDate },
+                        { "$lte", endDate }
                     }
                 },
                 { "StatusGeneral", "FINISHED" }
@@ -114,7 +125,8 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
                 { "truncatedDate", new BsonDocument("$dateToString", new BsonDocument
                     {
                         { "format", dateFormat },
-                        { "date", "$FinishedAt" }
+                        { "date", "$FinishedAt" },
+                        { "timezone", tzId }
                     })
                 }
             }),
@@ -140,7 +152,9 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
                 { "activationCount", 1 },
                 { "timestamp", new BsonDocument("$dateFromString", new BsonDocument
                     {
-                        { "dateString", "$timestamp" }
+                        { "dateString", "$timestamp" },
+                        // Interpret the truncated string in Colombia time so the resulting Date (UTC instant) aligns to local boundaries
+                        { "timezone", tzId }
                     })
                 }
             }),
@@ -152,20 +166,36 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             })
         };
 
-        var cursor = await _collection.AggregateAsync<BsonDocument>(pipeline);
-        var results = await cursor.ToListAsync();
+        var results = await _baseRepo.AggregateToBsonAsync(pipeline);
 
-        return results.Select(doc => new TimelineData
+        // Convert timestamps from UTC to Colombia time for frontend during mapping
+        var timelineData = results.Select(doc =>
         {
-            Timestamp = doc["timestamp"].ToUniversalTime(),
-            ActuatorCode = doc["actuatorCode"].AsString,
-            TotalDurationSeconds = doc["totalDurationSeconds"].ToDouble(),
-            ActivationCount = doc["activationCount"].ToInt32()
+            var utcTimestamp = doc["timestamp"].ToUniversalTime();
+            var colombiaTimestamp = TimeZoneInfo.ConvertTimeFromUtc(utcTimestamp, _colombiaTz);
+
+            return new TimelineData
+            {
+                Timestamp = colombiaTimestamp,
+                ActuatorCode = doc["actuatorCode"].AsString,
+                TotalDurationSeconds = doc["totalDurationSeconds"].ToDouble(),
+                ActivationCount = doc["activationCount"].ToInt32()
+            };
         }).ToList();
+
+        return timelineData;
     }
 
     private async Task<List<TotalDurationData>> GetTotalDurationByActuatorAsync(DateTime startDate, DateTime endDate)
     {
+        // Ensure dates are properly marked as UTC
+        var startUtc = startDate.Kind == DateTimeKind.Utc
+            ? startDate
+            : DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+        var endUtc = endDate.Kind == DateTimeKind.Utc
+            ? endDate
+            : DateTime.SpecifyKind(endDate, DateTimeKind.Utc);
+
         var pipeline = new BsonDocument[]
         {
             // Stage 1: Match documents within date range and with FINISHED status
@@ -174,8 +204,8 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             {
                 { "FinishedAt", new BsonDocument
                     {
-                        { "$gte", startDate },
-                        { "$lte", endDate }
+                        { "$gte", startUtc },
+                        { "$lte", endUtc }
                     }
                 },
                 { "StatusGeneral", "FINISHED" }
@@ -202,8 +232,7 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             })
         };
 
-        var cursor = await _collection.AggregateAsync<BsonDocument>(pipeline);
-        var results = await cursor.ToListAsync();
+        var results = await _baseRepo.AggregateToBsonAsync(pipeline);
 
         return results.Select(doc => new TotalDurationData
         {
@@ -227,5 +256,76 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             ActuatorCode = item.ActuatorCode,
             Percentage = Math.Round((item.TotalDurationSeconds / totalSeconds) * 100, 2)
         }).ToList();
+    }
+
+    public async Task<List<TimelineData>> GetRawTimelineDataAsync(DateTime startDate, DateTime endDate)
+    {
+        // Ensure dates are properly marked as UTC
+        var startUtc = startDate.Kind == DateTimeKind.Utc
+            ? startDate
+            : DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+        var endUtc = endDate.Kind == DateTimeKind.Utc
+            ? endDate
+            : DateTime.SpecifyKind(endDate, DateTimeKind.Utc);
+
+        var pipeline = new BsonDocument[]
+        {
+            // Stage 1: Match documents within date range and with FINISHED status
+            new BsonDocument("$match", new BsonDocument
+            {
+                { "FinishedAt", new BsonDocument
+                    {
+                        { "$gte", startUtc },
+                        { "$lte", endUtc }
+                    }
+                },
+                { "StatusGeneral", "FINISHED" }
+            }),
+            // Stage 2: Project required fields
+            new BsonDocument("$project", new BsonDocument
+            {
+                { "ActuatorCode", 1 },
+                { "CommandId", 1 },
+                { "FinishedAt", 1 },
+                { "TotalDurationSeconds", 1 },
+                { "StatusGeneral", 1 }
+            }),
+            // Stage 3: Sort by FinishedAt ascending
+            new BsonDocument("$sort", new BsonDocument
+            {
+                { "FinishedAt", 1 }
+            })
+        };
+
+        var results = await _baseRepo.AggregateToBsonAsync(pipeline);
+
+        // Convert timestamps from UTC to Colombia time for frontend during mapping
+        var timelineData = results.Select(doc =>
+        {
+            var utcTimestamp = doc["FinishedAt"].ToUniversalTime();
+            var colombiaTimestamp = TimeZoneInfo.ConvertTimeFromUtc(utcTimestamp, _colombiaTz);
+
+            return new TimelineData
+            {
+                Timestamp = colombiaTimestamp,
+                ActuatorCode = doc["ActuatorCode"].AsString,
+                TotalDurationSeconds = doc["TotalDurationSeconds"].ToDouble(),
+                ActivationCount = 1 // Each document represents one activation
+            };
+        }).ToList();
+
+        return timelineData;
+    }
+
+    private static TimeZoneInfo TryGetColombiaTimeZone()
+    {
+        // Linux containers use IANA time zones
+        try { return TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"); } catch { }
+
+        // Windows fallback
+        try { return TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time"); } catch { }
+
+        // As a last resort, use UTC (will keep behavior stable but without shift)
+        return TimeZoneInfo.Utc;
     }
 }
