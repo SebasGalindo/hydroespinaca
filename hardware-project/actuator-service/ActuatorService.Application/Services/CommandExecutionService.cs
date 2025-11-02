@@ -71,11 +71,36 @@ public class CommandExecutionService : ICommandExecutionService
             var existingPendingCommand = _pendingCommands.Values.FirstOrDefault(c =>
                 c.ActuatorCode == command.ActuatorCode && c.Esp32Id == esp32Id);
 
-            // If there's already a command for this actuator, consolidate instead of queuing
-            if (existingActiveCommand != null || existingPendingCommand != null)
+            // If there's already an ACTIVE command for this actuator, extend/update it and re-publish
+            if (existingActiveCommand != null)
             {
-                var existingCommandId = existingActiveCommand?.CommandId ?? existingPendingCommand!.CommandId;
-                _logger.LogInformation("🔄 Consolidating command for {ActuatorCode} - using existing command {ExistingCommandId}",
+                var existingCommandId = existingActiveCommand.CommandId;
+
+                // Update the existing active command with new parameters
+                existingActiveCommand.Power = command.Power;
+                existingActiveCommand.DutyCycle = command.DutyCycle;
+                existingActiveCommand.Duration = command.Duration;
+
+                // Create MQTT payload with existing commandId but new parameters
+                var jobRoutine = CreateJobRoutineDto(command, existingCommandId);
+                commandsToPublish.Add(jobRoutine);
+
+                // Update actuator state with new duration
+                _stateMachine.UpdateState(command.ActuatorId, PowerState.ON, command.Duration, command.DutyCycle, existingCommandId);
+
+                _logger.LogInformation("🔁 Re-publishing extension for command {CommandId} for {ActuatorCode} (duration: {Duration}s)",
+                    existingCommandId, command.ActuatorCode, command.Duration);
+
+                consolidatedCommands.Add(command.ActuatorCode);
+                scheduledCommandIds.Add(existingCommandId);
+                continue;
+            }
+
+            // If there's a PENDING command for this actuator, just consolidate (don't re-publish)
+            if (existingPendingCommand != null)
+            {
+                var existingCommandId = existingPendingCommand.CommandId;
+                _logger.LogInformation("🔄 Consolidating pending command for {ActuatorCode} - using existing command {ExistingCommandId}",
                     command.ActuatorCode, existingCommandId);
                 consolidatedCommands.Add(command.ActuatorCode);
                 scheduledCommandIds.Add(existingCommandId);

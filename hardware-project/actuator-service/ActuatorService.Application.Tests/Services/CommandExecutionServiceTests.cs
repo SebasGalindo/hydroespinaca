@@ -416,6 +416,105 @@ public class CommandExecutionServiceTests
             It.IsAny<string>()), Times.Once);
     }
 
+    [Fact]
+    public async Task ScheduleCommandsAsync_WhenExtendingActiveCommand_ShouldRePublishToMqtt()
+    {
+        // Arrange
+        const string esp32Id = "esp32-001";
+        const string actuatorCode = "luz-amplio-espectro";
+        const string actuatorId = "actuator-001";
+        const string pin = "GPIO_18";
+
+        // First command - should activate immediately
+        var firstCommand = new List<ResolvedCommandDto>
+        {
+            CreateResolvedCommand(actuatorCode, actuatorId, pin, "ON", 60)
+        };
+
+        _mockPinLockRegistry.Setup(r => r.TryLock(It.IsAny<List<string>>(), It.IsAny<string>()))
+            .Returns(true);
+
+        var firstCommandIds = await _service.ScheduleCommandsAsync(firstCommand, esp32Id);
+
+        // Reset mocks to track new calls
+        _mockMqttPublisher.Reset();
+        _mockStateMachine.Reset();
+
+        // Act - Second command for same actuator with extended duration
+        var extendedCommand = new List<ResolvedCommandDto>
+        {
+            CreateResolvedCommand(actuatorCode, actuatorId, pin, "ON", 195)
+        };
+
+        var extendedCommandIds = await _service.ScheduleCommandsAsync(extendedCommand, esp32Id);
+
+        // Assert
+        // Should return the same command ID (consolidated)
+        extendedCommandIds.Should().HaveCount(1);
+        extendedCommandIds[0].Should().Be(firstCommandIds[0], "should reuse existing command ID");
+
+        // Should re-publish to MQTT with new duration
+        _mockMqttPublisher.Verify(p => p.PublishJobScheduleAsync(
+            It.Is<JobScheduleDto>(dto =>
+                dto.Esp32Id == esp32Id &&
+                dto.Queue.Count == 1 &&
+                dto.Queue[0].CommandId == firstCommandIds[0] &&
+                dto.Queue[0].Steps[0].Duration == 195)),
+            Times.Once,
+            "should re-publish extended command to MQTT");
+
+        // Should update state machine with new duration
+        _mockStateMachine.Verify(s => s.UpdateState(
+            actuatorId,
+            PowerState.ON,
+            195,
+            null,
+            firstCommandIds[0]),
+            Times.Once,
+            "should update state machine with new duration");
+    }
+
+    [Fact]
+    public async Task ScheduleCommandsAsync_WhenExtendingPendingCommand_ShouldNotRePublishToMqtt()
+    {
+        // Arrange
+        const string esp32Id = "esp32-001";
+        const string actuatorCode = "BombaRiego";
+        const string actuatorId = "actuator-001";
+        const string pin = "GPIO_15";
+
+        // First command - should go to pending (pin locked)
+        var firstCommand = new List<ResolvedCommandDto>
+        {
+            CreateResolvedCommand(actuatorCode, actuatorId, pin, "ON", 60)
+        };
+
+        _mockPinLockRegistry.Setup(r => r.TryLock(It.IsAny<List<string>>(), It.IsAny<string>()))
+            .Returns(false);
+
+        var firstCommandIds = await _service.ScheduleCommandsAsync(firstCommand, esp32Id);
+
+        // Reset mocks
+        _mockMqttPublisher.Reset();
+
+        // Act - Second command for same actuator
+        var extendedCommand = new List<ResolvedCommandDto>
+        {
+            CreateResolvedCommand(actuatorCode, actuatorId, pin, "ON", 120)
+        };
+
+        var extendedCommandIds = await _service.ScheduleCommandsAsync(extendedCommand, esp32Id);
+
+        // Assert
+        extendedCommandIds.Should().HaveCount(1);
+        extendedCommandIds[0].Should().Be(firstCommandIds[0], "should reuse existing pending command ID");
+
+        // Should NOT re-publish to MQTT (pending commands are not sent until activated)
+        _mockMqttPublisher.Verify(p => p.PublishJobScheduleAsync(It.IsAny<JobScheduleDto>()),
+            Times.Never,
+            "should not publish pending commands");
+    }
+
     // Helper method
     private static ResolvedCommandDto CreateResolvedCommand(
         string actuatorCode,
