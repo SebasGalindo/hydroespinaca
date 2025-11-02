@@ -160,9 +160,9 @@ public class DataSeedingService
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
                 Name = "Recirculación",
-                Description = "Rutina para circular la solución nutritiva cada 2 horas",
+                Description = "Rutina para circular la solución nutritiva cada 1 horas",
                 Esp32Id = esp32Id,
-                Interval = TimeSpan.FromHours(2),
+                Interval = TimeSpan.FromHours(1),
                 IsActive = true,
                 Steps = new List<InternalRoutineStep>
                 {
@@ -171,15 +171,15 @@ public class DataSeedingService
                     {
                         OutputVariable = "piedra-difusora", // ActuatorCode
                         Power = "ON",
-                        Duration = 60,
+                        Duration = 720,
                         Mode = "DIGITAL"
                     },
-                    // Water pump for 8 minutes (480 seconds)
+                    // Water pump for 12 minutes (720 seconds)
                     new InternalRoutineStep
                     {
                         OutputVariable = "bomba-agua", // ActuatorCode
                         Power = "ON",
-                        Duration = 480,
+                        Duration = 720,
                         Mode = "DIGITAL"
                     }
                 
@@ -198,12 +198,12 @@ public class DataSeedingService
                 IsActive = true,
                 Steps = new List<InternalRoutineStep>
                 {
-                    // Air pump for 5 minutes (300 seconds)
+                    // Air pump for 8 minutes (480 seconds)
                     new InternalRoutineStep
                     {
                         OutputVariable = "piedra-difusora", // ActuatorCode
                         Power = "ON",
-                        Duration = 300,
+                        Duration = 480,
                         Mode = "DIGITAL"
                     }
                 },
