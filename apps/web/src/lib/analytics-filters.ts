@@ -66,10 +66,13 @@ export function validateFilters(
   const diffDays = getDaysDifference(startDate, endDate);
   const maxAllowed = MAX_RANGES[view];
 
-  if (diffDays > maxAllowed) {
+  // Para vista horaria, permitir 0 días (mismo día)
+  if (view === 'hourly' && diffDays === 0) {
+    // Válido: mismo día para vista horaria (24h o menos)
+  } else if (diffDays > maxAllowed) {
     return {
       valid: false,
-      message: `El rango máximo para vista ${getViewLabel(view)} es de ${maxAllowed} días.`,
+      message: `El rango máximo para vista ${getViewLabel(view)} es de ${maxAllowed} día${maxAllowed !== 1 ? 's' : ''}.`,
       maxDays: maxAllowed,
     };
   }

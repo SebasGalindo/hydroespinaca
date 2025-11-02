@@ -81,16 +81,16 @@ export default function FiltersBar({
   const handleQuickSelect = (days: number) => {
     const to = new Date().toISOString().split('T')[0] || '';
 
-    // For 1 day (hourly view), show only today (from = to = today)
+    // For 1 day or less (hourly view), show only today (from = to = today)
     // For other ranges, calculate from date going back N days
-    const from = days === 1
-      ? to // Same day for hourly (max 1 day)
+    const from = days <= 1
+      ? to // Same day for hourly (max 1 day, includes 12h and 24h)
       : new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0] || '';
 
     setDateRange({ from, to });
 
-    // Auto-switch to hourly view for 1-day ranges
-    if (days === 1) {
+    // Auto-switch to hourly view for ranges of 1 day or less
+    if (days <= 1) {
       setViewMode('hourly');
     }
   };
