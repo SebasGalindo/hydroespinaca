@@ -40,7 +40,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMqttClientService, MqttClientService>();
 
         // Background Services
-        services.AddHostedService<DatabaseCleanupService>();
         services.AddHostedService<MqttRoutineCompletionSubscriber>();
         services.AddHostedService<SafetyRulesHostedService>();
         services.AddHostedService<AdvancedBehaviorMonitoringService>();

@@ -12,7 +12,6 @@ public interface IRoutineCommandRepository
     Task AddAsync(RoutineCommand routineCommand);
     Task UpdateAsync(RoutineCommand routineCommand);
     Task DeleteAsync(string id);
-    Task<long> DeleteOlderThanAsync(DateTime cutoffDate);
     Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(DateTime startDate, DateTime endDate, string view);
 }
 

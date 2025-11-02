@@ -61,13 +61,6 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
     public Task DeleteAsync(string id)
         => _baseRepo.DeleteAsync(id);
 
-    public async Task<long> DeleteOlderThanAsync(DateTime cutoffDate)
-    {
-        var filter = Builders<RoutineCommandDocument>.Filter.Lt(x => x.CreatedAt, cutoffDate);
-        var result = await _baseRepo.DeleteManyAsync(filter);
-        return result.DeletedCount;
-    }
-
     public async Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(DateTime startDate, DateTime endDate, string view)
     {
         // 1. Get Timeline data

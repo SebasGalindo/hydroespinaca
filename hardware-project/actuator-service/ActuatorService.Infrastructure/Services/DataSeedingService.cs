@@ -181,15 +181,8 @@ public class DataSeedingService
                         Power = "ON",
                         Duration = 480,
                         Mode = "DIGITAL"
-                    },
-                    // Air pump for another 60 seconds
-                    new InternalRoutineStep
-                    {
-                        OutputVariable = "piedra-difusora", // ActuatorCode
-                        Power = "ON",
-                        Duration = 60,
-                        Mode = "DIGITAL"
                     }
+                
                 },
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
