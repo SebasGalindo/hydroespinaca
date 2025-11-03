@@ -7,6 +7,13 @@ export type { User } from './store';
 // Export all general types
 export * from './types';
 
+// Export theme tokens
+export * from './theme';
+
+// Export icons
+export { Icon } from './icons/Icon';
+export type { IconName, IconProps } from './icons/types';
+
 // Export hooks
 export * from './hooks/useLoginForm';
 export { useAuth } from './hooks/useAuth';

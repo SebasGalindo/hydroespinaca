@@ -12,6 +12,13 @@ export type { User } from './store';
 // Export all general types (platform agnostic)
 export * from './types';
 
+// Export theme tokens (platform agnostic)
+export * from './theme';
+
+// Export icons
+export { Icon } from './icons/Icon';
+export type { IconName, IconProps } from './icons/types';
+
 // Export web-compatible hooks only
 export * from './hooks/useLoginForm';
 export { useAuth } from './hooks/useAuth';
