@@ -599,19 +599,78 @@ bool JobScheduler::extendOrUpdateJob(Job& existingJob, Job& newJob) {
         return false;
     }
 
-    // 🔄 REPLACE duration (not extend): Reset timer to new duration from NOW
-    // This prevents infinite extensions and matches expected behavior
+    // 🔄 COMPLETE REPLACEMENT: Update ALL parameters (not just duration)
     unsigned long oldRemainingTime = (currentStep->endTime > now) ? (currentStep->endTime - now) : 0;
 
-    Serial.printf("🔄 [CONSOLIDATE] Reemplazando duración (resetea contador):\n");
+    Serial.printf("🔄 [CONSOLIDATE] Reemplazando job completamente:\n");
     Serial.printf("   - Tiempo restante anterior: %.2f s\n", oldRemainingTime / 1000.0);
     Serial.printf("   - Nueva duración desde AHORA: %.2f s\n", newStep.duration / 1000.0);
+    Serial.printf("   - Power anterior: %s → nuevo: %s\n",
+                 currentStep->power == ON ? "ON" : "OFF",
+                 newStep.power == ON ? "ON" : "OFF");
+    if (currentStep->mode == PWM || newStep.mode == PWM) {
+        Serial.printf("   - DutyCycle anterior: %d → nuevo: %d\n",
+                     currentStep->dutyCycle, newStep.dutyCycle);
+    }
 
-    // Update end time (replace, not add)
+    // 🔥 CRÍTICO: Update duration and timer FIRST
     currentStep->endTime = newEndTime;
     currentStep->duration = newStep.duration;
 
-    Serial.printf("   ✅ Duración actualizada - expira en %.2f s desde ahora\n", (newEndTime - now) / 1000.0);
+    // 🔥 CRÍTICO: Update ALL step parameters (complete replacement)
+    PowerState oldPower = currentStep->power;
+    int oldDutyCycle = currentStep->dutyCycle;
+    PinMode oldMode = currentStep->mode;
+
+    currentStep->power = newStep.power;
+    currentStep->dutyCycle = newStep.dutyCycle;
+    currentStep->mode = newStep.mode;
+
+    // 🔥 CRÍTICO: Apply new parameters to pin IMMEDIATELY (if they changed)
+    // NOTA: Los comandos OFF nunca llegan aquí - van por el branch de preemption
+    bool parametersChanged = (oldPower != newStep.power) ||
+                             (oldDutyCycle != newStep.dutyCycle) ||
+                             (oldMode != newStep.mode);
+
+    if (parametersChanged) {
+        Serial.println("⚡ [CONSOLIDATE] Parámetros cambiaron - aplicando al pin inmediatamente");
+
+        if (currentStep->mode == DIGITAL) {
+            int pinValue = (currentStep->pin == 27) ?
+                          (currentStep->power == ON ? HIGH : LOW) :  // MOSFET (direct)
+                          (currentStep->power == ON ? LOW : HIGH);   // Relay (inverted)
+            digitalWrite(currentStep->pin, pinValue);
+            Serial.printf("🔌 [CONSOLIDATE] Pin %d → DIGITAL %s\n",
+                         currentStep->pin, pinValue == HIGH ? "HIGH" : "LOW");
+        } else if (currentStep->mode == PWM) {
+            PWMManager::ensureAttached(currentStep->pin);
+            PWMManager::writeDuty(currentStep->pin, currentStep->dutyCycle);
+            Serial.printf("🔌 [CONSOLIDATE] Pin %d → PWM duty=%d/255 (~%d%%)\n",
+                         currentStep->pin, currentStep->dutyCycle,
+                         (int)((currentStep->dutyCycle / 255.0) * 100));
+        }
+
+        // Special handling for specialized pins
+        if (currentStep->pin == PIN_RELAY_HEATER && currentStep->power == ON) {
+            // Initialize heater monitoring if not already active
+            if (!currentStep->heaterState) {
+                Serial.println("🔥 [CONSOLIDATE] Reiniciando monitoreo térmico de calefactor");
+                currentStep->heaterState.reset(new HeaterMonitorState());
+            }
+        } else if (currentStep->pin == PIN_HUMID_POWER && currentStep->power == ON) {
+            // Initialize humidifier cycle if not already active
+            if (!currentStep->humidifierState) {
+                Serial.println("💨 [CONSOLIDATE] Reiniciando ciclo de humidificador");
+                currentStep->humidifierState.reset(new HumidifierCycleState());
+                currentStep->humidifierState->lastFanCycleTime = millis();
+                currentStep->humidifierState->fanOn = false;
+            }
+        }
+    } else {
+        Serial.println("ℹ️  [CONSOLIDATE] Parámetros sin cambios - solo se actualizó la duración");
+    }
+
+    Serial.printf("   ✅ Job actualizado completamente - expira en %.2f s desde ahora\n", (newEndTime - now) / 1000.0);
     return true;
 }
 

@@ -137,6 +137,14 @@ public class MqttRoutineCompletionSubscriber : BackgroundService
         ICommandExecutionService commandExecutionService,
         IRoutineCommandRepository routineCommandRepository)
     {
+        // Guard clause: Validate commandId is not null or empty to prevent System.ArgumentNullException
+        if (string.IsNullOrEmpty(completion.CommandId))
+        {
+            _logger.LogError("❌ Completion received with NULL or empty commandId. Ignoring to prevent System.ArgumentNullException. ESP32 ID: {Esp32Id}, Status: {Status}",
+                completion.Esp32Id ?? "unknown", completion.Status ?? "unknown");
+            return; // Exit method without processing the invalid completion
+        }
+
         _logger.LogDebug("📦 Processing completion: CommandId={CommandId}, Status={Status}",
             completion.CommandId, completion.Status);
 

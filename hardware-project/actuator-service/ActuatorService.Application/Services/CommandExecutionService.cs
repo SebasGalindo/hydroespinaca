@@ -148,31 +148,62 @@ public class CommandExecutionService : ICommandExecutionService
 
                 _logger.LogInformation("✅ Activated command {CommandId} for {ActuatorCode} (pin {Pin} available)",
                     commandId, command.ActuatorCode, command.Pin);
+
+                scheduledCommandIds.Add(commandId);
             }
             else
             {
-                // Pin locked - add to pending queue (only if not already at limit)
-                var pendingCommand = new PendingCommand
+                // Pin locked - check if we should reuse the existing active command ID or queue as pending
+                var existingCommandIdForPin = _pinLockRegistry.GetLockHolder(command.Pin);
+
+                if (existingCommandIdForPin != null && _activeCommands.TryGetValue(existingCommandIdForPin, out var activeCommandForPin))
                 {
-                    CommandId = commandId,
-                    ActuatorCode = command.ActuatorCode,
-                    ActuatorId = command.ActuatorId,
-                    Esp32Id = esp32Id,
-                    Pin = command.Pin,
-                    ScheduledTime = DateTime.UtcNow,
-                    Power = command.Power,
-                    DutyCycle = command.DutyCycle,
-                    Duration = command.Duration,
-                    JobRoutineDto = CreateJobRoutineDto(command, commandId)
-                };
+                    // CONSOLIDATION: Reuse the existing active command ID and update it
+                    _logger.LogInformation("🔁 Pin {Pin} locked by command {ExistingCommandId} - reusing ID and updating parameters for {ActuatorCode} (duration: {Duration}s)",
+                        command.Pin, existingCommandIdForPin, command.ActuatorCode, command.Duration);
 
-                _pendingCommands.TryAdd(commandId, pendingCommand);
+                    // Update the existing active command with new parameters
+                    activeCommandForPin.Power = command.Power;
+                    activeCommandForPin.DutyCycle = command.DutyCycle;
+                    activeCommandForPin.Duration = command.Duration;
+                    activeCommandForPin.ActuatorCode = command.ActuatorCode;
+                    activeCommandForPin.ActuatorId = command.ActuatorId;
 
-                _logger.LogInformation("⏸️ Command {CommandId} for {ActuatorCode} pending (waiting for pin {Pin})",
-                    commandId, command.ActuatorCode, command.Pin);
+                    // Create MQTT payload with EXISTING commandId but new parameters (update the job)
+                    var jobRoutine = CreateJobRoutineDto(command, existingCommandIdForPin);
+                    commandsToPublish.Add(jobRoutine);
+
+                    // Update actuator state with new duration
+                    _stateMachine.UpdateState(command.ActuatorId, PowerState.ON, command.Duration, command.DutyCycle, existingCommandIdForPin);
+
+                    consolidatedCommands.Add(command.ActuatorCode);
+                    scheduledCommandIds.Add(existingCommandIdForPin);
+                }
+                else
+                {
+                    // Fallback: Pin locked but no active command found (edge case) - add to pending queue
+                    var pendingCommand = new PendingCommand
+                    {
+                        CommandId = commandId,
+                        ActuatorCode = command.ActuatorCode,
+                        ActuatorId = command.ActuatorId,
+                        Esp32Id = esp32Id,
+                        Pin = command.Pin,
+                        ScheduledTime = DateTime.UtcNow,
+                        Power = command.Power,
+                        DutyCycle = command.DutyCycle,
+                        Duration = command.Duration,
+                        JobRoutineDto = CreateJobRoutineDto(command, commandId)
+                    };
+
+                    _pendingCommands.TryAdd(commandId, pendingCommand);
+
+                    _logger.LogInformation("⏸️ Command {CommandId} for {ActuatorCode} pending (waiting for pin {Pin})",
+                        commandId, command.ActuatorCode, command.Pin);
+
+                    scheduledCommandIds.Add(commandId);
+                }
             }
-
-            scheduledCommandIds.Add(commandId);
         }
 
         // Publish activated commands to MQTT
