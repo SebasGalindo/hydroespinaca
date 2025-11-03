@@ -22,6 +22,7 @@ export type IconName =
   | 'edit'
   | 'delete'
   | 'close'
+  | 'x'
   | 'check'
   | 'check-circle'
   | 'alert'
@@ -77,7 +78,8 @@ export type IconName =
   | 'thermometer'
   | 'activity'
   | 'zap'
-  | 'maximize';
+  | 'maximize'
+  | 'file-text';
 
 export interface IconProps {
   name: IconName;
