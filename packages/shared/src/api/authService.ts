@@ -101,10 +101,13 @@ export class AuthApiService {
    * Mobile login - returns tokens in response body
    */
   async loginMobile(credentials: LoginRequest): Promise<MobileLoginResponse> {
+    console.log('[AuthService] loginMobile called with URL:', `${this.baseUrl}/auth/login/mobile`);
+    console.log('[AuthService] Credentials:', credentials);
     const response = await this.request<MobileLoginResponse>('/auth/login/mobile', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }, 'mobile');
+    console.log('[AuthService] loginMobile response:', response);
 
     if (!response.data) {
       throw new Error('No data in mobile login response');
