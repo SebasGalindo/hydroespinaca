@@ -14,6 +14,7 @@ import {
   semanticColors,
   spacing,
   colors,
+  borderRadius,
   systemStatusService,
   formatNumericValue,
   type SystemStatusResponse,
@@ -494,8 +495,8 @@ export function DashboardScreen(): React.ReactElement {
           />
         </View>
 
-        {/* Last Update Info */}
-        {lastUpdateTimestamp && (
+        {/* Last Update Info - Solo mostrar si hay datos válidos */}
+        {lastUpdateTimestamp && hasReadingsData && (
           <View style={styles.updateInfo}>
             <Text style={styles.updateEmoji}>🔄</Text>
             <View style={styles.updateTextContainer}>
@@ -509,38 +510,40 @@ export function DashboardScreen(): React.ReactElement {
           </View>
         )}
 
-        {/* Variables Section */}
-        <View style={styles.section}>
-          <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
-            Variables del Sistema
-          </Text>
-          <View style={styles.variablesGrid}>
-            {systemStatus?.readings.readings.map((reading) => {
-              const alertConfig = getAlertConfig(reading.name);
-              const status = calculateVariableStatus(reading, alertConfig);
-              const previousValue = getPreviousValue(reading.name);
-              const trend = calculateTrend(reading.value, previousValue);
-              const needsLightCheck = requiresArtificialLight(reading.name);
-              const lightActive = isArtificialLightActive();
-              const showLightAlert = needsLightCheck && reading.value < reading.optimalMin;
+        {/* Variables Section - Solo mostrar si hay datos válidos */}
+        {hasReadingsData && systemStatus?.readings.readings && systemStatus.readings.readings.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
+              Variables del Sistema
+            </Text>
+            <View style={styles.variablesGrid}>
+              {systemStatus.readings.readings.map((reading) => {
+                const alertConfig = getAlertConfig(reading.name);
+                const status = calculateVariableStatus(reading, alertConfig);
+                const previousValue = getPreviousValue(reading.name);
+                const trend = calculateTrend(reading.value, previousValue);
+                const needsLightCheck = requiresArtificialLight(reading.name);
+                const lightActive = isArtificialLightActive();
+                const showLightAlert = needsLightCheck && reading.value < reading.optimalMin;
 
-              return (
-                <View key={reading.name} style={styles.variableCardWrapper}>
-                  <VariableCard
-                    title={reading.name}
-                    value={`${formatNumericValue(reading.value)} ${reading.unit}`}
-                    optimal={`Óptima: ${formatNumericValue(reading.optimalMin)} – ${formatNumericValue(reading.optimalMax)} ${reading.unit}`}
-                    iconType={getIconType(reading.name)}
-                    status={status}
-                    trend={trend}
-                    artificialLightActive={lightActive}
-                    showArtificialLightAlert={showLightAlert}
-                  />
-                </View>
-              );
-            })}
+                return (
+                  <View key={reading.name} style={styles.variableCardWrapper}>
+                    <VariableCard
+                      title={reading.name}
+                      value={`${formatNumericValue(reading.value)} ${reading.unit}`}
+                      optimal={`Óptima: ${formatNumericValue(reading.optimalMin)} – ${formatNumericValue(reading.optimalMax)} ${reading.unit}`}
+                      iconType={getIconType(reading.name)}
+                      status={status}
+                      trend={trend}
+                      artificialLightActive={lightActive}
+                      showArtificialLightAlert={showLightAlert}
+                    />
+                  </View>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Controller Status Section - Solo mostrar si hay datos válidos */}
         {systemStatus && lastUpdateTimestamp && hasReadingsData && (
