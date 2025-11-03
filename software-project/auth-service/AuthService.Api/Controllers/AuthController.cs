@@ -40,47 +40,13 @@ public class AuthController : ControllerBase
         var command = new LoginCommand(
             dto.Email,
             dto.Password,
-            ClientIdentifiers.WebApp,
+            dto.ClientId,
             dto.SessionId,
             dto.IpAddress ?? HttpContext.Connection.RemoteIpAddress?.ToString(),
             dto.UserAgent ?? HttpContext.Request.Headers.UserAgent.ToString(),
             dto.CsrfToken);
         var tokens = await _mediator.Send(command);
         return Ok(tokens);
-    }
-
-    [AllowAnonymous]
-    [HttpPost("login/mobile")]
-    public async Task<ActionResult<HydroEspinaca.Shared.DTOs.Authentication.MobileLoginResponseDto>> LoginMobile(
-        [FromBody] HydroEspinaca.Shared.DTOs.Authentication.LoginRequestDto dto,
-        CancellationToken cancellationToken)
-    {
-        // Capture client information from the current HTTP context
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
-
-        // Create login command with mobile-specific ClientId
-        var command = new LoginCommand(
-            dto.Email,
-            dto.Password,
-            ClientIdentifiers.MobileApp, // ClientId for mobile
-            dto.SessionId,
-            ipAddress ?? dto.IpAddress,
-            userAgent ?? dto.UserAgent,
-            dto.CsrfToken);
-
-        var result = await _mediator.Send(command, cancellationToken);
-
-        // Set headers for mobile clients
-        Response.Headers["X-Session-Id"] = result.SessionId ?? string.Empty;
-        Response.Headers["X-CSRF-Token"] = result.CsrfToken ?? string.Empty;
-
-        // Return session data in response body for mobile secure storage
-        return Ok(new HydroEspinaca.Shared.DTOs.Authentication.MobileLoginResponseDto
-        {
-            SessionId = result.SessionId ?? string.Empty,
-            CsrfToken = result.CsrfToken ?? string.Empty
-        });
     }
 
     [AllowAnonymous]
