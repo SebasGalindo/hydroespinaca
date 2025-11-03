@@ -142,15 +142,6 @@ export function VariableCard({
           {subtitle}
         </Text>
       )}
-
-      {/* Artificial light alert */}
-      {showArtificialLightAlert && artificialLightActive && (
-        <View style={styles.lightAlert}>
-          <Text variant="caption" color="#f59e0b" style={styles.lightAlertText}>
-            💡 Luz artificial activa
-          </Text>
-        </View>
-      )}
     </View>
   );
 }

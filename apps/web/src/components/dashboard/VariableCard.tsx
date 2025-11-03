@@ -173,23 +173,6 @@ const VariableCard: React.FC<VariableCardProps> = ({
           {subtitle}
         </p>
       )}
-
-      {/* Alerta de luz artificial */}
-      {showArtificialLightAlert && artificialLightActive && (
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className="flex items-center gap-1.5 group relative">
-            <span className="text-yellow-600">💡</span>
-            <span className="text-xs text-yellow-700 font-inter font-medium">
-              Luz artificial activa
-            </span>
-            {/* Tooltip */}
-            <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-10">
-              La luz de amplio espectro está compensando la baja luminosidad natural
-              <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-            </div>
-          </div>
-        </div>
-      )}
     </article>
   );
 };
