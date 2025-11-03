@@ -65,10 +65,10 @@ void validateReadingsJson(DynamicJsonDocument& doc) {
         
         for (int i = 0; i < readings.size(); i++) {
             JsonObject reading = readings[i];
-            Serial.printf("   [%d] physicalId: %s, variableId: %s, value: %.2f\n", 
+            Serial.printf("   [%d] physicalId: %s, variableCode: %s, value: %.2f\n", 
                          i, 
                          reading["physicalId"].as<String>().c_str(),
-                         reading["variableId"].as<String>().c_str(),
+                         reading["variableCode"].as<String>().c_str(),
                          reading["value"].as<float>());
         }
     }

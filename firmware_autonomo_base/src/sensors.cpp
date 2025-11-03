@@ -29,7 +29,7 @@ void SensorManager::begin() {
     Serial.println("✅ DHT22 inicializado");
 
 #if USE_TCS34725_LUX_FALLBACK
-    // TEMPORAL: Inicializar TCS34725 para estimar lux
+    // Fallback: Inicializar TCS34725 para estimar lux (modo alternativo)
     if (tcs.begin()) {
         tcsInitialized = true;
         Serial.println("✅ TCS34725 inicializado (modo fallback lux)");
@@ -38,7 +38,7 @@ void SensorManager::begin() {
         tcsInitialized = false;
     }
 #else
-    // Initialize BH1750
+    // Modo normal: Inicializar BH1750 (sensor nativo de lux)
     if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
         bh1750Initialized = true;
         Serial.println("✅ BH1750 inicializado");
@@ -76,7 +76,7 @@ float SensorManager::readHumidity() {
 // Light sensor - returns lux value
 float SensorManager::readLightLux() {
 #if USE_TCS34725_LUX_FALLBACK
-    // TEMPORAL: Estimar lux desde TCS34725
+    // Fallback: Estimar lux desde TCS34725 (modo alternativo)
     if (!tcsInitialized) return NAN;
 
     uint16_t r, g, b, c;
@@ -106,7 +106,7 @@ float SensorManager::readLightLux() {
 
     return lux;
 #else
-    // BH1750 nativo
+    // Modo normal: BH1750 nativo (sensor de lux dedicado)
     if (!bh1750Initialized) return NAN;
 
     float lux = lightMeter.readLightLevel();
@@ -257,11 +257,11 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     }
     
     Serial.printf("📊 Total de lecturas válidas: %d/8\n", validReadings);
-    
+
     // PhysicalId Mappings:
     // | Code        | physicalId       | Variable              | MongoDB ObjectId         | Status |
     // |-------------|------------------|-----------------------|--------------------------|--------|
-    // | BH1750-A1 | TCS34725-A1      | Lux                    | 688970837f02137645d58395 | Active |
+    // | bh1750-001  | BH1750-A1        | Lux                    | 688970837f02137645d58395 | Active |
     // | dht22-001   | DHT22-A1         | Temperature           | 688970ab7f02137645d58398 | Active |
     // | dht22-001   | DHT22-A1         | Humidity              | 688970af7f02137645d58399 | Active |
     // | ph-001      | SEN0161-A1       | pH Level              | 688970a27f02137645d58396 | Active |

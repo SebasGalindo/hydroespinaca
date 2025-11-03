@@ -5,10 +5,9 @@
 #include "pins.h"
 
 // ========================================
-// TEMPORAL: Usar TCS34725 para estimar lux
-// Cuando se instale BH1750, cambiar a false
+// Sensor de luz: BH1750 (sensor nativo de lux)
 // ========================================
-#define USE_TCS34725_LUX_FALLBACK true
+#define USE_TCS34725_LUX_FALLBACK false
 
 // Device Info
 #define ESP32_ID "6883fff7b079309f3ba4f238"

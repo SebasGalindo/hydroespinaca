@@ -11,10 +11,6 @@
 #define PIN_I2C_SDA      21     // I2C SDA
 #define PIN_I2C_SCL      22     // I2C SCL
 
-// TCS34725 - Sensor de luz RGB (conectado vía I2C)
-// Calcula LightIndex usando la fórmula:
-// LightIndex = (0.5 * (R / (R+B+G+C))) + (0.5 * (B / (R+B+G+C)))
-
 // Sensores ADC
 #define PIN_PH_ADC       32     // Sensor pH (usa divisor 1.5k + 2k, entrada ADC)
 #define PIN_TDS_ADC      33     // Conductividad eléctrica (EC en mS/cm)
@@ -41,7 +37,7 @@
 #define PIN_LED_COLOUR   18     // Luz colores / bombillo
 #define PIN_AIR_STONE    15     // Piedra difusora (salida)
 #define PIN_WATER_PUMP   19     // Bomba de agua
-#define PIN_FAN          27     // Ventiladores (puede ser PWM)
+#define PIN_FAN             27  // Ventiladores (puede ser PWM)
 #define PIN_HEATER_WATER 25     // Calentador agua
 
 // Humidificador ultrasónico (control con 2 relés ACTIVOS LOW)

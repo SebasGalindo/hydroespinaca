@@ -15,13 +15,13 @@ class SensorManager {
 private:
     DHT dht;
     BH1750 lightMeter;
-    Adafruit_TCS34725 tcs;  // Temporal fallback para lux
+    Adafruit_TCS34725 tcs;  // Fallback opcional (solo si USE_TCS34725_LUX_FALLBACK está activo)
     NTPClient* timeClient;
 
     // Sensor validity flags
     bool dhtInitialized;
     bool bh1750Initialized;
-    bool tcsInitialized;  // Temporal fallback
+    bool tcsInitialized;  // Fallback opcional
     
     // ADC calibration parameters
     struct {
@@ -68,7 +68,6 @@ public:
     // Sensor status
     bool isDHTAvailable() const { return dhtInitialized; }
     bool isBH1750Available() const { return bh1750Initialized; }
-    bool isTCSAvailable() const { return tcsInitialized; }
 };
 
 #endif
