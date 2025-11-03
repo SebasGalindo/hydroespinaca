@@ -62,6 +62,29 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
     public Task DeleteAsync(string id)
         => _baseRepo.DeleteAsync(id);
 
+    public async Task<int> DeleteRunningCommandsAsync(string? esp32Id = null)
+    {
+        var filterBuilder = Builders<RoutineCommandDocument>.Filter;
+        FilterDefinition<RoutineCommandDocument> filter;
+
+        if (esp32Id != null)
+        {
+            // Delete only RUNNING commands for the specific ESP32
+            filter = filterBuilder.And(
+                filterBuilder.Eq(x => x.StatusGeneral, HydroEspinaca.Shared.Enums.RoutineCommandStatus.RUNNING),
+                filterBuilder.Eq(x => x.Esp32Id, esp32Id)
+            );
+        }
+        else
+        {
+            // Delete all RUNNING commands
+            filter = filterBuilder.Eq(x => x.StatusGeneral, HydroEspinaca.Shared.Enums.RoutineCommandStatus.RUNNING);
+        }
+
+        var result = await _baseRepo.DeleteManyAsync(filter);
+        return (int)result.DeletedCount;
+    }
+
     public async Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(ActuatorAnalyticsRequest request)
     {
         // Ensure dates are properly marked as UTC (they come from frontend already in UTC)

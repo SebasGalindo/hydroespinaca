@@ -362,7 +362,7 @@ public class CommandExecutionService : ICommandExecutionService
         return Task.FromResult(stats);
     }
 
-    public Task ClearAsync(string? esp32Id = null)
+    public async Task ClearAsync(string? esp32Id = null)
     {
         _logger.LogInformation("🧹 Clearing all commands{Esp32Filter}",
             esp32Id != null ? $" for ESP32 {esp32Id}" : "");
@@ -400,7 +400,12 @@ public class CommandExecutionService : ICommandExecutionService
         _logger.LogInformation("✅ Cleared {ActiveCount} active and {PendingCount} pending commands",
             activeToRemove.Count, pendingToRemove.Count);
 
-        return Task.CompletedTask;
+        // Delete RUNNING commands from database
+        using var scope = _scopeFactory.CreateScope();
+        var routineCommandRepository = scope.ServiceProvider.GetRequiredService<IRoutineCommandRepository>();
+
+        var deletedCount = await routineCommandRepository.DeleteRunningCommandsAsync(esp32Id);
+        _logger.LogInformation("🗄️ Deleted {DeletedCount} RUNNING commands from database", deletedCount);
     }
 
     public async Task SendImmediateResetCommandsAsync(List<ResolvedCommandDto> commands, string esp32Id)

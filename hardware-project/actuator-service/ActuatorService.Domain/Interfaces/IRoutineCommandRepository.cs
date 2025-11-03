@@ -13,6 +13,7 @@ public interface IRoutineCommandRepository
     Task AddAsync(RoutineCommand routineCommand);
     Task UpdateAsync(RoutineCommand routineCommand);
     Task DeleteAsync(string id);
+    Task<int> DeleteRunningCommandsAsync(string? esp32Id = null);
     Task<ActuatorAnalyticsData> GetActuatorAnalyticsAsync(ActuatorAnalyticsRequest request);
     Task<List<TimelineData>> GetRawTimelineDataAsync(DateTime startDate, DateTime endDate);
 }

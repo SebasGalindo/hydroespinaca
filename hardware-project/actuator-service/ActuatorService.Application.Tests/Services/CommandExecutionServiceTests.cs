@@ -321,6 +321,27 @@ public class CommandExecutionServiceTests
         _mockPinLockRegistry.Setup(r => r.TryLock(It.IsAny<List<string>>(), It.IsAny<string>()))
             .Returns(true);
 
+        // Mock IRoutineCommandRepository
+        var mockRoutineCommandRepository = new Mock<IRoutineCommandRepository>();
+        mockRoutineCommandRepository
+            .Setup(r => r.DeleteRunningCommandsAsync(It.IsAny<string>()))
+            .ReturnsAsync(0);
+
+        // Mock IServiceScope and IServiceProvider
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(IRoutineCommandRepository)))
+            .Returns(mockRoutineCommandRepository.Object);
+
+        var mockScope = new Mock<IServiceScope>();
+        mockScope
+            .Setup(s => s.ServiceProvider)
+            .Returns(mockServiceProvider.Object);
+
+        _mockScopeFactory
+            .Setup(sf => sf.CreateScope())
+            .Returns(mockScope.Object);
+
         await _service.ScheduleCommandsAsync(commands, esp32Id);
 
         // Act
@@ -328,7 +349,8 @@ public class CommandExecutionServiceTests
 
         // Assert
         _mockPinLockRegistry.Verify(r => r.Release(It.IsAny<List<string>>()), Times.AtLeast(2));
-        
+        mockRoutineCommandRepository.Verify(r => r.DeleteRunningCommandsAsync(esp32Id), Times.Once);
+
         var status = await _service.GetStatusAsync(esp32Id);
         status.Queue.Should().BeEmpty();
     }
