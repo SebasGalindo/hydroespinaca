@@ -151,16 +151,10 @@ public class Esp32OfflineNotificationService : IEsp32OfflineNotificationService
     {
         try
         {
-            // Calculate time since last activity from timestamp
-            var timeSinceLastActivity = DateTime.UtcNow - alert.Timestamp;
-            var formattedTime = TimeFormatter.FormatInactivity(timeSinceLastActivity);
-
             var templateData = new
             {
                 esp32Id = alert.Esp32Id,
-                timestamp = alert.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC"),
-                lastActivity = alert.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC"),
-                timeSinceLastActivity = formattedTime
+                timestamp = alert.Timestamp.ToString("yyyy-MM-dd HH:mm:ss UTC")
             };
 
             var hash = Hash.FromAnonymousObject(templateData);
