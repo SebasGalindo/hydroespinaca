@@ -105,6 +105,39 @@ void JobScheduler::processStep(Step& step) {
             break;
 
         case STEP_IN_PROGRESS:
+            // 🔒 SAFETY: Check absolute maximum timeout (prevents infinite extensions)
+            if (now >= step.absoluteMaxEndTime) {
+                Serial.printf("🚨 [SAFETY] Pin %d excedió timeout absoluto (%.1f horas) - FORZANDO APAGADO\n",
+                             step.pin, MAX_ABSOLUTE_STEP_DURATION / (1000.0 * 60.0 * 60.0));
+
+                // Force shutdown
+                if (step.mode == DIGITAL) {
+                    int offValue = (step.pin == 27) ? LOW : HIGH;  // MOSFET vs Relay logic
+                    digitalWrite(step.pin, offValue);
+                } else if (step.mode == PWM) {
+                    PWMManager::writeDuty(step.pin, 0);
+                    PWMManager::detachIfAttached(step.pin);
+                }
+
+                // Clean up special states
+                if (step.heaterState) {
+                    Serial.println("🔥 [HEATER] Liberando estado (timeout absoluto)");
+                    step.heaterState.reset();
+                }
+                if (step.humidifierState) {
+                    Serial.println("💨 [HUMID] Liberando estado (timeout absoluto)");
+                    step.humidifierState.reset();
+                }
+
+                // 🔒 SAFETY: Set cooldown for this pin
+                pinCooldowns[step.pin] = now + PIN_COOLDOWN_DURATION;
+                Serial.printf("❄️ [COOLDOWN] Pin %d en cooldown por %.1f minutos\n",
+                             step.pin, PIN_COOLDOWN_DURATION / (1000.0 * 60.0));
+
+                step.status = STEP_OK;  // Mark as completed (with forced shutdown)
+                return;
+            }
+
             // Update specialized routines if needed
             if (step.pin == PIN_RELAY_HEATER && step.heaterState != nullptr) {
                 updateHeaterMonitoring(step);
@@ -229,10 +262,25 @@ void JobScheduler::startStep(Step& step) {
         }
     }
 
+    // 🔒 SAFETY: Check pin cooldown (prevent immediate re-activation after forced shutdown)
+    if (pinCooldowns.count(step.pin) > 0 && now < pinCooldowns[step.pin]) {
+        unsigned long cooldownRemaining = pinCooldowns[step.pin] - now;
+        Serial.printf("❄️ [COOLDOWN] Pin %d en cooldown (restante: %.1f s) - ignorando comando\n",
+                     step.pin, cooldownRemaining / 1000.0);
+        step.status = STEP_CANCELLED;
+        return;
+    }
+
     // Mark as in progress
     step.status = STEP_IN_PROGRESS;
     step.startTime = now;
     step.endTime = now + step.duration;
+
+    // 🔒 SAFETY: Set absolute maximum end time (prevents infinite extensions)
+    step.absoluteMaxEndTime = now + MAX_ABSOLUTE_STEP_DURATION;
+
+    Serial.printf("🔒 [SAFETY] Timeout absoluto: %.1f horas desde ahora\n",
+                 MAX_ABSOLUTE_STEP_DURATION / (1000.0 * 60.0 * 60.0));
 
     // Configure pin
     pinMode(step.pin, OUTPUT);
@@ -539,27 +587,32 @@ bool JobScheduler::extendOrUpdateJob(Job& existingJob, Job& newJob) {
     unsigned long now = millis();
     unsigned long newEndTime = now + newStep.duration;
 
-    // Only extend if new duration is longer than remaining time
-    if (newEndTime > currentStep->endTime) {
-        unsigned long oldRemainingTime = (currentStep->endTime > now) ? (currentStep->endTime - now) : 0;
-        unsigned long newRemainingTime = newStep.duration;
+    // 🔒 SAFETY: Do NOT extend beyond absolute maximum end time
+    if (newEndTime > currentStep->absoluteMaxEndTime) {
+        unsigned long maxRemainingTime = (currentStep->absoluteMaxEndTime > now) ?
+                                         (currentStep->absoluteMaxEndTime - now) : 0;
 
-        Serial.printf("🔄 [CONSOLIDATE] Extendiendo duración:\n");
-        Serial.printf("   - Tiempo restante anterior: %.2f s\n", oldRemainingTime / 1000.0);
-        Serial.printf("   - Nueva duración solicitada: %.2f s\n", newRemainingTime / 1000.0);
-
-        // Update end time
-        currentStep->endTime = newEndTime;
-        currentStep->duration = newStep.duration;
-
-        Serial.printf("   ✅ Duración extendida a %.2f s\n", (newEndTime - now) / 1000.0);
-        return true;
-    } else {
-        Serial.printf("🔄 [CONSOLIDATE] Duración nueva (%.2f s) menor o igual que restante (%.2f s) - no se extiende\n",
-                     newStep.duration / 1000.0,
-                     (currentStep->endTime - now) / 1000.0);
+        Serial.printf("🚨 [CONSOLIDATE] Actualización rechazada - excedería timeout absoluto\n");
+        Serial.printf("   - Nueva duración solicitada: %.2f s\n", newStep.duration / 1000.0);
+        Serial.printf("   - Tiempo máximo restante: %.2f s\n", maxRemainingTime / 1000.0);
+        Serial.printf("   ℹ️  El comando se completará al alcanzar el timeout absoluto\n");
         return false;
     }
+
+    // 🔄 REPLACE duration (not extend): Reset timer to new duration from NOW
+    // This prevents infinite extensions and matches expected behavior
+    unsigned long oldRemainingTime = (currentStep->endTime > now) ? (currentStep->endTime - now) : 0;
+
+    Serial.printf("🔄 [CONSOLIDATE] Reemplazando duración (resetea contador):\n");
+    Serial.printf("   - Tiempo restante anterior: %.2f s\n", oldRemainingTime / 1000.0);
+    Serial.printf("   - Nueva duración desde AHORA: %.2f s\n", newStep.duration / 1000.0);
+
+    // Update end time (replace, not add)
+    currentStep->endTime = newEndTime;
+    currentStep->duration = newStep.duration;
+
+    Serial.printf("   ✅ Duración actualizada - expira en %.2f s desde ahora\n", (newEndTime - now) / 1000.0);
+    return true;
 }
 
 // ========================================
@@ -832,6 +885,11 @@ void JobScheduler::updateHeaterMonitoring(Step& step) {
         Serial.printf("🔴 [HEATER] EMERGENCIA: %.1f°C ≥ %.1f°C - apagando\n",
                      currentTemp, HEATER_EMERGENCY_TEMP);
         digitalWrite(PIN_RELAY_HEATER, HIGH);
+        // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
+        if (step.heaterState) {
+            Serial.println("🔥 [HEATER] Liberando estado de monitoreo (emergencia)");
+            step.heaterState.reset();  // Libera memoria explícitamente
+        }
         step.status = STEP_OK;
         return;
     }
@@ -840,6 +898,11 @@ void JobScheduler::updateHeaterMonitoring(Step& step) {
     if (count > 0 && avgTemp >= HEATER_OFF_TEMP) {
         Serial.printf("🔴 [HEATER] Objetivo alcanzado: %.1f°C promedio - apagando\n", avgTemp);
         digitalWrite(PIN_RELAY_HEATER, HIGH);
+        // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
+        if (step.heaterState) {
+            Serial.println("🔥 [HEATER] Liberando estado de monitoreo (objetivo alcanzado)");
+            step.heaterState.reset();  // Libera memoria explícitamente
+        }
         step.status = STEP_OK;
         return;
     }

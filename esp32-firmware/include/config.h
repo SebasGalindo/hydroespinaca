@@ -25,6 +25,10 @@
 // Backend manages concurrency via pin-locking. Firmware processes jobs one at a time.
 #define STEP_TIMEOUT_TOLERANCE 500  // 500ms tolerance
 
+// 🔒 SAFETY: Maximum absolute duration and cooldown (prevents infinite extensions)
+#define MAX_ABSOLUTE_STEP_DURATION (2UL * 60UL * 60UL * 1000UL)  // 2 hours max lifetime
+#define PIN_COOLDOWN_DURATION (15UL * 60UL * 1000UL)             // 15 minutes cooldown after forced shutdown
+
 // ========================================
 // CONFIGURACIÓN NTC TERMISTOR
 // ========================================

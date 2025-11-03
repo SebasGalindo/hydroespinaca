@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <vector>
+#include <map>     // Para std::map (cooldown tracking)
 #include <memory>  // Para std::unique_ptr
 #include "config.h"
 
@@ -67,6 +68,7 @@ struct Step {
     std::vector<String> executionLog;
     unsigned long startTime;
     unsigned long endTime;   // Calculated end time for this step
+    unsigned long absoluteMaxEndTime;  // 🔒 SAFETY: Maximum absolute end time (prevents infinite extensions)
 
     // Specialized routine states (only used for specific pins)
     // 🔒 SEGURIDAD: unique_ptr previene double-delete automáticamente
@@ -74,7 +76,7 @@ struct Step {
     std::unique_ptr<HumidifierCycleState> humidifierState; // Only for PIN_HUMID_POWER
 
     Step() : pin(0), mode(DIGITAL), power(OFF), dutyCycle(0), duration(0),
-             status(STEP_PENDING), startTime(0), endTime(0),
+             status(STEP_PENDING), startTime(0), endTime(0), absoluteMaxEndTime(0),
              heaterState(nullptr), humidifierState(nullptr) {}
 
     // 🔒 SEGURIDAD: Destructor automático (unique_ptr se encarga de delete)
@@ -133,6 +135,9 @@ class JobScheduler {
 private:
     // Concurrent execution state
     std::vector<Job> activeJobs;     // Jobs currently executing (multiple simultaneous)
+
+    // Safety: Pin cooldown tracking (prevents immediate re-activation after forced shutdown)
+    std::map<int, unsigned long> pinCooldowns;  // pin -> cooldown end time (millis)
 
     // Dependencies
     class MQTTHandler* mqttHandler;
