@@ -22,34 +22,30 @@ int PWMManager::allocateLedcChannelForPin(int pin) {
     if (pwmChannelOfPin[pin] >= 0) {
         return pwmChannelOfPin[pin];
     }
-    
+
     for (int ch = 0; ch < 8; ch++) {
         if (!ledcChannelUsed[ch]) {
             ledcChannelUsed[ch] = true;
             pinOfLedcChannel[ch] = pin;
             pwmChannelOfPin[pin] = ch;
-#ifdef DEBUG
-            Serial.printf("🎯 Asignando canal LEDC %d para pin %d\n", ch, pin);
-#endif
+            // NOTE: No Serial.printf here - called from critical section
             return ch;
         }
     }
-    
-    Serial.printf("❌ ERROR: No hay canales LEDC libres para pin %d\n", pin);
+
+    // NOTE: No Serial.printf here - called from critical section
     return -1;
 }
 
 void PWMManager::freeLedcChannelForPin(int pin) {
     if (pin < 0 || pin >= 40) return;
-    
+
     int ch = pwmChannelOfPin[pin];
     if (ch >= 0 && ch < 8) {
         ledcChannelUsed[ch] = false;
         pinOfLedcChannel[ch] = -1;
         pwmChannelOfPin[pin] = -1;
-#ifdef DEBUG
-        Serial.printf("🔓 Liberando canal LEDC %d (era pin %d)\n", ch, pin);
-#endif
+        // NOTE: No Serial.printf here - called from critical section
     }
 }
 
@@ -58,7 +54,10 @@ void PWMManager::ensureAttached(int pin) {
         Serial.printf("❌ ERROR: Pin %d fuera de rango (0-39)\n", pin);
         return;
     }
-    
+
+    int attachedChannel = -1;
+    bool wasAttached = false;
+
     taskENTER_CRITICAL(&pwmMux);
     if (!pwmAttached[pin]) {
         int ch = pwmChannelOfPin[pin];
@@ -69,11 +68,17 @@ void PWMManager::ensureAttached(int pin) {
         ledcSetup(ch, 5000, 8);
         ledcAttachPin(pin, ch);
         pwmAttached[pin] = true;
-#ifdef DEBUG
-        Serial.printf("🔧 PWM configurado - Pin %d → Canal LEDC %d\n", pin, ch);
-#endif
+        attachedChannel = ch;  // Save for logging outside critical section
+        wasAttached = true;
     }
     taskEXIT_CRITICAL(&pwmMux);
+
+    // Log OUTSIDE critical section to avoid watchdog timeout
+#ifdef DEBUG
+    if (wasAttached && attachedChannel >= 0) {
+        Serial.printf("🔧 PWM configurado - Pin %d → Canal LEDC %d\n", pin, attachedChannel);
+    }
+#endif
 }
 
 void PWMManager::writeDuty(int pin, int duty) {
@@ -98,17 +103,24 @@ void PWMManager::writeDuty(int pin, int duty) {
 
 void PWMManager::detachIfAttached(int pin) {
     if (pin < 0 || pin >= 40) return;
-    
+
+    int detachedChannel = -1;
+
     taskENTER_CRITICAL(&pwmMux);
     if (pwmAttached[pin]) {
         int ch = pwmChannelOfPin[pin];
         if (ch >= 0 && ch < 8) {
             ledcWrite(ch, 0);
             ledcDetachPin(pin);
-            Serial.printf("🧹 PWM detach - Pin %d (canal %d)\n", pin, ch);
+            detachedChannel = ch;  // Save for logging outside critical section
         }
         pwmAttached[pin] = false;
         freeLedcChannelForPin(pin);
     }
     taskEXIT_CRITICAL(&pwmMux);
+
+    // Log OUTSIDE critical section to avoid watchdog timeout
+    if (detachedChannel >= 0) {
+        Serial.printf("🧹 PWM detach - Pin %d (canal %d)\n", pin, detachedChannel);
+    }
 }

@@ -10,34 +10,6 @@ void JobNotifier::setMQTTHandler(MQTTHandler* handler) {
     Serial.println("✅ MQTT handler vinculado al JobNotifier");
 }
 
-void JobNotifier::publishNotification(const String& decision, int channelId, 
-                                     const String& affectedCommand, const String& targetCommand,
-                                     const std::vector<String>& logs) {
-    StaticJsonDocument<1024> doc;
-    
-    doc["esp32Id"] = ESP32_ID;
-    doc["timestamp"] = JobUtils::getCurrentTimestamp();
-    doc["decision"] = decision;
-    doc["channelId"] = channelId;
-    doc["affectedCommand"] = affectedCommand;
-    
-    if (!targetCommand.isEmpty()) {
-        doc["targetCommand"] = targetCommand;
-    }
-    
-    JsonArray logArray = doc.createNestedArray("executionLog");
-    for (const auto& logEntry : logs) {
-        logArray.add(logEntry);
-    }
-    
-    if (mqttHandler && mqttHandler->isConnected()) {
-        mqttHandler->publishNotification(doc);
-    } else {
-        String payload;
-        serializeJson(doc, payload);
-        Serial.println("📤 Notification (offline): " + payload);
-    }
-}
 
 void JobNotifier::publishCompletion(const Job& job) {
     StaticJsonDocument<256> doc;
@@ -52,6 +24,37 @@ void JobNotifier::publishCompletion(const Job& job) {
         String payload;
         serializeJson(doc, payload);
         Serial.println("📤 Completion (offline): " + payload);
+    }
+}
+
+void JobNotifier::publishCompletionsBatch(const std::vector<Job>& jobs) {
+    if (jobs.empty()) return;
+
+    // If only one job, use single publish
+    if (jobs.size() == 1) {
+        publishCompletion(jobs[0]);
+        return;
+    }
+
+    // Create batch of completions
+    std::vector<DynamicJsonDocument> completions;
+    completions.reserve(jobs.size());
+
+    for (const auto& job : jobs) {
+        StaticJsonDocument<256> doc;
+        doc["esp32Id"] = ESP32_ID;
+        doc["commandId"] = job.commandId;
+        doc["status"] = "completed";
+        completions.push_back(doc);
+    }
+
+    if (mqttHandler && mqttHandler->isConnected()) {
+        mqttHandler->publishCompletionsBatch(completions);
+    } else {
+        Serial.printf("📤 Batch de completions (offline): %d items\n", jobs.size());
+        for (const auto& job : jobs) {
+            Serial.printf("   - %s\n", job.commandId.c_str());
+        }
     }
 }
 

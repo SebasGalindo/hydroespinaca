@@ -21,7 +21,7 @@ MQTTHandler::MQTTHandler(JobScheduler* scheduler)
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
     mqttClient.setCallback(messageCallback);
     mqttClient.setKeepAlive(60);
-    mqttClient.setBufferSize(1024);
+    mqttClient.setBufferSize(MQTT_MAX_PACKET_SIZE);
 
     Serial.printf("🔧 MQTT Buffer configurado: %d bytes máximo\n", MQTT_MAX_PACKET_SIZE);
     Serial.printf("🔧 MQTT Buffer disponible: %d bytes\n", mqttClient.getBufferSize());
@@ -51,30 +51,25 @@ bool MQTTHandler::connectWiFi() {
 
 bool MQTTHandler::connectMQTT() {
     if (mqttClient.connected()) return true;
-    
-    // Ensure NTP is synchronized before attempting TLS connection
+
+    // CRITICAL: Only check NTP if it has been initialized first
+    if (!ntpInitialized) {
+        Serial.println("⚠️  [NET] NTP no inicializado aún - esperando inicialización WiFi");
+        return false;
+    }
+
+    // Check NTP sync status (non-blocking)
     if (!timeClient.isTimeSet()) {
-        Serial.println("[NET] Sincronizando NTP antes de conectar TLS...");
+        Serial.println("[NET] NTP no sincronizado - intentando actualizar...");
         timeClient.forceUpdate();
-        
-        // Wait up to 10 seconds for NTP sync
-        int ntpRetries = 0;
-        while (!timeClient.isTimeSet() && ntpRetries < 10) {
-            delay(1000);
-            timeClient.update();
-            ntpRetries++;
-            Serial.printf("[NET] Intento NTP %d/10...\n", ntpRetries);
-        }
-        
+
+        // If still not set, skip TLS connection
         if (!timeClient.isTimeSet()) {
-            Serial.println("❌ [NET] Error: NTP no sincronizado - TLS requiere hora correcta");
-            Serial.println("❌ [NET] Conexión TLS cancelada");
+            Serial.println("⚠️  [NET] NTP no disponible - esperando sincronización");
             return false;
         }
-        
-        Serial.printf("✅ [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
     }
-    
+
     // Validate that we have a reasonable time (after year 2021)
     unsigned long epochTime = timeClient.getEpochTime();
     if (epochTime < 1609459200) {  // January 1, 2021
@@ -82,7 +77,7 @@ bool MQTTHandler::connectMQTT() {
         Serial.println("❌ [NET] Conexión TLS cancelada");
         return false;
     }
-    
+
     Serial.printf("✅ [NET] Hora válida para TLS: %lu\n", epochTime);
     
     Serial.printf("[MQTT] Conectando a MQTT broker TLS: %s:%d\n", MQTT_HOST, MQTT_PORT);
@@ -168,8 +163,8 @@ void MQTTHandler::loop() {
             }
         }
 
-        // ⚠️ CRITICAL: Without WiFi, this firmware cannot operate (needs MQTT)
-        // Continue to MQTT section anyway for proper state management
+        // ⚠️ CRITICAL: Do NOT return here - job processing must continue
+        // Existing jobs can still be processed even without WiFi/MQTT connection
     } else {
         // WiFi connected - reset backoff counters
         if (wifiReconnectAttempts > 0) {
@@ -331,32 +326,53 @@ bool MQTTHandler::publishCompletion(const DynamicJsonDocument& completion) {
     return success;
 }
 
-bool MQTTHandler::publishNotification(const DynamicJsonDocument& notification) {
-    Serial.println("📤 ENVIANDO NOTIFICACIÓN");
+bool MQTTHandler::publishCompletionsBatch(const std::vector<DynamicJsonDocument>& completions) {
+    if (completions.empty()) return true;
+
+    // If only one completion, use single publish
+    if (completions.size() == 1) {
+        return publishCompletion(completions[0]);
+    }
+
+    Serial.printf("📤 ENVIANDO BATCH DE COMPLETIONS (%d items)\n", completions.size());
+
+    // Create array of completions
+    DynamicJsonDocument batchDoc(2048);
+    JsonArray completionsArray = batchDoc.createNestedArray("completions");
+
+    for (const auto& completion : completions) {
+        JsonObject obj = completionsArray.createNestedObject();
+        obj["esp32Id"] = completion["esp32Id"];
+        obj["commandId"] = completion["commandId"];
+        obj["status"] = completion["status"];
+    }
 
     String payload;
-    serializeJson(notification, payload);
+    serializeJson(batchDoc, payload);
 
-    Serial.printf("📄 Notificación JSON (%d bytes):\n%s\n", payload.length(), payload.c_str());
-    Serial.printf("🏷️  Topic: %s\n", TOPIC_NOTIFICATIONS);
+    Serial.printf("📄 Batch JSON (%d bytes):\n%s\n", payload.length(), payload.c_str());
+    Serial.printf("🏷️  Topic: %s\n", TOPIC_COMPLETIONS);
 
     if (!isConnected()) {
-        Serial.println("❌ MQTT desconectado - buffereando notificación");
-        bufferEvent(payload, "notification");
+        Serial.println("❌ MQTT desconectado - buffereando batch");
+        bufferEvent(payload, "completion");
         return false;
     }
 
-    bool success = mqttClient.publish(TOPIC_NOTIFICATIONS, payload.c_str(), false);
+    bool success = mqttClient.publish(TOPIC_COMPLETIONS, payload.c_str(), false);
     if (success) {
-        Serial.printf("✅ Notificación enviada exitosamente: %d bytes\n", payload.length());
+        Serial.printf("✅ Batch enviado exitosamente: %d completions, %d bytes\n",
+                     completions.size(), payload.length());
     } else {
-        Serial.println("❌ Error enviando notificación - buffereando");
+        Serial.println("❌ Error enviando batch - buffereando");
         Serial.printf("📊 Estado MQTT: %d\n", mqttClient.state());
-        bufferEvent(payload, "notification");
+        bufferEvent(payload, "completion");
     }
 
     return success;
 }
+
+// publishNotification() removed - no longer needed with concurrent execution (no consolidation)
 
 void MQTTHandler::messageCallback(char* topic, byte* payload, unsigned int length) {
     if (instance) {
@@ -437,19 +453,24 @@ bool MQTTHandler::isWiFiConnected() {
 }
 
 String MQTTHandler::getCurrentTimestamp() {
+    // Return fallback timestamp if NTP is not initialized
+    if (!ntpInitialized) {
+        return "1970-01-01T00:00:00Z";  // Epoch fallback
+    }
+
     if (!timeClient.isTimeSet()) {
         timeClient.forceUpdate();
     }
-    
+
     unsigned long epochTime = timeClient.getEpochTime();
-    
+
     // Convert to tm struct for formatting
     time_t rawtime = epochTime;
     struct tm * timeinfo = gmtime(&rawtime);
-    
+
     char isoBuffer[32];
     strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
-    
+
     return String(isoBuffer);
 }
 
@@ -478,21 +499,18 @@ void MQTTHandler::processBufferedEvents() {
     Serial.printf("📤 Procesando eventos buffereados (%d entradas)\n", eventQueue.size());
 
     int completionsSent = 0;
-    int notificationsSent = 0;
     int failures = 0;
 
     while (!eventQueue.empty() && isConnected()) {
         EventBuffer buffer = eventQueue.front();
         eventQueue.pop();
 
-        const char* topic = (buffer.type == "completion") ? TOPIC_COMPLETIONS : TOPIC_NOTIFICATIONS;
+        const char* topic = TOPIC_COMPLETIONS ;
 
         bool success = mqttClient.publish(topic, buffer.payload.c_str(), false);
         if (success) {
             if (buffer.type == "completion") {
                 completionsSent++;
-            } else {
-                notificationsSent++;
             }
             Serial.printf("✅ %s buffereado enviado\n", buffer.type.c_str());
         } else {
@@ -506,6 +524,6 @@ void MQTTHandler::processBufferedEvents() {
         delay(100); // Small delay between messages
     }
 
-    Serial.printf("📊 Resumen: Completions=%d, Notifications=%d, Fallos=%d, Pendientes=%d\n",
-                  completionsSent, notificationsSent, failures, eventQueue.size());
+    Serial.printf("📊 Resumen: Completions=%d, Fallos=%d, Pendientes=%d\n",
+                  completionsSent, failures, eventQueue.size());
 }

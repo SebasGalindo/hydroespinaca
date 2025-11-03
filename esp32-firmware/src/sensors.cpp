@@ -2,8 +2,8 @@
 #include "config.h"
 #include "pins.h"
 
-SensorManager::SensorManager() : dht(PIN_DHT22, DHT_TYPE), tcs(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X), 
-                                 dhtInitialized(false), tcsInitialized(false) {
+SensorManager::SensorManager(NTPClient* ntpClient) : dht(PIN_DHT22, DHT_TYPE),
+                                 timeClient(ntpClient), dhtInitialized(false), bh1750Initialized(false) {
     // Initialize ADC for analog sensors with improved precision
     analogReadResolution(12);        // 0-4095 (12-bit resolution)
     analogSetAttenuation(ADC_11db);  // For 3.3V input range
@@ -12,32 +12,30 @@ SensorManager::SensorManager() : dht(PIN_DHT22, DHT_TYPE), tcs(TCS34725_INTEGRAT
 void SensorManager::begin() {
     // Initialize I2C
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
-    
+
     // Configure ADC pins
     pinMode(PIN_PH_ADC, INPUT);
     pinMode(PIN_TDS_ADC, INPUT);
     pinMode(PIN_NTC_TANK, INPUT);
-    
+
     // Configure ultrasonic pins
     pinMode(PIN_ULTRA_TRIG, OUTPUT);
     pinMode(PIN_ULTRA_ECHO, INPUT);
-    
+
     // Initialize DHT22
     dht.begin();
     dhtInitialized = true;
     Serial.println("✅ DHT22 inicializado");
-    
-    // BH1750 removed - using TCS34725 for light sensing
-    
-    // Initialize TCS34725
-    if (tcs.begin()) {
-        tcsInitialized = true;
-        Serial.println("✅ TCS34725 inicializado");
+
+    // Initialize BH1750
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        bh1750Initialized = true;
+        Serial.println("✅ BH1750 inicializado");
     } else {
-        Serial.println("❌ Error inicializando TCS34725");
-        tcsInitialized = false;
+        Serial.println("❌ Error inicializando BH1750");
+        bh1750Initialized = false;
     }
-    
+
     Serial.println("✅ Sensores inicializados");
 }
 
@@ -63,78 +61,19 @@ float SensorManager::readHumidity() {
     return humidity;
 }
 
-// BH1750 readLightLevel() removed - use readLightIndex() instead
+float SensorManager::readLightLux() {
+    if (!bh1750Initialized) return NAN;
 
-float SensorManager::readLightIndex() {
-    if (!tcsInitialized) return NAN;
+    float lux = lightMeter.readLightLevel();
 
-    uint16_t r, g, b, c;
-
-    // Timeout para evitar bloqueo en I2C
-    unsigned long startTime = millis();
-    const unsigned long timeout = 1000; // 1 segundo timeout
-
-    // Intentar lectura con watchdog feed
-    yield(); // Ceder antes de operación I2C
-    tcs.getRawData(&r, &g, &b, &c);
-
-    // Verificar si la operación tomó demasiado tiempo
-    if (millis() - startTime > timeout) {
-        Serial.println("❌ [SENSOR] TCS34725: Timeout en lectura I2C");
+    if (lux < 0) {
+        Serial.println("❌ Error leyendo BH1750");
         return NAN;
     }
 
-    // Validate readings
-    if (c == 0) {
-        Serial.println("[SENSOR] TCS34725 - Clear channel is zero, sensor may be covered");
-        return NAN;
-    }
+    Serial.printf("[SENSOR] BH1750: %.0f lux\n", lux);
 
-    // Calculate total for normalization
-    float total = r + g + b + c;
-    if (total == 0) {
-        Serial.println("[SENSOR] TCS34725 - All channels zero");
-        return NAN;
-    }
-
-    // FÓRMULA C ESPECTRAL PARA FOTOSÍNTESIS (VALIDADA EMPÍRICAMENTE)
-    // Fórmula C: (R+B)/RGB sin Clear - La mejor según análisis de test
-    // Luz natural promedio: 67.53% | Luz artificial promedio: 78.11%
-    // Umbral control: <67% enciende LED, >70% apaga LED
-    float totalRGB = r + g + b;  // Sin canal Clear
-    float lightIndex = 0.0;
-    if (totalRGB > 0) {
-        lightIndex = ((float)(r + b) / totalRGB) * 100.0;
-    }
-
-    Serial.printf("[SENSOR] TCS34725: R=%d G=%d B=%d C=%d LightIndex=%.2f%% (Fórmula C)\n",
-                  r, g, b, c, lightIndex);
-
-    return lightIndex;
-}
-
-uint16_t SensorManager::readLightClearChannel() {
-    if (!tcsInitialized) return 0;
-
-    uint16_t r, g, b, c;
-
-    // Timeout para evitar bloqueo en I2C
-    unsigned long startTime = millis();
-    const unsigned long timeout = 1000; // 1 segundo timeout
-
-    // Intentar lectura con watchdog feed
-    yield(); // Ceder antes de operación I2C
-    tcs.getRawData(&r, &g, &b, &c);
-
-    // Verificar si la operación tomó demasiado tiempo
-    if (millis() - startTime > timeout) {
-        Serial.println("❌ [SENSOR] TCS34725 Clear Channel: Timeout en lectura I2C");
-        return 0;
-    }
-
-    Serial.printf("[SENSOR] TCS34725 Clear Channel: C=%d\n", c);
-
-    return c;  // Return raw Clear channel value
+    return lux;
 }
 
 float SensorManager::calculateMedian(float values[], int size) {
@@ -199,108 +138,109 @@ void SensorManager::createReadingsBatch(DynamicJsonDocument& doc, String (*times
     // Temperature - only add if sensor is working
     Serial.print("🌡️  Temperatura: ");
     float tempValue = readTemperature();
+    yield(); // Ceder control al watchdog
     if (!isnan(tempValue)) {
         JsonObject tempReading = readings.createNestedObject();
         tempReading["physicalId"] = "DHT22-A1"; // DHT22 sensor physical ID
-        tempReading["variableId"] = "688970ab7f02137645d58398"; // Temperature MongoDB ObjectId
+        tempReading["variableCode"] = "T_AMB"; // Temperature ambient code
         tempReading["value"] = tempValue;
         validReadings++;
         Serial.printf("%.1f°C ✅\n", tempValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
-    
+
     // Humidity - only add if sensor is working
     Serial.print("💧 Humedad: ");
     float humidityValue = readHumidity();
+    yield(); // Ceder control al watchdog
     if (!isnan(humidityValue)) {
         JsonObject humidityReading = readings.createNestedObject();
         humidityReading["physicalId"] = "DHT22-A1"; // DHT22 sensor physical ID
-        humidityReading["variableId"] = "688970af7f02137645d58399"; // Humidity MongoDB ObjectId
+        humidityReading["variableCode"] = "HUM"; // Humidity code
         humidityReading["value"] = humidityValue;
         validReadings++;
         Serial.printf("%.1f%% ✅\n", humidityValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
-    
-    // Light Index - TCS34725 color sensor (replaces BH1750)
-    Serial.print("🌈 LightIndex: ");
-    float lightIndex = readLightIndex();
-    if (!isnan(lightIndex)) {
-        JsonObject lightReading = readings.createNestedObject();
-        lightReading["physicalId"] = "TCS34725-A1"; // TCS34725 sensor physical ID
-        lightReading["variableId"] = "688970837f02137645d58395"; // Light Index MongoDB ObjectId
-        lightReading["value"] = lightIndex;
-        validReadings++;
-        Serial.printf("%.1f%% ✅\n", lightIndex);
+
+    // LECTURAS DE LUZ CON RESTRICCIÓN HORARIA
+    bool lightTelemetryActive = isLightTelemetryActive();
+
+    if (lightTelemetryActive) {
+        // DENTRO DEL HORARIO (5:00-19:00): Procesar lecturas de luz BH1750
+        Serial.print("💡 Lux (BH1750): ");
+        float lux = readLightLux();
+        yield(); // Ceder control al watchdog
+        if (!isnan(lux)) {
+            JsonObject luxReading = readings.createNestedObject();
+            luxReading["physicalId"] = "BH1750-A1"; // BH1750 sensor physical ID
+            luxReading["variableCode"] = "LUMINOSITY"; // Light Lux code
+            luxReading["value"] = lux;
+            validReadings++;
+            Serial.printf("%.0f lux ✅\n", lux);
+        } else {
+            Serial.println("N/A (sensor BH1750 falló) ❌");
+        }
     } else {
-        Serial.println("N/A (sensor falló) ❌");
+        // FUERA DEL HORARIO (19:00-5:00): No enviar lecturas de luz
+        Serial.println("🌙 Fuera de horario de luz (19:00-5:00) - omitiendo lecturas de lux");
     }
-    
-    // Clear Channel - TCS34725 for darkness detection
-    Serial.print("💡 Clear Channel: ");
-    uint16_t clearChannel = readLightClearChannel();
-    if (clearChannel > 0) {  // 0 indica sensor no disponible
-        JsonObject clearReading = readings.createNestedObject();
-        clearReading["physicalId"] = "TCS34725-A1"; // TCS34725 Clear channel physical ID  
-        clearReading["variableId"] = "68d6dde25b8956ed967d6a8d"; // Clear Channel MongoDB ObjectId (temporal)
-        clearReading["value"] = clearChannel;
-        validReadings++;
-        Serial.printf("%d ✅\n", clearChannel);
-    } else {
-        Serial.println("N/A (sensor falló) ❌");
-    }
-    
+
     // pH Level - only add if sensor is working
     Serial.print("🧪 pH Level: ");
     float phValue = readPH();
+    yield(); // Ceder control al watchdog después de múltiples lecturas
     if (!isnan(phValue)) {
         JsonObject phReading = readings.createNestedObject();
         phReading["physicalId"] = "SEN0161-A1"; // pH sensor physical ID
-        phReading["variableId"] = "688970a27f02137645d58396"; // pH MongoDB ObjectId
+        phReading["variableCode"] = "PH"; // pH code
         phReading["value"] = phValue;
         validReadings++;
         Serial.printf("%.2f pH ✅\n", phValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
-    
+
     // EC (Electrical Conductivity) - only add if sensor is working
     Serial.print("⚡ EC: ");
     float ecValue = readTDS();  // Function now returns EC in mS/cm
+    yield(); // Ceder control al watchdog
     if (!isnan(ecValue)) {
         JsonObject ecReading = readings.createNestedObject();
         ecReading["physicalId"] = "TDS-A1"; // TDS sensor physical ID (hardware ID remains same)
-        ecReading["variableId"] = "688970a77f02137645d58397"; // EC MongoDB ObjectId 
+        ecReading["variableCode"] = "EC"; // EC code
         ecReading["value"] = ecValue;
         validReadings++;
         Serial.printf("%.2f mS/cm ✅\n", ecValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
-    
+
     // Water Temperature (NTC) - only add if sensor is working
     Serial.print("🌡️  Water Temp: ");
     float waterTempValue = readTankTemperature();
+    yield(); // Ceder control al watchdog
     if (!isnan(waterTempValue)) {
         JsonObject waterTempReading = readings.createNestedObject();
         waterTempReading["physicalId"] = "NTC-A1"; // NTC water sensor physical ID
-        waterTempReading["variableId"] = "68bb4d8cbdcb66fc5738f9af"; // NTC MongoDB ObjectId
+        waterTempReading["variableCode"] = "T_WAT"; // Water temperature code
         waterTempReading["value"] = waterTempValue;
         validReadings++;
         Serial.printf("%.1f°C ✅\n", waterTempValue);
     } else {
         Serial.println("N/A (sensor falló) ❌");
     }
-    
+
     // Water Level (HC-SR04) - only add if sensor is working
     Serial.print("💧 Water Level: ");
     float waterLevelValue = readWaterLevel();
+    yield(); // Ceder control al watchdog después de múltiples lecturas ultrasónicas
     if (!isnan(waterLevelValue)) {
         JsonObject waterLevelReading = readings.createNestedObject();
         waterLevelReading["physicalId"] = "HC-SR04-A1"; // Ultrasonido sensor physical ID
-        waterLevelReading["variableId"] = "68d1d07307c249cda4c369b0"; // Water Level MongoDB ObjectId
+        waterLevelReading["variableCode"] = "WL"; // Water level code
         waterLevelReading["value"] = waterLevelValue;
         validReadings++;
         Serial.printf("%.2f cm ✅\n", waterLevelValue);
@@ -442,18 +382,18 @@ float SensorManager::readTDS() {
     return ecValue;
 }
 
-// Steinhart-Hart equation for NTC temperature conversion
+// Beta equation for NTC temperature conversion (simplified)
 float SensorManager::steinhart(float resistance) {
-    // Steinhart-Hart coefficients for 10k NTC
-    const float A = 0.001129148;
-    const float B = 0.000234125;
-    const float C = 0.0000000876741;
-    
-    float logR = log(resistance);
-    float tempK = 1.0 / (A + B * logR + C * logR * logR * logR);
-    float tempC = tempK - 273.15;
-    
-    return tempC;
+    // Ecuación Beta simplificada usando constantes de config.h
+    float steinhart;
+    steinhart = resistance / NTC_NOMINAL_RESISTANCE;     // (R/Ro)
+    steinhart = log(steinhart);                          // ln(R/Ro)
+    steinhart /= NTC_BETA;                               // 1/B * ln(R/Ro)
+    steinhart += 1.0 / (NTC_NOMINAL_TEMP + 273.15);     // + (1/To)
+    steinhart = 1.0 / steinhart;                         // Invertir
+    float temperatureC = steinhart - 273.15;             // Kelvin → Celsius
+
+    return temperatureC;
 }
 
 float SensorManager::convertToTemperature(float resistance, bool isTank) {
@@ -473,116 +413,145 @@ float SensorManager::convertToTemperature(float resistance, bool isTank) {
 
 // Tank Temperature (NTC sensor)
 float SensorManager::readTankTemperature() {
-    // Use averaged readings for better stability
-    float voltage = readADCVoltageAveraged(PIN_NTC_TANK, 15);  // More samples for NTC
-    
-    if (voltage < 0.05 || voltage > 3.3) {
-        Serial.printf("[SENSOR] Tank NTC voltage fuera de rango funcional: %.3fV\n", voltage);
+    const int NUM_SAMPLES = 10;     // Promedio de muestras para reducir ruido
+
+    // Tomar múltiples muestras para reducir ruido
+    long adcSum = 0;
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+        adcSum += analogRead(PIN_NTC_TANK);
+        delay(5);
+    }
+    int adcValue = adcSum / NUM_SAMPLES;
+
+    // Convertir ADC a voltaje
+    float voltage = (adcValue / 4095.0) * ADC_VREF;
+
+    // 🔍 DEBUGGING: Mostrar valores ADC y voltaje
+    Serial.printf("\n🌡️  [NTC DEBUG] ═══════════════════════════════\n");
+    Serial.printf("   ADC raw (promedio %d muestras): %d / 4095\n", NUM_SAMPLES, adcValue);
+    Serial.printf("   Voltaje medido: %.4f V (Vref=%.1fV)\n", voltage, ADC_VREF);
+
+    // Validar voltaje antes de calcular resistencia
+    if (voltage < 0.01 || voltage > 3.29) {
+        Serial.printf("   ❌ ERROR: Voltaje fuera de rango válido (0.01-3.29V)\n");
+        Serial.printf("   ═══════════════════════════════════════════\n\n");
         return NAN;
     }
-    
-    // Improved resistance calculation with protection
-    // Voltage divider: NTC connected between VCC and ADC pin, 10k resistor to ground
-    // R_ntc = R_series * (Vcc / V_adc - 1)
-    float resistance = 10000.0 * (ADC_VREF / voltage - 1.0);
-    
-    // Validate resistance range for sensor functionality (not optimal ranges)  
-    if (resistance < 100.0 || resistance > 500000.0) {
-        Serial.printf("[SENSOR] Tank NTC resistance fuera de rango funcional: %.1f ohms\n", resistance);
+
+    // Calcular resistencia del NTC según configuración de circuito
+    float resistance;
+
+    #ifdef NTC_CIRCUIT_A
+        // CIRCUITO A: VCC ──R_FIXED── ADC ──NTC── GND
+        // R_NTC = R_FIXED * (Vcc/Vout - 1)
+        resistance = NTC_R_FIXED * ((ADC_VREF / voltage) - 1.0);
+        Serial.printf("   Circuito: VCC ──R_FIXED── ADC ──NTC── GND\n");
+    #elif defined(NTC_CIRCUIT_B)
+        // CIRCUITO B: VCC ──NTC── ADC ──R_FIXED── GND
+        // R_NTC = R_FIXED * (Vout / (Vcc - Vout))
+        resistance = NTC_R_FIXED * (voltage / (ADC_VREF - voltage));
+        Serial.printf("   Circuito: VCC ──NTC── ADC ──R_FIXED── GND\n");
+    #else
+        #error "Debe definir NTC_CIRCUIT_A o NTC_CIRCUIT_B en config.h"
+    #endif
+
+    Serial.printf("   Resistencia calculada: %.1f Ω\n", resistance);
+    Serial.printf("   (Fórmula: R_NTC = %.0f * (...) )\n", NTC_R_FIXED);
+
+    // Validar resistencia razonable para NTC 10kΩ
+    if (resistance < 1000 || resistance > 100000) {
+        Serial.printf("   ⚠️  ADVERTENCIA: Resistencia fuera de rango típico (1kΩ-100kΩ)\n");
+        Serial.printf("   Esto puede indicar:\n");
+        Serial.printf("     - Circuito conectado al revés (prueba cambiar config)\n");
+        Serial.printf("     - Resistencia fija incorrecta (mide con multímetro)\n");
+        Serial.printf("     - NTC dañado o desconectado\n");
+    }
+
+    // Calcular temperatura (ecuación Beta)
+    float temperatureC = steinhart(resistance);
+
+    Serial.printf("   Temperatura calculada: %.2f°C\n", temperatureC);
+
+    // Información de calibración
+    Serial.printf("\n   📋 CONSTANTES USADAS (config.h):\n");
+    Serial.printf("      Beta: %d\n", (int)NTC_BETA);
+    Serial.printf("      R nominal: %.0f Ω @ %.0f°C\n", NTC_NOMINAL_RESISTANCE, NTC_NOMINAL_TEMP);
+    Serial.printf("      R fija: %.1f kΩ (%.0f Ω)\n", NTC_R_FIXED / 1000.0, NTC_R_FIXED);
+    Serial.printf("   ═══════════════════════════════════════════\n\n");
+
+    // Validación básica
+    if (isnan(temperatureC) || temperatureC < -10 || temperatureC > 60) {
+        Serial.printf("   ❌ Temperatura fuera de rango válido (-10 a 60°C)\n");
         return NAN;
     }
-    
-    float temperature = convertToTemperature(resistance, true);
-    
-    Serial.printf("[SENSOR] Tank temp: V=%.3f R=%.1fΩ T=%.2f°C\n", 
-                  voltage, resistance, temperature);
-    
-    return temperature;
+
+    return temperatureC;
 }
 
 // Roots Temperature (NTC sensor) - REMOVED
 
 float SensorManager::measureUltrasonicDistance() {
-    // Asegurar que TRIG esté en LOW
+    // Versión simplificada - igual al ejemplo de referencia
+
+    // Enviar pulso de 10 microsegundos al TRIG
     digitalWrite(PIN_ULTRA_TRIG, LOW);
     delayMicroseconds(2);
-
-    // Enviar pulso de 10us al TRIG
     digitalWrite(PIN_ULTRA_TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(PIN_ULTRA_TRIG, LOW);
 
-    // Medir el tiempo que tarda en regresar el pulso
-    // Timeout 30ms ≈ 5m máximo
-    long duration = pulseIn(PIN_ULTRA_ECHO, HIGH, 30000);
+    // Leer duración del pulso de respuesta en el pin ECHO (sin timeout)
+    long duration = pulseIn(PIN_ULTRA_ECHO, HIGH);
 
-    // Check for timeout
-    if (duration == 0) return -1;
+    // Calcular distancia en centímetros
+    float distance = (duration * 0.0343) / 2;
 
-    // Calcular distancia en cm
-    // Velocidad del sonido = 0.0343 cm/us, dividir por 2 por ida y vuelta
-    float distance = (duration * 0.0343) / 2.0;
+    Serial.printf("   [ULTRA] duration=%ld us, distance=%.2f cm\n", duration, distance);
 
-    // Validar rango funcional del HC-SR04 (2cm a 400cm)
-    if (distance < 2 || distance > 400) return -1;
+    // Validación básica
+    if (duration == 0 || distance < 2 || distance > 400) {
+        return -1;
+    }
 
     return distance;
 }
 
 // Ultrasonic Water Level Sensor (HC-SR04) - Returns water level in cm for API/MQTT
 float SensorManager::readWaterLevel() {
-    const float TANK_HEIGHT_CM = 40.0f;           // Altura total del tanque
-    const int NUM_SAMPLES = 5;                    // Número de mediciones para promedio
+    // Versión simplificada - una sola lectura
+    float distance = measureUltrasonicDistance();
 
-    float suma = 0;
-    int validas = 0;
+    if (distance < 0) {
+        Serial.println("💧 [SENSOR] Ultrasónico: Lectura inválida ❌");
+        return NAN;
+    }
 
-    // Tomar múltiples mediciones y promediar solo las válidas
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-        float distance = measureUltrasonicDistance();
-        if (distance > 0) {
-            suma += distance;
-            validas++;
+    Serial.printf("💧 [SENSOR] Ultrasónico: %.2f cm ✅\n", distance);
+    return distance;
+}
+
+// Función para verificar si debe enviar telemetría de luz (5:00-19:00)
+bool SensorManager::isLightTelemetryActive() {
+    if (!timeClient || !timeClient->isTimeSet()) {
+        // Sin NTP disponible - permitir envío para compatibilidad
+        static unsigned long lastWarning = 0;
+        if (millis() - lastWarning > 300000) {  // Advertir cada 5 minutos
+            Serial.println("⚠️ [SENSOR] NTP no disponible - enviando lecturas de luz sin restricción horaria");
+            lastWarning = millis();
         }
-        delay(50); // Delay entre mediciones
-        yield();   // Ceder control al watchdog entre mediciones
+        return true;
     }
 
-    // Si no hay mediciones válidas
-    if (validas == 0) {
-        Serial.println("💧 [SENSOR] Ultrasónico: Sin lecturas válidas ❌");
-        return NAN;
-    }
+    // Obtener hora actual en Colombia (UTC-5)
+    int currentHour = timeClient->getHours();
+    currentHour = (currentHour - 5 + 24) % 24;  // Convertir a UTC-5
 
-    // Calcular distancia promediada
-    float distance = suma / validas;
+    // Verificar si estamos en horario de luz (5:00-19:00) - 14 horas
+    bool inSchedule = (currentHour >= 5 && currentHour < 19);
 
-    // Validación básica de rango del sensor
-    if (distance > 400.0f) {
-        Serial.printf("💧 [SENSOR] Ultrasónico: Distancia fuera de rango (%.2fcm > 400cm) ❌\n", distance);
-        return NAN;
-    }
+    Serial.printf("🕐 [SENSOR] Hora local: %02d:%02d - Telemetría luz: %s\n",
+                  currentHour, timeClient->getMinutes(),
+                  inSchedule ? "ACTIVA" : "INACTIVA");
 
-    if (distance < 2.0f) {
-        Serial.printf("💧 [SENSOR] Ultrasónico: Distancia muy pequeña (%.2fcm < 2cm) - posible ruido ❌\n", distance);
-        return NAN;
-    }
-
-    // Calculate actual water level in cm (sensor mounted at top)
-    // level = tank_height - distance_to_water_surface
-    float waterLevel = TANK_HEIGHT_CM - distance;
-
-    // Ensure valid range for water level (0 to tank height)
-    if (waterLevel < 0.0f) waterLevel = 0.0f;
-    if (waterLevel > TANK_HEIGHT_CM) waterLevel = TANK_HEIGHT_CM;
-
-    // Calculate percentage for logging purposes only
-    float waterLevelPercent = 100.0f * waterLevel / TANK_HEIGHT_CM;
-
-    // Mostrar resultado
-    Serial.printf("💧 [SENSOR] Ultrasónico: válidas=%d/%d, distancia=%.2fcm, nivel=%.2fcm (%.1f%%) ✅\n",
-                  validas, NUM_SAMPLES, distance, waterLevel, waterLevelPercent);
-
-    // Return water level in cm for control system (not raw distance)
-    return waterLevel;
+    return inSchedule;
 }

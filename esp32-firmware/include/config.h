@@ -14,7 +14,6 @@
 #define TOPIC_JOB_SCHEDULE "actuator/job/schedule"
 #define TOPIC_STATUS "sensor/esp32-001/status"
 #define TOPIC_COMPLETIONS "actuator/routine/completions"
-#define TOPIC_NOTIFICATIONS "actuator/routine/notifications"
 
 // Timing
 #define READING_INTERVAL 120000  // 120 sec
@@ -25,6 +24,30 @@
 // Job Scheduler - Sequential execution (simplified)
 // Backend manages concurrency via pin-locking. Firmware processes jobs one at a time.
 #define STEP_TIMEOUT_TOLERANCE 500  // 500ms tolerance
+
+// ========================================
+// CONFIGURACIÓN NTC TERMISTOR
+// ========================================
+// 🔧 AJUSTAR SEGÚN TU HARDWARE
+
+// Valor BETA del termistor (común: 3435, 3950, 4250)
+// Verificar en la hoja de datos del NTC
+#define NTC_BETA 3950
+
+// Resistencia nominal del NTC a 25°C (común: 10kΩ, 50kΩ, 100kΩ)
+#define NTC_NOMINAL_RESISTANCE 10000.0  // 10kΩ
+
+// Temperatura nominal (casi siempre 25°C)
+#define NTC_NOMINAL_TEMP 25.0
+
+// Resistencia fija en el divisor de voltaje (medir con multímetro)
+#define NTC_R_FIXED 10000.0  // 10kΩ
+
+// Configuración del circuito (descomenta solo UNA opción)
+// OPCIÓN A: VCC ──R_FIXED── ADC ──NTC── GND (más común)
+// #define NTC_CIRCUIT_A
+// OPCIÓN B: VCC ──NTC── ADC ──R_FIXED── GND (menos común)
+#define NTC_CIRCUIT_B
 
 // Humidifier Configuration (specialized control via actuator-service)
 // Note: Humidifier routine now simulates button press (based on autonomous firmware)

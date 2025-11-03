@@ -10,12 +10,10 @@ class MQTTHandler; // Forward declaration
 class JobNotifier {
 public:
     static void setMQTTHandler(MQTTHandler* handler);
-    static void publishNotification(const String& decision, int channelId, 
-                                   const String& affectedCommand, const String& targetCommand,
-                                   const std::vector<String>& logs);
     static void publishCompletion(const Job& job);
+    static void publishCompletionsBatch(const std::vector<Job>& jobs);
     static bool hasInternetConnectivity();
-    
+
 private:
     static MQTTHandler* mqttHandler;
 };

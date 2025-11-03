@@ -6,36 +6,44 @@
 #include "mqtt_handler.h"
 #include "job_scheduler.h"
 
-// Global objects
-SensorManager sensors;
-MQTTHandler mqttHandler(&jobScheduler);
-
-// NTP Client
+// NTP Client (declared first since sensors needs it)
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // UTC+0 (estándar), update every 60s
+
+// Global objects
+SensorManager sensors(&timeClient);
+MQTTHandler mqttHandler(&jobScheduler);
 
 // Timing variables
 unsigned long lastReadingTime = 0;
 unsigned long lastStatusTime = 0;
 unsigned long lastWatchdogTime = 0;
 
+// NTP initialization flag
+bool ntpInitialized = false;
+
 // JSON documents with larger buffer for telemetry
 DynamicJsonDocument readingsDoc(4096); // Increased for NTP timestamps and physicalIds
 
 String getCurrentISOTimestamp() {
+    // Return fallback timestamp if NTP is not initialized
+    if (!ntpInitialized) {
+        return "1970-01-01T00:00:00Z";  // Epoch fallback
+    }
+
     if (!timeClient.isTimeSet()) {
         timeClient.forceUpdate();
     }
-    
+
     unsigned long epochTime = timeClient.getEpochTime();
-    
+
     // Convert to tm struct for formatting
     time_t rawtime = epochTime;
     struct tm * timeinfo = gmtime(&rawtime);
-    
+
     char isoBuffer[32];
     strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%SZ", timeinfo);
-    
+
     return String(isoBuffer);
 }
 
@@ -63,10 +71,10 @@ void validateReadingsJson(DynamicJsonDocument& doc) {
         
         for (int i = 0; i < readings.size(); i++) {
             JsonObject reading = readings[i];
-            Serial.printf("   [%d] physicalId: %s, variableId: %s, value: %.2f\n", 
+            Serial.printf("   [%d] physicalId: %s, variableCode: %s, value: %.2f\n", 
                          i, 
                          reading["physicalId"].as<String>().c_str(),
-                         reading["variableId"].as<String>().c_str(),
+                         reading["variableCode"].as<String>().c_str(),
                          reading["value"].as<float>());
         }
     }
@@ -91,7 +99,6 @@ void printSystemInfo() {
     Serial.printf("🏷️  Topic Job Schedule: %s\n", TOPIC_JOB_SCHEDULE);  
     Serial.printf("🏷️  Topic Status: %s\n", TOPIC_STATUS);
     Serial.printf("🏷️  Topic Completions: %s\n", TOPIC_COMPLETIONS);
-    Serial.printf("🏷️  Topic Notifications: %s\n", TOPIC_NOTIFICATIONS);
     
     Serial.println("════════════════════════════════════════════════");
 }
@@ -99,21 +106,9 @@ void printSystemInfo() {
 void setup() {
     Serial.begin(115200);
     delay(2000); // Dar tiempo para que se abra el monitor serie
-    
+
     printSystemInfo();
-    
-    // Initialize components in proper order (NTP first for TLS)
-    Serial.println("🔧 Iniciando sincronización NTP...");
-    timeClient.begin();
-    timeClient.forceUpdate();
-    
-    // Validate NTP is working before proceeding with TLS
-    if (timeClient.isTimeSet()) {
-        Serial.printf("📅 [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
-    } else {
-        Serial.println("⚠️ [NET] NTP no sincronizado - TLS puede fallar");
-    }
-    
+
     Serial.println("🔧 Inicializando sensores...");
     sensors.begin();
     
@@ -138,10 +133,27 @@ void setup() {
 
 void loop() {
     unsigned long currentTime = millis();
-    
-    // Update NTP time
-    timeClient.update();
-    
+
+    // Initialize NTP only after WiFi is connected (lazy initialization)
+    if (!ntpInitialized && mqttHandler.isWiFiConnected()) {
+        Serial.println("🔧 WiFi conectado - Iniciando sincronización NTP...");
+        timeClient.begin();
+        timeClient.forceUpdate();
+
+        // Validate NTP is working
+        if (timeClient.isTimeSet()) {
+            Serial.printf("📅 [NET] NTP sincronizado: %s\n", timeClient.getFormattedTime().c_str());
+            ntpInitialized = true;
+        } else {
+            Serial.println("⚠️ [NET] NTP no sincronizado - reintentando en próximo ciclo");
+        }
+    }
+
+    // Update NTP time (only if initialized)
+    if (ntpInitialized) {
+        timeClient.update();
+    }
+
     // Maintain MQTT connections
     mqttHandler.loop();
     
@@ -181,21 +193,36 @@ void loop() {
     // Watchdog and memory monitoring
     if (currentTime - lastWatchdogTime >= 30000) { // Check every 30 seconds
         uint32_t freeHeap = ESP.getFreeHeap();
-        Serial.printf("🔍 Watchdog - Free heap: %u bytes\n", freeHeap);
-        Serial.printf("🔗 Estado MQTT: %s\n", mqttHandler.isConnected() ? "Conectado" : "Desconectado");
-        Serial.printf("📶 Estado WiFi: %s\n", mqttHandler.isWiFiConnected() ? "Conectado" : "Desconectado");
+        Serial.println("═══════════════════════════════════════");
+        Serial.println("🔍 [WATCHDOG] Verificación de sistema");
+        Serial.printf("💾 Memoria libre: %u bytes\n", freeHeap);
+        Serial.printf("⏱️  Uptime: %lu segundos\n", currentTime / 1000);
+        Serial.printf("🔗 Estado MQTT: %s\n", mqttHandler.isConnected() ? "Conectado ✅" : "Desconectado ❌");
+        Serial.printf("📶 Estado WiFi: %s", mqttHandler.isWiFiConnected() ? "Conectado ✅" : "Desconectado ❌");
 
+        if (mqttHandler.isWiFiConnected()) {
+            Serial.printf(" (IP: %s, RSSI: %d dBm)\n",
+                         WiFi.localIP().toString().c_str(), WiFi.RSSI());
+        } else {
+            unsigned long wifiDownTime = currentTime - mqttHandler.getLastWifiAttemptTime();
+            Serial.printf(" (Sin conexión desde hace %lu segundos)\n", wifiDownTime / 1000);
+        }
+
+        // Critical memory check
         if (freeHeap < 10000) {
-            Serial.println("🚨 Memoria crítica - reiniciando...");
+            Serial.println("🚨 [WDT] MEMORIA CRÍTICA - REINICIANDO...");
+            Serial.printf("🚨 [WDT] Memoria libre: %u bytes < 10000 bytes\n", freeHeap);
             jobScheduler.emergencyStop();
             delay(1000);
             ESP.restart();
         }
 
-        // 🛡️ Reinicio por fallo prolongado de WiFi (30 minutos sin conexión)
+        // WiFi prolonged failure check
         if (!mqttHandler.isWiFiConnected() &&
-            (currentTime - mqttHandler.getLastWifiAttemptTime() > 1800000)) { // 30 minutos sin Wi-Fi
-            Serial.println("🚨 [WDT] Reinicio por fallo prolongado de WiFi (30 min).");
+            (currentTime - mqttHandler.getLastWifiAttemptTime() > 1800000)) { // 30 minutos
+            Serial.println("🚨 [WDT] FALLO PROLONGADO DE WIFI (>30 min) - REINICIANDO...");
+            Serial.printf("🚨 [WDT] Tiempo sin WiFi: %lu minutos\n",
+                         (currentTime - mqttHandler.getLastWifiAttemptTime()) / 60000);
             jobScheduler.emergencyStop();
             delay(1000);
             ESP.restart();
@@ -205,9 +232,11 @@ void loop() {
         jobScheduler.printStatus();
 
         // Print connection diagnostics
-        if (!mqttHandler.isConnected()) {
-            Serial.println("⚠️  MQTT desconectado - verificando reconexión...");
+        if (!mqttHandler.isConnected() && mqttHandler.isWiFiConnected()) {
+            Serial.println("⚠️  [WDT] WiFi conectado pero MQTT desconectado - verificando reconexión...");
         }
+
+        Serial.println("═══════════════════════════════════════");
 
         lastWatchdogTime = currentTime;
     }

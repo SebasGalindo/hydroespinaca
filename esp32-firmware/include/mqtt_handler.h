@@ -2,7 +2,7 @@
 #define MQTT_HANDLER_H
 
 // Increase MQTT buffer size before including PubSubClient
-#define MQTT_MAX_PACKET_SIZE 1024
+#define MQTT_MAX_PACKET_SIZE 2048
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -63,7 +63,7 @@ public:
     bool publishReadings(DynamicJsonDocument& readings);
     bool publishStatus(const String& status, String (*timestampFunction)() = nullptr);
     bool publishCompletion(const DynamicJsonDocument& completion);
-    bool publishNotification(const DynamicJsonDocument& notification);
+    bool publishCompletionsBatch(const std::vector<DynamicJsonDocument>& completions);
     
     // Connection status
     bool isConnected();
@@ -75,5 +75,8 @@ public:
     // Message handling
     void onMessageReceived(char* topic, byte* payload, unsigned int length);
 };
+
+// External NTP initialization flag from main.cpp
+extern bool ntpInitialized;
 
 #endif

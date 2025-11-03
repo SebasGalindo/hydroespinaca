@@ -4,12 +4,13 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <vector>
+#include <memory>  // Para std::unique_ptr
 #include "config.h"
 
 // ========================================
-// SIMPLIFIED JOB SCHEDULER - SEQUENTIAL EXECUTION
-// Backend manages concurrency via pin-locking
-// Firmware processes jobs sequentially, one at a time
+// SIMPLIFIED JOB SCHEDULER - CONCURRENT EXECUTION
+// Backend manages pin-locking for coordination
+// Firmware executes multiple jobs simultaneously with non-blocking timers
 // ========================================
 
 enum StepStatus {
@@ -32,9 +33,28 @@ enum PowerState {
 
 enum JobCompletionType {
     JOB_COMPLETED_NORMAL,
-    JOB_COMPLETED_MODIFIED,  // For consolidation cases
     JOB_COMPLETED_CANCELLED,
     JOB_COMPLETED_ERROR
+};
+
+// Heater monitoring state (for non-blocking heater routine)
+struct HeaterMonitorState {
+    float tempBuffer[10];
+    int tempBufferIndex;
+    bool tempBufferFull;
+    unsigned long lastMonitorTime;
+
+    HeaterMonitorState() : tempBufferIndex(0), tempBufferFull(false), lastMonitorTime(0) {
+        for (int i = 0; i < 10; i++) tempBuffer[i] = 0.0f;
+    }
+};
+
+// Humidifier cycle state (for non-blocking humidifier routine)
+struct HumidifierCycleState {
+    unsigned long lastFanCycleTime;
+    bool fanOn;
+
+    HumidifierCycleState() : lastFanCycleTime(0), fanOn(false) {}
 };
 
 struct Step {
@@ -48,8 +68,25 @@ struct Step {
     unsigned long startTime;
     unsigned long endTime;   // Calculated end time for this step
 
+    // Specialized routine states (only used for specific pins)
+    // 🔒 SEGURIDAD: unique_ptr previene double-delete automáticamente
+    std::unique_ptr<HeaterMonitorState> heaterState;     // Only for PIN_RELAY_HEATER
+    std::unique_ptr<HumidifierCycleState> humidifierState; // Only for PIN_HUMID_POWER
+
     Step() : pin(0), mode(DIGITAL), power(OFF), dutyCycle(0), duration(0),
-             status(STEP_PENDING), startTime(0), endTime(0) {}
+             status(STEP_PENDING), startTime(0), endTime(0),
+             heaterState(nullptr), humidifierState(nullptr) {}
+
+    // 🔒 SEGURIDAD: Destructor automático (unique_ptr se encarga de delete)
+    ~Step() = default;
+
+    // 🔒 SEGURIDAD: Evitar copia accidental (Rule of Five)
+    Step(const Step&) = delete;
+    Step& operator=(const Step&) = delete;
+
+    // 🔒 SEGURIDAD: Permitir move (transferencia de propiedad)
+    Step(Step&&) = default;
+    Step& operator=(Step&&) = default;
 };
 
 struct Job {
@@ -61,6 +98,12 @@ struct Job {
     JobCompletionType completionType;
 
     Job() : currentStepIndex(0), queueTime(0), completionType(JOB_COMPLETED_NORMAL) {}
+
+    // 🔒 SEGURIDAD: Job es move-only (contiene Steps move-only)
+    Job(const Job&) = delete;
+    Job& operator=(const Job&) = delete;
+    Job(Job&&) = default;
+    Job& operator=(Job&&) = default;
 
     bool isCompleted() const {
         return currentStepIndex >= steps.size();
@@ -88,25 +131,32 @@ struct Job {
 
 class JobScheduler {
 private:
-    // Sequential execution state
-    std::vector<Job> jobQueue;       // Queue of jobs waiting to execute
-    Job* currentJob;                 // Currently executing job (nullptr if idle)
-    int currentJobIndex;             // Index in jobQueue of current job
+    // Concurrent execution state
+    std::vector<Job> activeJobs;     // Jobs currently executing (multiple simultaneous)
 
     // Dependencies
     class MQTTHandler* mqttHandler;
     class SensorManager* sensorManager;
 
     // Internal methods
-    void processNextJob();           // Start next job from queue
-    void processCurrentStep();       // Process current step of active job
-    void executeStep(Step& step);    // Execute a single step
-    void completeCurrentJob();       // Complete and report current job
-    void cancelJobsOnPin(int pin, const String& reason);
+    void processJob(Job& job);           // Process a single job (called for each active job)
+    void processStep(Step& step);        // Process a single step
+    void startStep(Step& step);          // Initialize and start a step
+    void completeJob(Job& job);          // Complete and report a job
+    void reportCompletionsBatch(const std::vector<Job>& jobs);  // Report multiple completions
 
-    // Specialized routines
-    void runHumidifierRoutine(unsigned long durationMs);
-    void runHeaterRoutine(unsigned long durationMs);
+    // Job consolidation methods
+    int findActiveJobIndexByCommandId(const String& commandId);  // Find active job by commandId
+    bool extendOrUpdateJob(Job& existingJob, Job& newJob);       // Extend/update existing job
+
+    // Preemption/cancellation methods
+    bool isOffCommand(const Step& step);  // Check if step is an OFF command
+    void cancelJobsOnPin(int pin);        // Cancel all active jobs using a specific pin
+    void executeOffCommandImmediately(const Step& step);  // Execute OFF command instantly
+
+    // Specialized non-blocking routines
+    void updateHeaterMonitoring(Step& step);       // Non-blocking heater temperature monitoring
+    void updateHumidifierCycle(Step& step);        // Non-blocking humidifier fan cycle
 
 public:
     JobScheduler();
