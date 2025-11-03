@@ -161,20 +161,24 @@ public class InternalRoutineScheduler : BackgroundService
         }
 
         // Check for conflicts: Recirculation has priority over Aeration
-        var recirculationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Recirculation");
-        var aerationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Aeration");
+        // Note: Routine names are in Spanish in the database
+        var recirculationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Recirculación");
+        var aerationRoutine = routinesToRun.FirstOrDefault(r => r.Name == "Aireación");
 
         if (recirculationRoutine != null && aerationRoutine != null)
         {
             // Conflict detected: both should run at the same time
-            _logger.LogWarning("⚠️ Routine conflict detected at {ColombiaTime}: Both Recirculation and Aeration scheduled",
+            // Since both use the same air pump (piedra-difusora), we give priority to Recirculation
+            // This ensures the air pump runs with Recirculation's duration instead of Aeration's 
+            _logger.LogWarning("⚠️ Routine conflict detected at {ColombiaTime}: Both Recirculación and Aireación scheduled",
                 nowColombia.ToString("HH:mm"));
-            _logger.LogInformation("🔝 Recirculation has priority - Aeration will be skipped");
+            _logger.LogInformation("🔝 Recirculación has priority - Aireación will be skipped to avoid air pump conflict");
+            _logger.LogInformation("💨 Air pump will use Recirculación duration instead of Aireación duration ");
 
             // Remove Aeration from execution list
             routinesToRun.Remove(aerationRoutine);
 
-            _logger.LogWarning("⛔ Aeration skipped due to Recirculation priority at {ColombiaTime}",
+            _logger.LogWarning("⛔ Aireación skipped due to Recirculación priority at {ColombiaTime}",
                 nowColombia.ToString("HH:mm"));
         }
 
@@ -183,7 +187,7 @@ public class InternalRoutineScheduler : BackgroundService
         {
             try
             {
-                var isPriorityRoutine = routine.Name == "Recirculation";
+                var isPriorityRoutine = routine.Name == "Recirculación";
                 var priorityTag = isPriorityRoutine ? " (priority routine)" : "";
 
                 _logger.LogInformation("⏰ Triggering internal routine: {RoutineName}{PriorityTag} at {ColombiaTime}",
@@ -203,7 +207,7 @@ public class InternalRoutineScheduler : BackgroundService
 
                 if (isPriorityRoutine)
                 {
-                    _logger.LogInformation("✅ Recirculation triggered successfully (priority routine) at {ColombiaTime}. Next: {NextTime}",
+                    _logger.LogInformation("✅ Recirculación triggered successfully (priority routine) at {ColombiaTime}. Next: {NextTime}",
                         nowColombia.ToString("HH:mm"), nextExecColombia.ToString("HH:mm"));
                 }
                 else
