@@ -99,7 +99,7 @@ export function VariableCard({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderLeftWidth: 4, borderLeftColor: getStatusColor() }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text variant="caption" color={semanticColors.textSecondary} style={styles.title}>
@@ -109,7 +109,7 @@ export function VariableCard({
           <Icon
             name={getVariableIconName()}
             size={18}
-            color="#6b7280"
+            color={getStatusColor()}
           />
           {status !== 'manual' && (
             <Icon
@@ -123,7 +123,7 @@ export function VariableCard({
 
       {/* Value */}
       <View style={styles.valueContainer}>
-        <Text variant="h2" color={semanticColors.textPrimary} style={styles.value}>
+        <Text variant="h2" color={getStatusColor()} style={styles.value}>
           {value}
         </Text>
         {getTrendIcon()}

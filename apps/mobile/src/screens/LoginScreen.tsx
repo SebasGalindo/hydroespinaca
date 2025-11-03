@@ -16,18 +16,18 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 
 export function LoginScreen(): React.ReactElement {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, session } = useAuth();
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to dashboard only if authenticated with a valid session
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated && !isLoading && session) {
       navigation.replace('Dashboard');
     }
-  }, [isAuthenticated, isLoading, navigation]);
+  }, [isAuthenticated, isLoading, session, navigation]);
 
   const handleLoginSuccess = () => {
-    console.log('Login successful!');
-    // Navigation handled automatically by useEffect
+    // Navigate directly after successful login
+    navigation.replace('Dashboard');
   };
 
   return (

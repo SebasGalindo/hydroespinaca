@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
+import { FuzzyRulesInfo } from './FuzzyRulesInfo';
 import { semanticColors, spacing, borderRadius, colors } from '@hydroespinaca/shared';
 import type { JobStatus, Stats, InternalRoutine } from '@hydroespinaca/shared';
 
@@ -93,9 +94,12 @@ export function ControllerStatus({
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
-        Estado actual del controlador
-      </Text>
+      <View style={styles.header}>
+        <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
+          Estado actual del controlador
+        </Text>
+        <FuzzyRulesInfo />
+      </View>
 
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
@@ -270,9 +274,15 @@ const styles = StyleSheet.create({
   container: {
     gap: spacing.lg,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     fontWeight: 'bold',
-    marginBottom: spacing.md,
+    flex: 1,
   },
   statsGrid: {
     flexDirection: 'row',

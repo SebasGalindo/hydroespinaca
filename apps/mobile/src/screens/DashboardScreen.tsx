@@ -126,6 +126,9 @@ export function DashboardScreen(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPollingPaused, setIsPollingPaused] = useState(false);
+  const [hasReadingsData, setHasReadingsData] = useState(true);
+  const [shouldStartPolling, setShouldStartPolling] = useState(false);
 
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -140,6 +143,29 @@ export function DashboardScreen(): React.ReactElement {
     try {
       setError(null);
       const data = await systemStatusService.getSystemStatus();
+
+      // Verificar si el backend devolvió readings vacías
+      const hasValidReadings = data.readings.readings &&
+                               data.readings.readings.length > 0 &&
+                               data.readings.timestamp;
+
+      if (!hasValidReadings) {
+        setHasReadingsData(false);
+
+        // Pero aún así actualizar los otros datos que sí vienen
+        setSystemStatus(data);
+
+        // Actualizar clima desde la respuesta consolidada del BFF
+        if (data.weather) {
+          setWeather(data.weather);
+          setWeatherError(null);
+        }
+
+        return null;
+      }
+
+      // Si llegamos aquí, tenemos datos válidos de readings
+      setHasReadingsData(true);
 
       // Almacenar lecturas anteriores para calcular tendencias
       if (systemStatus?.readings.readings) {
@@ -157,14 +183,22 @@ export function DashboardScreen(): React.ReactElement {
 
       return data.readings.timestamp;
     } catch (err: any) {
-      console.error('Error fetching system status:', err);
-      setError(err.message || 'Error al cargar los datos del sistema');
+      // Si es error 401 o de sesión inválida, cerrar sesión y redirigir a login inmediatamente
+      const is401 = err.response?.status === 401 ||
+                    err.message?.includes('Unauthorized') ||
+                    err.message?.includes('Sesión inválida') ||
+                    err.message?.includes('inicia sesión');
 
-      // Si es error 401, cerrar sesión y redirigir a login
-      if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
+      if (is401) {
         await logout();
-        navigationRef.current.replace('Login');
+        // Usar setTimeout para asegurar que el logout termine antes de navegar
+        setTimeout(() => {
+          navigationRef.current.replace('Login');
+        }, 100);
+        return null;
       }
+
+      setError(err.message || 'Error al cargar los datos del sistema');
       return null;
     } finally {
       setIsLoading(false);
@@ -172,23 +206,48 @@ export function DashboardScreen(): React.ReactElement {
     }
   }, [systemStatus, logout]);
 
+  // Función para reiniciar el polling
+  const handleRetryPolling = useCallback(() => {
+    // Resetear contadores
+    consecutiveEmptyResponsesRef.current = 0;
+    consecutiveUnchangedRef.current = 0;
+    followUpStartTimeRef.current = null;
+    setIsPollingPaused(false);
+    setError(null);
+    setHasReadingsData(true);
+
+    // Forzar refetch inmediato y reactivar polling
+    fetchSystemStatus().then(() => {
+      setShouldStartPolling(true);
+    });
+  }, [fetchSystemStatus]);
+
   // Cargar datos iniciales
   useEffect(() => {
-    fetchSystemStatus();
+    fetchSystemStatus().then(() => {
+      // Activar el polling después del fetch inicial
+      setShouldStartPolling(true);
+    });
   }, []);
 
   // Auto-refresh dinámico basado en timestamp + 2 minutos
   const lastTimestampRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const followUpStartTimeRef = useRef<number | null>(null);
+  const consecutiveEmptyResponsesRef = useRef<number>(0);
+  const consecutiveUnchangedRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!lastUpdateTimestamp) return;
+    // No iniciar hasta que se complete el fetch inicial
+    if (!shouldStartPolling) return;
 
     const READING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos
     const BUFFER_MS = 20 * 1000; // +20 segundos de margen
-    const FOLLOW_UP_INTERVAL_MS = 20 * 1000; // 20 segundos
-    const MAX_FOLLOW_UP_MS = 2 * 60 * 1000; // 2 minutos máximo
+    const FOLLOW_UP_INTERVAL_MS = 30 * 1000; // 30 segundos (base)
+    const MAX_FOLLOW_UP_MS = 90 * 1000; // 90 segundos máximo
+    const MAX_CONSECUTIVE_EMPTY = 3; // Máximo de respuestas vacías consecutivas
+    const MAX_CONSECUTIVE_UNCHANGED = 3; // Máximo de timestamps sin cambios
+    const MAX_BACKOFF_MS = 2 * 60 * 1000; // 2 minutos máximo de backoff
 
     const calculateNextFetchDelay = (readingTimestamp: string): number => {
       const readingTime = new Date(readingTimestamp).getTime();
@@ -200,29 +259,66 @@ export function DashboardScreen(): React.ReactElement {
       return timeUntilNextReading + BUFFER_MS;
     };
 
-    const scheduleNext = (timestamp: string, isFollowUp: boolean = false) => {
+    // Backoff exponencial con límite máximo
+    const calculateBackoffDelay = (retryCount: number): number => {
+      const baseDelay = FOLLOW_UP_INTERVAL_MS;
+      const exponentialDelay = baseDelay * Math.pow(2, Math.min(retryCount, 5));
+      return Math.min(exponentialDelay, MAX_BACKOFF_MS);
+    };
+
+    const scheduleNext = (timestamp: string | null, isFollowUp: boolean = false) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      const delay = isFollowUp ? FOLLOW_UP_INTERVAL_MS : calculateNextFetchDelay(timestamp);
+      // Verificar si se alcanzó el límite de respuestas vacías
+      if (consecutiveEmptyResponsesRef.current >= MAX_CONSECUTIVE_EMPTY) {
+        setError('Sistema desconectado: No se detectan lecturas de sensores. Las peticiones automáticas se han detenido.');
+        setIsPollingPaused(true);
+        return;
+      }
+
+      // Verificar si se alcanzó el límite de timestamps sin cambios
+      if (consecutiveUnchangedRef.current >= MAX_CONSECUTIVE_UNCHANGED) {
+        setError('No se detectan nuevas lecturas de sensores. Las peticiones automáticas se han detenido.');
+        setIsPollingPaused(true);
+        return;
+      }
+
+      // Calcular delay con backoff exponencial si estamos en modo follow-up
+      let delay: number;
+      if (isFollowUp) {
+        delay = calculateBackoffDelay(consecutiveUnchangedRef.current);
+      } else {
+        delay = timestamp ? calculateNextFetchDelay(timestamp) : FOLLOW_UP_INTERVAL_MS;
+      }
 
       timeoutRef.current = setTimeout(async () => {
         const oldTimestamp = lastTimestampRef.current;
         const newTimestamp = await fetchSystemStatus();
 
+        // Si no hay nuevo timestamp, incrementar contador de respuestas vacías
         if (!newTimestamp) {
-          scheduleNext(oldTimestamp || lastUpdateTimestamp, true);
+          consecutiveEmptyResponsesRef.current++;
+          scheduleNext(oldTimestamp || null, true);
           return;
         }
+
+        // Resetear contador de respuestas vacías
+        consecutiveEmptyResponsesRef.current = 0;
 
         const timestampsChanged = oldTimestamp !== newTimestamp;
 
         if (timestampsChanged) {
+          // Timestamp cambió, resetear contadores
+          consecutiveUnchangedRef.current = 0;
           followUpStartTimeRef.current = null;
           lastTimestampRef.current = newTimestamp;
           scheduleNext(newTimestamp, false);
         } else {
+          // Timestamp no cambió, incrementar contador
+          consecutiveUnchangedRef.current++;
+
           if (!followUpStartTimeRef.current) {
             followUpStartTimeRef.current = Date.now();
           }
@@ -247,7 +343,7 @@ export function DashboardScreen(): React.ReactElement {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [lastUpdateTimestamp, fetchSystemStatus]);
+  }, [shouldStartPolling, lastUpdateTimestamp, fetchSystemStatus]);
 
   const formatColombiaDateTime = (isoString: string): string => {
     const date = new Date(isoString);
@@ -280,10 +376,15 @@ export function DashboardScreen(): React.ReactElement {
     return previous?.value || null;
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchSystemStatus();
-  };
+    // Si el polling está pausado, reiniciarlo
+    if (isPollingPaused) {
+      handleRetryPolling();
+    } else {
+      fetchSystemStatus();
+    }
+  }, [isPollingPaused, handleRetryPolling, fetchSystemStatus]);
 
   const handleLogout = async () => {
     await logout();
@@ -355,6 +456,32 @@ export function DashboardScreen(): React.ReactElement {
           </Text>
         </View>
 
+        {/* Banner de advertencia si el polling está pausado */}
+        {isPollingPaused && error && hasReadingsData && (
+          <View style={styles.warningBanner}>
+            <View style={styles.warningContent}>
+              <Icon name="alert-triangle" size={20} color="#ea580c" />
+              <View style={styles.warningTextContainer}>
+                <Text variant="label" color="#9a3412" style={styles.warningTitle}>
+                  Actualizaciones automáticas pausadas
+                </Text>
+                <Text variant="caption" color="#c2410c" style={styles.warningMessage}>
+                  {error}
+                </Text>
+                <Button
+                  onPress={handleRetryPolling}
+                  variant="primary"
+                  size="sm"
+                  style={styles.warningButton}
+                  leftIcon={<Icon name="refresh" size={16} color="#FFFFFF" />}
+                >
+                  Reintentar ahora
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Weather Section */}
         <View style={styles.section}>
           <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
@@ -372,11 +499,11 @@ export function DashboardScreen(): React.ReactElement {
           <View style={styles.updateInfo}>
             <Text style={styles.updateEmoji}>🔄</Text>
             <View style={styles.updateTextContainer}>
-              <Text variant="body" color="#15803d" style={styles.updateText}>
+              <Text variant="caption" color="#15803d" style={styles.updateText}>
                 Última actualización: {formatColombiaDateTime(lastUpdateTimestamp)}
               </Text>
               <Text variant="caption" color="#15803d" style={styles.updateSubtext}>
-                Las lecturas se actualizan automáticamente cada 2 minutos
+                Actualiza cada 2 minutos
               </Text>
             </View>
           </View>
@@ -415,8 +542,8 @@ export function DashboardScreen(): React.ReactElement {
           </View>
         </View>
 
-        {/* Controller Status Section */}
-        {systemStatus && lastUpdateTimestamp && (
+        {/* Controller Status Section - Solo mostrar si hay datos válidos */}
+        {systemStatus && lastUpdateTimestamp && hasReadingsData && (
           <View style={styles.section}>
             <ControllerStatus
               timeSinceUpdate={Math.floor(
@@ -502,26 +629,34 @@ const styles = StyleSheet.create({
   updateInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     backgroundColor: '#dcfce7',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#86efac',
   },
   updateEmoji: {
-    fontSize: 24,
+    fontSize: 20,
+    flexShrink: 0,
   },
   updateTextContainer: {
     flex: 1,
+    flexShrink: 1,
   },
   updateText: {
     fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 16,
+    flexWrap: 'wrap',
   },
   updateSubtext: {
-    marginTop: spacing.xs,
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 14,
   },
   variablesGrid: {
     flexDirection: 'row',
@@ -530,5 +665,33 @@ const styles = StyleSheet.create({
   },
   variableCardWrapper: {
     width: '48%',
+  },
+  warningBanner: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: '#fff7ed',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    padding: spacing.md,
+  },
+  warningContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  warningMessage: {
+    lineHeight: 16,
+    marginBottom: spacing.md,
+  },
+  warningButton: {
+    alignSelf: 'flex-start',
   },
 });

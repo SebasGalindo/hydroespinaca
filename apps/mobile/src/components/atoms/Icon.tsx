@@ -27,21 +27,34 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'warning': 'warning-outline',
   'alert-triangle': 'alert-circle-outline',
   'close': 'close-outline',
+  'x': 'close-outline',
   'check': 'checkmark-outline',
+  'check-circle': 'checkmark-circle-outline',
+  'x-circle': 'close-circle-outline',
+  'info': 'information-circle-outline',
 
   // Variables & Sensors
+  'thermometer': 'thermometer-outline',
   'temperature': 'thermometer-outline',
   'water': 'water-outline',
+  'droplet': 'water-outline',
   'humidity': 'water-outline',
   'sun': 'sunny-outline',
   'electric': 'flash-outline',
+  'zap': 'flash-outline',
   'ruler': 'resize-outline',
+  'maximize': 'expand-outline',
   'ph': 'flask-outline',
+  'activity': 'pulse-outline',
 
   // Trends
   'trending-up': 'trending-up-outline',
   'trending-down': 'trending-down-outline',
   'minus': 'remove-outline',
+
+  // Actions
+  'edit': 'create-outline',
+  'file-text': 'document-text-outline',
 
   // Other
   'refresh': 'refresh-outline',

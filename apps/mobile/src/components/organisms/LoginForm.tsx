@@ -40,18 +40,14 @@ export function LoginForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.keyboardAvoidingView}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    <ScrollView
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+      style={styles.scrollView}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <View style={[styles.container, style]} testID={testID}>
+      <View style={[styles.container, style]} testID={testID}>
           {/* Logo y Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
@@ -196,20 +192,19 @@ export function LoginForm({
             </Button>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoidingView: {
+  scrollView: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.xl,
+    minHeight: '100%',
   },
   container: {
     backgroundColor: semanticColors.background,
