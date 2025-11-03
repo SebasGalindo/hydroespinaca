@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextStyle } from 'react-native';
-import { semanticColors, typography, textStyles } from '@hydroespinaca/shared';
+import { semanticColors, typography } from '@hydroespinaca/shared';
 
 export interface HeadingProps {
   children: React.ReactNode;

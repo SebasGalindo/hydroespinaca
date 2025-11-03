@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text } from '../components/atoms/Text';
@@ -178,7 +179,7 @@ export function DashboardScreen(): React.ReactElement {
 
   // Auto-refresh dinámico basado en timestamp + 2 minutos
   const lastTimestampRef = useRef<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const followUpStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -293,7 +294,7 @@ export function DashboardScreen(): React.ReactElement {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Spinner size="large" color={semanticColors.primary} />
+          <Spinner size="lg" color={semanticColors.primary} />
           <Text variant="body" color={semanticColors.textSecondary} style={styles.loadingText}>
             Cargando datos del sistema...
           </Text>
@@ -435,7 +436,7 @@ export function DashboardScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.hidro.bgLight,
+    backgroundColor: colors.hidro[50],
   },
   scrollView: {
     flex: 1,
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: spacing.lg,
-    backgroundColor: colors.hidro.bgLight,
+    backgroundColor: colors.hidro[50],
   },
   headerTop: {
     flexDirection: 'row',

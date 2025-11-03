@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, ImageBackground, SafeAreaView } from 'react-native';
+import { View, StyleSheet, ImageBackground } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { semanticColors, spacing, colors } from '@hydroespinaca/shared';
 import { LoginForm } from '../components/organisms/LoginForm';
 import { useNavigation } from '@react-navigation/native';
@@ -29,16 +30,6 @@ export function LoginScreen(): React.ReactElement {
     // Navigation handled automatically by useEffect
   };
 
-  const handleForgotPassword = () => {
-    console.log('Forgot password pressed');
-    // Aquí se manejaría la navegación a la pantalla de recuperación
-  };
-
-  const handleSignUp = () => {
-    console.log('Sign up pressed');
-    // Aquí se manejaría la navegación a la pantalla de registro
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ImageBackground
@@ -50,8 +41,6 @@ export function LoginScreen(): React.ReactElement {
         <View style={styles.content}>
           <LoginForm
             onLoginSuccess={handleLoginSuccess}
-            onForgotPassword={handleForgotPassword}
-            onSignUp={handleSignUp}
             testID="login-form"
           />
         </View>
@@ -63,7 +52,7 @@ export function LoginScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.hidro.bgLight,
+    backgroundColor: colors.hidro[50],
   },
   backgroundImage: {
     flex: 1,
@@ -73,6 +62,7 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    pointerEvents: 'none',
   },
   content: {
     flex: 1,

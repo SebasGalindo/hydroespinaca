@@ -1,6 +1,17 @@
 import React from 'react';
 import { Text as RNText, TextStyle, StyleSheet } from 'react-native';
-import { semanticColors, typography, textStyles } from '@hydroespinaca/shared';
+import { semanticColors, typography } from '@hydroespinaca/shared';
+
+// Text style variants
+const textStyles = {
+  body: { fontSize: typography.fontSize.md, lineHeight: typography.lineHeight.normal },
+  caption: { fontSize: typography.fontSize.sm, lineHeight: typography.lineHeight.normal },
+  label: { fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium, lineHeight: typography.lineHeight.normal },
+  overline: { fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.semibold, lineHeight: typography.lineHeight.tight },
+  h1: { fontSize: typography.fontSize['4xl'], fontWeight: typography.fontWeight.bold, lineHeight: typography.lineHeight.tight },
+  h2: { fontSize: typography.fontSize['2xl'], fontWeight: typography.fontWeight.bold, lineHeight: typography.lineHeight.tight },
+  h3: { fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, lineHeight: typography.lineHeight.normal },
+} as const;
 
 export interface TextProps {
   children: React.ReactNode;

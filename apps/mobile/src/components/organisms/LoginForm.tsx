@@ -10,16 +10,12 @@ import { Pressable } from '../atoms/Pressable';
 
 export interface LoginFormProps {
   onLoginSuccess?: (email: string, password: string) => void;
-  onForgotPassword?: () => void;
-  onSignUp?: () => void;
   style?: any;
   testID?: string;
 }
 
 export function LoginForm({
   onLoginSuccess,
-  onForgotPassword,
-  onSignUp,
   style,
   testID,
 }: LoginFormProps): React.ReactElement {
@@ -44,14 +40,16 @@ export function LoginForm({
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.keyboardAvoidingView}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
         <View style={[styles.container, style]} testID={testID}>
           {/* Logo y Header */}
@@ -63,8 +61,8 @@ export function LoginForm({
                 color="#FFFFFF"
               />
             </View>
-            <Heading 
-              level={1} 
+            <Heading
+              level={3}
               color={semanticColors.textPrimary}
               style={styles.title}
             >
@@ -183,23 +181,6 @@ export function LoginForm({
               />
             </View>
 
-            {/* Forgot Password Link */}
-            <View style={styles.forgotPasswordContainer}>
-              <Pressable 
-                onPress={onForgotPassword}
-                disabled={isLoading}
-                accessibilityLabel="Olvidaste tu contraseña"
-              >
-                <Text 
-                  variant="caption" 
-                  color={semanticColors.primary}
-                  style={styles.forgotPasswordText}
-                >
-                  ¿Olvidaste tu contraseña?
-                </Text>
-              </Pressable>
-            </View>
-
             {/* Login Button */}
             <Button
               onPress={handleFormSubmit}
@@ -214,30 +195,6 @@ export function LoginForm({
               {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </Button>
           </View>
-
-          {/* Sign Up Link */}
-          <View style={styles.signUpContainer}>
-            <Text 
-              variant="body" 
-              color={semanticColors.textSecondary}
-              style={styles.signUpText}
-            >
-              ¿No tienes una cuenta?{' '}
-            </Text>
-            <Pressable 
-              onPress={onSignUp}
-              disabled={isLoading}
-              accessibilityLabel="Regístrate ahora"
-            >
-              <Text 
-                variant="body" 
-                color={semanticColors.primary}
-                style={styles.signUpLink}
-              >
-                Regístrate ahora
-              </Text>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -251,12 +208,13 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   container: {
     backgroundColor: semanticColors.background,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -265,27 +223,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    maxWidth: 500,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: semanticColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   title: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
+    fontSize: 14,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -309,39 +271,20 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   form: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   fieldContainer: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   fieldLabel: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     fontWeight: '500',
+    fontSize: 14,
   },
   passwordToggle: {
     padding: spacing.xs,
   },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: spacing.xl,
-  },
-  forgotPasswordText: {
-    textDecorationLine: 'underline',
-  },
   loginButton: {
-    marginTop: spacing.sm,
-  },
-  signUpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  signUpText: {
-    textAlign: 'center',
-  },
-  signUpLink: {
-    textDecorationLine: 'underline',
-    fontWeight: '500',
+    marginTop: spacing.md,
   },
 });

@@ -1,7 +1,7 @@
 // AuthProvider context for mobile app
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useNativeAuth } from '@hydroespinaca/shared';
-import type { UseAuthReturn } from '@hydroespinaca/shared';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import { useAuth as useBaseAuth } from '@hydroespinaca/shared';
+import type { UseAuthReturn, AuthConfig } from '@hydroespinaca/shared';
 
 const AuthContext = createContext<UseAuthReturn | null>(null);
 
@@ -14,7 +14,12 @@ interface AuthProviderProps {
  * Provides authentication state and methods to all child components
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const authState = useNativeAuth();
+  // Configure for mobile platform
+  const authConfig: AuthConfig = useMemo(() => ({
+    platform: 'mobile',
+  }), []);
+
+  const authState = useBaseAuth(authConfig);
 
   return (
     <AuthContext.Provider value={authState}>

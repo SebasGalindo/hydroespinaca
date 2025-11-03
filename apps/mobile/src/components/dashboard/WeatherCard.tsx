@@ -69,7 +69,7 @@ export function WeatherCard({
           Clima en Mosquera, Cundinamarca
         </Text>
         <View style={styles.loadingContent}>
-          <Spinner size="large" color={semanticColors.primary} />
+          <Spinner size="lg" color={semanticColors.primary} />
           <Text variant="caption" color={semanticColors.textSecondary} style={styles.loadingText}>
             Cargando datos del clima...
           </Text>

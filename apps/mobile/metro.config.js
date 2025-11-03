@@ -3,34 +3,26 @@ const path = require('path');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
-const sharedRoot = path.resolve(workspaceRoot, 'packages/shared');
 
 const config = getDefaultConfig(projectRoot);
 
-// Extensiones compatibles
+// Agregar extensiones native-specific manteniendo los defaults de Expo
 config.resolver.sourceExts = [
   'native.tsx',
   'native.ts',
-  'tsx',
-  'ts',
-  'jsx',
-  'js',
-  'json',
+  ...config.resolver.sourceExts,
 ];
 
-// Resolver prioridad
+// Resolver prioridad - asegura que se use 'react-native' field primero
 config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
-// Alias
-config.resolver.alias = {
-  '@hydroespinaca/shared': sharedRoot,
-  'react-native-svg': require.resolve('react-native-svg'),
-};
+// Watch folders - incluye workspace root además de los defaults de Expo
+config.watchFolders = [
+  ...config.watchFolders,
+  workspaceRoot,
+];
 
-// Rutas a observar
-config.watchFolders = [workspaceRoot, sharedRoot];
-
-// Para que Metro resuelva correctamente dependencias dentro de shared
+// Node modules paths - busca en proyecto y workspace root
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),

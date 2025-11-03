@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 import { semanticColors, spacing, borderRadius, colors } from '@hydroespinaca/shared';
-import type { IconType } from '@hydroespinaca/shared';
+import type { IconType, IconName } from '@hydroespinaca/shared';
 
 export type TrendDirection = 'up' | 'down' | 'stable';
 export type VariableStatus = 'optimal' | 'warning' | 'error' | 'manual';
@@ -62,7 +62,7 @@ export function VariableCard({
     }
   };
 
-  const getVariableIconName = (): string => {
+  const getVariableIconName = (): IconName => {
     switch (iconType) {
       case 'temperature':
         return 'thermometer';
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.hidro.borderLight,
+    borderTopColor: semanticColors.borderLight,
   },
   lightAlertText: {
     fontWeight: '500',

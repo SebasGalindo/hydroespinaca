@@ -113,11 +113,11 @@ export const Input = forwardRef<TextInput, InputProps>(({
   return (
     <View style={[getContainerStyle(), containerStyle]} testID={testID}>
       {leftIcon && (
-        <View style={{ paddingLeft: sizeStyle.paddingHorizontal }}>
+        <View style={{ paddingLeft: sizeStyle.paddingHorizontal }} pointerEvents="none">
           {leftIcon}
         </View>
       )}
-      
+
       <TextInput
         ref={ref}
         style={[getTextStyle(), style]}
@@ -133,7 +133,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
         }}
         {...textInputProps}
       />
-      
+
       {rightIcon && (
         <View style={{ paddingRight: sizeStyle.paddingHorizontal }}>
           {rightIcon}

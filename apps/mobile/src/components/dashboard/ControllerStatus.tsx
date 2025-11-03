@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.hidro.borderLight,
+    borderColor: semanticColors.borderLight,
   },
   commandLeft: {
     flexDirection: 'row',
@@ -353,14 +353,14 @@ const styles = StyleSheet.create({
   },
   table: {
     borderWidth: 1,
-    borderColor: colors.hidro.borderLight,
+    borderColor: semanticColors.borderLight,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: colors.hidro.borderLight,
+    borderBottomColor: semanticColors.borderLight,
   },
   tableCell: {
     padding: spacing.sm,
