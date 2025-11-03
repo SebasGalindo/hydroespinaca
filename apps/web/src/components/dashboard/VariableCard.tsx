@@ -57,6 +57,36 @@ const VariableCard: React.FC<VariableCardProps> = ({
     }
   };
 
+  const getBorderColor = () => {
+    switch (status) {
+      case 'optimal':
+        return 'border-green-600';
+      case 'warning':
+        return 'border-yellow-600';
+      case 'error':
+        return 'border-red-600';
+      case 'manual':
+        return 'border-blue-600';
+      default:
+        return 'border-gray-600';
+    }
+  };
+
+  const getIconColor = () => {
+    switch (status) {
+      case 'optimal':
+        return '#16a34a';
+      case 'warning':
+        return '#f59e0b';
+      case 'error':
+        return '#ef4444';
+      case 'manual':
+        return '#3b82f6';
+      default:
+        return '#6b7280';
+    }
+  };
+
   const getStatusIcon = () => {
     switch (status) {
       case 'optimal':
@@ -73,7 +103,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
   };
 
   const getVariableIcon = () => {
-    const iconProps = { size: 20, color: '#6b7280' };
+    const iconProps = { size: 20, color: getIconColor() };
     switch (iconType) {
       case 'temperature':
         return <TemperatureIcon {...iconProps} />;
@@ -114,7 +144,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
   };
 
   return (
-    <article className={`hidro-card p-4 flex flex-col h-full ${className} relative`}>
+    <article className={`hidro-card p-4 flex flex-col h-full ${className} relative border-l-4 ${getBorderColor()}`}>
       <header className="flex items-start justify-between mb-3">
         <h3 className="text-sm font-medium text-gray-700 font-inter">{title}</h3>
         <div className="flex items-center space-x-1">
@@ -128,7 +158,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
       </header>
 
       <div className="mb-2 flex-grow flex items-baseline gap-2">
-        <p className="text-2xl font-bold text-gray-900 font-inter">{value}</p>
+        <p className={`text-2xl font-bold font-inter ${getStatusColor()}`}>{value}</p>
         {getTrendIcon()}
       </div>
 
