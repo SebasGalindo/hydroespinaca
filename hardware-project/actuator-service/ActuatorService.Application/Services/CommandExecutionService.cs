@@ -92,6 +92,9 @@ public class CommandExecutionService : ICommandExecutionService
                 _logger.LogInformation("🔁 Re-publishing extension for command {CommandId} for {ActuatorCode} (duration: {Duration}s)",
                     existingCommandId, command.ActuatorCode, command.Duration);
 
+                // Restart timeout with new duration
+                StartCommandTimeout(existingActiveCommand, command.Duration);
+
                 consolidatedCommands.Add(command.ActuatorCode);
                 scheduledCommandIds.Add(existingCommandId);
                 continue;
@@ -151,6 +154,9 @@ public class CommandExecutionService : ICommandExecutionService
                     commandId, command.ActuatorCode, command.Pin);
 
                 scheduledCommandIds.Add(commandId);
+
+                // Start timeout task for this command
+                StartCommandTimeout(activeCommand, command.Duration);
             }
             else
             {
@@ -176,6 +182,9 @@ public class CommandExecutionService : ICommandExecutionService
 
                     // Update actuator state with new duration
                     _stateMachine.UpdateState(command.ActuatorId, PowerState.ON, command.Duration, command.DutyCycle, existingCommandIdForPin);
+
+                    // Restart timeout with new duration
+                    StartCommandTimeout(activeCommandForPin, command.Duration);
 
                     consolidatedCommands.Add(command.ActuatorCode);
                     scheduledCommandIds.Add(existingCommandIdForPin);
@@ -203,6 +212,9 @@ public class CommandExecutionService : ICommandExecutionService
                         commandId, command.ActuatorCode, command.Pin);
 
                     scheduledCommandIds.Add(commandId);
+
+                    // Start timeout for pending command (5 minutes max wait time)
+                    StartPendingCommandTimeout(pendingCommand, 300); // 5 minutes
                 }
             }
         }
@@ -241,6 +253,10 @@ public class CommandExecutionService : ICommandExecutionService
             throw new InvalidOperationException($"Command {commandId} not found in active commands");
         }
 
+        // Cancel timeout since command completed successfully
+        completedCommand.TimeoutCts?.Cancel();
+        completedCommand.TimeoutCts?.Dispose();
+
         // Release pin lock
         _pinLockRegistry.Release(new List<string> { completedCommand.Pin });
 
@@ -277,12 +293,16 @@ public class CommandExecutionService : ICommandExecutionService
             if (_pinLockRegistry.TryLock(pins, pending.CommandId))
             {
                 // Remove from pending
-                if (!_pendingCommands.TryRemove(pending.CommandId, out _))
+                if (!_pendingCommands.TryRemove(pending.CommandId, out var removedPending))
                 {
                     // Someone else activated it - release lock and continue
                     _pinLockRegistry.Release(pins);
                     continue;
                 }
+
+                // Cancel pending timeout since command is being activated
+                removedPending.TimeoutCts?.Cancel();
+                removedPending.TimeoutCts?.Dispose();
 
                 // Add to active
                 var activeCommand = new ActiveCommand
@@ -306,6 +326,9 @@ public class CommandExecutionService : ICommandExecutionService
 
                 _logger.LogInformation("🚀 Activated pending command {CommandId} for {ActuatorCode} (pin {Pin} now available)",
                     pending.CommandId, pending.ActuatorCode, pending.Pin);
+
+                // Start timeout task for this newly activated command
+                StartCommandTimeout(activeCommand, pending.Duration);
             }
         }
 
@@ -346,6 +369,77 @@ public class CommandExecutionService : ICommandExecutionService
         };
 
         await _mqttPublisher.PublishJobScheduleAsync(jobSchedule);
+    }
+
+    private void StartCommandTimeout(ActiveCommand activeCommand, double durationSeconds)
+    {
+        // Cancel previous timeout if exists
+        activeCommand.TimeoutCts?.Cancel();
+        activeCommand.TimeoutCts?.Dispose();
+
+        // Create new timeout (duration + 2 minute safety margin for fuzzy-service extensions)
+        var timeoutDelay = TimeSpan.FromSeconds(durationSeconds + 120);
+        var cts = new CancellationTokenSource();
+        activeCommand.TimeoutCts = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(timeoutDelay, cts.Token);
+
+                // Timeout elapsed without cancellation
+                if (_activeCommands.TryRemove(activeCommand.CommandId, out var timedOutCmd))
+                {
+                    _pinLockRegistry.Release(new List<string> { timedOutCmd.Pin });
+                    _stateMachine.UpdateState(timedOutCmd.ActuatorId, PowerState.OFF, 0, null, activeCommand.CommandId);
+
+                    _logger.LogWarning("⏱️ Command {CommandId} for {ActuatorCode} timed out without confirmation after {Timeout}s - force cleaning up",
+                        activeCommand.CommandId, timedOutCmd.ActuatorCode, timeoutDelay.TotalSeconds);
+
+                    // Try to activate pending commands after cleanup
+                    await ActivatePendingCommandsAsync(timedOutCmd.Esp32Id);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Timeout was cancelled (command completed or extended) - this is expected
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }, cts.Token);
+    }
+
+    private void StartPendingCommandTimeout(PendingCommand pendingCommand, double timeoutSeconds)
+    {
+        var timeoutDelay = TimeSpan.FromSeconds(timeoutSeconds);
+        var cts = new CancellationTokenSource();
+        pendingCommand.TimeoutCts = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(timeoutDelay, cts.Token);
+
+                // Timeout elapsed - remove pending command if still pending
+                if (_pendingCommands.TryRemove(pendingCommand.CommandId, out var timedOutPending))
+                {
+                    _logger.LogWarning("⏱️ Pending command {CommandId} for {ActuatorCode} timed out after waiting {Timeout}s - removing from queue",
+                        pendingCommand.CommandId, timedOutPending.ActuatorCode, timeoutDelay.TotalSeconds);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Timeout was cancelled (command was activated) - this is expected
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }, cts.Token);
     }
 
     public Task<JobStatusDto> GetStatusAsync(string? esp32Id = null)
@@ -413,6 +507,10 @@ public class CommandExecutionService : ICommandExecutionService
         {
             if (_activeCommands.TryRemove(commandId, out var activeCommand))
             {
+                // Cancel timeout
+                activeCommand.TimeoutCts?.Cancel();
+                activeCommand.TimeoutCts?.Dispose();
+
                 _pinLockRegistry.Release(new List<string> { activeCommand.Pin });
                 _stateMachine.UpdateState(activeCommand.ActuatorId, PowerState.OFF, 0, null, commandId);
                 _logger.LogDebug("🗑️ Removed active command {CommandId}, released pin {Pin}, set actuator {ActuatorId} to OFF",
@@ -425,6 +523,10 @@ public class CommandExecutionService : ICommandExecutionService
         {
             if (_pendingCommands.TryRemove(commandId, out var pendingCommand))
             {
+                // Cancel timeout
+                pendingCommand.TimeoutCts?.Cancel();
+                pendingCommand.TimeoutCts?.Dispose();
+
                 _logger.LogDebug("🗑️ Removed pending command {CommandId}", commandId);
             }
         }
@@ -446,6 +548,7 @@ public class CommandExecutionService : ICommandExecutionService
             commands.Count, esp32Id);
 
         var jobRoutines = new List<JobRoutineDto>();
+        var commandIds = new List<string>();
 
         foreach (var command in commands)
         {
@@ -470,6 +573,7 @@ public class CommandExecutionService : ICommandExecutionService
             // Create MQTT payload (no pin locking for reset commands)
             var jobRoutine = CreateJobRoutineDto(command, commandId);
             jobRoutines.Add(jobRoutine);
+            commandIds.Add(commandId);
 
             // Update actuator state to OFF immediately
             _stateMachine.UpdateState(command.ActuatorId, PowerState.OFF, 0, null, commandId);
@@ -484,6 +588,21 @@ public class CommandExecutionService : ICommandExecutionService
             await PublishJobScheduleAsync(esp32Id, jobRoutines);
             _logger.LogInformation("📤 Published {Count} reset commands to MQTT and job schedule - awaiting confirmations", jobRoutines.Count);
         }
+
+        // Start a background timeout task to auto-cleanup reset commands if no confirmation received
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(15)); // 15 second timeout for reset commands
+
+            foreach (var commandId in commandIds)
+            {
+                if (_activeCommands.TryRemove(commandId, out var cmd))
+                {
+                    _logger.LogWarning("⏱️ Reset command {CommandId} for {ActuatorCode} timed out without confirmation - force removing from active commands",
+                        commandId, cmd.ActuatorCode);
+                }
+            }
+        });
     }
 
     public async Task ResetAllActuatorsAsync(string? esp32Id = null)
@@ -580,6 +699,7 @@ public class CommandExecutionService : ICommandExecutionService
         public string? Power { get; set; }
         public double? DutyCycle { get; set; }
         public double Duration { get; set; }
+        public CancellationTokenSource? TimeoutCts { get; set; }
     }
 
     private class PendingCommand
@@ -594,5 +714,6 @@ public class CommandExecutionService : ICommandExecutionService
         public double? DutyCycle { get; set; }
         public double Duration { get; set; }
         public JobRoutineDto JobRoutineDto { get; set; } = default!;
+        public CancellationTokenSource? TimeoutCts { get; set; }
     }
 }
