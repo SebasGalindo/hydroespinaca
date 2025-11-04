@@ -101,6 +101,16 @@ public class SessionController : BaseAuthenticatedController
             Logger.LogWarning(ex, "Invalid or revoked token");
             return Unauthorized(new { message = "Session is no longer valid, please login again" });
         }
+        catch (ServiceException ex) when (ex.StatusCode == 400)
+        {
+            Logger.LogWarning(ex, "Bad request from auth service revoking session {SessionId}", sessionId);
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ServiceException ex) when (ex.StatusCode == 404)
+        {
+            Logger.LogWarning(ex, "Session {SessionId} not found in auth service", sessionId);
+            return NotFound(new { message = "Session not found or already revoked" });
+        }
         catch (HttpRequestException ex)
         {
             Logger.LogWarning(ex, "Error from auth service revoking session");

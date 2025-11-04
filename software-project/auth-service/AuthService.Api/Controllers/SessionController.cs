@@ -76,19 +76,42 @@ public class SessionController : ControllerBase
             return NotFound(new { message = "Session not found" });
         }
 
-        // Get current user ID from JWT claims (defense in depth - BFF already checks this)
+        // Get current user ID from JWT claims
         var currentUserId = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
-        // Prevent revoking sessions belonging to the current user if they match
+        // If trying to revoke a session from the same user, check if it's the active session
         if (!string.IsNullOrEmpty(currentUserId) && session.UserId == currentUserId)
         {
-            _logger.LogWarning("User {UserId} attempted to revoke one of their own sessions {SessionId}", currentUserId, sessionId);
-            return BadRequest(new { message = "No puedes revocar tu propia sesión activa" });
+            // Extract access token from Authorization header
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (authHeader != null && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                var currentAccessToken = authHeader.Substring("Bearer ".Length).Trim();
+                var currentAccessTokenHash = ComputeAccessTokenHash(currentAccessToken);
+
+                // Check if this is the active session by comparing token hashes
+                if (session.AccessTokenHash == currentAccessTokenHash)
+                {
+                    _logger.LogWarning("User {UserId} attempted to revoke their active session {SessionId}", currentUserId, sessionId);
+                    return BadRequest(new { message = "No puedes revocar tu propia sesión activa" });
+                }
+
+                // Allow revoking other sessions belonging to the same user
+                _logger.LogInformation("User {UserId} is revoking their own session {SessionId} from a different device", currentUserId, sessionId);
+            }
         }
 
         session.Revoke();
         await _sessionRepository.UpdateAsync(session);
 
         return Ok(new { message = "Session revoked successfully" });
+    }
+
+    private static string ComputeAccessTokenHash(string accessToken)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(accessToken);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToBase64String(hash);
     }
 }
