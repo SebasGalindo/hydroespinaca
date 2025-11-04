@@ -62,7 +62,8 @@ public class CommandExecutionService : ICommandExecutionService
 
         foreach (var command in commands)
         {
-            var commandId = CommandIdHelper.GenerateCommandId(command.ActuatorCode);
+            // Use pre-generated CommandId from DTO if available, otherwise generate new one
+            var commandId = command.CommandId ?? CommandIdHelper.GenerateCommandId(command.ActuatorCode);
             var pins = new List<string> { command.Pin };
 
             // Check if there's already a running or pending command for this actuator

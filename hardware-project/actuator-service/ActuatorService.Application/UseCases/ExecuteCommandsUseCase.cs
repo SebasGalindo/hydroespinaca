@@ -1,4 +1,5 @@
 using ActuatorService.Application.DTOs;
+using ActuatorService.Application.Helpers;
 using ActuatorService.Application.Interfaces;
 using ActuatorService.Application.Services;
 using ActuatorService.Domain.Entities;
@@ -113,7 +114,8 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
 
         var esp32Id = commandsByEsp32.First().Key;
 
-        // 4. Process commands: check for existing RUNNING commands and handle DB persistence
+        // 4. Generate CommandIds and persist to DB BEFORE scheduling
+        // This ensures the same CommandId is used in both DB and MQTT messages
         var commandIds = new List<string>();
 
         foreach (var resolvedCommand in resolvedCommands)
@@ -129,20 +131,25 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
             if (existingRunningCommand != null)
             {
                 // Update existing RUNNING command (extend it)
-                // Note: We only update ExtendedAt timestamp. Power/Duration are not stored.
-                // The MQTT message will contain the new parameters for the firmware.
+                // Reuse the existing CommandId to maintain consistency
                 existingRunningCommand.ExtendedAt = DateTime.UtcNow;
 
                 await _routineCommandRepository.UpdateAsync(existingRunningCommand);
                 commandId = existingRunningCommand.CommandId;
+
+                // Assign to DTO so CommandExecutionService uses the same ID
+                resolvedCommand.CommandId = commandId;
 
                 _logger.LogInformation("🔄 Extended existing RUNNING command {CommandId} for {ActuatorCode}",
                     commandId, resolvedCommand.ActuatorCode);
             }
             else if (!isPowerOff)
             {
-                // Create new RUNNING command (only if not OFF)
-                commandId = $"{resolvedCommand.ActuatorCode}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                // Generate CommandId ONCE using the helper
+                commandId = CommandIdHelper.GenerateCommandId(resolvedCommand.ActuatorCode);
+
+                // Assign to DTO so CommandExecutionService uses the same ID
+                resolvedCommand.CommandId = commandId;
 
                 var routineCommandEntity = new RoutineCommand
                 {
@@ -161,7 +168,10 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
             else
             {
                 // Power is OFF: don't save to DB, just generate ID for MQTT
-                commandId = $"{resolvedCommand.ActuatorCode}_off_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                commandId = CommandIdHelper.GenerateCommandId($"{resolvedCommand.ActuatorCode}_off");
+
+                // Assign to DTO so CommandExecutionService uses the same ID
+                resolvedCommand.CommandId = commandId;
 
                 _logger.LogInformation("⏹️ Power OFF command for {ActuatorCode} - will publish to MQTT but not save to DB",
                     resolvedCommand.ActuatorCode);
@@ -171,6 +181,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         }
 
         // 5. Schedule commands with execution service (handles MQTT publishing)
+        // Now each resolvedCommand has its CommandId already set
         await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
 
         if (skippedCommands.Count > 0)

@@ -281,7 +281,8 @@ public class InternalRoutineScheduler : BackgroundService
             throw new InvalidOperationException($"Internal routine '{routine.Name}' has no valid commands after resolution");
         }
 
-        // Persist commands to database (same logic as ExecuteCommandsUseCase)
+        // Generate CommandIds and persist commands to database BEFORE scheduling
+        // This ensures the same CommandId is used in both DB and MQTT messages
         foreach (var resolvedCommand in resolvedCommands)
         {
             var power = resolvedCommand.Power ?? resolvedCommand.DutyCycle?.ToString();
@@ -293,19 +294,22 @@ public class InternalRoutineScheduler : BackgroundService
             if (existingRunningCommand != null)
             {
                 // Update existing RUNNING command (extend it)
-                // Note: We only update ExtendedAt timestamp. Power/Duration are not stored.
-                // The MQTT message will contain the new parameters for the firmware.
+                // Reuse the existing CommandId to maintain consistency
+                resolvedCommand.CommandId = existingRunningCommand.CommandId;
                 existingRunningCommand.ExtendedAt = DateTime.UtcNow;
 
                 await routineCommandRepository.UpdateAsync(existingRunningCommand);
 
-                _logger.LogInformation("🔄 Extended existing RUNNING command for {ActuatorCode} from routine {RoutineName}",
-                    resolvedCommand.ActuatorCode, routine.Name);
+                _logger.LogInformation("🔄 Extended existing RUNNING command {CommandId} for {ActuatorCode} from routine {RoutineName}",
+                    existingRunningCommand.CommandId, resolvedCommand.ActuatorCode, routine.Name);
             }
             else if (!isPowerOff)
             {
-                // Create new RUNNING command (only if not OFF)
+                // Generate CommandId ONCE for this command
                 var commandId = CommandIdHelper.GenerateCommandId(resolvedCommand.ActuatorCode);
+
+                // Assign it to the DTO so CommandExecutionService uses the same ID
+                resolvedCommand.CommandId = commandId;
 
                 var routineCommandEntity = new RoutineCommand
                 {
@@ -318,12 +322,13 @@ public class InternalRoutineScheduler : BackgroundService
 
                 await routineCommandRepository.AddAsync(routineCommandEntity);
 
-                _logger.LogInformation("💾 Created RUNNING command for {ActuatorCode} from routine {RoutineName}",
-                    resolvedCommand.ActuatorCode, routine.Name);
+                _logger.LogInformation("💾 Created RUNNING command {CommandId} for {ActuatorCode} from routine {RoutineName}",
+                    commandId, resolvedCommand.ActuatorCode, routine.Name);
             }
         }
 
         // Schedule individual commands (respects pin locks and queuing)
+        // Now each resolvedCommand has its CommandId already set
         await commandExecutionService.ScheduleCommandsAsync(resolvedCommands, routine.Esp32Id);
 
         _logger.LogDebug("📤 Scheduled {CommandCount} commands for internal routine {RoutineName}",

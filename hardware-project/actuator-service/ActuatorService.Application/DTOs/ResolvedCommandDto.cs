@@ -8,6 +8,12 @@ namespace ActuatorService.Application.DTOs;
 /// </summary>
 public class ResolvedCommandDto
 {
+    /// <summary>
+    /// Optional pre-generated CommandId. If provided, CommandExecutionService will use this ID
+    /// instead of generating a new one. This ensures consistency between DB records and MQTT messages.
+    /// </summary>
+    public string? CommandId { get; set; }
+
     public string ActuatorCode { get; set; } = default!;
     public string ActuatorId { get; set; } = default!;
     public string Esp32Id { get; set; } = default!;
