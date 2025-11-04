@@ -1,44 +1,55 @@
 // Auth-aware fetch wrapper that handles 401 automatically
+import { detectPlatform } from './apiConfig';
+import { SessionStorage } from './secureStorage';
 
 type LogoutCallback = () => Promise<void>;
+type RedirectCallback = (path: string) => void;
 
 let globalLogoutCallback: LogoutCallback | null = null;
-let redirectCallback: ((path: string) => void) | null = null;
+let redirectCallback: RedirectCallback | null = null;
 
 /**
  * Set global logout callback (called from app initialization)
  */
-export function setAuthCallbacks(logout: LogoutCallback, redirect: (path: string) => void) {
+export function setAuthCallbacks(logout: LogoutCallback, redirect: RedirectCallback) {
   globalLogoutCallback = logout;
   redirectCallback = redirect;
 }
 
 /**
- * Clears browser storage (localStorage, sessionStorage)
- *
- * NOTE: Cookie cleanup is handled entirely by the backend.
- * The logout endpoint on the BFF service will delete all session cookies.
+ * Clears storage based on platform
+ * - Web: clears localStorage and sessionStorage (cookies handled by backend)
+ * - Mobile: clears secure storage with session tokens
  */
-function clearBrowserStorage() {
-  if (typeof window === 'undefined') return;
+async function clearPlatformStorage() {
+  const platform = detectPlatform();
 
   try {
-    // Clear localStorage (if available)
-    if (typeof window !== 'undefined' && typeof (window as any).localStorage !== 'undefined') {
-      (window as any).localStorage.clear();
-    }
+    if (platform === 'web') {
+      // Clear browser storage for web
+      if (typeof window !== 'undefined') {
+        if (typeof (window as any).localStorage !== 'undefined') {
+          (window as any).localStorage.clear();
+        }
+        if (typeof (window as any).sessionStorage !== 'undefined') {
+          (window as any).sessionStorage.clear();
+        }
+      }
 
-    // Clear sessionStorage (if available)
-    if (typeof window !== 'undefined' && typeof (window as any).sessionStorage !== 'undefined') {
-      (window as any).sessionStorage.clear();
-    }
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[authFetch] Browser storage cleared (localStorage, sessionStorage)');
+      }
+    } else {
+      // Clear secure storage for mobile
+      await SessionStorage.clearSession();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.info('[authFetch] Browser storage cleared (localStorage, sessionStorage)');
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[authFetch] Mobile secure storage cleared (sessionId, csrfToken)');
+      }
     }
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[authFetch] Failed to clear browser storage:', error);
+      console.warn('[authFetch] Failed to clear platform storage:', error);
     }
   }
 }
@@ -46,6 +57,7 @@ function clearBrowserStorage() {
 /**
  * Fetch wrapper that automatically handles 401 responses
  * by logging out and redirecting to login
+ * Works for both web and mobile platforms
  */
 export async function authFetch(
   input: string | Request | URL,
@@ -57,16 +69,16 @@ export async function authFetch(
     // If 401 Unauthorized, logout and redirect
     if (response.status === 401) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'unknown';
+      const platform = detectPlatform();
 
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[authFetch] Received 401 Unauthorized from:', url);
+        console.warn(`[authFetch] Received 401 Unauthorized from: ${url} (platform: ${platform})`);
       }
 
-      // Clear browser storage (localStorage, sessionStorage)
-      // Backend handles cookie cleanup via logout endpoint
-      clearBrowserStorage();
+      // Clear platform-specific storage (web: localStorage/sessionStorage, mobile: secure storage)
+      await clearPlatformStorage();
 
-      // Call logout callback to clear server-side session and trigger backend cookie cleanup
+      // Call logout callback to clear server-side session
       if (globalLogoutCallback) {
         try {
           await globalLogoutCallback();
@@ -82,9 +94,9 @@ export async function authFetch(
 
       // Redirect to login
       if (redirectCallback) {
-        redirectCallback('/login');
-      } else if (typeof window !== 'undefined' && window.location) {
-        // Fallback: use window.location
+        redirectCallback(platform === 'web' ? '/login' : 'Login');
+      } else if (platform === 'web' && typeof window !== 'undefined' && window.location) {
+        // Fallback for web: use window.location
         window.location.href = '/login';
       }
 

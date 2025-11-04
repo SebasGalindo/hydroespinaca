@@ -25,6 +25,18 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 export * from './utils/formatters';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { setAuthCallbacks, authFetch } from './utils/authFetch';
+export {
+  getAlertConfig,
+  calculateVariableStatus,
+  calculateTrend,
+  VARIABLE_ALERT_CONFIG,
+} from './utils/variableAlerts';
+export type {
+  AlertDirection,
+  VariableStatus,
+  TrendDirection,
+  VariableAlertConfig,
+} from './utils/variableAlerts';
 
 // Export API utilities
 export { AuthApiService, authService, ApiError } from './api/authService';

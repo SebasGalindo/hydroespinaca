@@ -1,6 +1,7 @@
 // Authentication API Service
 import { getApiUrl } from '../utils/apiConfig';
 import { SessionStorage } from '../utils'; // Import from index to use platform-specific version
+import { authFetch } from '../utils/authFetch';
 import type {
   LoginRequest,
   MobileLoginResponse,
@@ -30,6 +31,7 @@ export class AuthApiService {
 
   /**
    * Internal request method that handles platform-specific authentication
+   * Uses authFetch wrapper to automatically handle 401 responses
    */
   private async request<T>(
     url: string,
@@ -56,7 +58,8 @@ export class AuthApiService {
     }
 
     try {
-      const response = await fetch(fullUrl, {
+      // Use authFetch instead of fetch directly - it handles 401 automatically
+      const response = await authFetch(fullUrl, {
         ...options,
         headers: {
           ...defaultHeaders,
@@ -71,6 +74,7 @@ export class AuthApiService {
       const data: any = isJson ? await response.json() : null;
 
       if (!response.ok) {
+        // authFetch already handled 401, so this handles other errors
         throw new ApiError(response.status, data?.message || `HTTP ${response.status}`);
       }
 

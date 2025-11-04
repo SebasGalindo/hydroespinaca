@@ -1,6 +1,7 @@
 import type { SystemStatusResponse } from '../types/systemStatus';
 import { getApiUrl, detectPlatform } from '../utils/apiConfig';
 import { SessionStorage } from '../utils';
+import { authFetch } from '../utils/authFetch';
 
 /**
  * Service for fetching system status from the BFF
@@ -16,6 +17,7 @@ export class SystemStatusService {
 
   /**
    * Platform-aware request method that adds session headers for mobile
+   * Uses authFetch wrapper to automatically handle 401 responses
    */
   private async request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const platform = detectPlatform();
@@ -40,7 +42,8 @@ export class SystemStatusService {
       }
     }
 
-    const response = await fetch(fullUrl, {
+    // Use authFetch instead of fetch directly - it handles 401 automatically
+    const response = await authFetch(fullUrl, {
       ...options,
       headers: {
         ...defaultHeaders,
@@ -52,9 +55,7 @@ export class SystemStatusService {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Sesión inválida. Por favor, inicia sesión nuevamente.');
-      }
+      // authFetch already handled 401, so this handles other errors
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
