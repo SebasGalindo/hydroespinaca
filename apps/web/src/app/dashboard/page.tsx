@@ -6,17 +6,17 @@ import ControllerStatus from '@/components/dashboard/ControllerStatus';
 import WeatherCard from '@/components/dashboard/WeatherCard';
 import PageLayout from '@/components/layout/PageLayout';
 import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
-import { systemStatusService, formatNumericValue } from '@hydroespinaca/shared';
+import {
+  systemStatusService,
+  formatNumericValue,
+  calculateVariableStatus,
+  calculateTrend,
+  getAlertConfig,
+  useAuthStore,
+} from '@hydroespinaca/shared';
 import type { SystemStatusResponse, ReadingItem, WeatherSummary } from '@hydroespinaca/shared';
 import { useRouter } from 'next/navigation';
 import { IconType } from '@hydroespinaca/shared/types/common';
-import { useAuthStore } from '@hydroespinaca/shared';
-import {
-  calculateVariableStatus,
-  calculateTrend,
-  requiresArtificialLight,
-  getAlertConfig
-} from '@/utils/variableAlerts';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -470,9 +470,7 @@ export default function DashboardPage() {
               const status = calculateVariableStatus(reading, alertConfig);
               const previousValue = getPreviousValue(reading.name);
               const trend = calculateTrend(reading.value, previousValue);
-              const needsLightCheck = requiresArtificialLight(reading.name);
               const lightActive = isArtificialLightActive();
-              const showLightAlert = needsLightCheck && reading.value < reading.optimalMin;
 
               return (
                 <VariableCard
@@ -484,7 +482,6 @@ export default function DashboardPage() {
                   status={status}
                   trend={trend}
                   artificialLightActive={lightActive}
-                  showArtificialLightAlert={showLightAlert}
                 />
               );
             })}

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "HidroEspinaca",
+    "slug": "hidroespinaca-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,7 +28,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.hidroespinaca.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +37,12 @@
       "expo-asset",
       "expo-font",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bd2350cf-b3a3-4fcb-9005-b43168f29aa4"
+      }
+    },
+    "owner": "mo3odev"
   }
 }

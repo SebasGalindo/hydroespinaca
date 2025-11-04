@@ -17,10 +17,15 @@ import {
   borderRadius,
   systemStatusService,
   formatNumericValue,
+  calculateVariableStatus as sharedCalculateVariableStatus,
+  calculateTrend as sharedCalculateTrend,
+  getAlertConfig as sharedGetAlertConfig,
   type SystemStatusResponse,
   type ReadingItem,
   type WeatherSummary,
   type IconType,
+  type VariableStatus as SharedVariableStatus,
+  type TrendDirection as SharedTrendDirection,
 } from '@hydroespinaca/shared';
 
 type RootStackParamList = {
@@ -29,78 +34,6 @@ type RootStackParamList = {
 };
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
-
-// Configuración de alertas para variables (similar al web)
-interface AlertConfig {
-  warningThreshold: number;
-  errorThreshold: number;
-}
-
-const getAlertConfig = (variableName: string): AlertConfig => {
-  const lowerName = variableName.toLowerCase();
-
-  if (lowerName.includes('ph')) {
-    return { warningThreshold: 0.3, errorThreshold: 0.5 };
-  }
-  if (lowerName.includes('temperatura')) {
-    return { warningThreshold: 2, errorThreshold: 4 };
-  }
-  if (lowerName.includes('humedad')) {
-    return { warningThreshold: 10, errorThreshold: 15 };
-  }
-  if (lowerName.includes('luz') || lowerName.includes('luminosidad')) {
-    return { warningThreshold: 5000, errorThreshold: 8000 };
-  }
-  if (lowerName.includes('conductividad') || lowerName.includes('ec')) {
-    return { warningThreshold: 0.3, errorThreshold: 0.5 };
-  }
-
-  return { warningThreshold: 5, errorThreshold: 10 };
-};
-
-const calculateVariableStatus = (
-  reading: ReadingItem,
-  config: AlertConfig
-): VariableStatus => {
-  const { value, optimalMin, optimalMax } = reading;
-
-  if (value >= optimalMin && value <= optimalMax) {
-    return 'optimal';
-  }
-
-  const deviation = Math.min(
-    Math.abs(value - optimalMin),
-    Math.abs(value - optimalMax)
-  );
-
-  if (deviation >= config.errorThreshold) {
-    return 'error';
-  }
-
-  if (deviation >= config.warningThreshold) {
-    return 'warning';
-  }
-
-  return 'optimal';
-};
-
-const calculateTrend = (
-  currentValue: number,
-  previousValue: number | null
-): TrendDirection => {
-  if (previousValue === null) return 'stable';
-
-  const diff = currentValue - previousValue;
-  const threshold = 0.1;
-
-  if (Math.abs(diff) < threshold) return 'stable';
-  return diff > 0 ? 'up' : 'down';
-};
-
-const requiresArtificialLight = (variableName: string): boolean => {
-  const lowerName = variableName.toLowerCase();
-  return lowerName.includes('luz') || lowerName.includes('luminosidad');
-};
 
 const getIconType = (name: string): IconType => {
   const lowerName = name.toLowerCase();
@@ -119,7 +52,6 @@ const getIconType = (name: string): IconType => {
 export function DashboardScreen(): React.ReactElement {
   const navigation = useNavigation<DashboardScreenNavigationProp>();
   const { logout } = useAuth();
-  const navigationRef = useRef(navigation);
 
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [previousReadings, setPreviousReadings] = useState<ReadingItem[]>([]);
@@ -134,11 +66,6 @@ export function DashboardScreen(): React.ReactElement {
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
-
-  // Mantener navigationRef actualizado
-  useEffect(() => {
-    navigationRef.current = navigation;
-  }, [navigation]);
 
   const fetchSystemStatus = useCallback(async (): Promise<string | null> => {
     try {
@@ -184,28 +111,16 @@ export function DashboardScreen(): React.ReactElement {
 
       return data.readings.timestamp;
     } catch (err: any) {
-      // Si es error 401 o de sesión inválida, cerrar sesión y redirigir a login inmediatamente
-      const is401 = err.response?.status === 401 ||
-                    err.message?.includes('Unauthorized') ||
-                    err.message?.includes('Sesión inválida') ||
-                    err.message?.includes('inicia sesión');
-
-      if (is401) {
-        await logout();
-        // Usar setTimeout para asegurar que el logout termine antes de navegar
-        setTimeout(() => {
-          navigationRef.current.replace('Login');
-        }, 100);
-        return null;
-      }
-
+      // Los errores 401 son manejados automáticamente por authFetch
+      // que hace logout y redirige al login
+      // Aquí solo manejamos otros tipos de errores
       setError(err.message || 'Error al cargar los datos del sistema');
       return null;
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [systemStatus, logout]);
+  }, [systemStatus]);
 
   // Función para reiniciar el polling
   const handleRetryPolling = useCallback(() => {
@@ -518,13 +433,11 @@ export function DashboardScreen(): React.ReactElement {
             </Text>
             <View style={styles.variablesGrid}>
               {systemStatus.readings.readings.map((reading) => {
-                const alertConfig = getAlertConfig(reading.name);
-                const status = calculateVariableStatus(reading, alertConfig);
+                const alertConfig = sharedGetAlertConfig(reading.name);
+                const status = sharedCalculateVariableStatus(reading, alertConfig);
                 const previousValue = getPreviousValue(reading.name);
-                const trend = calculateTrend(reading.value, previousValue);
-                const needsLightCheck = requiresArtificialLight(reading.name);
+                const trend = sharedCalculateTrend(reading.value, previousValue);
                 const lightActive = isArtificialLightActive();
-                const showLightAlert = needsLightCheck && reading.value < reading.optimalMin;
 
                 return (
                   <View key={reading.name} style={styles.variableCardWrapper}>
@@ -536,7 +449,6 @@ export function DashboardScreen(): React.ReactElement {
                       status={status}
                       trend={trend}
                       artificialLightActive={lightActive}
-                      showArtificialLightAlert={showLightAlert}
                     />
                   </View>
                 );

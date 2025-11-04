@@ -18,6 +18,7 @@
     "clean:cache": "rm -rf .expo && rm -rf node_modules/.cache",
     "clean:all": "rm -rf .expo && rm -rf node_modules && rm -rf node_modules/.cache",
     "rebuild": "pnpm clean:cache && cd ../../packages/shared && pnpm build && cd - && pnpm start:clean",
+    "postinstall": "cd ../../packages/shared && pnpm install && pnpm build",
     "doctor": "pnpm exec expo doctor",
     "doctor:fix": "pnpm exec expo install --fix",
     "precheck": "pnpm exec tsc --noEmit && pnpm dlx depcheck && pnpm exec expo-doctor"

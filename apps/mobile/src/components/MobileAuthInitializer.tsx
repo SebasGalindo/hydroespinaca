@@ -1,0 +1,157 @@
+import { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import type { NavigationContainerRef } from '@react-navigation/native';
+import { setAuthCallbacks, useAuthStore } from '@hydroespinaca/shared';
+
+// Configuración del refresco de sesión
+// IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
+const SESSION_REFRESH_INTERVAL = 90 * 1000; // 90 segundos (1.5 minutos)
+const MIN_TIME_BETWEEN_CHECKS = 30 * 1000; // 30 segundos (throttle)
+
+type RootStackParamList = {
+  Login: undefined;
+  Dashboard: undefined;
+};
+
+interface MobileAuthInitializerProps {
+  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
+}
+
+export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerProps) {
+
+  // Ref para rastrear la última vez que se verificó la sesión
+  const lastSessionCheck = useRef<number>(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateSubscription = useRef<any>(null);
+
+  const checkSession = useAuthStore(state => state.checkSession);
+  const logout = useAuthStore(state => state.logout);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+
+  // Función para verificar sesión con throttle
+  const checkSessionThrottled = async () => {
+    const now = Date.now();
+
+    // Si la última verificación fue hace menos de MIN_TIME_BETWEEN_CHECKS, saltar
+    if (now - lastSessionCheck.current < MIN_TIME_BETWEEN_CHECKS) {
+      if (__DEV__) {
+        console.info('[MobileAuthInitializer] Session check skipped (throttled)');
+      }
+      return;
+    }
+
+    lastSessionCheck.current = now;
+
+    if (__DEV__) {
+      console.info('[MobileAuthInitializer] Refreshing session...');
+    }
+
+    await checkSession();
+
+    if (__DEV__) {
+      console.info('[MobileAuthInitializer] Session refreshed');
+    }
+  };
+
+  // Configurar callbacks globales para authFetch
+  useEffect(() => {
+    if (__DEV__) {
+      console.info('[MobileAuthInitializer] Setting up auth callbacks');
+    }
+
+    setAuthCallbacks(
+      async () => {
+        if (__DEV__) {
+          console.info('[MobileAuthInitializer] authFetch triggered logout (401 detected)');
+        }
+        await logout();
+      },
+      (screen: string) => {
+        if (__DEV__) {
+          console.info('[MobileAuthInitializer] authFetch triggered redirect to:', screen);
+        }
+        // Use setTimeout to ensure logout completes and navigation context is ready
+        setTimeout(() => {
+          try {
+            if (navigationRef.current) {
+              if (__DEV__) {
+                console.info('[MobileAuthInitializer] Executing navigationRef.reset to:', screen);
+              }
+              // Use reset instead of replace to ensure we clear the navigation stack
+              navigationRef.current.reset({
+                index: 0,
+                routes: [{ name: screen as keyof RootStackParamList }],
+              });
+            } else {
+              if (__DEV__) {
+                console.error('[MobileAuthInitializer] navigationRef.current is null');
+              }
+            }
+          } catch (error) {
+            if (__DEV__) {
+              console.error('[MobileAuthInitializer] Navigation error:', error);
+            }
+          }
+        }, 100);
+      }
+    );
+  }, [logout, navigationRef]);
+
+  // Refresco periódico de sesión (cada 90 segundos - antes de que expire el access token de 2 minutos)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Limpiar intervalo si el usuario no está autenticado
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    if (__DEV__) {
+      console.info('[MobileAuthInitializer] Setting up periodic session refresh (every 90 seconds)');
+    }
+
+    intervalRef.current = setInterval(() => {
+      if (__DEV__) {
+        console.info('[MobileAuthInitializer] Periodic session refresh triggered');
+      }
+      checkSessionThrottled();
+    }, SESSION_REFRESH_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) {
+        if (__DEV__) {
+          console.info('[MobileAuthInitializer] Cleaning up periodic session refresh');
+        }
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated]);
+
+  // Refresco de sesión cuando la app vuelve a estar en primer plano
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // Solo verificar si la app pasa a estar activa y el usuario está autenticado
+      if (nextAppState === 'active' && isAuthenticated) {
+        if (__DEV__) {
+          console.info('[MobileAuthInitializer] App became active, checking session');
+        }
+        checkSessionThrottled();
+      }
+    };
+
+    // Suscribirse a cambios de estado de la app
+    appStateSubscription.current = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      // Limpiar suscripción
+      if (appStateSubscription.current?.remove) {
+        appStateSubscription.current.remove();
+      }
+    };
+  }, [isAuthenticated]);
+
+  return null; // Este componente no renderiza nada
+}
