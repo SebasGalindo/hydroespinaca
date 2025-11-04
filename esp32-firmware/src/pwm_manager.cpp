@@ -51,7 +51,6 @@ void PWMManager::freeLedcChannelForPin(int pin) {
 
 void PWMManager::ensureAttached(int pin) {
     if (pin < 0 || pin >= 40) {
-        Serial.printf("❌ ERROR: Pin %d fuera de rango (0-39)\n", pin);
         return;
     }
 
@@ -83,22 +82,19 @@ void PWMManager::ensureAttached(int pin) {
 
 void PWMManager::writeDuty(int pin, int duty) {
     if (pin < 0 || pin >= 40) {
-        Serial.printf("❌ ERROR: Pin %d fuera de rango (0-39) para PWM\n", pin);
         return;
     }
-    
+
     ensureAttached(pin);
     int channel = pwmChannelOfPin[pin];
-    
+
     if (channel < 0 || channel >= 8) {
-        Serial.printf("❌ ERROR: Canal LEDC %d inválido para pin %d\n", channel, pin);
         return;
     }
-    
+
     taskENTER_CRITICAL(&pwmMux);
     ledcWrite(channel, constrain(duty, 0, 255));
     taskEXIT_CRITICAL(&pwmMux);
-    Serial.printf("⚡ PWM Pin %d: duty=%d (canal %d)\n", pin, duty, channel);
 }
 
 void PWMManager::detachIfAttached(int pin) {

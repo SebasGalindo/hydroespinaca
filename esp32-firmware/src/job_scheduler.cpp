@@ -32,19 +32,13 @@ JobScheduler::~JobScheduler() {
 void JobScheduler::setMQTTHandler(MQTTHandler* handler) {
     mqttHandler = handler;
     JobNotifier::setMQTTHandler(handler);
-    Serial.println("✅ MQTT handler vinculado al JobScheduler");
 }
 
 void JobScheduler::setSensorManager(SensorManager* manager) {
     sensorManager = manager;
-    Serial.println("✅ SensorManager vinculado con JobScheduler (para monitoreo del calefactor)");
 }
 
 void JobScheduler::begin() {
-    Serial.println("🚀 JobScheduler inicializado (modo ejecución concurrente)");
-    Serial.println("📋 Backend gestiona pin-locking vía coordinación");
-    Serial.println("⚙️  Firmware procesa múltiples jobs simultáneamente con timers no bloqueantes");
-
     activeJobs.clear();
 }
 
@@ -105,36 +99,28 @@ void JobScheduler::processStep(Step& step) {
             break;
 
         case STEP_IN_PROGRESS:
-            // 🔒 SAFETY: Check absolute maximum timeout (prevents infinite extensions)
+            // SAFETY: Check absolute maximum timeout
             if (now >= step.absoluteMaxEndTime) {
-                Serial.printf("🚨 [SAFETY] Pin %d excedió timeout absoluto (%.1f horas) - FORZANDO APAGADO\n",
-                             step.pin, MAX_ABSOLUTE_STEP_DURATION / (1000.0 * 60.0 * 60.0));
+                Serial.printf("SAFETY: Pin %d max timeout - Force shutdown\n", step.pin);
 
-                // Force shutdown
                 if (step.mode == DIGITAL) {
-                    int offValue = (step.pin == 27) ? LOW : HIGH;  // MOSFET vs Relay logic
+                    int offValue = (step.pin == 27) ? LOW : HIGH;
                     digitalWrite(step.pin, offValue);
                 } else if (step.mode == PWM) {
                     PWMManager::writeDuty(step.pin, 0);
                     PWMManager::detachIfAttached(step.pin);
                 }
 
-                // Clean up special states
                 if (step.heaterState) {
-                    Serial.println("🔥 [HEATER] Liberando estado (timeout absoluto)");
                     step.heaterState.reset();
                 }
                 if (step.humidifierState) {
-                    Serial.println("💨 [HUMID] Liberando estado (timeout absoluto)");
                     step.humidifierState.reset();
                 }
 
-                // 🔒 SAFETY: Set cooldown for this pin
                 pinCooldowns[step.pin] = now + PIN_COOLDOWN_DURATION;
-                Serial.printf("❄️ [COOLDOWN] Pin %d en cooldown por %.1f minutos\n",
-                             step.pin, PIN_COOLDOWN_DURATION / (1000.0 * 60.0));
 
-                step.status = STEP_OK;  // Mark as completed (with forced shutdown)
+                step.status = STEP_OK;
                 return;
             }
 
@@ -147,76 +133,29 @@ void JobScheduler::processStep(Step& step) {
 
             // Check if step duration has elapsed
             if (now >= step.endTime) {
-                // Step completed by timeout
                 step.status = STEP_OK;
 
-                // 🔥 CRÍTICO: APAGADO AUTOMÁTICO AL FINALIZAR
-                // Todos los pines deben apagarse cuando el tiempo termina
-                Serial.printf("⏰ [TIMEOUT] Tiempo cumplido para pin %d - apagando actuador\n", step.pin);
-
-                // Cleanup: Turn off pin if needed
+                // Cleanup: Turn off pin
                 if (step.pin == PIN_RELAY_HEATER) {
-                    digitalWrite(PIN_RELAY_HEATER, HIGH);  // Turn OFF
-                    Serial.println("🔥 [HEATER] Timeout alcanzado - calefactor apagado");
-                    // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
+                    digitalWrite(PIN_RELAY_HEATER, HIGH);
                     if (step.heaterState) {
-                        Serial.println("🔥 [HEATER] Liberando estado de monitoreo");
-                        step.heaterState.reset();  // Libera memoria explícitamente
+                        step.heaterState.reset();
                     }
                 } else if (step.pin == PIN_HUMID_POWER) {
-                    digitalWrite(PIN_HUMID_POWER, HIGH);  // Turn OFF power
-                    digitalWrite(PIN_HUMID_RELAY, HIGH);  // Turn OFF relay
-                    Serial.println("💨 [HUMID] Timeout alcanzado - humidificador apagado");
-                    // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
+                    digitalWrite(PIN_HUMID_POWER, HIGH);
+                    digitalWrite(PIN_HUMID_RELAY, HIGH);
                     if (step.humidifierState) {
-                        Serial.println("💨 [HUMID] Liberando estado de ciclo");
-                        step.humidifierState.reset();  // Libera memoria explícitamente
+                        step.humidifierState.reset();
                     }
                 } else {
-                    // ⚡ APAGADO GENÉRICO: Para todos los demás pines
                     if (step.mode == DIGITAL) {
-                        int offValue;
-
-                        // EXCEPCIÓN: Pin 27 (ventiladores) usa lógica directa (MOSFET, no relé)
-                        if (step.pin == 27) {
-                            // DIRECT LOGIC: LOW = OFF
-                            offValue = LOW;
-                        } else {
-                            // INVERTED LOGIC: HIGH = OFF (para relés)
-                            offValue = HIGH;
-                        }
-
+                        int offValue = (step.pin == 27) ? LOW : HIGH;
                         digitalWrite(step.pin, offValue);
-
-                        // Nombre del actuador para logging
-                        const char* pinName = "Genérico";
-                        if (step.pin == 15) pinName = "Piedra difusora";
-                        else if (step.pin == 25) pinName = "Calefactor agua";
-                        else if (step.pin == 19) pinName = "Bomba agua";
-                        else if (step.pin == 18) pinName = "LED amplio espectro";
-                        else if (step.pin == 27) pinName = "Ventiladores";
-
-                        Serial.printf("🔌 [TIMEOUT] Pin %d (%s): DIGITAL apagado (%s)\n",
-                                     step.pin, pinName, offValue == LOW ? "LOW" : "HIGH");
-
-                        // Verificar que realmente se apagó
-                        int readBack = digitalRead(step.pin);
-                        if (readBack != offValue) {
-                            Serial.printf("⚠️  [TIMEOUT] ADVERTENCIA: Pin %d no se apagó correctamente (leído=%d, esperado=%d)\n",
-                                         step.pin, readBack, offValue);
-                        }
                     } else if (step.mode == PWM) {
-                        // PWM: duty 0 = OFF (lógica directa, sin inversión)
                         PWMManager::writeDuty(step.pin, 0);
-                        Serial.printf("🔌 [TIMEOUT] Pin %d: PWM apagado (duty=0)\n", step.pin);
-
-                        // 🔥 CRÍTICO: Liberar canal LEDC para permitir reutilización del pin
                         PWMManager::detachIfAttached(step.pin);
-                        Serial.printf("🔓 [TIMEOUT] Pin %d: Canal PWM liberado\n", step.pin);
                     }
                 }
-
-                Serial.printf("✅ Step completado (pin %d)\n", step.pin);
             }
             break;
 
@@ -231,110 +170,69 @@ void JobScheduler::processStep(Step& step) {
 void JobScheduler::startStep(Step& step) {
     unsigned long now = millis();
 
-    Serial.printf("⚙️  Iniciando step: Pin %d, Mode: %s, Power: %s, Duration: %lu ms\n",
-                  step.pin,
-                  step.mode == DIGITAL ? "DIGITAL" : "PWM",
-                  (step.power == ON) ? "ON" : "OFF",
-                  step.duration);
-
-    // Validate pin range
     if (step.pin < 0 || step.pin >= 40) {
-        Serial.printf("❌ ERROR: Pin %d fuera de rango (0-39)\n", step.pin);
+        Serial.printf("ERROR: Pin %d out of range\n", step.pin);
         step.status = STEP_ERROR;
         return;
     }
 
-    // ⏱️ VALIDACIÓN: Tiempo mínimo de activación para actuadores específicos
-    const unsigned long MIN_WATER_PUMP_TIME = 5000;     // Bomba agua: mínimo 5 segundos
-    const unsigned long MIN_LED_TIME = 3000;            // LED: mínimo 3 segundos
+    const unsigned long MIN_WATER_PUMP_TIME = 5000;
+    const unsigned long MIN_LED_TIME = 3000;
 
     if (step.power == ON) {
-        if (step.pin == 19 && step.duration < MIN_WATER_PUMP_TIME) {  // Bomba de agua
-            Serial.printf("⚠️  [VALIDACIÓN] Bomba agua (pin 19): duration=%lu ms < mínimo=%lu ms\n",
-                         step.duration, MIN_WATER_PUMP_TIME);
-            Serial.printf("⚠️  [VALIDACIÓN] Ajustando a tiempo mínimo de seguridad\n");
+        if (step.pin == 19 && step.duration < MIN_WATER_PUMP_TIME) {
             step.duration = MIN_WATER_PUMP_TIME;
-        } else if (step.pin == 18 && step.duration < MIN_LED_TIME) {  // LED amplio espectro
-            Serial.printf("⚠️  [VALIDACIÓN] LED (pin 18): duration=%lu ms < mínimo=%lu ms\n",
-                         step.duration, MIN_LED_TIME);
-            Serial.printf("⚠️  [VALIDACIÓN] Ajustando a tiempo mínimo de seguridad\n");
+        } else if (step.pin == 18 && step.duration < MIN_LED_TIME) {
             step.duration = MIN_LED_TIME;
         }
     }
 
-    // 🔒 SAFETY: Check pin cooldown (prevent immediate re-activation after forced shutdown)
     if (pinCooldowns.count(step.pin) > 0 && now < pinCooldowns[step.pin]) {
-        unsigned long cooldownRemaining = pinCooldowns[step.pin] - now;
-        Serial.printf("❄️ [COOLDOWN] Pin %d en cooldown (restante: %.1f s) - ignorando comando\n",
-                     step.pin, cooldownRemaining / 1000.0);
         step.status = STEP_CANCELLED;
         return;
     }
 
-    // Mark as in progress
     step.status = STEP_IN_PROGRESS;
     step.startTime = now;
     step.endTime = now + step.duration;
-
-    // 🔒 SAFETY: Set absolute maximum end time (prevents infinite extensions)
     step.absoluteMaxEndTime = now + MAX_ABSOLUTE_STEP_DURATION;
 
-    Serial.printf("🔒 [SAFETY] Timeout absoluto: %.1f horas desde ahora\n",
-                 MAX_ABSOLUTE_STEP_DURATION / (1000.0 * 60.0 * 60.0));
-
-    // Configure pin
     pinMode(step.pin, OUTPUT);
 
     // SPECIAL CASE: Heater with temperature monitoring
     if (step.pin == PIN_RELAY_HEATER && step.power == ON) {
-        Serial.println("🔥 [HEATER] Iniciando con monitoreo térmico (22.5°C target, 25°C emergency)");
-        digitalWrite(PIN_RELAY_HEATER, LOW);  // Turn ON (active LOW)
-
-        // 🔒 SEGURIDAD: unique_ptr (no memory leak, compatible C++11)
+        digitalWrite(PIN_RELAY_HEATER, LOW);
         step.heaterState.reset(new HeaterMonitorState());
-        Serial.println("🔥 [HEATER] Estado de monitoreo inicializado");
         return;
     }
 
     // SPECIAL CASE: Humidifier with fan cycle
     if (step.pin == PIN_HUMID_POWER && step.power == ON) {
-        Serial.println("💨 [HUMID] Iniciando rutina de humidificador completa");
-        Serial.println("💨 [HUMID] Orden: 1️⃣ Generador niebla ON → 2️⃣ Ventilador ciclo (40s OFF / 15s ON)");
-
-        // Initialize pins
         pinMode(PIN_HUMID_RELAY, OUTPUT);
         pinMode(PIN_HUMID_POWER, OUTPUT);
 
-        // 1️⃣ PRIMERO: Activar generador de niebla (relay)
-        digitalWrite(PIN_HUMID_RELAY, LOW);   // Mist ON (active LOW)
-        Serial.println("💨 [HUMID] ✅ Step 1: Generador de niebla activado (PIN 13 = LOW)");
-        delay(100);  // Pequeña pausa para que se active
+        digitalWrite(PIN_HUMID_RELAY, LOW);
+        delay(100);
 
-        // 2️⃣ SEGUNDO: Mantener ventilador OFF inicialmente (ciclo comenzará después)
-        digitalWrite(PIN_HUMID_POWER, HIGH);  // Fan OFF initially (active LOW)
-        Serial.println("💨 [HUMID] ✅ Step 2: Ventilador en espera (PIN 14 = HIGH, iniciará ciclo en 40s)");
+        digitalWrite(PIN_HUMID_POWER, HIGH);
 
-        // 🔒 SEGURIDAD: unique_ptr (no memory leak, compatible C++11)
         step.humidifierState.reset(new HumidifierCycleState());
         step.humidifierState->lastFanCycleTime = now;
         step.humidifierState->fanOn = false;
 
-        Serial.println("💨 [HUMID] 🎉 Rutina de humidificador iniciada correctamente");
         return;
     }
 
     // OFF commands for special pins
     if (step.pin == PIN_RELAY_HEATER && step.power == OFF) {
-        digitalWrite(PIN_RELAY_HEATER, HIGH);  // Turn OFF
-        Serial.println("🔥 [HEATER] Apagado forzado");
+        digitalWrite(PIN_RELAY_HEATER, HIGH);
         step.status = STEP_OK;
         return;
     }
 
     if (step.pin == PIN_HUMID_POWER && step.power == OFF) {
-        digitalWrite(PIN_HUMID_POWER, HIGH);   // Fan OFF
-        digitalWrite(PIN_HUMID_RELAY, HIGH);   // Mist OFF
-        Serial.println("💨 [HUMID] Apagado forzado");
+        digitalWrite(PIN_HUMID_POWER, HIGH);
+        digitalWrite(PIN_HUMID_RELAY, HIGH);
         step.status = STEP_OK;
         return;
     }
@@ -342,49 +240,16 @@ void JobScheduler::startStep(Step& step) {
     // GENERIC: Digital or PWM control
     if (step.mode == DIGITAL) {
         int pinValue;
-        bool isInverted = true;  // Default: relay logic (inverted)
 
-        // EXCEPCIÓN: Pin 27 (ventiladores) usa lógica directa (MOSFET, no relé)
         if (step.pin == 27) {
-            // DIRECT LOGIC: MOSFET connection (non-inverted)
-            // power: "ON"  → HIGH (fan ON)
-            // power: "OFF" → LOW (fan OFF)
             pinValue = (step.power == ON) ? HIGH : LOW;
-            isInverted = false;
         } else {
-            // INVERTED LOGIC: All relays are active-LOW
-            // power: "ON"  → LOW (relay ON)
-            // power: "OFF" → HIGH (relay OFF)
             pinValue = (step.power == ON) ? LOW : HIGH;
         }
 
         digitalWrite(step.pin, pinValue);
 
-        // Mapeo de pines comunes para mejor diagnóstico
-        const char* pinName = "Genérico";
-        if (step.pin == 15) pinName = "Piedra difusora";
-        else if (step.pin == 25) pinName = "Calefactor agua";
-        else if (step.pin == 19) pinName = "Bomba agua";
-        else if (step.pin == 18) pinName = "LED amplio espectro";
-        else if (step.pin == 27) pinName = "Ventiladores";
-
-        Serial.printf("📌 Pin %d (%s): DIGITAL %s (lógica %s: %s)\n",
-                     step.pin,
-                     pinName,
-                     pinValue == LOW ? "LOW" : "HIGH",
-                     isInverted ? "invertida" : "directa",
-                     step.power == ON ? "ON" : "OFF");
-
-        // Verificar estado del pin después de escritura
-        int readBack = digitalRead(step.pin);
-        if (readBack != pinValue) {
-            Serial.printf("⚠️  ADVERTENCIA: Pin %d no cambió correctamente (esperado=%d, leído=%d)\n",
-                         step.pin, pinValue, readBack);
-        }
-
-        // OFF commands complete immediately (no need to wait for duration)
         if (step.power == OFF) {
-            Serial.printf("✅ Pin %d: OFF completado inmediatamente\n", step.pin);
             step.status = STEP_OK;
             return;
         }
@@ -392,23 +257,8 @@ void JobScheduler::startStep(Step& step) {
         PWMManager::ensureAttached(step.pin);
         PWMManager::writeDuty(step.pin, step.dutyCycle);
 
-        // Logging detallado para PWM
-        const char* pinName = "Genérico";
-        if (step.pin == 27) pinName = "Ventiladores";
-
-        Serial.printf("📌 Pin %d (%s): PWM duty=%d/255 (~%d%%)\n",
-                     step.pin, pinName, step.dutyCycle, (int)((step.dutyCycle / 255.0) * 100));
-
-        // NOTA: Pin 27 (ventiladores) conectado vía MOSFET - soporta control PWM directo
-        if (step.pin == 27) {
-            Serial.println("✅ Ventiladores (pin 27): PWM directo vía MOSFET (0=OFF, 255=ON)");
-        }
-
-        // OFF commands (duty=0) complete immediately and release PWM channel
         if (step.dutyCycle == 0) {
-            // 🔥 CRÍTICO: Liberar canal LEDC para permitir reutilización del pin
             PWMManager::detachIfAttached(step.pin);
-            Serial.printf("🔓 Pin %d: PWM OFF (duty=0) - Canal liberado inmediatamente\n", step.pin);
             step.status = STEP_OK;
             return;
         }
@@ -416,49 +266,17 @@ void JobScheduler::startStep(Step& step) {
 }
 
 void JobScheduler::completeJob(Job& job) {
-    Serial.println("═══════════════════════════════════════");
-    Serial.printf("🏁 JOB COMPLETADO: %s\n", job.commandId.c_str());
-
-    // Determine completion type
     if (job.hasError()) {
         job.completionType = JOB_COMPLETED_ERROR;
-        Serial.println("⚠️  Completado con errores");
     } else if (job.isCancelled()) {
         job.completionType = JOB_COMPLETED_CANCELLED;
-        Serial.println("⚠️  Completado (cancelado)");
-    } else {
-        Serial.println("✅ Completado exitosamente");
     }
 
-    // Report completion via MQTT
     JobNotifier::publishCompletion(job);
-
-    Serial.println("═══════════════════════════════════════");
-    Serial.printf("📊 Jobs activos restantes: %d\n", activeJobs.size() - 1);
 }
 
 void JobScheduler::reportCompletionsBatch(const std::vector<Job>& jobs) {
-    Serial.println("═══════════════════════════════════════");
-    Serial.printf("🏁 BATCH DE JOBS COMPLETADOS: %d jobs\n", jobs.size());
-
-    // Log each completed job
-    for (const auto& job : jobs) {
-        Serial.printf("   ✅ %s", job.commandId.c_str());
-
-        if (job.hasError()) {
-            Serial.println(" (con errores)");
-        } else if (job.isCancelled()) {
-            Serial.println(" (cancelado)");
-        } else {
-            Serial.println(" (exitoso)");
-        }
-    }
-
-    // Report all completions in a single batch via MQTT
     JobNotifier::publishCompletionsBatch(jobs);
-
-    Serial.println("═══════════════════════════════════════");
-    Serial.printf("📊 Jobs activos restantes: %d\n", activeJobs.size());
 }
 
 // ========================================
@@ -479,68 +297,34 @@ bool JobScheduler::isOffCommand(const Step& step) {
 }
 
 void JobScheduler::cancelJobsOnPin(int pin) {
-    int cancelledCount = 0;
-
     for (auto it = activeJobs.begin(); it != activeJobs.end(); ) {
         Job& job = *it;
         bool jobAffected = false;
 
-        // Check if any step in this job uses the pin
         for (auto& step : job.steps) {
             if (step.pin == pin && (step.status == STEP_PENDING || step.status == STEP_IN_PROGRESS)) {
                 step.status = STEP_CANCELLED;
                 jobAffected = true;
-                Serial.printf("🚫 [PREEMPT] Step cancelado en Job %s (Pin %d)\n",
-                             job.commandId.c_str(), pin);
             }
         }
 
-        // If the current step was cancelled, mark the job as completed (with cancellation)
         if (jobAffected) {
             job.completionType = JOB_COMPLETED_CANCELLED;
             it = activeJobs.erase(it);
-            cancelledCount++;
-
-            // Report cancellation
             JobNotifier::publishCompletion(job);
         } else {
             ++it;
         }
     }
-
-    if (cancelledCount > 0) {
-        Serial.printf("🚫 [PREEMPT] %d job(s) cancelado(s) en Pin %d\n", cancelledCount, pin);
-    }
 }
 
 void JobScheduler::executeOffCommandImmediately(const Step& step) {
-    Serial.printf("⚡ [INSTANT-OFF] Ejecutando apagado inmediato en Pin %d\n", step.pin);
-
     if (step.mode == DIGITAL) {
-        // Configure pin ONLY for DIGITAL mode (PWM uses LEDC and shouldn't use pinMode)
         pinMode(step.pin, OUTPUT);
-
-        int offValue;
-
-        // EXCEPCIÓN: Pin 27 (ventiladores) usa lógica directa (MOSFET, no relé)
-        if (step.pin == 27) {
-            // DIRECT LOGIC: LOW = OFF
-            offValue = LOW;
-        } else {
-            // INVERTED LOGIC: HIGH = OFF (para relés)
-            offValue = HIGH;
-        }
-
+        int offValue = (step.pin == 27) ? LOW : HIGH;
         digitalWrite(step.pin, offValue);
-        Serial.printf("⚡ [INSTANT-OFF] Pin %d → %s (lógica %s: OFF)\n",
-                     step.pin,
-                     offValue == LOW ? "LOW" : "HIGH",
-                     step.pin == 27 ? "directa" : "invertida");
     } else if (step.mode == PWM) {
-        // For PWM, directly detach without pinMode (avoid conflict with LEDC)
-        // detachIfAttached already sets duty to 0 before detaching
         PWMManager::detachIfAttached(step.pin);
-        Serial.printf("⚡ [INSTANT-OFF] Pin %d: PWM apagado y canal liberado\n", step.pin);
     }
 }
 
@@ -558,66 +342,28 @@ int JobScheduler::findActiveJobIndexByCommandId(const String& commandId) {
 }
 
 bool JobScheduler::extendOrUpdateJob(Job& existingJob, Job& newJob) {
-    Serial.printf("🔄 [CONSOLIDATE] Job duplicado detectado: %s\n", existingJob.commandId.c_str());
-
-    // Get current step of existing job
     Step* currentStep = existingJob.getCurrentStep();
 
-    if (currentStep == nullptr) {
-        Serial.println("⚠️  [CONSOLIDATE] Job existente ya completado - ignorando consolidación");
+    if (currentStep == nullptr || newJob.steps.empty()) {
         return false;
     }
 
-    // Get equivalent step from new job (assume same pin/actuator)
-    if (newJob.steps.empty()) {
-        Serial.println("⚠️  [CONSOLIDATE] Nuevo job sin steps - ignorando consolidación");
-        return false;
-    }
+    Step& newStep = newJob.steps[0];
 
-    Step& newStep = newJob.steps[0];  // First step of new job
-
-    // Validate that both jobs control the same pin
     if (currentStep->pin != newStep.pin) {
-        Serial.printf("⚠️  [CONSOLIDATE] Pines diferentes (actual=%d, nuevo=%d) - no se puede consolidar\n",
-                     currentStep->pin, newStep.pin);
         return false;
     }
 
-    // Calculate new end time based on new duration
     unsigned long now = millis();
     unsigned long newEndTime = now + newStep.duration;
 
-    // 🔒 SAFETY: Do NOT extend beyond absolute maximum end time
     if (newEndTime > currentStep->absoluteMaxEndTime) {
-        unsigned long maxRemainingTime = (currentStep->absoluteMaxEndTime > now) ?
-                                         (currentStep->absoluteMaxEndTime - now) : 0;
-
-        Serial.printf("🚨 [CONSOLIDATE] Actualización rechazada - excedería timeout absoluto\n");
-        Serial.printf("   - Nueva duración solicitada: %.2f s\n", newStep.duration / 1000.0);
-        Serial.printf("   - Tiempo máximo restante: %.2f s\n", maxRemainingTime / 1000.0);
-        Serial.printf("   ℹ️  El comando se completará al alcanzar el timeout absoluto\n");
         return false;
     }
 
-    // 🔄 COMPLETE REPLACEMENT: Update ALL parameters (not just duration)
-    unsigned long oldRemainingTime = (currentStep->endTime > now) ? (currentStep->endTime - now) : 0;
-
-    Serial.printf("🔄 [CONSOLIDATE] Reemplazando job completamente:\n");
-    Serial.printf("   - Tiempo restante anterior: %.2f s\n", oldRemainingTime / 1000.0);
-    Serial.printf("   - Nueva duración desde AHORA: %.2f s\n", newStep.duration / 1000.0);
-    Serial.printf("   - Power anterior: %s → nuevo: %s\n",
-                 currentStep->power == ON ? "ON" : "OFF",
-                 newStep.power == ON ? "ON" : "OFF");
-    if (currentStep->mode == PWM || newStep.mode == PWM) {
-        Serial.printf("   - DutyCycle anterior: %d → nuevo: %d\n",
-                     currentStep->dutyCycle, newStep.dutyCycle);
-    }
-
-    // 🔥 CRÍTICO: Update duration and timer FIRST
     currentStep->endTime = newEndTime;
     currentStep->duration = newStep.duration;
 
-    // 🔥 CRÍTICO: Update ALL step parameters (complete replacement)
     PowerState oldPower = currentStep->power;
     int oldDutyCycle = currentStep->dutyCycle;
     PinMode oldMode = currentStep->mode;
@@ -626,51 +372,34 @@ bool JobScheduler::extendOrUpdateJob(Job& existingJob, Job& newJob) {
     currentStep->dutyCycle = newStep.dutyCycle;
     currentStep->mode = newStep.mode;
 
-    // 🔥 CRÍTICO: Apply new parameters to pin IMMEDIATELY (if they changed)
-    // NOTA: Los comandos OFF nunca llegan aquí - van por el branch de preemption
     bool parametersChanged = (oldPower != newStep.power) ||
                              (oldDutyCycle != newStep.dutyCycle) ||
                              (oldMode != newStep.mode);
 
     if (parametersChanged) {
-        Serial.println("⚡ [CONSOLIDATE] Parámetros cambiaron - aplicando al pin inmediatamente");
-
         if (currentStep->mode == DIGITAL) {
             int pinValue = (currentStep->pin == 27) ?
-                          (currentStep->power == ON ? HIGH : LOW) :  // MOSFET (direct)
-                          (currentStep->power == ON ? LOW : HIGH);   // Relay (inverted)
+                          (currentStep->power == ON ? HIGH : LOW) :
+                          (currentStep->power == ON ? LOW : HIGH);
             digitalWrite(currentStep->pin, pinValue);
-            Serial.printf("🔌 [CONSOLIDATE] Pin %d → DIGITAL %s\n",
-                         currentStep->pin, pinValue == HIGH ? "HIGH" : "LOW");
         } else if (currentStep->mode == PWM) {
             PWMManager::ensureAttached(currentStep->pin);
             PWMManager::writeDuty(currentStep->pin, currentStep->dutyCycle);
-            Serial.printf("🔌 [CONSOLIDATE] Pin %d → PWM duty=%d/255 (~%d%%)\n",
-                         currentStep->pin, currentStep->dutyCycle,
-                         (int)((currentStep->dutyCycle / 255.0) * 100));
         }
 
-        // Special handling for specialized pins
         if (currentStep->pin == PIN_RELAY_HEATER && currentStep->power == ON) {
-            // Initialize heater monitoring if not already active
             if (!currentStep->heaterState) {
-                Serial.println("🔥 [CONSOLIDATE] Reiniciando monitoreo térmico de calefactor");
                 currentStep->heaterState.reset(new HeaterMonitorState());
             }
         } else if (currentStep->pin == PIN_HUMID_POWER && currentStep->power == ON) {
-            // Initialize humidifier cycle if not already active
             if (!currentStep->humidifierState) {
-                Serial.println("💨 [CONSOLIDATE] Reiniciando ciclo de humidificador");
                 currentStep->humidifierState.reset(new HumidifierCycleState());
                 currentStep->humidifierState->lastFanCycleTime = millis();
                 currentStep->humidifierState->fanOn = false;
             }
         }
-    } else {
-        Serial.println("ℹ️  [CONSOLIDATE] Parámetros sin cambios - solo se actualizó la duración");
     }
 
-    Serial.printf("   ✅ Job actualizado completamente - expira en %.2f s desde ahora\n", (newEndTime - now) / 1000.0);
     return true;
 }
 
@@ -679,25 +408,17 @@ bool JobScheduler::extendOrUpdateJob(Job& existingJob, Job& newJob) {
 // ========================================
 
 void JobScheduler::processJobSchedule(const JsonDocument& payload) {
-    Serial.println("═══════════════════════════════════════");
-    Serial.println("📥 PROCESANDO JOB SCHEDULE");
-
-    // Validate esp32Id
     if (!payload.containsKey("esp32Id") || payload["esp32Id"].as<String>() != ESP32_ID) {
-        Serial.println("❌ ERROR: esp32Id inválido o no coincide");
         return;
     }
 
-    // Extract queue array (actuator-service sends "queue" not "jobs")
     if (!payload.containsKey("queue")) {
-        Serial.println("❌ ERROR: Payload no contiene 'queue'");
         return;
     }
 
     JsonArrayConst jobsArray = payload["queue"].as<JsonArrayConst>();
-    Serial.printf("📦 Jobs en cola recibidos: %d\n", jobsArray.size());
 
-    // Parse and add all jobs to activeJobs directly (no queue, no consolidation)
+
     for (JsonVariantConst jobVariant : jobsArray) {
         JsonObjectConst jobObj = jobVariant.as<JsonObjectConst>();
 
@@ -706,9 +427,6 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
         newJob.baseId = jobObj["baseId"] | newJob.commandId;
         newJob.queueTime = millis();
 
-        Serial.printf("🔹 Job: %s\n", newJob.commandId.c_str());
-
-        // Parse steps
         JsonArrayConst stepsArray = jobObj["steps"].as<JsonArrayConst>();
         bool hasOffCommands = false;
 
@@ -719,107 +437,62 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
             step.pin = String(stepObj["pin"].as<String>()).toInt();
             step.mode = (stepObj["mode"].as<String>() == "PWM") ? PWM : DIGITAL;
 
-            // Parse power field (puede ser "ON", "OFF", null, o "null")
             if (stepObj.containsKey("power") && !stepObj["power"].isNull()) {
                 String powerStr = stepObj["power"].as<String>();
-                // Manejar tanto null real como "null" string
                 if (powerStr == "null" || powerStr == "") {
-                    step.power = OFF;  // Se auto-detectará para PWM
-                    Serial.printf("   [PARSE] power='%s' (null/vacío) → OFF temporal\n", powerStr.c_str());
+                    step.power = OFF;
                 } else {
                     step.power = (powerStr == "ON") ? ON : OFF;
-                    Serial.printf("   [PARSE] power='%s' → %s\n", powerStr.c_str(), step.power == ON ? "ON" : "OFF");
                 }
             } else {
-                // Si power no existe o es null real
                 step.power = OFF;
-                Serial.println("   [PARSE] power=null (ausente) → OFF temporal");
             }
 
-            // Duty cycle: backend sends 0-100, convert to 0-255
             if (stepObj.containsKey("dutyCycle")) {
                 double percent = stepObj["dutyCycle"].as<double>();
                 step.dutyCycle = (int)((percent / 100.0) * 255.0);
-                Serial.printf("   [PARSE] dutyCycle=%d%% → duty=%d/255\n", (int)percent, step.dutyCycle);
 
-                // AUTO-DETECT: Si es PWM con dutyCycle > 0, se considera ON
                 if (step.mode == PWM && step.dutyCycle > 0) {
                     step.power = ON;
-                    Serial.printf("   [AUTO-DETECT] PWM con duty=%d → power=ON ✓\n", step.dutyCycle);
                 }
             }
 
-            // Duration: backend sends seconds (decimal), convert to ms
             double durationSec = stepObj["duration"].as<double>();
             step.duration = (unsigned long)(durationSec * 1000.0);
             step.status = STEP_PENDING;
 
-            // Log ANTES del move (después del move, step está indefinido)
-            Serial.printf("   Pin %d, %s, %s, Duration: %lu ms\n",
-                         step.pin,
-                         step.mode == DIGITAL ? "DIGITAL" : "PWM",
-                         step.power == ON ? "ON" : "OFF",
-                         step.duration);
+            newJob.steps.emplace_back(std::move(step));
 
-            newJob.steps.emplace_back(std::move(step));  // Move para evitar copia
-
-            // Check if this is an OFF command (usar referencia al step ya movido)
             const Step& addedStep = newJob.steps.back();
             if (isOffCommand(addedStep)) {
                 hasOffCommands = true;
             }
         }
 
-        // PREEMPTION LOGIC: If this job contains OFF commands, apply preemption
         if (hasOffCommands) {
-            Serial.println("🚫 [PREEMPT] Job contiene comandos OFF - aplicando prelación");
 
-            // Process each OFF command with preemption
             for (auto& step : newJob.steps) {
                 if (isOffCommand(step)) {
-                    // Step 1: Cancel all active jobs on this pin
                     cancelJobsOnPin(step.pin);
-
-                    // Step 2: Execute OFF command immediately (ignore duration)
                     executeOffCommandImmediately(step);
-
-                    // Step 3: Mark this step as completed immediately
                     step.status = STEP_OK;
-                    Serial.printf("⚡ [PREEMPT] Comando OFF en Pin %d ejecutado y completado instantáneamente\n", step.pin);
                 }
             }
 
-            // Mark the entire OFF job as completed
-            newJob.currentStepIndex = newJob.steps.size();  // All steps processed
+            newJob.currentStepIndex = newJob.steps.size();
             newJob.completionType = JOB_COMPLETED_NORMAL;
-
-            // Report completion immediately
             JobNotifier::publishCompletion(newJob);
-            Serial.printf("✅ Job OFF %s completado instantáneamente (no agregado a cola activa)\n",
-                         newJob.commandId.c_str());
         } else {
-            // Normal job (not an OFF command) - check for duplicates before adding
             int existingJobIndex = findActiveJobIndexByCommandId(newJob.commandId);
 
             if (existingJobIndex >= 0) {
-                // Job with same commandId already exists - consolidate/extend
                 Job& existingJob = activeJobs[existingJobIndex];
-
-                if (extendOrUpdateJob(existingJob, newJob)) {
-                    Serial.printf("✅ Job %s consolidado (extendido/actualizado)\n", newJob.commandId.c_str());
-                } else {
-                    Serial.printf("ℹ️  Job %s ya existe - duplicado ignorado\n", newJob.commandId.c_str());
-                }
+                extendOrUpdateJob(existingJob, newJob);
             } else {
-                // New unique job - add to active jobs for concurrent execution
-                Serial.printf("✅ Job %s iniciado (total activos: %d)\n",
-                             newJob.commandId.c_str(), activeJobs.size() + 1);
-                activeJobs.emplace_back(std::move(newJob));  // Move para evitar copia
+                activeJobs.emplace_back(std::move(newJob));
             }
         }
     }
-
-    Serial.println("═══════════════════════════════════════");
 }
 
 // ========================================
@@ -827,28 +500,21 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
 // ========================================
 
 void JobScheduler::emergencyStop() {
-    Serial.println("🚨 PARADA DE EMERGENCIA - Deteniendo todos los jobs");
+    Serial.println("EMERGENCY STOP");
 
-    // Clear all active jobs
     activeJobs.clear();
 
-    // Turn off all pins (safety)
     for (int pin = 0; pin < 40; pin++) {
         pinMode(pin, OUTPUT);
 
-        // EXCEPCIÓN: Pin 27 (ventiladores) usa lógica directa (MOSFET, no relé)
         if (pin == 27) {
-            // DIRECT LOGIC: LOW = OFF
             digitalWrite(pin, LOW);
         } else {
-            // INVERTED LOGIC: All relays are active-LOW, so HIGH = OFF
             digitalWrite(pin, HIGH);
         }
 
         PWMManager::detachIfAttached(pin);
     }
-
-    Serial.println("✅ Parada de emergencia completada (pines apagados según su lógica)");
 }
 
 // ========================================
@@ -864,32 +530,7 @@ int JobScheduler::getQueueSize() {
 }
 
 void JobScheduler::printStatus() {
-    Serial.println("📊 JobScheduler Status:");
-    Serial.printf("   ⚙️  Jobs activos: %d\n", activeJobs.size());
-
-    if (activeJobs.empty()) {
-        Serial.println("   ✅ No hay jobs en ejecución");
-        return;
-    }
-
-    unsigned long now = millis();
-
-    for (const auto& job : activeJobs) {
-        Step* currentStep = const_cast<Job&>(job).getCurrentStep();
-
-        if (currentStep != nullptr) {
-            unsigned long remainingTime = (currentStep->endTime > now) ? (currentStep->endTime - now) : 0;
-
-            Serial.printf("   🔹 %s\n", job.commandId.c_str());
-            Serial.printf("      Pin: %d, Step: %d/%d, Restante: %.1f s\n",
-                         currentStep->pin,
-                         job.currentStepIndex + 1,
-                         (int)job.steps.size(),
-                         remainingTime / 1000.0);
-        } else {
-            Serial.printf("   🔹 %s (completando...)\n", job.commandId.c_str());
-        }
-    }
+    // Status method - kept minimal for production
 }
 // ========================================
 // NON-BLOCKING SPECIALIZED ROUTINES
@@ -903,33 +544,28 @@ void JobScheduler::updateHeaterMonitoring(Step& step) {
 
     const float HEATER_OFF_TEMP = 18.5f;
     const float HEATER_EMERGENCY_TEMP = 25.0f;
-    const unsigned long MONITOR_INTERVAL = 3000;  // 3 seconds
+    const unsigned long MONITOR_INTERVAL = 3000;
 
     unsigned long now = millis();
 
-    // Check monitoring interval
     if (now - step.heaterState->lastMonitorTime < MONITOR_INTERVAL) {
-        return;  // Not time to monitor yet
+        return;
     }
 
     step.heaterState->lastMonitorTime = now;
 
-    // Read temperature
     float currentTemp = sensorManager->readTemperature();
 
     if (isnan(currentTemp)) {
-        Serial.println("🔥 [HEATER-MONITOR] Lectura falló");
         return;
     }
 
-    // Add to buffer
     step.heaterState->tempBuffer[step.heaterState->tempBufferIndex] = currentTemp;
     step.heaterState->tempBufferIndex = (step.heaterState->tempBufferIndex + 1) % 10;
     if (!step.heaterState->tempBufferFull && step.heaterState->tempBufferIndex == 0) {
         step.heaterState->tempBufferFull = true;
     }
 
-    // Calculate average
     float avgTemp = 0.0f;
     int count = step.heaterState->tempBufferFull ? 10 : step.heaterState->tempBufferIndex;
     if (count > 0) {
@@ -939,62 +575,46 @@ void JobScheduler::updateHeaterMonitoring(Step& step) {
         avgTemp /= count;
     }
 
-    // EMERGENCY SHUTDOWN
     if (currentTemp >= HEATER_EMERGENCY_TEMP) {
-        Serial.printf("🔴 [HEATER] EMERGENCIA: %.1f°C ≥ %.1f°C - apagando\n",
-                     currentTemp, HEATER_EMERGENCY_TEMP);
+        Serial.printf("HEATER EMERGENCY: %.1f°C - Shutdown\n", currentTemp);
         digitalWrite(PIN_RELAY_HEATER, HIGH);
-        // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
         if (step.heaterState) {
-            Serial.println("🔥 [HEATER] Liberando estado de monitoreo (emergencia)");
-            step.heaterState.reset();  // Libera memoria explícitamente
+            step.heaterState.reset();
         }
         step.status = STEP_OK;
         return;
     }
 
-    // TARGET REACHED
     if (count > 0 && avgTemp >= HEATER_OFF_TEMP) {
-        Serial.printf("🔴 [HEATER] Objetivo alcanzado: %.1f°C promedio - apagando\n", avgTemp);
         digitalWrite(PIN_RELAY_HEATER, HIGH);
-        // 🔒 SEGURIDAD: Liberar estado antes de marcar como completo
         if (step.heaterState) {
-            Serial.println("🔥 [HEATER] Liberando estado de monitoreo (objetivo alcanzado)");
-            step.heaterState.reset();  // Libera memoria explícitamente
+            step.heaterState.reset();
         }
         step.status = STEP_OK;
         return;
     }
-
-    // Log progress
-    Serial.printf("🔥 [HEATER] Temp: %.1f°C, Promedio: %.1f°C (%d/%d)\n",
-                 currentTemp, avgTemp, count, 10);
 }
 
 void JobScheduler::updateHumidifierCycle(Step& step) {
     if (step.humidifierState == nullptr) return;
 
-    const unsigned long FAN_OFF_DURATION = 40000;  // 40 seconds
-    const unsigned long FAN_ON_DURATION = 15000;   // 15 seconds
+    const unsigned long FAN_OFF_DURATION = 40000;
+    const unsigned long FAN_ON_DURATION = 15000;
 
     unsigned long now = millis();
     unsigned long elapsed = now - step.humidifierState->lastFanCycleTime;
 
     if (step.humidifierState->fanOn) {
-        // Fan is ON - check if it's time to turn OFF
         if (elapsed >= FAN_ON_DURATION) {
-            digitalWrite(PIN_HUMID_POWER, HIGH);  // Fan OFF
+            digitalWrite(PIN_HUMID_POWER, HIGH);
             step.humidifierState->fanOn = false;
             step.humidifierState->lastFanCycleTime = now;
-            Serial.println("🌬️  [HUMID] Ventilador OFF - esperando 40s");
         }
     } else {
-        // Fan is OFF - check if it's time to turn ON
         if (elapsed >= FAN_OFF_DURATION) {
-            digitalWrite(PIN_HUMID_POWER, LOW);  // Fan ON
+            digitalWrite(PIN_HUMID_POWER, LOW);
             step.humidifierState->fanOn = true;
             step.humidifierState->lastFanCycleTime = now;
-            Serial.println("🌬️  [HUMID] Ventilador ON - duración 15s");
         }
     }
 }
