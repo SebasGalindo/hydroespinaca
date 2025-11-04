@@ -12,9 +12,17 @@ void JobNotifier::setMQTTHandler(MQTTHandler* handler) {
 
 void JobNotifier::publishCompletion(const Job& job) {
     if (job.commandId.isEmpty()) {
-        Serial.println("ERROR: Job without commandId - skipping completion");
+        Serial.println("❌ [NOTIFIER] ERROR: Job without commandId - skipping completion");
+        Serial.printf("    Job details: baseId=%s, stepCount=%d, currentStep=%d\n",
+                     job.baseId.c_str(),
+                     job.steps.size(),
+                     job.currentStepIndex);
+        // Print stack trace to debug where this is being called from
+        Serial.println("    This indicates a bug in job creation/processing!");
         return;
     }
+
+    Serial.printf("📢 [NOTIFIER] Preparing completion for commandId: %s\n", job.commandId.c_str());
 
     StaticJsonDocument<256> doc;
 
@@ -27,12 +35,14 @@ void JobNotifier::publishCompletion(const Job& job) {
     } else {
         String payload;
         serializeJson(doc, payload);
-        Serial.println("📤 Completion (offline): " + payload);
+        Serial.println("📤 [NOTIFIER] Completion (offline): " + payload);
     }
 }
 
 void JobNotifier::publishCompletionsBatch(const std::vector<Job>& jobs) {
     if (jobs.empty()) return;
+
+    Serial.printf("📢 [NOTIFIER] Processing batch of %d job(s)\n", jobs.size());
 
     if (jobs.size() == 1) {
         publishCompletion(jobs[0]);
@@ -44,6 +54,8 @@ void JobNotifier::publishCompletionsBatch(const std::vector<Job>& jobs) {
 
     for (const auto& job : jobs) {
         if (job.commandId.isEmpty()) {
+            Serial.println("⚠️  [NOTIFIER] Skipping job with empty commandId in batch");
+            Serial.printf("    baseId=%s, stepCount=%d\n", job.baseId.c_str(), job.steps.size());
             continue;
         }
 
@@ -55,8 +67,11 @@ void JobNotifier::publishCompletionsBatch(const std::vector<Job>& jobs) {
     }
 
     if (completions.empty()) {
+        Serial.println("⚠️  [NOTIFIER] No valid completions to send (all had empty commandId)");
         return;
     }
+
+    Serial.printf("📢 [NOTIFIER] Sending %d valid completion(s)\n", completions.size());
 
     if (mqttHandler && mqttHandler->isConnected()) {
         mqttHandler->publishCompletionsBatch(completions);

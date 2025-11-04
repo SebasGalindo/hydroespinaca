@@ -59,6 +59,14 @@ void JobScheduler::loop() {
 
         // If job is completed, accumulate it for batch reporting
         if (job.isCompleted()) {
+            unsigned long totalDuration = millis() - job.queueTime;
+            Serial.printf("\n✅ [SCHEDULER] Job completed:\n");
+            Serial.printf("    commandId: %s\n", job.commandId.c_str());
+            Serial.printf("    Total duration: %.1fs\n", totalDuration / 1000.0);
+            Serial.printf("    Status: %s\n",
+                         job.hasError() ? "ERROR" :
+                         job.isCancelled() ? "CANCELLED" : "OK");
+
             completedJobs.emplace_back(std::move(job));  // Move para evitar copia y double-delete
             it = activeJobs.erase(it);  // Remove from active jobs
         } else {
@@ -68,6 +76,7 @@ void JobScheduler::loop() {
 
     // Report all completions in a single batch
     if (!completedJobs.empty()) {
+        Serial.printf("\n📤 [SCHEDULER] Reporting %d completed job(s)\n", completedJobs.size());
         reportCompletionsBatch(completedJobs);
     }
 }
@@ -297,6 +306,8 @@ bool JobScheduler::isOffCommand(const Step& step) {
 }
 
 void JobScheduler::cancelJobsOnPin(int pin) {
+    Serial.printf("🚫 [SCHEDULER] Canceling jobs on pin %d\n", pin);
+
     for (auto it = activeJobs.begin(); it != activeJobs.end(); ) {
         Job& job = *it;
         bool jobAffected = false;
@@ -309,13 +320,21 @@ void JobScheduler::cancelJobsOnPin(int pin) {
         }
 
         if (jobAffected) {
+            Serial.printf("    Canceling job: commandId=%s\n", job.commandId.c_str());
             job.completionType = JOB_COMPLETED_CANCELLED;
-            it = activeJobs.erase(it);
+
+            // CRITICAL FIX: Publish completion BEFORE erasing the job
+            // Otherwise, the job reference becomes invalid after erase()
             JobNotifier::publishCompletion(job);
+
+            // Now safe to erase
+            it = activeJobs.erase(it);
         } else {
             ++it;
         }
     }
+
+    Serial.printf("    Jobs remaining: %d\n", activeJobs.size());
 }
 
 void JobScheduler::executeOffCommandImmediately(const Step& step) {
@@ -413,22 +432,44 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
     }
 
     if (!payload.containsKey("queue")) {
+        Serial.println("❌ [SCHEDULER] No 'queue' field in payload");
         return;
     }
 
     JsonArrayConst jobsArray = payload["queue"].as<JsonArrayConst>();
 
+    Serial.printf("🎯 [SCHEDULER] Processing %d job(s) from queue\n", jobsArray.size());
 
     for (JsonVariantConst jobVariant : jobsArray) {
         JsonObjectConst jobObj = jobVariant.as<JsonObjectConst>();
 
         Job newJob;
+
+        // Validate commandId exists
+        if (!jobObj.containsKey("commandId")) {
+            Serial.println("❌ [SCHEDULER] Job missing 'commandId' field - SKIPPING");
+            continue;
+        }
+
         newJob.commandId = jobObj["commandId"].as<String>();
+
+        // Additional validation: commandId must not be empty
+        if (newJob.commandId.isEmpty()) {
+            Serial.println("❌ [SCHEDULER] Job has empty 'commandId' - SKIPPING");
+            continue;
+        }
+
         newJob.baseId = jobObj["baseId"] | newJob.commandId;
         newJob.queueTime = millis();
 
+        Serial.printf("\n📋 [SCHEDULER] Parsing job:\n");
+        Serial.printf("    commandId: '%s' (length: %d)\n", newJob.commandId.c_str(), newJob.commandId.length());
+        Serial.printf("    baseId: '%s'\n", newJob.baseId.c_str());
+
         JsonArrayConst stepsArray = jobObj["steps"].as<JsonArrayConst>();
         bool hasOffCommands = false;
+
+        Serial.printf("    Steps: %d\n", stepsArray.size());
 
         for (JsonVariantConst stepVariant : stepsArray) {
             JsonObjectConst stepObj = stepVariant.as<JsonObjectConst>();
@@ -436,6 +477,8 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
             Step step;
             step.pin = String(stepObj["pin"].as<String>()).toInt();
             step.mode = (stepObj["mode"].as<String>() == "PWM") ? PWM : DIGITAL;
+
+            Serial.printf("      Step: pin=%d, mode=%s", step.pin, (step.mode == PWM) ? "PWM" : "DIGITAL");
 
             if (stepObj.containsKey("power") && !stepObj["power"].isNull()) {
                 String powerStr = stepObj["power"].as<String>();
@@ -461,6 +504,11 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
             step.duration = (unsigned long)(durationSec * 1000.0);
             step.status = STEP_PENDING;
 
+            Serial.printf(", power=%s, duty=%d, duration=%.1fs\n",
+                         (step.power == ON) ? "ON" : "OFF",
+                         step.dutyCycle,
+                         durationSec);
+
             newJob.steps.emplace_back(std::move(step));
 
             const Step& addedStep = newJob.steps.back();
@@ -470,9 +518,11 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
         }
 
         if (hasOffCommands) {
+            Serial.printf("⚡ [SCHEDULER] Job contains OFF commands - Immediate execution\n");
 
             for (auto& step : newJob.steps) {
                 if (isOffCommand(step)) {
+                    Serial.printf("    Canceling jobs on pin %d\n", step.pin);
                     cancelJobsOnPin(step.pin);
                     executeOffCommandImmediately(step);
                     step.status = STEP_OK;
@@ -481,16 +531,36 @@ void JobScheduler::processJobSchedule(const JsonDocument& payload) {
 
             newJob.currentStepIndex = newJob.steps.size();
             newJob.completionType = JOB_COMPLETED_NORMAL;
+            Serial.printf("✅ [SCHEDULER] OFF command executed - Publishing completion\n");
             JobNotifier::publishCompletion(newJob);
         } else {
             int existingJobIndex = findActiveJobIndexByCommandId(newJob.commandId);
 
             if (existingJobIndex >= 0) {
+                Serial.printf("🔄 [SCHEDULER] Job already exists - Extending/Updating\n");
                 Job& existingJob = activeJobs[existingJobIndex];
                 extendOrUpdateJob(existingJob, newJob);
             } else {
+                Serial.printf("➕ [SCHEDULER] Adding new job to active queue\n");
+                Serial.printf("    Active jobs before: %d\n", activeJobs.size());
                 activeJobs.emplace_back(std::move(newJob));
+                Serial.printf("    Active jobs after: %d\n", activeJobs.size());
             }
+        }
+    }
+
+    // Print active jobs summary
+    if (!activeJobs.empty()) {
+        Serial.printf("\n🔧 [SCHEDULER] Active jobs summary (%d total):\n", activeJobs.size());
+        for (size_t i = 0; i < activeJobs.size(); i++) {
+            const Job& job = activeJobs[i];
+            unsigned long elapsed = millis() - job.queueTime;
+            Serial.printf("    %d. commandId=%s, step=%d/%d, elapsed=%.1fs\n",
+                         i + 1,
+                         job.commandId.c_str(),
+                         job.currentStepIndex,
+                         job.steps.size(),
+                         elapsed / 1000.0);
         }
     }
 }

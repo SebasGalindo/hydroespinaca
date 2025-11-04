@@ -133,6 +133,7 @@ bool MQTTHandler::publishReadings(DynamicJsonDocument& readings) {
     }
 
     if (!isConnected()) {
+        Serial.println("📊 [TELEMETRY] Skipping - MQTT disconnected");
         return false;
     }
 
@@ -141,10 +142,15 @@ bool MQTTHandler::publishReadings(DynamicJsonDocument& readings) {
         return false;
     }
 
+    Serial.printf("📊 [TELEMETRY] Publishing %d bytes to %s\n", payload.length(), TOPIC_READINGS);
+    Serial.printf("    Payload: %s\n", payload.c_str());
+
     bool success = mqttClient.publish(TOPIC_READINGS, payload.c_str(), false);
 
     if (!success) {
-        Serial.printf("ERROR: Telemetry publish failed (state: %d)\n", mqttClient.state());
+        Serial.printf("❌ [TELEMETRY] Publish failed (state: %d)\n", mqttClient.state());
+    } else {
+        Serial.println("✅ [TELEMETRY] Published successfully");
     }
 
     return success;
@@ -172,14 +178,21 @@ bool MQTTHandler::publishCompletion(const DynamicJsonDocument& completion) {
     String payload;
     serializeJson(completion, payload);
 
+    Serial.printf("📤 [COMPLETION] Publishing to %s\n", TOPIC_COMPLETIONS);
+    Serial.printf("    Payload: %s\n", payload.c_str());
+
     if (!isConnected()) {
+        Serial.println("⚠️  [COMPLETION] MQTT disconnected - Buffering event");
         bufferEvent(payload, "completion");
         return false;
     }
 
     bool success = mqttClient.publish(TOPIC_COMPLETIONS, payload.c_str(), false);
     if (!success) {
+        Serial.printf("❌ [COMPLETION] Publish failed (state: %d) - Buffering\n", mqttClient.state());
         bufferEvent(payload, "completion");
+    } else {
+        Serial.println("✅ [COMPLETION] Published successfully");
     }
 
     return success;
@@ -192,6 +205,8 @@ bool MQTTHandler::publishCompletionsBatch(const std::vector<DynamicJsonDocument>
         return publishCompletion(completions[0]);
     }
 
+    Serial.printf("📤 [COMPLETION-BATCH] Publishing %d completions\n", completions.size());
+
     DynamicJsonDocument batchDoc(2048);
     JsonArray completionsArray = batchDoc.createNestedArray("completions");
 
@@ -200,19 +215,26 @@ bool MQTTHandler::publishCompletionsBatch(const std::vector<DynamicJsonDocument>
         obj["esp32Id"] = completion["esp32Id"];
         obj["commandId"] = completion["commandId"];
         obj["status"] = completion["status"];
+        Serial.printf("    - commandId: %s, status: %s\n",
+                     completion["commandId"].as<const char*>(),
+                     completion["status"].as<const char*>());
     }
 
     String payload;
     serializeJson(batchDoc, payload);
 
     if (!isConnected()) {
+        Serial.println("⚠️  [COMPLETION-BATCH] MQTT disconnected - Buffering");
         bufferEvent(payload, "completion");
         return false;
     }
 
     bool success = mqttClient.publish(TOPIC_COMPLETIONS, payload.c_str(), false);
     if (!success) {
+        Serial.printf("❌ [COMPLETION-BATCH] Publish failed (state: %d)\n", mqttClient.state());
         bufferEvent(payload, "completion");
+    } else {
+        Serial.println("✅ [COMPLETION-BATCH] Published successfully");
     }
 
     return success;
@@ -232,32 +254,40 @@ void MQTTHandler::onMessageReceived(char* topic, byte* payload, unsigned int len
         message += (char)payload[i];
     }
 
+    Serial.printf("📥 [MQTT-RX] Received %d bytes on topic: %s\n", length, topic);
+    Serial.printf("    Payload: %s\n", message.c_str());
+
     if (String(topic) == TOPIC_JOB_SCHEDULE) {
         handleJobSchedule(message);
     }
 }
 
 void MQTTHandler::handleJobSchedule(const String& payload) {
+    Serial.println("🔧 [JOB-SCHEDULE] Parsing command payload...");
+
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error) {
-        Serial.printf("ERROR: JSON parse failed: %s\n", error.c_str());
+        Serial.printf("❌ [JOB-SCHEDULE] JSON parse failed: %s\n", error.c_str());
         return;
     }
 
     if (!doc.containsKey("esp32Id")) {
-        Serial.println("ERROR: Missing esp32Id");
+        Serial.println("❌ [JOB-SCHEDULE] Missing esp32Id");
         return;
     }
 
     String receivedId = doc["esp32Id"].as<String>();
     if (receivedId != ESP32_ID) {
+        Serial.printf("⚠️  [JOB-SCHEDULE] Wrong esp32Id (expected: %s, got: %s)\n", ESP32_ID, receivedId.c_str());
         return;
     }
 
+    Serial.printf("✅ [JOB-SCHEDULE] Valid command for ESP32 ID: %s\n", ESP32_ID);
+
     if (!jobScheduler) {
-        Serial.println("ERROR: JobScheduler unavailable");
+        Serial.println("❌ [JOB-SCHEDULE] JobScheduler unavailable");
         return;
     }
 
