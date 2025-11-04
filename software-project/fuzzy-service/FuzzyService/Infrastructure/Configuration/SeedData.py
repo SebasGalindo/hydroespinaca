@@ -258,8 +258,8 @@ class SeedDataConfig:
                 "variable_id": "68e05364d86d6edc39982870",
                 "label": "bajaLuminosidad",
                 "membership_function": {
-                    "function_type": "triangular",
-                    "parameters": [0.0, 5000.0, 10000.0],
+                    "function_type": "trapezoidal",
+                    "parameters": [0.0, 0.0, 5000.0, 10000.0],
                     "universe_min": 0.0,
                     "universe_max": 65535.0
                 }
@@ -373,17 +373,6 @@ class SeedDataConfig:
                 "membership_function": {
                     "function_type": "triangular",
                     "parameters": [17.0, 20.0, 23.0],  # Ajustado: empieza en 17°C, peak en 20°C
-                    "universe_min": -10.0,
-                    "universe_max": 85.0
-                }
-            },
-            {
-                "_id": "68e05364d86d6edc3998288b",
-                "variable_id": "68e05364d86d6edc39982873",
-                "label": "aguaCaliente",
-                "membership_function": {
-                    "function_type": "triangular",
-                    "parameters": [21.0, 53.0, 85.0],
                     "universe_min": -10.0,
                     "universe_max": 85.0
                 }
@@ -1150,34 +1139,8 @@ class SeedDataConfig:
                 ]
             },
             {
-                "_id": "68e05365d86d6edc39982917",
-                "name": "Regla 8: Agua demasiado caliente",
-                "description": "Si agua está demasiado caliente, apagar calefactor de agua con duración corta",
-                "conditions": [
-                    {
-                        "variable_id": "68e05364d86d6edc39982873",  # Water Temperature
-                        "variable_name": VariableNames.WATER_TEMPERATURE,
-                        "operator": "IS",
-                        "value": "aguaCaliente"
-                    }
-                ],
-                "connectors": [],
-                "consequents": [
-                    {
-                        "variable_id": "68e05364d86d6edc398828B1",  # Control Calefactor Agua
-                        "terms": ["68e05364d86d6edc398828C2"],  # OFF
-                        "aggregation_method": "max"
-                    },
-                    {
-                        "variable_id": "68e05364d86d6edc3998287b",  # Duración de Calefacción de Agua
-                        "terms": ["68e05364d86d6edc398828DC"],  # duracionCorta
-                        "aggregation_method": "max"
-                    }
-                ]
-            },
-            {
                 "_id": "68e05365d86d6edc39982918",
-                "name": "Regla 9: Nivel de luz bajo",
+                "name": "Regla 8: Nivel de luz bajo",
                 "description": "Si la luminosidad (BH1750) es baja (< 10000 lux), encender luz artificial con duración media",
                 "conditions": [
                     {
@@ -1203,8 +1166,8 @@ class SeedDataConfig:
             },
             {
                 "_id": "68e05365d86d6edc39982919",
-                "name": "Regla 10: Nivel de luz optimo",
-                "description": "Si la luminosidad (BH1750) es normal/óptima (10000-13000 lux), apagar luz artificial con duración corta",
+                "name": "Regla 9: Nivel de luz optimo",
+                "description": "Si la luminosidad (BH1750) es normal/óptima, apagar luz artificial con duración corta",
                 "conditions": [
                     {
                         "variable_id": "68e05364d86d6edc39982870",  # Luminosity
@@ -1229,7 +1192,7 @@ class SeedDataConfig:
             },
             {
                 "_id": "68e05365d86d6edc3998291A",
-                "name": "Regla 11: Nivel Crítico - Bloqueo de Actuadores de Agua",
+                "name": "Regla 10: Nivel Crítico - Bloqueo de Actuadores de Agua",
                 "description": "Si el Nivel de Agua es Crítico, forzar el apagado de la Bomba de Agua, Calefactor de Agua, Bomba de Aireación y Humidificador para proteger el hardware",
                 "conditions": [
                     {
