@@ -309,14 +309,14 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             {
                 { "ActuatorCode", 1 },
                 { "CommandId", 1 },
-                { "FinishedAt", 1 },
+                { "CreatedAt", 1 },
                 { "TotalDurationSeconds", 1 },
                 { "StatusGeneral", 1 }
             }),
-            // Stage 3: Sort by FinishedAt ascending
+            // Stage 3: Sort by CreatedAt ascending
             new BsonDocument("$sort", new BsonDocument
             {
-                { "FinishedAt", 1 }
+                { "CreatedAt", 1 }
             })
         };
 
@@ -325,7 +325,7 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
         // Convert timestamps from UTC to Colombia time for frontend during mapping
         var timelineData = results.Select(doc =>
         {
-            var utcTimestamp = doc["FinishedAt"].ToUniversalTime();
+            var utcTimestamp = doc["CreatedAt"].ToUniversalTime();
             var colombiaTimestamp = TimeZoneInfo.ConvertTimeFromUtc(utcTimestamp, _colombiaTz);
 
             return new TimelineData
