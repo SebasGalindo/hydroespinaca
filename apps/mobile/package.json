@@ -18,7 +18,8 @@
     "clean:cache": "rm -rf .expo && rm -rf node_modules/.cache",
     "clean:all": "rm -rf .expo && rm -rf node_modules && rm -rf node_modules/.cache",
     "rebuild": "pnpm clean:cache && cd ../../packages/shared && pnpm build && cd - && pnpm start:clean",
-    "postinstall": "cd ../../packages/shared && pnpm install && pnpm build",
+    "build:shared": "cd ../../packages/shared && pnpm build",
+    "eas-build-pre-install": "node -e \"const {execSync} = require('child_process'); execSync('cd ../../packages/shared && pnpm install && pnpm build', {stdio: 'inherit'})\"",
     "doctor": "pnpm exec expo doctor",
     "doctor:fix": "pnpm exec expo install --fix",
     "precheck": "pnpm exec tsc --noEmit && pnpm dlx depcheck && pnpm exec expo-doctor"
@@ -32,7 +33,7 @@
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/native": "^7.1.19",
     "@react-navigation/native-stack": "^7.6.2",
-    "expo": "~54.0.0",
+    "expo": "~54.0.22",
     "expo-asset": "12.0.9",
     "expo-constants": "18.0.10",
     "expo-file-system": "19.0.17",
