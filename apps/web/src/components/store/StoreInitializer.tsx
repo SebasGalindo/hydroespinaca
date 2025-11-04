@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuthStore, setAuthCallbacks } from '@hydroespinaca/shared';
+import { useAuthStore, setAuthCallbacks, setAuthStoreRedirectCallback } from '@hydroespinaca/shared';
 
 // Configuración del refresco de sesión
 // IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
@@ -29,8 +29,15 @@ export function StoreInitializer() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isLoading = useAuthStore(state => state.isLoading);
 
-  // Configurar callbacks globales para authFetch
+  // Configurar callbacks globales para authFetch y authStore
   useEffect(() => {
+    const redirectHandler = (path: string) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('[StoreInitializer] Redirect triggered to:', path);
+      }
+      router.push(path);
+    };
+
     setAuthCallbacks(
       async () => {
         if (process.env.NODE_ENV === 'development') {
@@ -38,13 +45,11 @@ export function StoreInitializer() {
         }
         await logout();
       },
-      (path: string) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.info('[StoreInitializer] authFetch triggered redirect to:', path);
-        }
-        router.push(path);
-      }
+      redirectHandler
     );
+
+    // Also set redirect callback for authStore (for checkSession 401 handling)
+    setAuthStoreRedirectCallback(redirectHandler);
   }, [logout, router]);
 
   // Función para verificar sesión con throttle

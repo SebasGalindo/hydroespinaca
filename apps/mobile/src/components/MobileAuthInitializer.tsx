@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import type { NavigationContainerRef } from '@react-navigation/native';
-import { setAuthCallbacks, useAuthStore } from '@hydroespinaca/shared';
+import { setAuthCallbacks, setAuthStoreRedirectCallback, useAuthStore } from '@hydroespinaca/shared';
 
 // Configuración del refresco de sesión
 // IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
@@ -53,11 +53,40 @@ export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerPr
     }
   };
 
-  // Configurar callbacks globales para authFetch
+  // Configurar callbacks globales para authFetch y authStore
   useEffect(() => {
     if (__DEV__) {
       console.info('[MobileAuthInitializer] Setting up auth callbacks');
     }
+
+    const redirectHandler = (screen: string) => {
+      if (__DEV__) {
+        console.info('[MobileAuthInitializer] Redirect triggered to:', screen);
+      }
+      // Use setTimeout to ensure logout completes and navigation context is ready
+      setTimeout(() => {
+        try {
+          if (navigationRef.current) {
+            if (__DEV__) {
+              console.info('[MobileAuthInitializer] Executing navigationRef.reset to:', screen);
+            }
+            // Use reset instead of replace to ensure we clear the navigation stack
+            navigationRef.current.reset({
+              index: 0,
+              routes: [{ name: screen as keyof RootStackParamList }],
+            });
+          } else {
+            if (__DEV__) {
+              console.error('[MobileAuthInitializer] navigationRef.current is null');
+            }
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.error('[MobileAuthInitializer] Navigation error:', error);
+          }
+        }
+      }, 100);
+    };
 
     setAuthCallbacks(
       async () => {
@@ -66,35 +95,11 @@ export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerPr
         }
         await logout();
       },
-      (screen: string) => {
-        if (__DEV__) {
-          console.info('[MobileAuthInitializer] authFetch triggered redirect to:', screen);
-        }
-        // Use setTimeout to ensure logout completes and navigation context is ready
-        setTimeout(() => {
-          try {
-            if (navigationRef.current) {
-              if (__DEV__) {
-                console.info('[MobileAuthInitializer] Executing navigationRef.reset to:', screen);
-              }
-              // Use reset instead of replace to ensure we clear the navigation stack
-              navigationRef.current.reset({
-                index: 0,
-                routes: [{ name: screen as keyof RootStackParamList }],
-              });
-            } else {
-              if (__DEV__) {
-                console.error('[MobileAuthInitializer] navigationRef.current is null');
-              }
-            }
-          } catch (error) {
-            if (__DEV__) {
-              console.error('[MobileAuthInitializer] Navigation error:', error);
-            }
-          }
-        }, 100);
-      }
+      redirectHandler
     );
+
+    // Also set redirect callback for authStore (for checkSession 401 handling)
+    setAuthStoreRedirectCallback(redirectHandler);
   }, [logout, navigationRef]);
 
   // Refresco periódico de sesión (cada 90 segundos - antes de que expire el access token de 2 minutos)

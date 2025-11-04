@@ -8,27 +8,32 @@
     "userInterfaceStyle": "light",
     "jsEngine": "hermes",
     "newArchEnabled": true,
+    "description": "Sistema de monitoreo y control hidropónico inteligente. Supervisa las variables ambientales de tu cultivo hidropónico de espinaca, con control automatizado basado en lógica difusa.",
     "platforms": [
-      "ios",
-      "android",
-      "web"
+      "android"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#16a34a"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hidroespinaca.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#16a34a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.hidroespinaca.mobile"
+      "package": "com.hidroespinaca.mobile",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
