@@ -4,6 +4,13 @@ import { SessionStorage } from "../utils"; // Import from index to use platform-
 import { detectPlatform } from "../utils/apiConfig";
 import type { Session } from "../types/auth";
 
+// Import to access redirect callback
+let redirectCallback: ((path: string) => void) | null = null;
+
+export function setAuthStoreRedirectCallback(redirect: (path: string) => void) {
+  redirectCallback = redirect;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -237,28 +244,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
     } catch (error) {
-      // Session is invalid or expired - just clear local state
-      // Backend will handle cookie cleanup when user explicitly logs out
+      // Session is invalid or expired
       if (process.env.NODE_ENV === 'development') {
         if (error instanceof ApiError && error.status === 401) {
-          console.info('[AuthStore] No valid session found (401)');
+          console.info('[AuthStore] No valid session found (401) - executing full cleanup');
         } else {
           console.warn('[AuthStore] Session check failed:', error);
         }
       }
 
-      // Clear mobile tokens if applicable
-      if (platform === 'mobile') {
-        try {
-          await SessionStorage.clearSession();
-        } catch (cleanupError) {
+      // If it's a 401 (unauthorized), execute full logout to clean cookies and storage
+      if (error instanceof ApiError && error.status === 401) {
+        // Clear browser storage for web
+        if (platform === 'web' && typeof window !== 'undefined') {
+          if (typeof (window as any).localStorage !== 'undefined') {
+            (window as any).localStorage.clear();
+          }
+          if (typeof (window as any).sessionStorage !== 'undefined') {
+            (window as any).sessionStorage.clear();
+          }
           if (process.env.NODE_ENV === 'development') {
-            console.warn('[AuthStore] Failed to clear mobile session storage:', cleanupError);
+            console.info('[AuthStore] Browser storage cleared (localStorage, sessionStorage)');
+          }
+        }
+
+        // Clear mobile tokens if applicable
+        if (platform === 'mobile') {
+          try {
+            await SessionStorage.clearSession();
+          } catch (cleanupError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[AuthStore] Failed to clear mobile session storage:', cleanupError);
+            }
+          }
+        }
+
+        // Call logout to clean server-side cookies (backend will delete cookies even if session doesn't exist)
+        try {
+          await authService.logout(platform === 'web' ? 'web' : 'mobile');
+          if (process.env.NODE_ENV === 'development') {
+            console.info('[AuthStore] Logout endpoint called to clean server-side cookies');
+          }
+        } catch (logoutError) {
+          // Ignore errors - session is already invalid
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[AuthStore] Logout endpoint failed (expected if session already invalid):', logoutError);
+          }
+        }
+
+        // Trigger immediate redirect to login using callback
+        if (redirectCallback) {
+          if (process.env.NODE_ENV === 'development') {
+            console.info('[AuthStore] Triggering immediate redirect to login');
+          }
+          redirectCallback(platform === 'web' ? '/login' : 'Login');
+        } else if (platform === 'web' && typeof window !== 'undefined' && window.location) {
+          // Fallback for web: use window.location
+          if (process.env.NODE_ENV === 'development') {
+            console.info('[AuthStore] No redirect callback, using window.location fallback');
+          }
+          window.location.href = '/login';
+        }
+      } else {
+        // For other errors (network, etc.), just clear mobile tokens
+        if (platform === 'mobile') {
+          try {
+            await SessionStorage.clearSession();
+          } catch (cleanupError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[AuthStore] Failed to clear mobile session storage:', cleanupError);
+            }
           }
         }
       }
 
-      // No valid session found - clear local state only
+      // Clear local state
       set({
         user: null,
         session: null,

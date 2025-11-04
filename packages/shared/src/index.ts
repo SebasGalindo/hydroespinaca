@@ -1,5 +1,5 @@
 // Export all stores
-export { useAuthStore } from './store';
+export { useAuthStore, setAuthStoreRedirectCallback } from './store';
 
 // Export store-specific types
 export type { User } from './store';
