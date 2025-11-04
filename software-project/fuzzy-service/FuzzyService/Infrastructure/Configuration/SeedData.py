@@ -327,7 +327,7 @@ class SeedDataConfig:
                 "label": "ambienteSeco",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [0.0, 30.0, 60.0],
+                    "parameters": [0.0, 30.0, 70.0],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
@@ -338,18 +338,7 @@ class SeedDataConfig:
                 "label": "humedadNormal",
                 "membership_function": {
                     "function_type": "triangular",
-                    "parameters": [55.0, 66.5, 78.0],
-                    "universe_min": 0.0,
-                    "universe_max": 100.0
-                }
-            },
-            {
-                "_id": "68e05364d86d6edc39982888",
-                "variable_id": "68e05364d86d6edc39982872",
-                "label": "ambienteHumido",
-                "membership_function": {
-                    "function_type": "triangular",
-                    "parameters": [70.0, 85.0, 100.0],
+                    "parameters": [60, 75, 85],
                     "universe_min": 0.0,
                     "universe_max": 100.0
                 }
