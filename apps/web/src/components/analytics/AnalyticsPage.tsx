@@ -222,46 +222,21 @@ export default function AnalyticsPage() {
       setIsExporting(true);
 
       // Dynamic import for better bundle size
-      const html2canvas = (await import('html2canvas')).default;
+      // Using html2canvas-pro instead of html2canvas for oklch color support
+      const html2canvasModule = await import('html2canvas-pro');
+      const html2canvas = html2canvasModule.default;
       const { jsPDF } = await import('jspdf');
-      const { convertDOMColors } = await import('@/utils/colorConverter');
 
       if (!contentRef.current) return;
 
       // Capture the content as canvas
-      // Note: We use onclone to convert oklch/oklab colors to rgb before rendering
-      // This fixes compatibility issues with html2canvas which doesn't support CSS Color Level 4
+      // html2canvas-pro supports modern CSS color formats including oklch/oklab
       const canvas = await html2canvas(contentRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          try {
-            // Convert all modern color formats (oklch, oklab) to rgb
-            convertDOMColors(clonedDoc);
-          } catch (error) {
-            console.warn('Error converting colors for export:', error);
-            // Fallback: try basic conversion
-            const elements = clonedDoc.querySelectorAll('*');
-            elements.forEach((el) => {
-              if (el instanceof HTMLElement) {
-                const computed = window.getComputedStyle(el);
-                // Copy computed styles as inline to ensure they're rendered
-                if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-                  el.style.backgroundColor = computed.backgroundColor;
-                }
-                if (computed.color) {
-                  el.style.color = computed.color;
-                }
-                if (computed.borderColor) {
-                  el.style.borderColor = computed.borderColor;
-                }
-              }
-            });
-          }
-        },
       });
 
       // Create PDF
