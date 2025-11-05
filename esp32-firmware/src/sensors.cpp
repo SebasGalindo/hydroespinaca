@@ -348,11 +348,58 @@ float SensorManager::measureUltrasonicDistance() {
 }
 
 float SensorManager::readWaterLevel() {
-    float distance = measureUltrasonicDistance();
-    if (distance < 0) {
+    const int NUM_READINGS = 5;
+    const float MAX_DEVIATION_PERCENT = 30.0;  // 30% max deviation from median
+    float readings[NUM_READINGS];
+    int validCount = 0;
+
+    // Take multiple readings
+    for (int i = 0; i < NUM_READINGS; i++) {
+        float distance = measureUltrasonicDistance();
+        if (distance > 0) {
+            readings[validCount++] = distance;
+        }
+        delay(50);  // Small delay between readings
+        if (i % 2 == 0) yield();
+    }
+
+    // Need at least 3 valid readings
+    if (validCount < 3) {
+        Serial.println("[SENSOR] Water Level: Not enough valid readings");
         return NAN;
     }
-    return distance;
+
+    // Calculate median of valid readings
+    float median = calculateMedian(readings, validCount);
+
+    // Filter outliers: remove readings that deviate more than MAX_DEVIATION_PERCENT from median
+    float filteredSum = 0;
+    int filteredCount = 0;
+    float maxDeviation = median * (MAX_DEVIATION_PERCENT / 100.0);
+
+    for (int i = 0; i < validCount; i++) {
+        float deviation = abs(readings[i] - median);
+        if (deviation <= maxDeviation) {
+            filteredSum += readings[i];
+            filteredCount++;
+        } else {
+            Serial.printf("[SENSOR] Water Level: Outlier detected: %.2f cm (median: %.2f cm, deviation: %.2f%%)\n",
+                         readings[i], median, (deviation / median) * 100.0);
+        }
+    }
+
+    // Need at least 2 readings after filtering
+    if (filteredCount < 2) {
+        Serial.println("[SENSOR] Water Level: Too many outliers detected");
+        return NAN;
+    }
+
+    float finalValue = filteredSum / filteredCount;
+
+    Serial.printf("[SENSOR] Water Level: %.2f cm (from %d/%d valid readings)\n",
+                 finalValue, filteredCount, validCount);
+
+    return finalValue;
 }
 
 bool SensorManager::isLightTelemetryActive() {

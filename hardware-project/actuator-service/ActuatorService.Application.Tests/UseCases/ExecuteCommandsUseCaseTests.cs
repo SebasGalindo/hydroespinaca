@@ -26,6 +26,7 @@ public class ExecuteCommandsUseCaseTests
     private readonly Mock<ICommandExecutionService> _mockCommandExecutionService;
     private readonly Mock<IRoutineCommandRepository> _mockRoutineCommandRepository;
     private readonly Mock<IActuatorStateMachine> _mockStateMachine;
+    private readonly Mock<IWaterRelatedActuatorsLockService> _mockWaterLockService;
     private readonly Mock<ILogger<ExecuteCommandsUseCase>> _mockLogger;
     private readonly ExecuteCommandsUseCase _useCase;
 
@@ -36,6 +37,7 @@ public class ExecuteCommandsUseCaseTests
         _mockCommandExecutionService = new Mock<ICommandExecutionService>();
         _mockRoutineCommandRepository = new Mock<IRoutineCommandRepository>();
         _mockStateMachine = new Mock<IActuatorStateMachine>();
+        _mockWaterLockService = new Mock<IWaterRelatedActuatorsLockService>();
         _mockLogger = new Mock<ILogger<ExecuteCommandsUseCase>>();
 
         _useCase = new ExecuteCommandsUseCase(
@@ -44,6 +46,7 @@ public class ExecuteCommandsUseCaseTests
             _mockCommandExecutionService.Object,
             _mockRoutineCommandRepository.Object,
             _mockStateMachine.Object,
+            _mockWaterLockService.Object,
             _mockLogger.Object
         );
     }

@@ -25,6 +25,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
     private readonly ICommandExecutionService _commandExecutionService;
     private readonly IRoutineCommandRepository _routineCommandRepository;
     private readonly IActuatorStateMachine _stateMachine;
+    private readonly IWaterRelatedActuatorsLockService _waterLockService;
     private readonly ILogger<ExecuteCommandsUseCase> _logger;
 
     public ExecuteCommandsUseCase(
@@ -33,6 +34,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         ICommandExecutionService commandExecutionService,
         IRoutineCommandRepository routineCommandRepository,
         IActuatorStateMachine stateMachine,
+        IWaterRelatedActuatorsLockService waterLockService,
         ILogger<ExecuteCommandsUseCase> logger)
     {
         _validator = validator;
@@ -40,6 +42,7 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         _commandExecutionService = commandExecutionService;
         _routineCommandRepository = routineCommandRepository;
         _stateMachine = stateMachine;
+        _waterLockService = waterLockService;
         _logger = logger;
     }
 
@@ -183,6 +186,14 @@ public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
         // 5. Schedule commands with execution service (handles MQTT publishing)
         // Now each resolvedCommand has its CommandId already set
         await _commandExecutionService.ScheduleCommandsAsync(resolvedCommands, esp32Id);
+
+        // 6. Evaluate commands for water-related actuator lock
+        var commandStates = executeCommands.Commands.Select(cmd =>
+        {
+            var power = cmd.Power ?? (cmd.DutyCycle.HasValue ? cmd.DutyCycle.Value.ToString() : "UNKNOWN");
+            return (cmd.ActuatorCode, power);
+        });
+        _waterLockService.EvaluateCommands(commandStates);
 
         if (skippedCommands.Count > 0)
         {

@@ -131,6 +131,17 @@ public class InternalRoutineScheduler : BackgroundService
         var repository = scope.ServiceProvider.GetRequiredService<IInternalRoutineRepository>();
         var actuatorCodeResolver = scope.ServiceProvider.GetRequiredService<IActuatorCodeResolver>();
         var commandExecutionService = scope.ServiceProvider.GetRequiredService<ICommandExecutionService>();
+        var waterLockService = scope.ServiceProvider.GetRequiredService<IWaterRelatedActuatorsLockService>();
+
+        // Check if automatic routines are locked
+        if (waterLockService.IsLocked)
+        {
+            var lockStatus = waterLockService.GetStatus();
+            _logger.LogWarning("🔒 Automatic routines are BLOCKED due to critical water system state. " +
+                              "Duration: {Duration:hh\\:mm\\:ss}. Reason: {Reason}",
+                lockStatus.LockedDuration, lockStatus.Reason);
+            return; // Skip all routine execution while locked
+        }
 
         var routines = await repository.GetActiveRoutinesAsync();
         var nowColombia = GetColombiaTime();

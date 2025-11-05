@@ -36,6 +36,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IActuatorStateMachine, ActuatorStateMachine>();
         services.AddScoped<ActuatorStartupSyncService>();
 
+        // Water-related actuators lock service (singleton for in-memory state)
+        services.AddSingleton<IWaterRelatedActuatorsLockService, WaterRelatedActuatorsLockService>();
+
         // Advanced behavior rules (refactored to work with actuator codes)
         services.AddScoped<AdvancedBehaviorRulesService>();
 
