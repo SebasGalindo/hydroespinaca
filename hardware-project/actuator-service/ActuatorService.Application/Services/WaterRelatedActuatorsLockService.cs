@@ -88,8 +88,33 @@ public class WaterRelatedActuatorsLockService : IWaterRelatedActuatorsLockServic
     {
         lock (_lock)
         {
+            var commandsList = actuatorCommands.ToList();
+
+            // Verificar si los comandos actuales incluyen alguno de los actuadores críticos
+            var hasCriticalActuatorsInCurrentBatch = commandsList.Any(cmd =>
+                cmd.actuatorCode == WaterPumpCode || cmd.actuatorCode == AirStoneCode);
+
+            // Si estamos bloqueados y los comandos actuales NO incluyen actuadores críticos,
+            // significa que fuzzy-service ya no está enviando comandos de apagado para ellos
+            // (la alerta crítica anterior fue un error)
+            if (_isLocked && !hasCriticalActuatorsInCurrentBatch)
+            {
+                var duration = _lockedSince.HasValue
+                    ? DateTime.UtcNow - _lockedSince.Value
+                    : TimeSpan.Zero;
+
+                Console.WriteLine($"[WaterLock] ✓ BLOQUEO DESACTIVADO - Comandos subsecuentes no incluyen actuadores críticos");
+                Console.WriteLine($"[WaterLock]   Duración del bloqueo: {duration:hh\\:mm\\:ss}");
+                Console.WriteLine($"[WaterLock]   Razón: fuzzy-service dejó de enviar comandos para {WaterPumpCode}/{AirStoneCode}");
+
+                _isLocked = false;
+                _lockedSince = null;
+                _lastKnownStates.Clear(); // Limpiar estados previos
+                return;
+            }
+
             // Actualizar estados conocidos con los comandos recibidos
-            foreach (var (actuatorCode, power) in actuatorCommands)
+            foreach (var (actuatorCode, power) in commandsList)
             {
                 if (actuatorCode == WaterPumpCode || actuatorCode == AirStoneCode)
                 {
@@ -97,40 +122,41 @@ public class WaterRelatedActuatorsLockService : IWaterRelatedActuatorsLockServic
                 }
             }
 
-            // Verificar si tenemos información de ambos actuadores
-            var hasPumpState = _lastKnownStates.TryGetValue(WaterPumpCode, out var pumpPower);
-            var hasAirStoneState = _lastKnownStates.TryGetValue(AirStoneCode, out var airStonePower);
+            // Verificar si tenemos información de ambos actuadores en el batch actual
+            var hasPumpInBatch = commandsList.Any(cmd => cmd.actuatorCode == WaterPumpCode);
+            var hasAirStoneInBatch = commandsList.Any(cmd => cmd.actuatorCode == AirStoneCode);
 
-            if (!hasPumpState && !hasAirStoneState)
+            // Solo evaluar combinación crítica si AMBOS actuadores están en el batch actual
+            if (hasPumpInBatch && hasAirStoneInBatch)
             {
-                // No hay información suficiente, mantener estado actual
-                return;
-            }
+                var pumpPower = _lastKnownStates[WaterPumpCode];
+                var airStonePower = _lastKnownStates[AirStoneCode];
 
-            // Detectar combinación crítica: ambos OFF
-            var bothOff = hasPumpState && hasAirStoneState
-                && pumpPower?.Equals("OFF", StringComparison.OrdinalIgnoreCase) == true
-                && airStonePower?.Equals("OFF", StringComparison.OrdinalIgnoreCase) == true;
+                // Detectar combinación crítica: ambos OFF en el MISMO batch
+                var bothOff = pumpPower?.Equals("OFF", StringComparison.OrdinalIgnoreCase) == true
+                    && airStonePower?.Equals("OFF", StringComparison.OrdinalIgnoreCase) == true;
 
-            if (bothOff && !_isLocked)
-            {
-                // Activar bloqueo
-                _isLocked = true;
-                _lockedSince = DateTime.UtcNow;
-                Console.WriteLine($"[WaterLock] ⚠️ BLOQUEO ACTIVADO - Combinación crítica detectada: {WaterPumpCode}=OFF, {AirStoneCode}=OFF");
-            }
-            else if (!bothOff && _isLocked)
-            {
-                // Desactivar bloqueo: al menos uno de los dos está ON
-                var duration = _lockedSince.HasValue
-                    ? DateTime.UtcNow - _lockedSince.Value
-                    : TimeSpan.Zero;
+                if (bothOff && !_isLocked)
+                {
+                    // Activar bloqueo
+                    _isLocked = true;
+                    _lockedSince = DateTime.UtcNow;
+                    Console.WriteLine($"[WaterLock] ⚠️ BLOQUEO ACTIVADO - Combinación crítica detectada: {WaterPumpCode}=OFF, {AirStoneCode}=OFF");
+                }
+                else if (!bothOff && _isLocked)
+                {
+                    // Desactivar bloqueo: al menos uno de los dos está ON en este batch
+                    var duration = _lockedSince.HasValue
+                        ? DateTime.UtcNow - _lockedSince.Value
+                        : TimeSpan.Zero;
 
-                Console.WriteLine($"[WaterLock] ✓ BLOQUEO DESACTIVADO - Duración: {duration:hh\\:mm\\:ss}");
-                Console.WriteLine($"[WaterLock]   Estados actuales: {WaterPumpCode}={pumpPower}, {AirStoneCode}={airStonePower}");
+                    Console.WriteLine($"[WaterLock] ✓ BLOQUEO DESACTIVADO - Al menos un actuador crítico está ON");
+                    Console.WriteLine($"[WaterLock]   Duración: {duration:hh\\:mm\\:ss}");
+                    Console.WriteLine($"[WaterLock]   Estados actuales: {WaterPumpCode}={pumpPower}, {AirStoneCode}={airStonePower}");
 
-                _isLocked = false;
-                _lockedSince = null;
+                    _isLocked = false;
+                    _lockedSince = null;
+                }
             }
         }
     }
