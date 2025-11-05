@@ -323,12 +323,22 @@ void JobScheduler::cancelJobsOnPin(int pin) {
             Serial.printf("    Canceling job: commandId=%s\n", job.commandId.c_str());
             job.completionType = JOB_COMPLETED_CANCELLED;
 
-            // CRITICAL FIX: Publish completion BEFORE erasing the job
-            // Otherwise, the job reference becomes invalid after erase()
-            JobNotifier::publishCompletion(job);
+            // 🔒 SAFETY: Copy job data BEFORE erase to prevent use-after-free
+            // Job is move-only, so we create a temporary completion structure
+            String jobCommandId = job.commandId;  // Copy commandId before destruction
 
-            // Now safe to erase
+            // Erase the job first
             it = activeJobs.erase(it);
+
+            // Now publish completion using the copied commandId
+            StaticJsonDocument<256> doc;
+            doc["esp32Id"] = ESP32_ID;
+            doc["commandId"] = jobCommandId;
+            doc["status"] = "completed";
+
+            if (mqttHandler && mqttHandler->isConnected()) {
+                mqttHandler->publishCompletion(doc);
+            }
         } else {
             ++it;
         }
