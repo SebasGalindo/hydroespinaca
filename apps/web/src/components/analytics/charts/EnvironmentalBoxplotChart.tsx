@@ -109,7 +109,6 @@ export default function EnvironmentalBoxplotChart({ variables, viewMode }: Envir
         typeof point.q3 !== 'number' ||
         typeof point.min !== 'number' ||
         typeof point.max !== 'number') {
-      console.warn('[EnvironmentalBoxplotChart] Invalid variability point:', point);
       return false;
     }
 

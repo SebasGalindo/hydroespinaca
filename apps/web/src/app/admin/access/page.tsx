@@ -112,10 +112,6 @@ export default function AdminAccessPage() {
       });
     } catch (err: any) {
       // Extract the error message from the ApiError
-      console.error('Error deleting user - full error object:', err);
-      console.error('Error message:', err.message);
-      console.error('Error status:', err.status);
-
       let errorMessage = 'Error desconocido al eliminar usuario';
 
       // Try to extract message from various possible error formats

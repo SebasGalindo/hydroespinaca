@@ -53,7 +53,6 @@ export default function DashboardPage() {
                                data.readings.timestamp;
 
       if (!hasValidReadings) {
-        console.warn('⚠️ Backend devolvió readings vacías o sin timestamp');
         setHasReadingsData(false);
 
         // Pero aún así actualizar los otros datos que sí vienen (jobStatus, stats, internalRoutines, weather)
@@ -112,7 +111,6 @@ export default function DashboardPage() {
 
   // Función para reiniciar el polling
   const handleRetryPolling = useCallback(() => {
-    console.log('🔄 Reiniciando polling...');
     // Resetear contadores
     consecutiveEmptyResponsesRef.current = 0;
     consecutiveUnchangedRef.current = 0;
@@ -175,7 +173,6 @@ export default function DashboardPage() {
 
       // Verificar si se alcanzó el límite de respuestas vacías
       if (consecutiveEmptyResponsesRef.current >= MAX_CONSECUTIVE_EMPTY) {
-        console.warn(`⚠️ Se alcanzó el límite de ${MAX_CONSECUTIVE_EMPTY} respuestas vacías consecutivas. Deteniendo polling.`);
         setError('Sistema desconectado: No se detectan lecturas de sensores. Las peticiones automáticas se han detenido.');
         setIsPollingPaused(true);
         return;
@@ -183,7 +180,6 @@ export default function DashboardPage() {
 
       // Verificar si se alcanzó el límite de timestamps sin cambios
       if (consecutiveUnchangedRef.current >= MAX_CONSECUTIVE_UNCHANGED) {
-        console.warn(`⚠️ Se alcanzó el límite de ${MAX_CONSECUTIVE_UNCHANGED} intentos sin datos nuevos. Deteniendo polling.`);
         setError('No se detectan nuevas lecturas de sensores. Las peticiones automáticas se han detenido.');
         setIsPollingPaused(true);
         return;
@@ -193,7 +189,6 @@ export default function DashboardPage() {
       let delay: number;
       if (isFollowUp) {
         delay = calculateBackoffDelay(consecutiveUnchangedRef.current);
-        console.log(`📡 Reintento ${consecutiveUnchangedRef.current + 1}/${MAX_CONSECUTIVE_UNCHANGED} - Próximo intento en ${Math.round(delay / 1000)}s`);
       } else {
         // Si hay timestamp, calcular próximo fetch basado en él
         // Si no hay timestamp, usar intervalo de seguimiento
@@ -208,7 +203,6 @@ export default function DashboardPage() {
         if (!newTimestamp) {
           consecutiveEmptyResponsesRef.current++;
           consecutiveUnchangedRef.current++;
-          console.warn(`⚠️ Respuesta sin readings ${consecutiveEmptyResponsesRef.current}/${MAX_CONSECUTIVE_EMPTY}`);
 
           if (consecutiveEmptyResponsesRef.current < MAX_CONSECUTIVE_EMPTY) {
             // Continuar intentando con backoff
@@ -227,7 +221,6 @@ export default function DashboardPage() {
           consecutiveUnchangedRef.current = 0;
           followUpStartTimeRef.current = null;
           lastTimestampRef.current = newTimestamp;
-          console.log('✅ Nuevos datos recibidos, timestamp actualizado');
           scheduleNext(newTimestamp, false);
         }
         // Caso 4: Timestamp no cambió - no hay nuevos datos

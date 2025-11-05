@@ -44,12 +44,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoggingOut: false,
 
   login: async (email: string, password: string) => {
-    console.log('[AuthStore] login called with:', { email, platform });
     set({ isLoading: true, error: null });
 
     try {
       const credentials = { Email: email, Password: password };
-      console.log('[AuthStore] Credentials prepared, calling API...');
 
       if (platform === 'web') {
         // Web: cookies are set automatically by server
@@ -82,21 +80,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       } else {
         // Mobile: get tokens from response and store them
-        console.log('[AuthStore] Calling loginMobile API...');
         const mobileResponse = await authService.loginMobile(credentials);
-        console.log('[AuthStore] loginMobile response:', { hasSessionId: !!mobileResponse.sessionId, hasCsrfToken: !!mobileResponse.csrfToken });
 
         // Store tokens in secure storage
-        console.log('[AuthStore] Storing tokens in secure storage...');
         await SessionStorage.storeSession(
           mobileResponse.sessionId,
           mobileResponse.csrfToken
         );
 
         // Get user session data
-        console.log('[AuthStore] Getting user session data...');
         const userSession = await authService.getCurrentSession('mobile');
-        console.log('[AuthStore] User session data:', { username: userSession.username, email: userSession.email });
 
         const session: Session = {
           sessionId: mobileResponse.sessionId,

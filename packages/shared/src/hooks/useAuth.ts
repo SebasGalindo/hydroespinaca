@@ -22,7 +22,6 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
   // Initialize: check existing session
   useEffect(() => {
     const checkAuthStatus = async () => {
-      console.log('[useAuth] Checking auth status for platform:', platform);
       try {
         // Try to get current session from server
         const userSession = await apiService.getCurrentSession(platform);
@@ -36,7 +35,6 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
           : null;
 
         if (!sessionId && platform === 'mobile') {
-          console.log('[useAuth] No sessionId in storage, no valid session');
           setState({ session: null, isLoading: false, error: null });
           return;
         }
@@ -49,18 +47,15 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
           role: userSession.role,
         };
 
-        console.log('[useAuth] Valid session found:', { username: session.username, email: session.email });
         setState({ session, isLoading: false, error: null });
       } catch (error) {
         // No valid session found
-        console.log('[useAuth] No valid session found:', error);
-
         // Clear any stored tokens for mobile
         if (platform === 'mobile') {
           try {
             await SessionStorage.clearSession();
           } catch (err) {
-            console.warn('[useAuth] Error clearing session storage:', err);
+            // Silently handle storage errors
           }
         }
 

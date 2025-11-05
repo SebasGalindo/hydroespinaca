@@ -35,7 +35,9 @@ export class WeatherService {
 
       return response.json() as Promise<WeatherSummary>;
     } catch (error) {
-      console.error('Error fetching weather data from BFF:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching weather data from BFF:', error);
+      }
       throw error;
     }
   }
