@@ -196,19 +196,26 @@ float SensorManager::readADCVoltageAveraged(int pin, int samples) {
 }
 
 float SensorManager::readPH() {
-    const int NUM_SAMPLES = 15;
-    const int SAMPLE_DELAY = 50;
+    const int NUM_SAMPLES = 10;             // Reduced from 15 to 10 for faster reading
+    const int SAMPLE_DELAY = 40;            // Reduced from 50ms to 40ms (still stable for pH sensor)
     const float PH_SLOPE = 1.529f;
     const float PH_INTERCEPT = 4.909f;
 
     float voltages[NUM_SAMPLES];
 
+    // Total time: ~400ms (10 samples × 40ms) - balanced accuracy vs speed
     for (int i = 0; i < NUM_SAMPLES; i++) {
         int adcRaw = analogRead(PIN_PH_ADC);
         float voltage = (adcRaw * ADC_VREF) / ADC_RESOLUTION;
         voltages[i] = voltage;
-        delay(SAMPLE_DELAY);
-        if (i % 5 == 0) yield();
+
+        // Yield every 3 iterations for watchdog
+        if (i % 3 == 0) yield();
+
+        // Delay between samples (not after last sample)
+        if (i < NUM_SAMPLES - 1) {
+            delay(SAMPLE_DELAY);
+        }
     }
 
     float medianVoltage = calculateMedian(voltages, NUM_SAMPLES);
@@ -348,24 +355,35 @@ float SensorManager::measureUltrasonicDistance() {
 }
 
 float SensorManager::readWaterLevel() {
-    const int NUM_READINGS = 5;
-    const float MAX_DEVIATION_PERCENT = 30.0;  // 30% max deviation from median
+    const int NUM_READINGS = 7;                 // Balanced: 7 readings for good statistics without excessive time
+    const int READING_DELAY_MS = 70;            // 70ms between readings (optimal for HC-SR04 stabilization)
+    const float MAX_DEVIATION_PERCENT = 20.0;   // Strict outlier rejection (20% from median)
+    const int MIN_VALID_READINGS = 4;           // At least 57% of readings must be valid
+    const int MIN_FILTERED_READINGS = 3;        // Need at least 3 readings after outlier removal
+
     float readings[NUM_READINGS];
     int validCount = 0;
 
-    // Take multiple readings
+    // Take multiple readings with proper delay for sensor stabilization
+    // Total time: ~490ms (7 readings × 70ms) - safe for watchdog
     for (int i = 0; i < NUM_READINGS; i++) {
         float distance = measureUltrasonicDistance();
         if (distance > 0) {
             readings[validCount++] = distance;
         }
-        delay(50);  // Small delay between readings
+
+        // Yield to watchdog every 2 iterations to prevent resets
         if (i % 2 == 0) yield();
+
+        // Delay between readings for sensor stabilization
+        if (i < NUM_READINGS - 1) {  // No delay after last reading
+            delay(READING_DELAY_MS);
+        }
     }
 
-    // Need at least 3 valid readings
-    if (validCount < 3) {
-        Serial.println("[SENSOR] Water Level: Not enough valid readings");
+    // Need at least MIN_VALID_READINGS valid readings
+    if (validCount < MIN_VALID_READINGS) {
+        Serial.printf("[SENSOR] Water Level: Not enough valid readings (%d/%d)\n", validCount, NUM_READINGS);
         return NAN;
     }
 
@@ -383,21 +401,21 @@ float SensorManager::readWaterLevel() {
             filteredSum += readings[i];
             filteredCount++;
         } else {
-            Serial.printf("[SENSOR] Water Level: Outlier detected: %.2f cm (median: %.2f cm, deviation: %.2f%%)\n",
+            Serial.printf("[SENSOR] Water Level: Outlier rejected: %.2f cm (median: %.2f cm, dev: %.2f%%)\n",
                          readings[i], median, (deviation / median) * 100.0);
         }
     }
 
-    // Need at least 2 readings after filtering
-    if (filteredCount < 2) {
-        Serial.println("[SENSOR] Water Level: Too many outliers detected");
+    // Need at least MIN_FILTERED_READINGS readings after filtering
+    if (filteredCount < MIN_FILTERED_READINGS) {
+        Serial.printf("[SENSOR] Water Level: Too many outliers (%d/%d valid)\n", filteredCount, validCount);
         return NAN;
     }
 
     float finalValue = filteredSum / filteredCount;
 
-    Serial.printf("[SENSOR] Water Level: %.2f cm (from %d/%d valid readings)\n",
-                 finalValue, filteredCount, validCount);
+    Serial.printf("[SENSOR] Water Level: %.2f cm (used %d/%d readings, rejected %d outliers)\n",
+                 finalValue, filteredCount, validCount, validCount - filteredCount);
 
     return finalValue;
 }

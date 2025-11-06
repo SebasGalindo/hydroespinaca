@@ -14,7 +14,7 @@
 // Sensores ADC
 #define PIN_PH_ADC       32
 #define PIN_TDS_ADC      33
-#define PIN_NTC_TANK     34
+#define PIN_NTC_TANK     35
 
 // Sensor ultrasónico HC-SR04 (5V logic)
 #define PIN_ULTRA_TRIG   26     // Trigger (5V tolerante)
