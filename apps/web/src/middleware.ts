@@ -54,7 +54,29 @@ export async function middleware(req: NextRequest) {
   }
 
   // Permitir el acceso - la validación de rol admin se hace en AdminRoute
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Agregar Content Security Policy headers para permitir ejecución de scripts
+  // Esta política permite:
+  // - Scripts propios ('self')
+  // - Scripts inline necesarios para React/Next.js ('unsafe-inline')
+  // - Scripts de Cloudflare para protección y optimización
+  // - Conexiones a la API y WebSocket
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hydroespinaca.online https://*.cloudflare.com https://cdn.jsdelivr.net",
+    "connect-src 'self' https://api.hydroespinaca.online wss://hydroespinaca.online wss://mqtt.hydroespinaca.online https://*.cloudflare.com",
+    "img-src 'self' data: https: blob:",
+    "style-src 'self' 'unsafe-inline' https:",
+    "font-src 'self' data: https:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ].join('; ');
+
+  response.headers.set('Content-Security-Policy', csp);
+
+  return response;
 }
 
 /**
