@@ -131,7 +131,7 @@ public class SessionTokenService : ISessionTokenService
                             }
 
                             // Re-throw as SessionExpiredException to trigger proper cleanup in controller
-                            throw new SessionExpiredException(sessionId, "Refresh token is no longer valid");
+                            throw new SessionExpiredException(sessionId);
                         }
                         catch (Exception ex)
                         {
