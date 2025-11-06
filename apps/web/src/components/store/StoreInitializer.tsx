@@ -5,8 +5,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore, setAuthCallbacks, setAuthStoreRedirectCallback } from '@hydroespinaca/shared';
 
 // Configuración del refresco de sesión
-// IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
-const SESSION_REFRESH_INTERVAL = 90 * 1000; // 90 segundos (1.5 minutos)
+// Se calcula dinámicamente basado en el access token expiry del backend
+const ACCESS_TOKEN_EXPIRY_MINUTES = parseInt(process.env.NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES || '60', 10);
+// Verificamos antes de que expire: a los 75% del tiempo de vida del token
+// Ejemplo: si expira en 60 min, verificamos cada 45 min (60 * 0.75 = 45)
+const SESSION_REFRESH_INTERVAL = ACCESS_TOKEN_EXPIRY_MINUTES * 60 * 1000 * 0.75;
+// Throttle: mínimo 30 segundos entre checks para evitar spam
 const MIN_TIME_BETWEEN_CHECKS = 30 * 1000; // 30 segundos (throttle)
 
 export function StoreInitializer() {
@@ -97,14 +101,15 @@ export function StoreInitializer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, sessionChecked]);
 
-  // Refresco periódico de sesión (cada 90 segundos - antes de que expire el access token de 2 minutos)
+  // Refresco periódico de sesión - calculado dinámicamente desde el backend
   useEffect(() => {
     if (!isClient || !sessionChecked || !isAuthenticated) {
       return;
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.info('[StoreInitializer] Setting up periodic session refresh (every 90 seconds)');
+      const intervalMinutes = Math.round(SESSION_REFRESH_INTERVAL / 60000);
+      console.info(`[StoreInitializer] Setting up periodic session refresh (every ${intervalMinutes} minutes) - Access token expires in ${ACCESS_TOKEN_EXPIRY_MINUTES} minutes`);
     }
 
     const intervalId = setInterval(() => {

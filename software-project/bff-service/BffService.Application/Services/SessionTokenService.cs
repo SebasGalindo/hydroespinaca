@@ -114,9 +114,28 @@ public class SessionTokenService : ISessionTokenService
 
                             _logger.LogInformation("Token refreshed successfully for session: {SessionId}", sessionId);
                         }
+                        catch (InvalidTokenException ex)
+                        {
+                            // Refresh token is permanently invalid (expired, revoked, or auth-service rejected it)
+                            _logger.LogWarning(ex, "Refresh token is invalid for session {SessionId} - deleting session from cache to prevent retry loops", sessionId);
+
+                            // Delete the session from cache to prevent infinite retry loops
+                            try
+                            {
+                                await _sessionService.DeleteSessionAsync(sessionId, cancellationToken);
+                                _logger.LogInformation("Session {SessionId} removed from cache after refresh failure", sessionId);
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogError(deleteEx, "Failed to delete session {SessionId} from cache after refresh failure", sessionId);
+                            }
+
+                            // Re-throw as SessionExpiredException to trigger proper cleanup in controller
+                            throw new SessionExpiredException(sessionId, "Refresh token is no longer valid");
+                        }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Failed to refresh token for session {SessionId}", sessionId);
+                            _logger.LogError(ex, "Unexpected error refreshing token for session {SessionId}", sessionId);
                             throw;
                         }
                     }

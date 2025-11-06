@@ -7,6 +7,7 @@ type RedirectCallback = (path: string) => void;
 
 let globalLogoutCallback: LogoutCallback | null = null;
 let redirectCallback: RedirectCallback | null = null;
+let isHandling401 = false; // Flag to prevent concurrent 401 handling
 
 /**
  * Set global logout callback (called from app initialization)
@@ -68,40 +69,60 @@ export async function authFetch(
 
     // If 401 Unauthorized, logout and redirect
     if (response.status === 401) {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'unknown';
-      const platform = detectPlatform();
-
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`[authFetch] Received 401 Unauthorized from: ${url} (platform: ${platform})`);
-      }
-
-      // Clear platform-specific storage (web: localStorage/sessionStorage, mobile: secure storage)
-      await clearPlatformStorage();
-
-      // Call logout callback to clear server-side session
-      if (globalLogoutCallback) {
-        try {
-          await globalLogoutCallback();
-        } catch (error) {
-          // Log but don't fail - the session is already invalid
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[authFetch] Error during logout callback (session already invalid):', error);
-          }
+      // Prevent concurrent 401 handling (avoid infinite logout loops)
+      if (isHandling401) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[authFetch] 401 already being handled, skipping to prevent loop');
         }
-      } else if (process.env.NODE_ENV === 'development') {
-        console.warn('[authFetch] No logout callback registered - session may not be fully cleared on server');
+        throw new Error('Sesión inválida. Por favor, inicia sesión nuevamente.');
       }
 
-      // Redirect to login
-      if (redirectCallback) {
-        redirectCallback(platform === 'web' ? '/login' : 'Login');
-      } else if (platform === 'web' && typeof window !== 'undefined' && window.location) {
-        // Fallback for web: use window.location
-        window.location.href = '/login';
-      }
+      isHandling401 = true;
 
-      // Throw error to stop further processing
-      throw new Error('Sesión inválida. Por favor, inicia sesión nuevamente.');
+      try {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : 'unknown';
+        const platform = detectPlatform();
+
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[authFetch] Received 401 Unauthorized from: ${url} (platform: ${platform})`);
+        }
+
+        // Clear platform-specific storage (web: localStorage/sessionStorage, mobile: secure storage)
+        await clearPlatformStorage();
+
+        // Call logout callback to clear server-side session
+        // ONLY if this is NOT a logout endpoint (to prevent infinite loops)
+        if (globalLogoutCallback && !url.includes('/auth/logout')) {
+          try {
+            await globalLogoutCallback();
+          } catch (error) {
+            // Log but don't fail - the session is already invalid
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[authFetch] Error during logout callback (session already invalid):', error);
+            }
+          }
+        } else if (process.env.NODE_ENV === 'development' && url.includes('/auth/logout')) {
+          console.info('[authFetch] Skipping logout callback for /auth/logout endpoint to prevent loop');
+        } else if (process.env.NODE_ENV === 'development') {
+          console.warn('[authFetch] No logout callback registered - session may not be fully cleared on server');
+        }
+
+        // Redirect to login
+        if (redirectCallback) {
+          redirectCallback(platform === 'web' ? '/login' : 'Login');
+        } else if (platform === 'web' && typeof window !== 'undefined' && window.location) {
+          // Fallback for web: use window.location
+          window.location.href = '/login';
+        }
+
+        // Throw error to stop further processing
+        throw new Error('Sesión inválida. Por favor, inicia sesión nuevamente.');
+      } finally {
+        // Reset flag after 2 seconds to allow retry if needed
+        setTimeout(() => {
+          isHandling401 = false;
+        }, 2000);
+      }
     }
 
     return response;
