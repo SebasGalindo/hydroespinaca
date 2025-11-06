@@ -64,8 +64,8 @@ export async function middleware(req: NextRequest) {
   // - Conexiones a la API y WebSocket
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hydroespinaca.online https://*.cloudflare.com https://cdn.jsdelivr.net",
-    "connect-src 'self' https://api.hydroespinaca.online wss://hydroespinaca.online wss://mqtt.hydroespinaca.online https://*.cloudflare.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hydroespinaca.online https://*.cloudflare.com https://static.cloudflareinsights.com https://cdn.jsdelivr.net",
+    "connect-src 'self' https://api.hydroespinaca.online wss://hydroespinaca.online wss://mqtt.hydroespinaca.online https://*.cloudflare.com https://static.cloudflareinsights.com",
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline' https:",
     "font-src 'self' data: https:",
@@ -73,6 +73,7 @@ export async function middleware(req: NextRequest) {
     "base-uri 'self'",
     "form-action 'self'"
   ].join('; ');
+
 
   response.headers.set('Content-Security-Policy', csp);
 
