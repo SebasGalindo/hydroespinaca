@@ -5,8 +5,12 @@
 SensorManager::SensorManager(NTPClient* ntpClient) : dht(PIN_DHT22, DHT_TYPE),
                                  timeClient(ntpClient), dhtInitialized(false), bh1750Initialized(false) {
     // Initialize ADC for analog sensors with improved precision
-    analogReadResolution(12);        // 0-4095 (12-bit resolution)
-    analogSetAttenuation(ADC_11db);  // For 3.3V input range
+    analogReadResolution(12);                          // 0-4095 (12-bit resolution)
+
+    // Configure attenuation for each ADC pin individually for better accuracy
+    analogSetPinAttenuation(PIN_PH_ADC, ADC_11db);     // pH sensor: 0-3.3V range
+    analogSetPinAttenuation(PIN_TDS_ADC, ADC_11db);    // TDS sensor: 0-3.3V range
+    analogSetPinAttenuation(PIN_NTC_TANK, ADC_11db);   // NTC sensor: 0-3.3V range
 }
 
 void SensorManager::begin() {
@@ -297,40 +301,60 @@ float SensorManager::convertToTemperature(float resistance, bool isTank) {
 }
 
 float SensorManager::readTankTemperature() {
-    const int NUM_SAMPLES = 10;
+    const int NUM_SAMPLES = 20;             // Número de muestras para promediar (mejor precisión)
+    const int SAMPLE_DELAY = 5;             // Delay entre muestras en ms
+    const float ADC_MAX = 4095.0;           // Resolución ADC 12-bit
 
+    // Promedia múltiples lecturas para reducir ruido
+    // Total time: ~100ms (20 samples × 5ms) - safe for watchdog
     long adcSum = 0;
     for (int i = 0; i < NUM_SAMPLES; i++) {
         adcSum += analogRead(PIN_NTC_TANK);
-        delay(5);
+
+        // Yield every 4 iterations for watchdog (consistent with other sensors)
+        if (i % 4 == 0) yield();
+
+        // Delay between samples (not after last sample)
+        if (i < NUM_SAMPLES - 1) {
+            delay(SAMPLE_DELAY);
+        }
     }
-    int adcValue = adcSum / NUM_SAMPLES;
+    float adcRaw = (float)adcSum / (float)NUM_SAMPLES;
 
-    float voltage = (adcValue / 4095.0) * ADC_VREF;
+    // Obtiene el voltaje medido
+    float Vout = (adcRaw / ADC_MAX) * ADC_VREF;
 
-    if (voltage < 0.01 || voltage > 3.29) {
+    // Validación de voltaje
+    if (Vout < 0.01 || Vout > 3.29) {
+        Serial.printf("[SENSOR] Tank NTC: Invalid voltage: %.3f V\n", Vout);
         return NAN;
     }
 
-    float resistance;
+    // Calcula la resistencia de la NTC
+    // Esquema: VCC → R_FIXED → Vout (pin) → NTC → GND
+    float Rntc = (NTC_R_FIXED * (ADC_VREF - Vout)) / Vout;
 
-    #ifdef NTC_CIRCUIT_A
-        resistance = NTC_R_FIXED * ((ADC_VREF / voltage) - 1.0);
-    #elif defined(NTC_CIRCUIT_B)
-        resistance = NTC_R_FIXED * (voltage / (ADC_VREF - voltage));
-    #else
-        #error "Debe definir NTC_CIRCUIT_A o NTC_CIRCUIT_B en config.h"
-    #endif
-
-    if (resistance < 1000 || resistance > 100000) {
+    // Validación de resistencia
+    if (Rntc < 1000 || Rntc > 100000) {
+        Serial.printf("[SENSOR] Tank NTC: Resistance out of range: %.1f Ω\n", Rntc);
         return NAN;
     }
 
-    float temperatureC = steinhart(resistance);
+    // Conversión a temperatura usando ecuación Beta
+    // 1/T = 1/T0 + (1/B) * ln(Rntc/R0)
+    float T0_K = NTC_NOMINAL_TEMP + 273.15;  // Temperatura nominal en Kelvin
+    float tempK = 1.0f / ((1.0f / T0_K) + (1.0f / NTC_BETA) * log(Rntc / NTC_NOMINAL_RESISTANCE));
+    float temperatureC = tempK - 273.15f;
 
+    // Validación de temperatura
     if (isnan(temperatureC) || temperatureC < -10 || temperatureC > 60) {
+        Serial.printf("[SENSOR] Tank NTC: Temperature out of range: %.2f °C\n", temperatureC);
         return NAN;
     }
+
+    // Debug output (opcional, comentar en producción si genera mucho ruido)
+    Serial.printf("[SENSOR] Tank NTC: ADC=%.1f | Vout=%.3fV | Rntc=%.1fΩ | Temp=%.2f°C\n",
+                 adcRaw, Vout, Rntc, temperatureC);
 
     return temperatureC;
 }

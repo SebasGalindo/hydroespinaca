@@ -36,7 +36,7 @@
 
 // Valor BETA del termistor (común: 3435, 3950, 4250)
 // Verificar en la hoja de datos del NTC
-#define NTC_BETA 3950
+#define NTC_BETA 3950.0
 
 // Resistencia nominal del NTC a 25°C (común: 10kΩ, 50kΩ, 100kΩ)
 #define NTC_NOMINAL_RESISTANCE 10000.0  // 10kΩ
@@ -47,11 +47,10 @@
 // Resistencia fija en el divisor de voltaje (medir con multímetro)
 #define NTC_R_FIXED 10000.0  // 10kΩ
 
-// Configuración del circuito (descomenta solo UNA opción)
-// OPCIÓN A: VCC ──R_FIXED── ADC ──NTC── GND (más común)
-// #define NTC_CIRCUIT_A
-// OPCIÓN B: VCC ──NTC── ADC ──R_FIXED── GND (menos común)
-#define NTC_CIRCUIT_B
+// ⚠️ CONFIGURACIÓN DE CIRCUITO:
+// El código ahora usa directamente el esquema: VCC → R_FIXED → ADC → NTC → GND
+// Esta es la configuración que está funcionando correctamente
+// Fórmula: Rntc = (R_FIXED * (VCC - Vout)) / Vout
 
 // Humidifier Configuration (specialized control via actuator-service)
 // Note: Humidifier routine now simulates button press (based on autonomous firmware)
