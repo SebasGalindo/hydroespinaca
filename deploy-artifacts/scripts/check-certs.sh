@@ -26,7 +26,6 @@ FRONTEND_DOMAIN="${FRONTEND_SUBDOMAIN}.${DOMAIN}"
 EMAIL=${ADMIN_EMAIL:-admin@hydroespinaca.online}
 
 CERTS_DIR="/etc/letsencrypt/live"
-WEBROOT="/var/www/certbot"
 
 # Colors for output
 RED='\033[0;31m'
@@ -66,22 +65,31 @@ check_cert() {
     fi
 }
 
-# Generate certificate using certbot
+# Generate certificate using certbot with DNS-01 challenge
 generate_cert() {
     local domain=$1
-    
-    log "Generating certificate for $domain..."
-    
+
+    log "Generating certificate for $domain using DNS-01 challenge..."
+
+    # Create Cloudflare credentials file if not exists
+    if [ ! -f "/etc/letsencrypt/cloudflare.ini" ]; then
+        log "Creating Cloudflare credentials file..."
+        mkdir -p /etc/letsencrypt
+        echo "dns_cloudflare_api_token = ${CLOUDFLARE_API_TOKEN}" > /etc/letsencrypt/cloudflare.ini
+        chmod 600 /etc/letsencrypt/cloudflare.ini
+        log "Cloudflare credentials file created"
+    fi
+
     certbot certonly \
-        --webroot \
-        --webroot-path="$WEBROOT" \
+        --dns-cloudflare \
+        --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
         --email "$EMAIL" \
         --agree-tos \
         --no-eff-email \
         --force-renewal \
         -d "$domain" \
         --non-interactive
-    
+
     if [ $? -eq 0 ]; then
         log "Certificate generated successfully for $domain"
         return 0
@@ -100,33 +108,49 @@ main() {
         log "TLS is disabled (USE_TLS=$USE_TLS). Skipping certificate validation."
         exit 0
     fi
-    
-    # Ensure webroot directory exists with proper structure
-    mkdir -p "$WEBROOT/.well-known/acme-challenge"
-    chmod -R 755 "$WEBROOT"
-    
-    log "Created webroot directory structure: $WEBROOT/.well-known/acme-challenge"
-    
-    # Check and generate certificate for main domain (hydroespinaca.online)
+
+    log "Using DNS-01 challenge method with Cloudflare"
+
+    # Generate wildcard certificate that covers all subdomains
+    # This single certificate will work for:
+    # - hydroespinaca.online
+    # - *.hydroespinaca.online (www, api, mqtt, etc.)
+    log "Checking wildcard certificate for ${DOMAIN} and *.${DOMAIN}"
+
     if ! check_cert "$DOMAIN"; then
-        generate_cert "$DOMAIN"
+        log "Generating wildcard certificate..."
+
+        # Create Cloudflare credentials file if not exists
+        if [ ! -f "/etc/letsencrypt/cloudflare.ini" ]; then
+            log "Creating Cloudflare credentials file..."
+            mkdir -p /etc/letsencrypt
+            echo "dns_cloudflare_api_token = ${CLOUDFLARE_API_TOKEN}" > /etc/letsencrypt/cloudflare.ini
+            chmod 600 /etc/letsencrypt/cloudflare.ini
+            log "Cloudflare credentials file created"
+        fi
+
+        # Generate wildcard certificate
+        certbot certonly \
+            --dns-cloudflare \
+            --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+            --email "$EMAIL" \
+            --agree-tos \
+            --no-eff-email \
+            --force-renewal \
+            -d "$DOMAIN" \
+            -d "*.${DOMAIN}" \
+            --non-interactive
+
+        if [ $? -eq 0 ]; then
+            log "Wildcard certificate generated successfully"
+        else
+            error "Failed to generate wildcard certificate"
+            return 1
+        fi
+    else
+        log "Wildcard certificate is valid"
     fi
-    
-    # Check and generate certificate for frontend domain (www.hydroespinaca.online)
-    if ! check_cert "$FRONTEND_DOMAIN"; then
-        generate_cert "$FRONTEND_DOMAIN"
-    fi
-    
-    # Check and generate certificate for API domain (api.hydroespinaca.online)
-    if ! check_cert "$API_DOMAIN"; then
-        generate_cert "$API_DOMAIN"
-    fi
-    
-    # Check and generate certificate for MQTT domain (mqtt.hydroespinaca.online)
-    if ! check_cert "$MQTT_DOMAIN"; then
-        generate_cert "$MQTT_DOMAIN"
-    fi
-    
+
     log "Certificate validation completed"
 }
 
@@ -149,8 +173,15 @@ case "${1:-}" in
         fi
         ;;
     "renew")
-        log "Renewing all certificates..."
-        certbot renew --quiet
+        log "Renewing all certificates using DNS-01..."
+        # Create Cloudflare credentials file if not exists
+        if [ ! -f "/etc/letsencrypt/cloudflare.ini" ]; then
+            log "Creating Cloudflare credentials file..."
+            mkdir -p /etc/letsencrypt
+            echo "dns_cloudflare_api_token = ${CLOUDFLARE_API_TOKEN}" > /etc/letsencrypt/cloudflare.ini
+            chmod 600 /etc/letsencrypt/cloudflare.ini
+        fi
+        certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --quiet
         ;;
     *)
         main

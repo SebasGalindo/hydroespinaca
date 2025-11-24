@@ -57,17 +57,11 @@ http {
     server {
         listen 80;
         server_name ${API_DOMAIN};
-        
-        # Certbot challenge location (always available) - exact match takes precedence
-        location ^~ /.well-known/acme-challenge/ {
-            root /var/www/certbot;
-            try_files $uri =404;
-        }
-        
+
         # Main location blocks - behavior depends on environment
         ${NGINX_HTTP_CONFIG}
-        
-        # Production mode: redirect to HTTPS  
+
+        # Production mode: redirect to HTTPS
         ${NGINX_REDIRECT_CONFIG}
     }
     

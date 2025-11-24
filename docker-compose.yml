@@ -20,7 +20,6 @@ services:
       - ./deploy-artifacts/scripts:/scripts:ro
       - ./.env:/.env:ro
       - certbot_certs:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot
       - nginx_logs:/var/log/nginx
     environment:
       - USE_TLS=${USE_TLS:-false}
@@ -39,18 +38,17 @@ services:
       - development
 
   # -----------------------------
-  # Certbot para MQTT TLS únicamente
+  # Certbot con DNS-01 (Cloudflare)
   # -----------------------------
   certbot:
-    image: certbot/certbot
+    image: certbot/dns-cloudflare
     container_name: certbot
-    depends_on:
-      - nginx-proxy
     volumes:
       - certbot_certs:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
       - ./deploy-artifacts/scripts:/scripts:ro
       - ./.env:/app/.env:ro
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
     entrypoint: "sh /scripts/check-certs.sh"
     networks:
       - espinaca-net
@@ -59,15 +57,16 @@ services:
 
   # Certificate renewal service (runs every 12h with proper hooks)
   certbot-renew:
-    image: certbot/certbot
+    image: certbot/dns-cloudflare
     container_name: certbot-renew
     volumes:
       - certbot_certs:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
       - ./deploy-artifacts/scripts:/scripts:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /srv/mqtt/certs:/srv/mqtt/certs
-    command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --quiet --pre-hook '/scripts/certbot-hooks.sh pre' --deploy-hook '/scripts/certbot-hooks.sh deploy' --post-hook '/scripts/certbot-hooks.sh post'; done"
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+    command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --quiet --deploy-hook '/scripts/certbot-hooks.sh deploy'; done"
     networks:
       - espinaca-net
     profiles:
@@ -457,7 +456,6 @@ volumes:
   mqtt_data:
   mqtt_log:
   certbot_certs:
-  certbot_www:
   nginx_logs:
   # sonarqube_db:
   # sonarqube_data:
@@ -466,4 +464,5 @@ volumes:
 
 networks:
   espinaca-net:
-    driver: bridge
+    external: true
+    name: hydroespinaca

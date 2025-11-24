@@ -27,23 +27,17 @@ http {
     types_hash_max_size 2048;
     client_max_body_size 16M;
     
-    # HTTP Server - minimal for certificate validation (all domains)
+    # HTTP Server - minimal for health checks (DNS-01 does not require HTTP challenges)
     server {
         listen 80;
         server_name ${DOMAIN} ${FRONTEND_DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN};
-        
-        # Certbot challenge location
-        location ^~ /.well-known/acme-challenge/ {
-            root /var/www/certbot;
-            try_files $uri =404;
-        }
-        
-        # Default response for all other requests
+
+        # Default response for all requests
         location / {
-            return 200 'Certbot challenge server - nginx is ready';
+            return 200 'DNS-01 challenge server - nginx is ready';
             add_header Content-Type text/plain;
         }
-        
+
         # Health check endpoint
         location /health {
             access_log off;

@@ -102,12 +102,10 @@ deploy_hook() {
     log "Deploy hook completed successfully"
 }
 
-# Pre hook: executed before attempting renewal
+# Pre hook: executed before attempting renewal (not needed for DNS-01)
 pre_hook() {
     log "Starting certificate renewal process..."
-    log "Ensuring webroot directory exists..."
-    mkdir -p /var/www/certbot
-    chmod 755 /var/www/certbot
+    log "Using DNS-01 challenge method - no webroot required"
 }
 
 # Post hook: executed after attempting renewal (success or failure)

@@ -57,25 +57,27 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         echo "[INFO] Full production mode: complete nginx config"
         
         # DNS Resolver for Docker (allows nginx to start even if backends not ready)
-        export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s;"
+        export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s ipv6=off;"
 
-        # Upstreams: backend services, frontend, and MQTT for production
+        # Upstreams with dynamic DNS resolution
+        # Using variables forces nginx to re-resolve DNS on each request
+        # This prevents startup failures when backends aren't ready yet
         export NGINX_UPSTREAMS="
             # Upstream for BFF Service
             upstream bff_backend {
-                server bff-service:8080;
+                server bff-service:8080 max_fails=3 fail_timeout=30s;
                 keepalive 32;
             }
 
-            # Upstream for Next.js Frontend
+            # Upstream for Next.js Frontend (production)
             upstream frontend_backend {
-                server web-app:3000;
+                server web-app:3000 max_fails=3 fail_timeout=30s;
                 keepalive 32;
             }
 
             # Upstream for MQTT WebSockets
             upstream mqtt_websocket_backend {
-                server mqtt:9002;
+                server mqtt:9002 max_fails=3 fail_timeout=30s;
                 keepalive 32;
             }"
         
@@ -126,6 +128,7 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     export NGINX_REDIRECT_CONFIG=""
     
     # HTTPS server blocks - separate server for each domain
+    # All domains use the wildcard certificate (covers ${DOMAIN} and *.${DOMAIN})
     export NGINX_HTTPS_SERVER="
     # =================================================
     # MAIN FRONTEND SERVER (hydroespinaca.online)
@@ -134,8 +137,8 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         listen 443 ssl;
         http2 on;
         server_name ${DOMAIN};
-        
-        # SSL Configuration
+
+        # SSL Configuration - using wildcard certificate
         ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
         
@@ -183,10 +186,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         listen 443 ssl;
         http2 on;
         server_name ${FRONTEND_DOMAIN};
-        
-        # SSL Configuration
-        ssl_certificate /etc/letsencrypt/live/${FRONTEND_DOMAIN}/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/${FRONTEND_DOMAIN}/privkey.pem;
+
+        # SSL Configuration - using wildcard certificate
+        ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
         
         # SSL Security
         ssl_protocols TLSv1.2 TLSv1.3;
@@ -225,10 +228,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         listen 443 ssl;
         http2 on;
         server_name ${API_DOMAIN};
-        
-        # SSL Configuration
-        ssl_certificate /etc/letsencrypt/live/${API_DOMAIN}/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/${API_DOMAIN}/privkey.pem;
+
+        # SSL Configuration - using wildcard certificate
+        ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
         
         # SSL Security
         ssl_protocols TLSv1.2 TLSv1.3;
@@ -278,10 +281,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
         listen 443 ssl;
         http2 on;
         server_name ${MQTT_DOMAIN};
-        
-        # SSL Configuration
-        ssl_certificate /etc/letsencrypt/live/${MQTT_DOMAIN}/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/${MQTT_DOMAIN}/privkey.pem;
+
+        # SSL Configuration - using wildcard certificate
+        ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
         
         # SSL Security
         ssl_protocols TLSv1.2 TLSv1.3;
@@ -322,19 +325,20 @@ else
     echo "[INFO] Configuring for Development (HTTP only)"
 
     # DNS Resolver for Docker (allows nginx to start even if backends not ready)
-    export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s;"
+    export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s ipv6=off;"
 
-    # Upstreams: BFF service and Next.js frontend for development
+    # Upstreams with dynamic DNS resolution (development)
+    # Using max_fails and fail_timeout for resilience
     export NGINX_UPSTREAMS="
         # Upstream for BFF Service
         upstream bff_backend {
-            server bff-service:8080;
+            server bff-service:8080 max_fails=3 fail_timeout=30s;
             keepalive 32;
         }
 
         # Upstream for Next.js Frontend (Development with HMR)
         upstream frontend_backend {
-            server web-app-dev:3000;
+            server web-app-dev:3000 max_fails=3 fail_timeout=30s;
             keepalive 32;
         }"
 

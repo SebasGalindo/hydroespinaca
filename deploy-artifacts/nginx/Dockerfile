@@ -7,10 +7,6 @@ RUN apk add --no-cache gettext bash
 COPY deploy-artifacts/scripts/generate-nginx-config.sh /usr/local/bin/generate-nginx-config.sh
 RUN chmod +x /usr/local/bin/generate-nginx-config.sh
 
-# Create necessary directories
-RUN mkdir -p /var/www/certbot/.well-known/acme-challenge && \
-    chmod -R 755 /var/www/certbot
-
 # Security Note (Sonar docker:S6471): Nginx requires root for privileged port binding
 # - Master process runs as root to bind to privileged ports 80 (HTTP) and 443 (HTTPS)
 # - Worker processes automatically run as 'nginx' user (configured in nginx.conf via 'user nginx;')
@@ -23,5 +19,22 @@ RUN mkdir -p /var/www/certbot/.well-known/acme-challenge && \
 # Reference: http://nginx.org/en/docs/ngx_core_module.html#user
 # Reviewed and accepted as standard nginx deployment pattern
 
-# Default command: generate config and start nginx
-CMD ["sh", "-c", "/usr/local/bin/generate-nginx-config.sh && nginx -g 'daemon off;'"]
+# Default command: generate config and start nginx with retry logic
+CMD ["sh", "-c", "\
+    /usr/local/bin/generate-nginx-config.sh && \
+    # Test configuration - retry up to 10 times if upstreams not ready \
+    for i in 1 2 3 4 5 6 7 8 9 10; do \
+        if nginx -t 2>&1; then \
+            echo '[INFO] Nginx configuration is valid, starting nginx...'; \
+            break; \
+        else \
+            echo \"[WARN] Nginx config test failed (attempt $i/10), waiting for upstreams...\"; \
+            sleep 3; \
+        fi; \
+        if [ $i -eq 10 ]; then \
+            echo '[ERROR] Failed to start nginx after 10 attempts'; \
+            exit 1; \
+        fi; \
+    done && \
+    nginx -g 'daemon off;' \
+"]
