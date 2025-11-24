@@ -66,7 +66,7 @@ services:
       - /srv/mqtt/certs:/srv/mqtt/certs
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
-    command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --quiet --deploy-hook '/scripts/certbot-hooks.sh deploy'; done"
+    command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds 60 --quiet --deploy-hook '/scripts/certbot-hooks.sh deploy'; done"
     networks:
       - espinaca-net
     profiles:

@@ -63,6 +63,24 @@ info "Checking environment configuration..."
 log "Environment: ${ENVIRONMENT:-Development}"
 log "Profile: ${COMPOSE_PROFILE:-development}"
 
+# Check profile consistency
+if [ "$ENVIRONMENT" = "Production" ] && [ "$COMPOSE_PROFILE" != "production" ]; then
+    error "Profile mismatch! ENVIRONMENT=Production but COMPOSE_PROFILE=$COMPOSE_PROFILE"
+    echo "  Set COMPOSE_PROFILE=production in your .env file"
+    exit 1
+fi
+
+if [ "$ENVIRONMENT" = "Development" ] && [ "$COMPOSE_PROFILE" != "development" ]; then
+    warn "Profile mismatch: ENVIRONMENT=Development but COMPOSE_PROFILE=$COMPOSE_PROFILE"
+fi
+
+# Check which frontend service will be used
+if [ "$COMPOSE_PROFILE" = "production" ]; then
+    log "Frontend service: web-app (production build)"
+else
+    log "Frontend service: web-app-dev (development with HMR)"
+fi
+
 # Check 3: TLS configuration
 if [ "$USE_TLS" = "true" ]; then
     info "Checking TLS configuration..."

@@ -83,6 +83,7 @@ generate_cert() {
     certbot certonly \
         --dns-cloudflare \
         --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+        --dns-cloudflare-propagation-seconds 60 \
         --email "$EMAIL" \
         --agree-tos \
         --no-eff-email \
@@ -102,11 +103,19 @@ generate_cert() {
 # Main certificate check and generation logic
 main() {
     log "Starting certificate validation..."
-    
+
     # Check if USE_TLS is enabled
     if [ "$USE_TLS" != "true" ]; then
         log "TLS is disabled (USE_TLS=$USE_TLS). Skipping certificate validation."
         exit 0
+    fi
+
+    # Clean up old renewal configurations with incorrect hooks
+    log "Cleaning up old renewal configurations..."
+    if [ -f "/scripts/cleanup-renewal-configs.sh" ]; then
+        bash /scripts/cleanup-renewal-configs.sh
+    else
+        warn "Cleanup script not found, skipping..."
     fi
 
     log "Using DNS-01 challenge method with Cloudflare"
@@ -133,6 +142,7 @@ main() {
         certbot certonly \
             --dns-cloudflare \
             --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+            --dns-cloudflare-propagation-seconds 60 \
             --email "$EMAIL" \
             --agree-tos \
             --no-eff-email \
@@ -181,7 +191,7 @@ case "${1:-}" in
             echo "dns_cloudflare_api_token = ${CLOUDFLARE_API_TOKEN}" > /etc/letsencrypt/cloudflare.ini
             chmod 600 /etc/letsencrypt/cloudflare.ini
         fi
-        certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --quiet
+        certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds 60 --quiet
         ;;
     *)
         main
