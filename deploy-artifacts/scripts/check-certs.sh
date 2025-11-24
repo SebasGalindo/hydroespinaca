@@ -113,7 +113,7 @@ main() {
     # Clean up old renewal configurations with incorrect hooks
     log "Cleaning up old renewal configurations..."
     if [ -f "/scripts/cleanup-renewal-configs.sh" ]; then
-        bash /scripts/cleanup-renewal-configs.sh
+        sh /scripts/cleanup-renewal-configs.sh
     else
         warn "Cleanup script not found, skipping..."
     fi
