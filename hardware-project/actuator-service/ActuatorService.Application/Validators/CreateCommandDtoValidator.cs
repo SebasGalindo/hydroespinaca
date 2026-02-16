@@ -5,6 +5,9 @@ using HydroEspinaca.Shared.Validations;
 
 namespace ActuatorService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for routine command creation input.
+/// </summary>
 public class CreateCommandDtoValidator : AbstractValidator<CreateCommandDto>
 {
     public CreateCommandDtoValidator()

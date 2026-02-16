@@ -5,8 +5,17 @@ using MongoDB.Driver;
 
 namespace SensorService.Application.Mappers;
 
+/// <summary>
+/// Mapper estático para convertir entre entidades de dominio Variable y sus DTOs correspondientes.
+/// Maneja la conversión bidireccional incluyendo la validación de tipos de variable y regulación.
+/// </summary>
 public static class VariableMapper
 {
+    /// <summary>
+    /// Convierte una entidad de dominio Variable a su DTO de respuesta.
+    /// </summary>
+    /// <param name="v">Entidad de dominio Variable.</param>
+    /// <returns>DTO con los datos de la variable para la respuesta API.</returns>
     public static VariableDto ToDto(Variable v) => new()
     {
         Id = v.Id,
@@ -23,6 +32,12 @@ public static class VariableMapper
         LastModified = v.LastModified
     };
 
+    /// <summary>
+    /// Convierte un DTO de creación de variable a una entidad de dominio.
+    /// Valida y parsea el tipo de variable y el tipo de regulación.
+    /// </summary>
+    /// <param name="dto">DTO con los datos de creación de la variable.</param>
+    /// <returns>Nueva entidad de dominio Variable.</returns>
     public static Variable ToEntity(VariableCreateDto dto)
     {
         if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var variableType))
@@ -54,6 +69,12 @@ public static class VariableMapper
 
     }
 
+    /// <summary>
+    /// Actualiza una entidad Variable existente con los valores del DTO de actualización.
+    /// Valida y parsea el tipo de variable y el tipo de regulación antes de aplicar los cambios.
+    /// </summary>
+    /// <param name="dto">DTO con los nuevos datos de la variable.</param>
+    /// <param name="entity">Entidad de dominio existente a actualizar.</param>
     public static void MapUpdate(VariableUpdateDto dto, Variable entity)
     {
         if (!Enum.TryParse<VariableTypes>(dto.Type, true, out var variableType))

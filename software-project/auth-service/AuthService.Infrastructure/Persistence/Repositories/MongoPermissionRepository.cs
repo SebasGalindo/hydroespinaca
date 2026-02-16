@@ -7,6 +7,9 @@ using MongoDB.Driver;
 
 namespace AuthService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for permission entities.
+/// </summary>
 public class MongoPermissionRepository : IPermissionRepository
 {
     private readonly BaseMongoRepository<Permission, PermissionDocument> _baseRepo;

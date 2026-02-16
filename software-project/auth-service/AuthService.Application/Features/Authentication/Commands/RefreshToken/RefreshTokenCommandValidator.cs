@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Authentication.Commands.RefreshToken;
 
+/// <summary>
+/// Validator ensuring the refresh token string is provided.
+/// </summary>
 public class RefreshTokenCommandValidator : BaseValidator<RefreshTokenCommand>
 {
     public RefreshTokenCommandValidator()

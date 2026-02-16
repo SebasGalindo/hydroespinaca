@@ -9,6 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ActuatorService.Application;
 
+/// <summary>
+/// Extension methods for registering Actuator Service application layer dependencies.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)

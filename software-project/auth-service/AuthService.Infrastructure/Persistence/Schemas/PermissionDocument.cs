@@ -4,6 +4,9 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
 
+/// <summary>
+/// MongoDB document schema for permission records.
+/// </summary>
 public class PermissionDocument : IIdentifiableMutable
 {
     [BsonId]

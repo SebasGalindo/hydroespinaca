@@ -2,6 +2,9 @@ using System.Text.Json.Serialization;
 
 namespace AuthService.Infrastructure.Security.Models;
 
+/// <summary>
+/// Model representing a JSON Web Key (JWK) for public key exposure via JWKS endpoint.
+/// </summary>
 public class JsonWebKey
 {
     [JsonPropertyName("kty")]
@@ -23,6 +26,9 @@ public class JsonWebKey
     public string Exponent { get; set; } = default!;
 }
 
+/// <summary>
+/// Model representing a JSON Web Key Set (JWKS) containing multiple public keys.
+/// </summary>
 public class JsonWebKeySet
 {
     [JsonPropertyName("keys")]

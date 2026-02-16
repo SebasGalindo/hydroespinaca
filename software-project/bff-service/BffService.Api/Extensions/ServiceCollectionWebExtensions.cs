@@ -9,6 +9,9 @@ using Microsoft.Extensions.Logging;
 
 namespace BffService.Api.Extensions;
 
+/// <summary>
+/// Extension methods for registering web-layer services (CORS, JSON serialization, Swagger).
+/// </summary>
 public static class ServiceCollectionWebExtensions
 {
     public static IServiceCollection AddBffServiceApi(

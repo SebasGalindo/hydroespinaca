@@ -3,6 +3,11 @@ using HydroEspinaca.Shared.DTOs.Mqtt;
 using HydroEspinaca.Shared.Validations;
 
 namespace SensorService.Application.Validators.Mqtt;
+
+/// <summary>
+/// Validador de FluentValidation para una lectura individual dentro de un lote MQTT.
+/// Valida que el identificador físico, código de variable y valor no estén vacíos.
+/// </summary>
 public class ReadingInputValidator : AbstractValidator<ReadingInput>
 {
     public ReadingInputValidator()
@@ -13,6 +18,11 @@ public class ReadingInputValidator : AbstractValidator<ReadingInput>
     }
 }
 
+/// <summary>
+/// Validador de FluentValidation para un lote completo de lecturas recibido vía MQTT.
+/// Valida el ID del ESP32, la marca de tiempo (con tolerancia de 5 minutos),
+/// la presencia de lecturas y delega la validación individual a ReadingInputValidator.
+/// </summary>
 public class ReadingBatchValidator : AbstractValidator<ReadingBatchDto>
 {
     public ReadingBatchValidator()

@@ -18,6 +18,9 @@ public interface IExecuteCommandsUseCase
     Task<List<string>> ExecuteAsync(ExecuteCommandsDto executeCommands);
 }
 
+/// <summary>
+/// Use case that executes a batch of actuator commands as part of a routine, publishing each to the ESP32 via MQTT.
+/// </summary>
 public class ExecuteCommandsUseCase : IExecuteCommandsUseCase
 {
     private readonly IValidator<ExecuteCommandsDto> _validator;

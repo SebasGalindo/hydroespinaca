@@ -2,6 +2,9 @@ using BffService.Domain.ValueObjects;
 
 namespace BffService.Domain.Interfaces;
 
+/// <summary>
+/// Contract for the authentication service that communicates with the auth microservice.
+/// </summary>
 public interface IAuthService
 {
     Task<AuthenticationResult> LoginAsync(

@@ -7,6 +7,9 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for managing sensor threshold alerts (listing, acknowledging, resolving).
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AlertsController : ControllerBase

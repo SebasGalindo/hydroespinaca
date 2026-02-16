@@ -97,6 +97,15 @@ services:
       - DOMAIN=${DOMAIN}
       - MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
       - COMPOSE_PROFILE=${COMPOSE_PROFILE:-development}
+      # MQTT users for pwfile autogeneration in development
+      - SENSOR_MQTT_USER=${SENSOR_MQTT_USER}
+      - SENSOR_MQTT_PASS=${SENSOR_MQTT_PASS}
+      - ACTUATOR_MQTT_USER=${ACTUATOR_MQTT_USER}
+      - ACTUATOR_MQTT_PASS=${ACTUATOR_MQTT_PASS}
+      - FUZZY_MQTT_USER=${FUZZY_MQTT_USER}
+      - FUZZY_MQTT_PASS=${FUZZY_MQTT_PASS}
+      - ESP32_MQTT_USER=${ESP32_MQTT_USER}
+      - ESP32_MQTT_PASS=${ESP32_MQTT_PASS}
     healthcheck:
       test: ["CMD", "sh", "-c", "echo 'health check' | timeout 5 nc localhost 1883 || exit 1"]
       interval: 10s
@@ -220,10 +229,14 @@ services:
     container_name: bff-service
     expose:
       - "8080"
+    ports:
+      - "8081:8080"
     depends_on:
       - auth-service
       - sensor-service
       - actuator-service
+      - bi-service
+      - fuzzy-service
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -245,6 +258,8 @@ services:
       - Services__SensorService__Url=${SENSOR_SERVICE_URL}
       - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
       - Services__AuthService__Url=${AUTH_SERVICE_URL}
+      - Services__BiService__Url=${BI_SERVICE_URL}
+      - Services__FuzzyService__Url=${FUZZY_SERVICE_URL}
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
@@ -293,6 +308,34 @@ services:
       - EMAIL__Smtp__Username=${SMTP_USERNAME}
       - EMAIL__Smtp__Password=${SMTP_PASSWORD}
       # ASP.NET Environment
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
+
+  bi-service:
+    build:
+      context: .
+      dockerfile: software-project/bi-service/Dockerfile
+    container_name: bi-service
+    expose:
+      - "8080"
+    ports:
+      - "5020:8080"
+    depends_on:
+      - auth-service
+    environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - M2M__ClientId=${BI_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${BI_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net

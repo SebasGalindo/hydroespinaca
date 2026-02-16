@@ -5,6 +5,9 @@ using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace AuthService.Application.Mappers;
 
+/// <summary>
+/// AutoMapper profile for cross-domain entity mappings.
+/// </summary>
 public class DomainMappingProfile : Profile
 {
     public DomainMappingProfile()

@@ -4,6 +4,9 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
 
+/// <summary>
+/// MongoDB document schema for role records.
+/// </summary>
 public class RoleDocument : IIdentifiableMutable
 {
     [BsonId]

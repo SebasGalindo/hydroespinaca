@@ -2,6 +2,9 @@
 
 namespace SensorService.Api.Extensions;
 
+/// <summary>
+/// Extension methods for registering background worker hosted services.
+/// </summary>
 public static class ServiceCollectionWorkerExtensions
 {
     public static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)

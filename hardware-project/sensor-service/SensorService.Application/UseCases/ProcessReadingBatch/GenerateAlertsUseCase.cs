@@ -4,6 +4,13 @@ using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.UseCases.ProcessReadingBatch;
+
+/// <summary>
+/// Caso de uso para generar alertas basadas en lecturas fuera del rango óptimo.
+/// Solo procesa variables con tipo de regulación Manual. Incluye lógica de
+/// deduplicación (actualiza alertas existentes) y resolución automática
+/// cuando los valores vuelven al rango óptimo.
+/// </summary>
 public class GenerateAlertsUseCase : IGenerateAlertsUseCase
 {
     private readonly IVariableRepository _variableRepository;
@@ -23,6 +30,14 @@ public class GenerateAlertsUseCase : IGenerateAlertsUseCase
         _alertResolutionService = alertResolutionService;
     }
 
+    /// <summary>
+    /// Evalúa cada lectura contra los rangos óptimos de su variable asociada.
+    /// Para variables de regulación Manual: genera nuevas alertas, actualiza alertas existentes
+    /// o resuelve alertas cuando los valores vuelven al rango óptimo.
+    /// </summary>
+    /// <param name="readings">Lecturas a evaluar.</param>
+    /// <param name="timestamp">Marca de tiempo de la evaluación.</param>
+    /// <returns>Colección de nuevas alertas generadas (las actualizaciones se persisten directamente).</returns>
     public async Task<IEnumerable<SensorAlert>> ExecuteAsync(IEnumerable<Reading> readings, DateTime timestamp)
     {
         var alerts = new List<SensorAlert>();

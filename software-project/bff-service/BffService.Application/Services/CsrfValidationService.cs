@@ -5,12 +5,18 @@ using Microsoft.Extensions.Logging;
 
 namespace BffService.Application.Services;
 
+/// <summary>
+/// Contract for validating CSRF tokens to protect against cross-site request forgery attacks.
+/// </summary>
 public interface ICsrfValidationService
 {
     bool ValidateCsrfToken(HttpContext context);
     bool IsStateChangingOperation(string method);
 }
 
+/// <summary>
+/// Service that validates CSRF tokens to protect against cross-site request forgery attacks.
+/// </summary>
 public class CsrfValidationService : ICsrfValidationService
 {
     private readonly IConfiguration _configuration;

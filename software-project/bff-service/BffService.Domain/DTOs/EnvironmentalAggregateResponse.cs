@@ -1,5 +1,8 @@
 namespace BffService.Domain.DTOs;
 
+/// <summary>
+/// DTO wrapping the complete environmental aggregate response from the sensor service.
+/// </summary>
 public class EnvironmentalAggregateResponse
 {
     public string VariableCode { get; set; } = default!;

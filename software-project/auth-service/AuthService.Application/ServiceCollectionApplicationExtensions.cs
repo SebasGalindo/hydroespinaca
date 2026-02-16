@@ -8,6 +8,9 @@ using System.Reflection;
 
 namespace AuthService.Application;
 
+/// <summary>
+/// Extension methods for registering Auth Service application layer dependencies (MediatR, FluentValidation, AutoMapper).
+/// </summary>
 public static class ServiceCollectionApplicationExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)

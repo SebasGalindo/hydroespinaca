@@ -7,6 +7,9 @@ using MongoDB.Driver;
 
 namespace ActuatorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for actuator entities.
+/// </summary>
 public class MongoActuatorRepository : IActuatorRepository
 {
     private readonly BaseMongoRepository<Actuator, ActuatorDocument> _baseRepo;

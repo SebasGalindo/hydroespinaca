@@ -16,6 +16,7 @@ SERVICES_ROOTS=(
   "./software-project/auth-service"
   "./software-project/notification-service"
   "./software-project/bff-service"
+  "./software-project/bi-service"
   "./hardware-project/sensor-service"
   "./hardware-project/actuator-service"
 )

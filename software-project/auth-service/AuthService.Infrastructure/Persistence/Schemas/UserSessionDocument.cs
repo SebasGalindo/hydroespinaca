@@ -3,6 +3,9 @@ using HydroEspinaca.Shared.Abstractions;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
 
+/// <summary>
+/// MongoDB document schema for user session records.
+/// </summary>
 public class UserSessionDocument : IIdentifiableMutable
 {
     [BsonId]

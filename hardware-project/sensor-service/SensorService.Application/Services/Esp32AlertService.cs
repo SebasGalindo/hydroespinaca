@@ -9,6 +9,10 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la gestión de alertas de dispositivos ESP32.
+/// Permite consultar alertas por ESP32 y actualizar su estado de reconocimiento.
+/// </summary>
 public class Esp32AlertService : IEsp32AlertService
 {
     private readonly IEsp32AlertRepository _repo;
@@ -23,6 +27,12 @@ public class Esp32AlertService : IEsp32AlertService
         _esp32Repo = esp32Repo;
     }
 
+    /// <summary>
+    /// Obtiene todas las alertas asociadas a un dispositivo ESP32.
+    /// Valida el formato del ID y la existencia del dispositivo.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32 (ObjectId de 24 caracteres).</param>
+    /// <returns>Lista de alertas del ESP32.</returns>
     public async Task<List<Esp32AlertDto>> GetByEsp32IdAsync(string esp32Id)
     {
         if (!ObjectId.TryParse(esp32Id, out _))
@@ -36,6 +46,12 @@ public class Esp32AlertService : IEsp32AlertService
         return alerts.Select(Esp32AlertMapper.ToDto).ToList();
     }
 
+    /// <summary>
+    /// Actualiza el estado de reconocimiento de una alerta de ESP32.
+    /// Valida el formato del ID y la existencia de la alerta.
+    /// </summary>
+    /// <param name="id">Identificador de la alerta (ObjectId de 24 caracteres).</param>
+    /// <param name="dto">DTO con el nuevo estado de reconocimiento.</param>
     public async Task AcknowledgeAsync(string id, Esp32AlertUpdateDto dto)
     {
         if (!ObjectId.TryParse(id, out _))

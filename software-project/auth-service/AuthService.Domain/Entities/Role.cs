@@ -3,6 +3,9 @@ using MongoDB.Bson;
 
 namespace AuthService.Domain.Entities;
 
+/// <summary>
+/// Represents an authorization role that groups a set of permissions and can be assigned to users.
+/// </summary>
 public class Role : IIdentifiableMutable
 {
     public string Id { get; private set; } = ObjectId.GenerateNewId().ToString();

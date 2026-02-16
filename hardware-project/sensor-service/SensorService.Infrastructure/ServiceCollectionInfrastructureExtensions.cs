@@ -14,6 +14,9 @@ using SensorService.Infrastructure.Services;
 
 namespace SensorService.Infrastructure;
 
+/// <summary>
+/// Extension methods for registering Sensor Service infrastructure dependencies (repositories, MQTT workers, mappers, background services).
+/// </summary>
 public static class ServiceCollectionInfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)

@@ -3,6 +3,9 @@ using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace ActuatorService.Domain.Interfaces;
 
+/// <summary>
+/// Persistence contract for routine command execution records.
+/// </summary>
 public interface IRoutineCommandRepository
 {
     Task<RoutineCommand?> GetByCommandIdAsync(string commandId);

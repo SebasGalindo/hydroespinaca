@@ -7,6 +7,9 @@ using MongoDB.Driver;
 
 namespace AuthService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for user entities.
+/// </summary>
 public class MongoUserRepository : IUserRepository
 {
     private readonly BaseMongoRepository<User, UserDocument> _baseRepo;

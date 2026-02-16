@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
 
+/// <summary>
+/// Mapper for converting between Permission domain entities and MongoDB documents.
+/// </summary>
 public class PermissionMapper : IEntityMapper<Permission, PermissionDocument>
 {
     public Permission ToEntity(PermissionDocument doc)

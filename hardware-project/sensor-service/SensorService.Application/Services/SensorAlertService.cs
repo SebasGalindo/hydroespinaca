@@ -11,6 +11,11 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la gestión de alertas de sensores hidropónicos.
+/// Permite consultar alertas por sensor (buscando en todas sus variables) y actualizar
+/// el estado de reconocimiento de alertas individuales.
+/// </summary>
 public class SensorAlertService : ISensorAlertService
 {
     private readonly ISensorAlertRepository _repo;
@@ -25,6 +30,12 @@ public class SensorAlertService : ISensorAlertService
         _sensorRepo = sensorRepo;
     }
 
+    /// <summary>
+    /// Obtiene todas las alertas asociadas a un sensor, iterando sobre todas sus variables.
+    /// Valida el formato del ID y la existencia del sensor.
+    /// </summary>
+    /// <param name="sensorId">Identificador del sensor (ObjectId de 24 caracteres).</param>
+    /// <returns>Lista de alertas del sensor.</returns>
     public async Task<List<SensorAlertDto>> GetBySensorIdAsync(string sensorId)
     {
         if (!ObjectId.TryParse(sensorId, out _))
@@ -45,6 +56,12 @@ public class SensorAlertService : ISensorAlertService
         return alerts.Select(SensorAlertMapper.ToDto).ToList();
     }
 
+    /// <summary>
+    /// Actualiza el estado de reconocimiento de una alerta de sensor.
+    /// Valida el formato del ID y la existencia de la alerta.
+    /// </summary>
+    /// <param name="id">Identificador de la alerta (ObjectId de 24 caracteres).</param>
+    /// <param name="dto">DTO con el nuevo estado de reconocimiento.</param>
     public async Task AcknowledgeAsync(string id, SensorAlertUpdateDto dto)
     {
         if (!ObjectId.TryParse(id, out _))

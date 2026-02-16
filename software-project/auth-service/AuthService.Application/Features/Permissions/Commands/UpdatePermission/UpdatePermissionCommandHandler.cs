@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Commands.UpdatePermission;
 
+/// <summary>
+/// Handler that updates a permission entity.
+/// </summary>
 public class UpdatePermissionCommandHandler : IRequestHandler<UpdatePermissionCommand, PermissionResponseDto?>
 {
     private readonly IPermissionRepository _permissionRepository;

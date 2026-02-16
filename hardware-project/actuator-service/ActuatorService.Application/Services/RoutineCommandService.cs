@@ -7,6 +7,9 @@ using HydroEspinaca.Shared.Errors;
 
 namespace ActuatorService.Application.Services;
 
+/// <summary>
+/// Application service that orchestrates routine command execution, publishes MQTT messages, and tracks completion.
+/// </summary>
 public class RoutineCommandService : IRoutineCommandService
 {
     private readonly IRoutineCommandRepository _routineCommandRepository;

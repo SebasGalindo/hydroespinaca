@@ -13,6 +13,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AuthService.Infrastructure;
+/// <summary>
+/// Extension methods for registering Auth Service infrastructure dependencies (MongoDB, security services, repositories, mappers).
+/// </summary>
 public static class ServiceCollectionApplicationExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)

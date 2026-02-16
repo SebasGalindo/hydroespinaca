@@ -9,6 +9,9 @@ using System.Security.Cryptography;
 
 namespace BffService.Application.Services;
 
+/// <summary>
+/// Application service that manages user sessions including login, logout, token refresh, and session validation.
+/// </summary>
 public class SessionApplicationService : ISessionService
 {
     private readonly ISessionRepository _sessionRepository;

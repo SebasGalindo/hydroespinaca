@@ -1,5 +1,8 @@
 ﻿namespace AuthService.Application.Features.Authentication.DTOs;
 
+/// <summary>
+/// DTO containing the authentication response with access token, refresh token, and expiration metadata.
+/// </summary>
 public record TokenResponseDto
 {
     public string AccessToken { get; init; } = default!;

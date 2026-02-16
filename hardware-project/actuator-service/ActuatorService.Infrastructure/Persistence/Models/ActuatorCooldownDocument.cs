@@ -4,6 +4,9 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace ActuatorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// MongoDB document schema for actuator cooldown state records.
+/// </summary>
 [BsonIgnoreExtraElements]
 public class ActuatorCooldownDocument : IIdentifiableMutable
 {

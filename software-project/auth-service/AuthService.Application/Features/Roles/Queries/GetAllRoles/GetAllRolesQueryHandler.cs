@@ -5,6 +5,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Roles.Queries.GetAllRoles;
 
+/// <summary>
+/// Handler that returns all registered roles.
+/// </summary>
 public class GetAllRolesQueryHandler : IRequestHandler<GetAllRolesQuery, List<RoleResponseDto>>
 {
     private readonly IRoleRepository _roleRepository;

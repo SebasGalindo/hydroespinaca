@@ -4,6 +4,9 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
 
+/// <summary>
+/// MongoDB document schema for client application records.
+/// </summary>
 public class ClientAppDocument : IIdentifiableMutable
 {
     [BsonId]

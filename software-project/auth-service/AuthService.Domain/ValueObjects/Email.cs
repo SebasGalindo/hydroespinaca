@@ -1,6 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 
 namespace AuthService.Domain.ValueObjects;
+/// <summary>
+/// Value object representing a validated email address.
+/// </summary>
 public sealed class Email
 {
     public  string Value { get; set; }

@@ -3,6 +3,9 @@ using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace BffService.Application.Interfaces;
 
+/// <summary>
+/// Contract for the analytics service that aggregates data from multiple backend services.
+/// </summary>
 public interface IAnalyticsService
 {
     Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(

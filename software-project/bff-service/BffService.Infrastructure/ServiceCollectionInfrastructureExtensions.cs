@@ -8,6 +8,9 @@ using BffService.Infrastructure.Http;
 
 namespace BffService.Infrastructure;
 
+/// <summary>
+/// Extension methods for registering BFF infrastructure dependencies (HTTP clients, session store, auth service).
+/// </summary>
 public static class ServiceCollectionInfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -28,6 +31,7 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddHttpClient<IProxyService, ProxyService>();
         services.AddHttpClient<IWeatherService, WeatherService>();
         services.AddHttpClient<IFuzzyServiceClient, FuzzyServiceClient>();
+        services.AddHttpClient<IBiServiceClient, BiServiceClient>();
 
         return services;
     }

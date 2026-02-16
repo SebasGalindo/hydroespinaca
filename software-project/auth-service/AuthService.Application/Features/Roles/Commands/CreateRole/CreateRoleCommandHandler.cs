@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Features.Roles.Commands.CreateRole;
 
+/// <summary>
+/// Handler that creates a new role and associates the specified permissions.
+/// </summary>
 public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, RoleResponseDto>
 {
     private readonly IRoleRepository _roleRepository;

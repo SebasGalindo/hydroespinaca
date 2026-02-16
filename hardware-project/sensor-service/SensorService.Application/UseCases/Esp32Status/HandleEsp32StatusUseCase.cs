@@ -8,6 +8,11 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.UseCases.Esp32Status;
 
+/// <summary>
+/// Caso de uso para gestionar los cambios de estado de los dispositivos ESP32 recibidos vía MQTT.
+/// Maneja las transiciones online/offline/running, actualiza el estado del nodo ESP32
+/// y gestiona las alertas de conectividad (creación y resolución automática).
+/// </summary>
 public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
 {
     private readonly IEsp32AlertRepository _esp32AlertRepository;
@@ -24,6 +29,14 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Procesa la transición a estado online de un ESP32.
+    /// Actualiza el estado del nodo con datos de telemetría y resuelve alertas de desconexión activas.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32.</param>
+    /// <param name="timestamp">Marca de tiempo del evento.</param>
+    /// <param name="freeHeap">Memoria heap libre en bytes (opcional).</param>
+    /// <param name="uptime">Tiempo de actividad en segundos (opcional).</param>
     public async Task HandleOnlineAsync(string esp32Id, DateTime timestamp, long? freeHeap = null, long? uptime = null)
     {
         _logger.LogInformation("📡 ESP32 {Esp32Id} marcado como online - FreeHeap: {FreeHeap}KB, Uptime: {Uptime}s", 
@@ -53,6 +66,14 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         }
     }
 
+    /// <summary>
+    /// Procesa el estado running de un ESP32 (métricas periódicas activas).
+    /// Se trata como un estado online: actualiza telemetría y resuelve alertas de desconexión.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32.</param>
+    /// <param name="timestamp">Marca de tiempo del evento.</param>
+    /// <param name="freeHeap">Memoria heap libre en bytes (opcional).</param>
+    /// <param name="uptime">Tiempo de actividad en segundos (opcional).</param>
     public async Task HandleRunningAsync(string esp32Id, DateTime timestamp, long? freeHeap = null, long? uptime = null)
     {
         _logger.LogInformation("🔄 ESP32 {Esp32Id} en estado running - FreeHeap: {FreeHeap}KB, Uptime: {Uptime}s", 
@@ -77,6 +98,12 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         }
     }
 
+    /// <summary>
+    /// Procesa la desconexión de un ESP32 (detectada por MQTT LWT - Last Will and Testament).
+    /// Actualiza el estado del nodo a offline y crea una alerta de desconexión si no existe una activa.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32.</param>
+    /// <param name="timestamp">Marca de tiempo de la desconexión.</param>
     public async Task HandleOfflineAsync(string esp32Id, DateTime timestamp)
     {
         _logger.LogWarning("⚠️ ESP32 {Esp32Id} marcado offline por LWT", esp32Id);
@@ -108,7 +135,11 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         
         _logger.LogInformation("🚨 Nueva alerta creada para ESP32 offline: {Esp32Id}", esp32Id);
     }
-
+    /// <summary>
+    /// Procesa un payload completo de estado del ESP32 y delega al handler apropiado.
+    /// Valida el estado reportado y enruta a HandleOnlineAsync, HandleRunningAsync o HandleOfflineAsync.
+    /// </summary>
+    /// <param name="payload">DTO con el payload de estado del ESP32.</param>
     public async Task HandleStatusPayloadAsync(Esp32StatusPayloadDto payload)
     {
         if (!payload.IsValidStatus)
@@ -135,6 +166,14 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         }
     }
 
+    /// <summary>
+    /// Actualiza el estado de un nodo ESP32 a online con datos de telemetría.
+    /// Busca el nodo por identificador (ObjectId o nombre) y actualiza su estado.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32.</param>
+    /// <param name="timestamp">Marca de tiempo de la conexión.</param>
+    /// <param name="freeHeap">Memoria heap libre en bytes.</param>
+    /// <param name="uptime">Tiempo de actividad en segundos.</param>
     private async Task SetEsp32OnlineAsync(string esp32Id, DateTime timestamp, long freeHeap, long uptime)
     {
         try
@@ -164,6 +203,12 @@ public class HandleEsp32StatusUseCase : IHandleEsp32StatusUseCase
         }
     }
 
+    /// <summary>
+    /// Actualiza el estado de un nodo ESP32 a offline.
+    /// Busca el nodo por identificador y actualiza su estado de desconexión.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32.</param>
+    /// <param name="timestamp">Marca de tiempo de la desconexión.</param>
     private async Task SetEsp32OfflineAsync(string esp32Id, DateTime timestamp)
     {
         try

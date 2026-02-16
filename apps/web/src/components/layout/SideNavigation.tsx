@@ -14,7 +14,8 @@ import {
   BoltIcon,
   ListIcon,
   PlantIcon,
-  PowerIcon
+  PowerIcon,
+  CalculatorIcon
 } from '@/components/ui/icons/Icons';
 import { useAuthStore } from '@hydroespinaca/shared';
 
@@ -56,6 +57,8 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   const navigationItems: NavigationItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
     { href: '/analytics', label: 'Análisis de datos', icon: TrendingUpIcon },
+    { href: '/consumo', label: 'Consumo y Costos', icon: CalculatorIcon },
+    { href: '/rutinas', label: 'Rutinas Fuzzy', icon: BrainIcon },
   ];
 
   // Admin menu items (only for Administrador role)

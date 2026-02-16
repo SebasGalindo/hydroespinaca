@@ -3,6 +3,9 @@ using MediatR;
 
 namespace AuthService.Application.Shared.Behaviors;
 
+/// <summary>
+/// MediatR pipeline behavior that runs FluentValidation validators before the request handler.
+/// </summary>
 public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {

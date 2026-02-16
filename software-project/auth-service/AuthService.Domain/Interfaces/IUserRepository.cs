@@ -1,6 +1,9 @@
 ﻿using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
+/// <summary>
+/// Persistence contract for user entities.
+/// </summary>
 public interface IUserRepository
 {
     Task<User?> FindByEmailAsync(string email);

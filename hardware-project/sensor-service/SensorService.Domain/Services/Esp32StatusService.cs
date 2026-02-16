@@ -6,6 +6,11 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Domain.Services;
 
+/// <summary>
+/// Servicio de dominio que gestiona el estado de los nodos ESP32,
+/// incluyendo detección de nodos offline, creación/actualización de alertas
+/// de desconexión y resolución de alertas al reconectarse.
+/// </summary>
 public class Esp32StatusService : IEsp32StatusService
 {
     private readonly ISensorRepository _sensorRepository;
@@ -27,6 +32,13 @@ public class Esp32StatusService : IEsp32StatusService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Obtiene el estado actual de todos los nodos ESP32 registrados,
+    /// evaluando si están offline según el umbral configurado.
+    /// </summary>
+    /// <param name="currentTime">Fecha y hora actual para la evaluación.</param>
+    /// <param name="threshold">Umbral de desconexión configurado.</param>
+    /// <returns>Colección de estados de todos los nodos ESP32.</returns>
     public async Task<IEnumerable<Esp32StatusRecord>> GetAllEsp32StatusesAsync(
      DateTime currentTime,
      OfflineThreshold threshold)
@@ -69,6 +81,12 @@ public class Esp32StatusService : IEsp32StatusService
     }
 
 
+    /// <summary>
+    /// Crea o actualiza una alerta de desconexión para un nodo ESP32 offline.
+    /// Si ya existe una alerta activa, actualiza su mensaje y timestamp.
+    /// </summary>
+    /// <param name="status">Estado actual del nodo ESP32.</param>
+    /// <param name="timestamp">Momento de la detección de desconexión.</param>
     public async Task UpsertOfflineAlertAsync(
         Esp32StatusRecord status,
         DateTime timestamp)
@@ -104,6 +122,11 @@ public class Esp32StatusService : IEsp32StatusService
         }
     }
 
+    /// <summary>
+    /// Resuelve la alerta de desconexión de un nodo ESP32 que se ha reconectado.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del nodo ESP32 reconectado.</param>
+    /// <param name="timestamp">Momento de la reconexión.</param>
     public async Task ResolveOfflineAlertAsync(string esp32Id, DateTime timestamp)
     {
         var activeAlert = await _esp32AlertRepository.GetActiveByEsp32IdAsync(esp32Id);
@@ -118,6 +141,10 @@ public class Esp32StatusService : IEsp32StatusService
         _logger.LogInformation("Resolved offline alert for ESP32: {Esp32Id}", esp32Id);
     }
 
+    /// <summary>
+    /// Marca como reconocida la alerta de desconexión activa de un nodo ESP32.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del nodo ESP32.</param>
     public async Task AcknowledgeOfflineAlertAsync(string esp32Id)
     {
         var alert = await _esp32AlertRepository.GetActiveByEsp32IdAsync(esp32Id);

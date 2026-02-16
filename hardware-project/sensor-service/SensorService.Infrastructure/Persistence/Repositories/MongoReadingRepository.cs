@@ -8,6 +8,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for sensor readings.
+/// </summary>
 public class MongoReadingRepository : IReadingRepository
 {
     private readonly BaseMongoRepository<Reading, ReadingDocument> _baseRepo;

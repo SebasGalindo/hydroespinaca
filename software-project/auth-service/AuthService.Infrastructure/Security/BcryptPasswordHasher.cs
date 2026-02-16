@@ -1,6 +1,9 @@
 ﻿using AuthService.Domain.Interfaces;
 
 namespace AuthService.Infrastructure.Security;
+/// <summary>
+/// BCrypt-based password hasher implementation for secure password hashing and verification.
+/// </summary>
 public class BcryptPasswordHasher : IPasswordHasher
 {
     private const int WorkFactor = 11;

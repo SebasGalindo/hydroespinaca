@@ -4,6 +4,11 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para obtener las últimas lecturas de todas las variables del sistema hidropónico.
+/// Enriquece las lecturas con información de la variable (nombre, unidad, rangos óptimos)
+/// para presentación directa en el dashboard del frontend.
+/// </summary>
 public class LatestReadingsService : ILatestReadingsService
 {
     private readonly IReadingRepository _readingRepo;
@@ -15,6 +20,11 @@ public class LatestReadingsService : ILatestReadingsService
         _variableRepo = variableRepo;
     }
 
+    /// <summary>
+    /// Obtiene las últimas lecturas de cada variable, enriquecidas con nombre, unidad y rangos óptimos.
+    /// Cruza datos de lecturas recientes con la información de variables para proporcionar contexto completo.
+    /// </summary>
+    /// <returns>DTO con las lecturas más recientes enriquecidas, o null si no hay lecturas.</returns>
     public async Task<EnrichedLatestReadingsDto?> GetEnrichedLatestReadingsAsync()
     {
         // Get latest readings from readings collection

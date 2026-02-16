@@ -5,6 +5,12 @@ using SensorService.Domain.Entities;
 using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.UseCases.ProcessReadingBatch;
+
+/// <summary>
+/// Caso de uso para emparejar lecturas entrantes con los sensores registrados en el sistema.
+/// Busca coincidencias por identificador físico del sensor y código de variable,
+/// transformando las lecturas MQTT en entidades de dominio Reading.
+/// </summary>
 public class MatchReadingsWithSensorsUseCase : IMatchReadingsWithSensorsUseCase
 {
     private readonly ISensorRepository _sensorRepository;
@@ -16,6 +22,12 @@ public class MatchReadingsWithSensorsUseCase : IMatchReadingsWithSensorsUseCase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Empareja cada lectura del lote con un sensor registrado usando PhysicalId y VariableCode.
+    /// Las lecturas sin sensor coincidente se registran como advertencia y se descartan.
+    /// </summary>
+    /// <param name="dto">DTO del lote de lecturas recibido del ESP32.</param>
+    /// <returns>Colección de lecturas emparejadas como entidades de dominio Reading.</returns>
     public async Task<IEnumerable<Reading>> ExecuteAsync(ReadingBatchDto dto)
     {
         var allSensors = await _sensorRepository.GetAllAsync();

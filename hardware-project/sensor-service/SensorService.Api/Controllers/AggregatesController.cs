@@ -5,6 +5,9 @@ using SensorService.Application.Interfaces;
 using HydroEspinaca.Shared.DTOs.Analytics;
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for querying aggregated sensor data summaries and trends.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AggregatesController : ControllerBase

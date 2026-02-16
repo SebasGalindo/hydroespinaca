@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
 
+/// <summary>
+/// Mapper for converting between Role domain entities and MongoDB documents.
+/// </summary>
 public class RoleMapper : IEntityMapper<Role, RoleDocument>
 {
     public Role ToEntity(RoleDocument doc)

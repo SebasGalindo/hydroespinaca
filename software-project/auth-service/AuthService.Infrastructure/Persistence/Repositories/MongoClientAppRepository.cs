@@ -6,6 +6,9 @@ using HydroEspinaca.Shared.Mongo;
 using MongoDB.Driver;
 
 namespace AuthService.Infrastructure.Persistence.Repositories;
+/// <summary>
+/// MongoDB repository implementation for client application entities.
+/// </summary>
 public class MongoClientAppRepository : IClientAppRepository
 {
     private readonly BaseMongoRepository<ClientApp, ClientAppDocument> _baseRepo;

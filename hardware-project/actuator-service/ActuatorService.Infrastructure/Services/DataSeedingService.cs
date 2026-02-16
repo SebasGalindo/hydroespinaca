@@ -5,6 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace ActuatorService.Infrastructure.Services;
 
+/// <summary>
+/// Background service that seeds initial actuator data into the database on startup.
+/// </summary>
 public class DataSeedingService
 {
     private readonly IActuatorRepository _actuatorRepository;
@@ -49,7 +52,8 @@ public class DataSeedingService
                 Pin = "27",
                 Mode = ActuatorMode.PWM,
                 Type = ActuatorType.Fan,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 25m
             },
             new
             {
@@ -59,7 +63,8 @@ public class DataSeedingService
                 Pin = "17",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Heater,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 1500m
             },
             new
             {
@@ -69,7 +74,8 @@ public class DataSeedingService
                 Pin = "18",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Led,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 150m
             },
             new
             {
@@ -79,7 +85,8 @@ public class DataSeedingService
                 Pin = "5",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Pump,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 5m
             },
             new
             {
@@ -89,7 +96,8 @@ public class DataSeedingService
                 Pin = "19",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Pump,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 45m
             },
             new
             {
@@ -99,7 +107,8 @@ public class DataSeedingService
                 Pin = "4",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Heater,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 1200m
             },
             new
             {
@@ -109,7 +118,8 @@ public class DataSeedingService
                 Pin = "14",
                 Mode = ActuatorMode.DIGITAL,
                 Type = ActuatorType.Humidifier,
-                Location = "invernadero"
+                Location = "invernadero",
+                PowerConsumptionWatts = 35m
             }
         };
 
@@ -133,7 +143,8 @@ public class DataSeedingService
                     Mode = actuatorData.Mode,
                     Type = actuatorData.Type,
                     Location = actuatorData.Location,
-                    Status = ActuatorStatus.Active
+                    Status = ActuatorStatus.Active,
+                    PowerConsumptionWatts = actuatorData.PowerConsumptionWatts
                 };
 
                 await _actuatorRepository.AddAsync(actuator);

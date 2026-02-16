@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace ActuatorService.Infrastructure.Persistence.Mappings;
 
+/// <summary>
+/// Mapper for converting between routine command domain entities and MongoDB documents.
+/// </summary>
 public class RoutineCommandMapper : IEntityMapper<RoutineCommand, RoutineCommandDocument>
 {
     public RoutineCommand ToEntity(RoutineCommandDocument doc)

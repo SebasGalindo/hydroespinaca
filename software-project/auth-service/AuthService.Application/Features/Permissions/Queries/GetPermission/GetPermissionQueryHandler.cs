@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Queries.GetPermission;
 
+/// <summary>
+/// Handler that retrieves a single permission by ID.
+/// </summary>
 public class GetPermissionQueryHandler : IRequestHandler<GetPermissionQuery, PermissionResponseDto?>
 {
     private readonly IPermissionRepository _permissionRepository;

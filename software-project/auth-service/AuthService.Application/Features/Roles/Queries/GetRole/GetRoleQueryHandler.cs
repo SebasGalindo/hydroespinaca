@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Roles.Queries.GetRole;
 
+/// <summary>
+/// Handler that retrieves a single role by ID.
+/// </summary>
 public class GetRoleQueryHandler : IRequestHandler<GetRoleQuery, RoleResponseDto?>
 {
     private readonly IRoleRepository _roleRepository;

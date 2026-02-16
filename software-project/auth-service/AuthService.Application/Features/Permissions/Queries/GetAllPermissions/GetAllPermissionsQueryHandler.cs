@@ -5,6 +5,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Queries.GetAllPermissions;
 
+/// <summary>
+/// Handler that returns all registered permissions.
+/// </summary>
 public class GetAllPermissionsQueryHandler : IRequestHandler<GetAllPermissionsQuery, List<PermissionResponseDto>>
 {
     private readonly IPermissionRepository _permissionRepository;

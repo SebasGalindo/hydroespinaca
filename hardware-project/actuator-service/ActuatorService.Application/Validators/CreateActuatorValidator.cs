@@ -5,6 +5,9 @@ using HydroEspinaca.Shared.Validations;
 
 namespace ActuatorService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for actuator creation input.
+/// </summary>
 public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
 {
     public CreateActuatorValidator()
@@ -42,5 +45,9 @@ public class CreateActuatorValidator : AbstractValidator<CreateActuatorDto>
             .WithMessage("La ubicación es obligatoria.")
             .MaximumLength(ActuatorConstants.Validation.MaxLocationLength)
             .WithMessage($"La ubicación no debe superar los {ActuatorConstants.Validation.MaxLocationLength} caracteres.");
+
+        RuleFor(x => x.PowerConsumptionWatts)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("El consumo de potencia en watts debe ser mayor o igual a 0.");
     }
 }

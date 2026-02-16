@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.DTOs.Actuator;
 
 namespace ActuatorService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for actuator control commands.
+/// </summary>
 public class ActuatorControlValidator : AbstractValidator<ActuatorControlDto>
 {
     // Tolerance for floating-point comparisons

@@ -5,6 +5,8 @@
 
 // Export all stores
 export { useAuthStore, setAuthStoreRedirectCallback } from './store';
+export { useBiStore } from './store';
+export { useFuzzyStore } from './store';
 
 // Export store-specific types
 export type { User } from './store';
@@ -46,6 +48,8 @@ export type {
 } from './utils/variableAlerts';
 
 // Export API utilities
+export { BaseApiService, ApiServiceError } from './api/BaseApiService';
+export type { RequestOptions } from './api/BaseApiService';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
@@ -68,6 +72,8 @@ export type {
   ActuatorAnalyticsResponse,
 } from './api/analyticsService';
 export { AdminApiService, adminService } from './api/adminService';
+export { BiApiService, biService, BiApiError } from './api/biService';
+export { FuzzyApiService, fuzzyService, FuzzyApiError } from './api/fuzzyService';
 export type {
   UserCreateDto,
   UserUpdateDto,

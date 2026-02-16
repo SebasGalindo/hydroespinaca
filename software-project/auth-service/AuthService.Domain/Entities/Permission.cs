@@ -3,6 +3,9 @@ using MongoDB.Bson;
 
 namespace AuthService.Domain.Entities;
 
+/// <summary>
+/// Represents an individual authorization permission that can be assigned to roles.
+/// </summary>
 public class Permission : IIdentifiableMutable
 {
     public string Id { get; private set; } = ObjectId.GenerateNewId().ToString();

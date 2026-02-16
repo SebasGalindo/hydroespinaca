@@ -42,7 +42,8 @@ http {
 
     # Content Security Policy
     # Permite scripts necesarios para React/Next.js y Cloudflare
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hydroespinaca.online https://*.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self' https://api.hydroespinaca.online wss://hydroespinaca.online wss://mqtt.hydroespinaca.online https://*.cloudflare.com; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    # ${CSP_HEADER} will be replaced by environment-specific CSP
+    ${CSP_HEADER}
 
     # Rate limiting
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;

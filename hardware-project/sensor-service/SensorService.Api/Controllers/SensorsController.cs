@@ -6,6 +6,9 @@ using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for CRUD operations on sensor definitions.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class SensorsController : ControllerBase

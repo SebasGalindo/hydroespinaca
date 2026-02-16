@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Permissions.Commands.UpdatePermission;
 
+/// <summary>
+/// Validator for permission update input.
+/// </summary>
 public class UpdatePermissionCommandValidator : BaseValidator<UpdatePermissionCommand>
 {
     public UpdatePermissionCommandValidator()

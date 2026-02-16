@@ -271,3 +271,13 @@ class IFuzzySystemRepository(ABC):
             List of fuzzy systems containing the variable as output
         """
         pass
+
+    # Activation-specific methods
+    @abstractmethod
+    async def deactivate_all_active(self) -> int:
+        """Deactivates all currently active fuzzy systems (sets status to INACTIVE).
+        
+        Returns:
+            Number of systems that were deactivated
+        """
+        pass

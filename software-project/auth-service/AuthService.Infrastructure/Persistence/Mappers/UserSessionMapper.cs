@@ -5,6 +5,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
 
+/// <summary>
+/// Mapper for converting between UserSession domain entities and MongoDB documents.
+/// </summary>
 public class UserSessionMapper : IEntityMapper<UserSession, UserSessionDocument>
 {
     public UserSessionDocument ToDocument(UserSession entity)

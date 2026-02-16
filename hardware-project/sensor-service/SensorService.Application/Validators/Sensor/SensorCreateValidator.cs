@@ -5,6 +5,11 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Validators.Sensor;
 
+/// <summary>
+/// Validador de FluentValidation para la creación de sensores.
+/// Valida código, identificador físico, ubicación, ESP32 asociado,
+/// frecuencia de muestreo y variables asignadas.
+/// </summary>
 public class SensorCreateValidator : AbstractValidator<SensorCreateDto>
 {
     public SensorCreateValidator(

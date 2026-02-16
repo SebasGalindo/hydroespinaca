@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ActuatorService.Api.Controllers;
 
+/// <summary>
+/// API controller for CRUD operations on actuator devices and usage analytics.
+/// </summary>
 [ApiController]
 [Route("api/actuators")]
 public class ActuatorsController : ControllerBase

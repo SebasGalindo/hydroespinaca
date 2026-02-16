@@ -5,6 +5,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Users.Queries.GetUser;
 
+/// <summary>
+/// Handler that retrieves a single user by ID.
+/// </summary>
 public class GetUserQueryHandler : IRequestHandler<GetUserQuery, UserResponseDto?>
 {
     private readonly IUserRepository _userRepository;

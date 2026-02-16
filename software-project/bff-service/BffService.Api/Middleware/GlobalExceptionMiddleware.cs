@@ -3,6 +3,9 @@ using System.Net.Mime;
 
 namespace BffService.Api.Middleware;
 
+/// <summary>
+/// ASP.NET Core middleware that catches unhandled exceptions and returns structured JSON error responses.
+/// </summary>
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;

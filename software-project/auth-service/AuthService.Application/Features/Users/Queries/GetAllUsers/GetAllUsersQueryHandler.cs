@@ -5,6 +5,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Users.Queries.GetAllUsers;
 
+/// <summary>
+/// Handler that returns all registered users.
+/// </summary>
 public class GetAllUsersQueryHandler : IRequestHandler<GetAllUsersQuery, IEnumerable<UserResponseDto>>
 {
     private readonly IUserRepository _userRepository;

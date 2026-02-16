@@ -7,6 +7,9 @@ using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service that seeds initial environmental variable definitions into the database on startup.
+/// </summary>
 public class VariableSeedService : IVariableSeedService
 {
     private readonly ILogger<VariableSeedService> _logger;

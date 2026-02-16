@@ -9,6 +9,9 @@ using MongoDB.Driver;
 
 namespace ActuatorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for routine command execution records.
+/// </summary>
 public class MongoRoutineCommandRepository : IRoutineCommandRepository
 {
     private readonly BaseMongoRepository<RoutineCommand, RoutineCommandDocument> _baseRepo;

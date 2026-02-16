@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 
+/// <summary>
+/// Handler that validates client credentials and issues a JWT access token for service-to-service communication.
+/// </summary>
 public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentialsCommand, TokenResultDto>
 {
     private readonly IClientAppRepository _clientAppRepository;

@@ -2,6 +2,9 @@ using HydroEspinaca.Shared.Errors;
 
 namespace BffService.Domain.Exceptions;
 
+/// <summary>
+/// Exception thrown when a user session cannot be found in the session store.
+/// </summary>
 public class SessionNotFoundException : NotFoundException
 {
     public SessionNotFoundException(string sessionId)

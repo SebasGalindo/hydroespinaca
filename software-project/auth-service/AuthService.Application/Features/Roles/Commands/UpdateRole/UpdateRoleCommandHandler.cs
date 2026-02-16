@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Features.Roles.Commands.UpdateRole;
 
+/// <summary>
+/// Handler that updates a role entity and its permission associations.
+/// </summary>
 public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, RoleResponseDto?>
 {
     private readonly IRoleRepository _roleRepository;

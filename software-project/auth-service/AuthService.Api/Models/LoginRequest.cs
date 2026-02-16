@@ -1,5 +1,8 @@
 namespace AuthService.Api.Models;
 
+/// <summary>
+/// API request model for user login endpoint.
+/// </summary>
 public class LoginRequest
 {
     public string Email { get; set; } = string.Empty;

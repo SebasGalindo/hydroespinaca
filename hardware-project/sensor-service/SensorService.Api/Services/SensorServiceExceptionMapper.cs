@@ -6,6 +6,9 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Api.Services;
 
+/// <summary>
+/// Maps domain and application exceptions to appropriate HTTP status codes and error responses.
+/// </summary>
 public class SensorServiceExceptionMapper : IExceptionToProblemDetailsMapper
 {
     private readonly ProblemDetailsFactory _sharedMapper;

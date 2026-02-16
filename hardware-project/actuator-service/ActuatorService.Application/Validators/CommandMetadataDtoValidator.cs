@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace ActuatorService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for command metadata input.
+/// </summary>
 public class CommandMetadataDtoValidator : AbstractValidator<CommandMetadataDto>
 {
     public CommandMetadataDtoValidator()

@@ -6,6 +6,9 @@ using SensorService.Application.Interfaces.UseCases.AggregateWorker;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Background worker that periodically triggers the aggregation pipeline to compute statistical summaries of sensor readings.
+/// </summary>
 public class AggregateWorker : BackgroundService
 {
     private readonly ILogger<AggregateWorker> _logger;

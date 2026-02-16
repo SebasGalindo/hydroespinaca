@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Enums;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace ActuatorService.Infrastructure.Persistence.Mappings;
+/// <summary>
+/// Mapper for converting between Actuator domain entities and MongoDB documents.
+/// </summary>
 public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
 {
     public Actuator ToEntity(ActuatorDocument doc)
@@ -18,6 +21,7 @@ public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
             Pin = doc.Pin,
             Location = doc.Location,
             Status = Enum.Parse<ActuatorStatus>(doc.Status),
+            PowerConsumptionWatts = doc.PowerConsumptionWatts,
             CreatedAt = doc.CreatedAt
         };
         actuator.SetId(doc.Id);
@@ -36,6 +40,7 @@ public class ActuatorMapper : IEntityMapper<Actuator, ActuatorDocument>
             Pin = entity.Pin,
             Location = entity.Location,
             Status = entity.Status.ToString(),
+            PowerConsumptionWatts = entity.PowerConsumptionWatts,
             CreatedAt = entity.CreatedAt
         };
         doc.SetId(entity.Id);

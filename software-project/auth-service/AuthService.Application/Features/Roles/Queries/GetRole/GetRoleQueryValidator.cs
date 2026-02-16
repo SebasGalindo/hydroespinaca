@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Roles.Queries.GetRole;
 
+/// <summary>
+/// Validator ensuring a valid role ID is provided.
+/// </summary>
 public class GetRoleQueryValidator : BaseValidator<GetRoleQuery>
 {
     public GetRoleQueryValidator()

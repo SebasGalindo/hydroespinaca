@@ -13,13 +13,19 @@ from FuzzyService.Application.Features.FuzzySystems.DTOs.FuzzySystemDto import F
 from FuzzyService.Application.Features.FuzzySystems.Commands.CreateFuzzySystem.CreateFuzzySystemCommand import CreateFuzzySystemCommand
 from FuzzyService.Application.Features.FuzzySystems.Commands.UpdateFuzzySystem.UpdateFuzzySystemCommand import UpdateFuzzySystemCommand
 from FuzzyService.Application.Features.FuzzySystems.Commands.DeleteFuzzySystem.DeleteFuzzySystemCommand import DeleteFuzzySystemCommand
+from FuzzyService.Application.Features.FuzzySystems.Commands.ActivateFuzzySystem.ActivateFuzzySystemCommand import ActivateFuzzySystemCommand
+from FuzzyService.Application.Features.FuzzySystems.Commands.CloneFuzzySystem.CloneFuzzySystemCommand import CloneFuzzySystemCommand
+from FuzzyService.Application.Features.FuzzySystems.Commands.ImportFuzzySystem.ImportFuzzySystemCommand import ImportFuzzySystemCommand
 from FuzzyService.Application.Features.FuzzySystems.Queries.GetFuzzySystemById.GetFuzzySystemByIdQuery import GetFuzzySystemByIdQuery
 from FuzzyService.Application.Features.FuzzySystems.Queries.GetAllFuzzySystems.GetAllFuzzySystemsQuery import GetAllFuzzySystemsQuery
+from FuzzyService.Application.Features.FuzzySystems.Queries.ExportFuzzySystem.ExportFuzzySystemQuery import ExportFuzzySystemQuery
+from FuzzyService.Application.Features.FuzzySystems.Queries.SimulateFuzzySystem.SimulateFuzzySystemQuery import SimulateFuzzySystemQuery
 from FuzzyService.Application.Features.FuzzySystems.Commands.UpdateFuzzySystemStatus.UpdateFuzzySystemStatusCommand import UpdateFuzzySystemStatusCommand
 from FuzzyService.Domain.Enums import FuzzySystemStatus
 from FuzzyService.Domain.Errors.DomainErrors import (
     EntityNotFoundError,
     DuplicateEntityError,
+    BusinessRuleViolationError,
 )
 
 router = APIRouter(prefix="/api/fuzzy-systems", tags=["fuzzy-systems"])
@@ -108,6 +114,92 @@ async def update_fuzzy_system_status(
         return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.post("/{id}/activate", response_model=FuzzySystemDto)
+async def activate_fuzzy_system(
+    id: str,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_UPDATE)),
+) -> FuzzySystemDto:
+    """Activa un sistema difuso de forma exclusiva.
+    Desactiva todos los sistemas activos y activa el indicado.
+    """
+    mediator: Medyator = di[Medyator]
+    try:
+        command = ActivateFuzzySystemCommand(id=id)
+        await mediator.send(command)
+        return command._result
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except BusinessRuleViolationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@router.post("/{id}/clone", response_model=FuzzySystemDto, status_code=201)
+async def clone_fuzzy_system(
+    id: str,
+    command: CloneFuzzySystemCommand = None,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_CREATE)),
+) -> FuzzySystemDto:
+    """Clona (deep copy) un sistema difuso completo con todas sus variables, términos y reglas."""
+    mediator: Medyator = di[Medyator]
+    if command is None:
+        command = CloneFuzzySystemCommand()
+    try:
+        command.id = id
+        await mediator.send(command)
+        return command._result
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except DuplicateEntityError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.get("/{id}/export")
+async def export_fuzzy_system(
+    id: str,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_READ)),
+):
+    """Exporta un sistema difuso completo a JSON portátil (sistema + variables + términos + reglas)."""
+    mediator: Medyator = di[Medyator]
+    try:
+        query = ExportFuzzySystemQuery(id=id)
+        result = await mediator.send(query)
+        return result
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.post("/import", response_model=FuzzySystemDto, status_code=201)
+async def import_fuzzy_system(
+    command: ImportFuzzySystemCommand,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_CREATE)),
+) -> FuzzySystemDto:
+    """Importa un sistema difuso desde un JSON exportado previamente."""
+    mediator: Medyator = di[Medyator]
+    try:
+        await mediator.send(command)
+        return command._result
+    except DuplicateEntityError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.post("/{id}/simulate")
+async def simulate_fuzzy_system(
+    id: str,
+    query: SimulateFuzzySystemQuery,
+    user: UserClaims = Depends(require_scopes(Scopes.FUZZY_SYSTEM_READ)),
+):
+    """Simula una evaluación fuzzy con inputs arbitrarios sin persistir el resultado."""
+    mediator: Medyator = di[Medyator]
+    try:
+        query.id = id
+        result = await mediator.send(query)
+        return result
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except BusinessRuleViolationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.delete("/{id}", response_model=bool)

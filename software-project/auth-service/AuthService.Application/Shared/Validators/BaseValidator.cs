@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Shared.Validators;
 
+/// <summary>
+/// Base validator class providing shared validation rules for Auth Service commands.
+/// </summary>
 public abstract class BaseValidator<T> : AbstractValidator<T>
 {
     protected const string EmailRegex = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";

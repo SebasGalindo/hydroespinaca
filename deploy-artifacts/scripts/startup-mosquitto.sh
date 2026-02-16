@@ -129,6 +129,74 @@ if [ "$ENVIRONMENT" = "Development" ]; then
 fi
 
 info "Launching Mosquitto..."
+
+# -----------------------------
+# Ensure pwfile exists (development convenience)
+# -----------------------------
+PWFILE_PATH="/mosquitto/config/pwfile"
+if [ ! -f "$PWFILE_PATH" ]; then
+    warn "pwfile not found at $PWFILE_PATH"
+
+    if [ "$COMPOSE_PROFILE" = "development" ]; then
+        if command -v mosquitto_passwd >/dev/null 2>&1; then
+            # Collect users to add (only when both user and pass are set)
+            ADDED_USERS=0
+
+            if [ -n "${SENSOR_MQTT_USER:-}" ] && [ -n "${SENSOR_MQTT_PASS:-}" ]; then
+                mosquitto_passwd -b -c "$PWFILE_PATH" "$SENSOR_MQTT_USER" "$SENSOR_MQTT_PASS"
+                ADDED_USERS=1
+            fi
+
+            if [ -n "${ACTUATOR_MQTT_USER:-}" ] && [ -n "${ACTUATOR_MQTT_PASS:-}" ]; then
+                if [ $ADDED_USERS -eq 0 ]; then
+                    mosquitto_passwd -b -c "$PWFILE_PATH" "$ACTUATOR_MQTT_USER" "$ACTUATOR_MQTT_PASS"
+                    ADDED_USERS=1
+                else
+                    mosquitto_passwd -b "$PWFILE_PATH" "$ACTUATOR_MQTT_USER" "$ACTUATOR_MQTT_PASS"
+                fi
+            fi
+
+            if [ -n "${FUZZY_MQTT_USER:-}" ] && [ -n "${FUZZY_MQTT_PASS:-}" ]; then
+                if [ $ADDED_USERS -eq 0 ]; then
+                    mosquitto_passwd -b -c "$PWFILE_PATH" "$FUZZY_MQTT_USER" "$FUZZY_MQTT_PASS"
+                    ADDED_USERS=1
+                else
+                    mosquitto_passwd -b "$PWFILE_PATH" "$FUZZY_MQTT_USER" "$FUZZY_MQTT_PASS"
+                fi
+            fi
+
+            if [ -n "${ESP32_MQTT_USER:-}" ] && [ -n "${ESP32_MQTT_PASS:-}" ]; then
+                if [ $ADDED_USERS -eq 0 ]; then
+                    mosquitto_passwd -b -c "$PWFILE_PATH" "$ESP32_MQTT_USER" "$ESP32_MQTT_PASS"
+                    ADDED_USERS=1
+                else
+                    mosquitto_passwd -b "$PWFILE_PATH" "$ESP32_MQTT_USER" "$ESP32_MQTT_PASS"
+                fi
+            fi
+
+            if [ $ADDED_USERS -eq 0 ]; then
+                error "No MQTT users were provided via environment variables; cannot generate pwfile."
+                error "Set SENSOR_MQTT_USER/PASS, ACTUATOR_MQTT_USER/PASS, FUZZY_MQTT_USER/PASS, etc. in .env (or create deploy-artifacts/mosquitto/config/pwfile manually)."
+                exit 1
+            fi
+
+            # Try to set ownership for mosquitto if user exists
+            if id mosquitto >/dev/null 2>&1; then
+                chown mosquitto:mosquitto "$PWFILE_PATH" || true
+            fi
+            chmod 600 "$PWFILE_PATH" || true
+
+            log "Generated pwfile for development at $PWFILE_PATH"
+        else
+            error "mosquitto_passwd not found in image; cannot generate pwfile automatically."
+            exit 1
+        fi
+    else
+        error "pwfile is missing and profile is not development; refusing to start with allow_anonymous=false"
+        exit 1
+    fi
+fi
+
 mosquitto -c /mosquitto/config/mosquitto.conf -v 2>&1 || {
     error "Mosquitto failed with exit code $?"
     error "Last 10 lines of mosquitto log:"

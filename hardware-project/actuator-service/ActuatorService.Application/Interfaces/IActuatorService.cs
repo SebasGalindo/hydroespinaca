@@ -1,6 +1,9 @@
 ﻿using HydroEspinaca.Shared.DTOs.Actuator;
 
 namespace ActuatorService.Application.Interfaces;
+/// <summary>
+/// Contract for the actuator application service handling CRUD operations and analytics.
+/// </summary>
 public interface IActuatorService
 {
     Task<ActuatorDto> GetByIdAsync(string id);

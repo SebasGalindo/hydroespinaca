@@ -6,6 +6,9 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Background worker that periodically cleans up resolved or expired alerts from the database.
+/// </summary>
 public class AlertCleanupWorker : BackgroundService
 {
     private readonly ILogger<AlertCleanupWorker> _logger;

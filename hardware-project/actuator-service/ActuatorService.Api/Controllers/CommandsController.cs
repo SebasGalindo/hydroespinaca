@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ActuatorService.Api.Controllers;
 
+/// <summary>
+/// API controller for executing and tracking actuator routine commands.
+/// </summary>
 [ApiController]
 [Route("api/commands")]
 public class CommandsController : ControllerBase

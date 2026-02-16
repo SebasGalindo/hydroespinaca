@@ -5,6 +5,8 @@
 
 // Export all stores (platform agnostic)
 export { useAuthStore, setAuthStoreRedirectCallback } from './store';
+export { useBiStore } from './store';
+export { useFuzzyStore } from './store';
 
 // Export store-specific types
 export type { User } from './store';
@@ -45,6 +47,8 @@ export type {
 // Note: SessionStorage and secureStorage excluded - web should use browser APIs
 
 // Export API utilities (platform agnostic)
+export { BaseApiService, ApiServiceError } from './api/BaseApiService';
+export type { RequestOptions } from './api/BaseApiService';
 export { AuthApiService, authService, ApiError } from './api/authService';
 export type { ApiResponse } from './api/authService';
 export { SystemStatusService, systemStatusService } from './api/systemStatusService';
@@ -67,6 +71,65 @@ export type {
   ActuatorAnalyticsResponse,
 } from './api/analyticsService';
 export { AdminApiService, adminService } from './api/adminService';
+export { BiApiService, biService, BiApiError } from './api/biService';
+export { FuzzyApiService, fuzzyService, FuzzyApiError } from './api/fuzzyService';
+export type {
+  CostConfigVersion,
+  CreateCostConfigVersionRequest,
+  ManualConsumptionEntry,
+  CreateManualConsumptionEntryRequest,
+  ConsumptionType,
+  BiSummary,
+  ProductionRecord,
+  CreateProductionRecordRequest,
+  OperationalCostRequest,
+  OperationalCostResponse,
+  CostConfigPeriodUsed,
+  ActuatorOperationalCostItem,
+  ProfitabilityRequest,
+  ProfitabilityResponse,
+  ProductionInfo,
+  ExpensesInfo,
+  RevenueInfo,
+} from './types/bi';
+export {
+  CONSUMPTION_TYPE_LABELS,
+  CONSUMPTION_TYPE_UNITS,
+  CONSUMPTION_TYPE_ICONS,
+} from './types/bi';
+export type {
+  FuzzySystem,
+  FuzzySystemDetail,
+  FuzzyVariable,
+  FuzzyTerm,
+  FuzzyRule,
+  FuzzySystemStatus,
+  MembershipFunction,
+  MembershipFunctionType,
+  OperatorsConfig,
+  RuleCondition,
+  RuleConsequent,
+  CloneFuzzySystemRequest,
+  SimulateFuzzySystemRequest,
+  SimulateFuzzySystemResponse,
+  SimulateInput,
+  SimulateRuleActivation,
+  SimulateOutput,
+  FuzzySystemExport,
+  VariableType,
+  ActuatorType,
+  LogicalOperator,
+  RuleConnector,
+  AggregationMethod,
+} from './types/fuzzy';
+export {
+  FUZZY_STATUS_LABELS,
+  FUZZY_STATUS_COLORS,
+  FUZZY_STATUS_ICONS,
+  VARIABLE_TYPE_LABELS,
+  VARIABLE_TYPE_ICONS,
+  MEMBERSHIP_FUNCTION_LABELS,
+} from './types/fuzzy';
 export type {
   UserCreateDto,
   UserUpdateDto,

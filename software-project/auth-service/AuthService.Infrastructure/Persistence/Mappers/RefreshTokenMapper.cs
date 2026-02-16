@@ -3,6 +3,9 @@ using AuthService.Infrastructure.Persistence.Schemas;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
+/// <summary>
+/// Mapper for converting between RefreshToken domain entities and MongoDB documents.
+/// </summary>
 public class RefreshTokenMapper : IEntityMapper<RefreshToken, RefreshTokenDocument>
 {
     public RefreshTokenDocument ToDocument(RefreshToken entity)

@@ -6,6 +6,9 @@ using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for querying historical sensor readings.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ReadingsController : ControllerBase

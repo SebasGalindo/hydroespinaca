@@ -26,6 +26,13 @@ from FuzzyService.Infrastructure.Constants.RepositoryConstants import (
 
 _logger = logging.getLogger(__name__)
 
+# Full projection for FuzzySystem documents — keeps all fields needed by FuzzySystemDto
+_SYSTEM_PROJECTION = {
+    "_id": 1, "name": 1, "status": 1, "defuzzification_method": 1,
+    "operators": 1, "input_variable_ids": 1, "output_variable_ids": 1,
+    "rule_ids": 1, "created_at": 1, "updated_at": 1, "created_by": 1,
+}
+
 
 class FuzzySystemRepository(IFuzzySystemRepository):
     """
@@ -152,7 +159,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         return self._doc_to_entity(doc) if doc else None
 
     async def get_by_name(self, name: str) -> Optional[FuzzySystem]:
-        doc = await self._coll.find_one({"name": name}, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "operators": 1, "input_variable_ids": 1, "output_variable_ids": 1, "rule_ids": 1, "created_at": 1, "updated_at": 1, "created_by": 1})
+        doc = await self._coll.find_one({"name": name}, projection=_SYSTEM_PROJECTION)
         return self._doc_to_entity(doc) if doc else None
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[FuzzySystem]:
@@ -248,14 +255,14 @@ class FuzzySystemRepository(IFuzzySystemRepository):
 
     # ---------------------------- Query methods ----------------------------
     async def search_by_name(self, name_pattern: str, skip: int = 0, limit: int = 100) -> List[FuzzySystem]:
-        cursor = self._coll.find({"$text": {"$search": name_pattern}}, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1}) \
+        cursor = self._coll.find({"$text": {"$search": name_pattern}}, projection=_SYSTEM_PROJECTION) \
             .skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_by_date_range(self, start_date: datetime, end_date: datetime, skip: int = 0, limit: int = 100) -> List[FuzzySystem]:
         cursor = self._coll.find({
             "created_at": {"$gte": start_date, "$lte": end_date}
-        }, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit)).sort("created_at", 1)
+        }, projection=_SYSTEM_PROJECTION).skip(int(skip)).limit(int(limit)).sort("created_at", 1)
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def count_by_status(self, status: FuzzySystemStatus) -> int:
@@ -270,7 +277,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         _logger.debug("Fetching systems by status: %s (skip=%s, limit=%s)", q_status, skip, limit)
         cursor = self._coll.find(
             {"status": q_status},
-            projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1},
+            projection=_SYSTEM_PROJECTION,
         ).skip(int(skip)).limit(int(limit)).sort("created_at", -1)
         return [self._doc_to_entity(d) async for d in cursor]
 
@@ -292,7 +299,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         if (has_vars := filters.get("has_variables")) is True:
             _logger.warning("Query using $expr/$size to check variable counts may be expensive. Consider maintaining a denormalized count.")
             query[MONGO_EXPR_OPERATOR] = {MONGO_GT_OPERATOR: [{MONGO_ADD_OPERATOR: [{MONGO_SIZE_OPERATOR: "$input_variable_ids"}, {MONGO_SIZE_OPERATOR: "$output_variable_ids"}]}, 0]}
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1}).skip(int(skip)).limit(int(limit))
+        cursor = self._coll.find(query, projection=_SYSTEM_PROJECTION).skip(int(skip)).limit(int(limit))
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_systems_with_variable_count(self, min_variables: int = 0, max_variables: Optional[int] = None) -> List[FuzzySystem]:
@@ -301,7 +308,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         if max_variables is not None:
             query = {MONGO_AND_OPERATOR: [query, {MONGO_EXPR_OPERATOR: {MONGO_LTE_OPERATOR: [expr, int(max_variables)]}}]}
         _logger.warning("Query using $expr/$size for variable_count may be expensive on large collections.")
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find(query, projection=_SYSTEM_PROJECTION)
         return [self._doc_to_entity(d) async for d in cursor]
 
     async def get_systems_with_rule_count(self, min_rules: int = 0, max_rules: Optional[int] = None) -> List[FuzzySystem]:
@@ -310,7 +317,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         if max_rules is not None:
             query = {MONGO_AND_OPERATOR: [query, {MONGO_EXPR_OPERATOR: {MONGO_LTE_OPERATOR: [expr, int(max_rules)]}}]}
         _logger.warning("Query using $expr/$size for rule_count may be expensive on large collections.")
-        cursor = self._coll.find(query, projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "created_at": 1, "updated_at": 1})
+        cursor = self._coll.find(query, projection=_SYSTEM_PROJECTION)
         return [self._doc_to_entity(d) async for d in cursor]
 
     # ---------------------------- Variable-specific queries ----------------------------
@@ -319,7 +326,7 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         var_id_str = str(variable_id)
         cursor = self._coll.find(
             {"input_variable_ids": var_id_str},
-            projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "operators": 1, "input_variable_ids": 1, "output_variable_ids": 1, "rule_ids": 1, "created_at": 1, "updated_at": 1, "created_by": 1}
+            projection=_SYSTEM_PROJECTION
         )
         return [self._doc_to_entity(d) async for d in cursor]
 
@@ -328,6 +335,19 @@ class FuzzySystemRepository(IFuzzySystemRepository):
         var_id_str = str(variable_id)
         cursor = self._coll.find(
             {"output_variable_ids": var_id_str},
-            projection={"_id": 1, "name": 1, "status": 1, "defuzzification_method": 1, "operators": 1, "input_variable_ids": 1, "output_variable_ids": 1, "rule_ids": 1, "created_at": 1, "updated_at": 1, "created_by": 1}
+            projection=_SYSTEM_PROJECTION
         )
         return [self._doc_to_entity(d) async for d in cursor]
+
+    # ---------------------------- Activation methods ----------------------------
+    async def deactivate_all_active(self) -> int:
+        """Deactivates all currently active fuzzy systems (sets status to INACTIVE)."""
+        now_utc = datetime.now(timezone.utc)
+        res = await self._coll.update_many(
+            {"status": FuzzySystemStatus.ACTIVE.value},
+            {"$set": {"status": FuzzySystemStatus.INACTIVE.value, "updated_at": now_utc}}
+        )
+        count = res.modified_count
+        if count > 0:
+            _logger.info("Deactivated %d active FuzzySystem(s)", count)
+        return count

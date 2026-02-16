@@ -5,7 +5,7 @@ interface BaseCardProps {
   className?: string;
   padding?: 'sm' | 'md' | 'lg';
   hover?: boolean;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 const BaseCard: React.FC<BaseCardProps> = ({

@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Features.Users.Commands.UpdateUser;
 
+/// <summary>
+/// Handler that updates a user entity.
+/// </summary>
 public class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, UserResponseDto>
 {
     private readonly IUserRepository _userRepository;

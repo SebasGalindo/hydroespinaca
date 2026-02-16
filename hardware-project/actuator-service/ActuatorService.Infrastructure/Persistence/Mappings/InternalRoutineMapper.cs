@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace ActuatorService.Infrastructure.Persistence.Mappings;
 
+/// <summary>
+/// Mapper for converting between internal routine domain objects and MongoDB documents.
+/// </summary>
 public class InternalRoutineMapper : IEntityMapper<InternalRoutine, InternalRoutineDocument>
 {
     public InternalRoutineDocument ToDocument(InternalRoutine entity)

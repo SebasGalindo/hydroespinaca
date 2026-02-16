@@ -7,6 +7,9 @@ using System.Text;
 
 namespace AuthService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service for managing user login sessions.
+/// </summary>
 public class UserSessionService : IUserSessionService
 {
     private readonly IUserSessionRepository _sessionRepository;

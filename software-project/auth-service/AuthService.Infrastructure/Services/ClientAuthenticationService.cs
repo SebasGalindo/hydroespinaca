@@ -4,6 +4,9 @@ using AuthService.Domain.Interfaces;
 using HydroEspinaca.Shared.Errors;
 
 namespace AuthService.Infrastructure.Services;
+/// <summary>
+/// Infrastructure service implementing client credentials authentication flow for M2M communication.
+/// </summary>
 public class ClientAuthenticationService : IClientAuthenticationService
 {
     private readonly IClientAppRepository _appRepo;

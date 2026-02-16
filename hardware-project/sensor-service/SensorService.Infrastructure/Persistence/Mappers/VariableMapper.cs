@@ -4,8 +4,16 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
+/// <summary>
+/// Mapper que convierte entre la entidad de dominio <see cref="Variable"/> y el documento MongoDB <see cref="VariableDocument"/>.
+/// </summary>
 public class VariableMapper : IEntityMapper<Variable, VariableDocument>
 {
+    /// <summary>
+    /// Convierte un documento MongoDB de variable a su entidad de dominio correspondiente.
+    /// </summary>
+    /// <param name="doc">El documento MongoDB de variable.</param>
+    /// <returns>La entidad de dominio <see cref="Variable"/>.</returns>
     public Variable ToEntity(VariableDocument doc)
     {
         var variable = new Variable
@@ -26,6 +34,11 @@ public class VariableMapper : IEntityMapper<Variable, VariableDocument>
         return variable;
     }
 
+    /// <summary>
+    /// Convierte una entidad de dominio de variable a su documento MongoDB correspondiente.
+    /// </summary>
+    /// <param name="entity">La entidad de dominio <see cref="Variable"/>.</param>
+    /// <returns>El documento MongoDB <see cref="VariableDocument"/>.</returns>
     public VariableDocument ToDocument(Variable entity)
     {
         var document = new VariableDocument

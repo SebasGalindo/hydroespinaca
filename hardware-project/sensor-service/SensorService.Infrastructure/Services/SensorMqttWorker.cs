@@ -8,6 +8,9 @@ using System.Text;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// MQTT background worker that subscribes to sensor reading topics and dispatches incoming messages for processing.
+/// </summary>
 public class SensorMqttWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;

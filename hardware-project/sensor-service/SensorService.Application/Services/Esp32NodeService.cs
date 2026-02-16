@@ -10,6 +10,11 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la gestión de nodos ESP32 del sistema hidropónico IoT.
+/// Administra el ciclo de vida de los microcontroladores incluyendo registro, consulta,
+/// actualización de estado y verificación de existencia. Utiliza validación con FluentValidation.
+/// </summary>
 public class Esp32NodeService : IEsp32NodeService
 {
     private readonly IEsp32NodeRepository _repo;
@@ -27,12 +32,21 @@ public class Esp32NodeService : IEsp32NodeService
         _statusValidator = statusValidator;
     }
 
+    /// <summary>
+    /// Obtiene todos los nodos ESP32 registrados en el sistema.
+    /// </summary>
+    /// <returns>Lista de DTOs de todos los nodos ESP32.</returns>
     public async Task<List<Esp32NodeDto>> GetAllAsync()
     {
         var nodes = await _repo.GetAllAsync();
         return nodes.Select(Esp32NodeMapper.ToDto).ToList();
     }
 
+    /// <summary>
+    /// Obtiene un nodo ESP32 por su identificador único.
+    /// </summary>
+    /// <param name="id">Identificador del nodo (ObjectId de 24 caracteres).</param>
+    /// <returns>DTO del nodo encontrado.</returns>
     public async Task<Esp32NodeDto?> GetByIdAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))
@@ -45,6 +59,11 @@ public class Esp32NodeService : IEsp32NodeService
         return Esp32NodeMapper.ToDto(node);
     }
 
+    /// <summary>
+    /// Registra un nuevo nodo ESP32 en el sistema tras validar los datos de entrada.
+    /// </summary>
+    /// <param name="dto">DTO con los datos de creación del nodo.</param>
+    /// <returns>DTO del nodo ESP32 creado.</returns>
     public async Task<Esp32NodeDto> CreateAsync(Esp32NodeCreateDto dto)
     {
         var validationResult = await _createValidator.ValidateAsync(dto);
@@ -56,6 +75,12 @@ public class Esp32NodeService : IEsp32NodeService
         return Esp32NodeMapper.ToDto(entity);
     }
 
+    /// <summary>
+    /// Actualiza el estado de un nodo ESP32 (activo, inactivo, offline, etc.).
+    /// Valida el formato del ID, los datos de entrada y que el estado sea válido.
+    /// </summary>
+    /// <param name="id">Identificador del nodo (ObjectId de 24 caracteres).</param>
+    /// <param name="dto">DTO con el nuevo estado.</param>
     public async Task UpdateStatusAsync(string id, Esp32NodeUpdateStatusDto dto)
     {
         if (!ObjectId.TryParse(id, out _))
@@ -74,6 +99,11 @@ public class Esp32NodeService : IEsp32NodeService
     }
 
 
+    /// <summary>
+    /// Verifica si un nodo ESP32 existe en el sistema.
+    /// </summary>
+    /// <param name="id">Identificador del nodo (ObjectId de 24 caracteres).</param>
+    /// <returns>True si el nodo existe, false en caso contrario.</returns>
     public async Task<bool> ExistsAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))

@@ -1,6 +1,9 @@
 ﻿using HydroEspinaca.Shared.Abstractions;
 
 namespace AuthService.Domain.Entities;
+/// <summary>
+/// Represents a refresh token issued to a user or client for obtaining new access tokens.
+/// </summary>
 public class RefreshToken : IIdentifiableMutable
 {
     public string Id { get; private set; }

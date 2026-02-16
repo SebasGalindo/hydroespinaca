@@ -6,6 +6,9 @@ using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for CRUD operations on environmental variable definitions.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class VariablesController : ControllerBase

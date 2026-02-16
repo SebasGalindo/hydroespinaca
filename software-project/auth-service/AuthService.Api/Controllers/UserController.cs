@@ -12,6 +12,9 @@ using System.Security.Claims;
 
 namespace AuthService.Api.Controllers;
 
+/// <summary>
+/// API controller for user management and authentication (login, register, refresh tokens).
+/// </summary>
 [ApiController]
 [Route("api/users")]
 public class UserController : ControllerBase

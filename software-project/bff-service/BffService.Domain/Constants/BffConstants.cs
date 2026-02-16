@@ -1,5 +1,8 @@
 namespace BffService.Domain.Constants;
 
+/// <summary>
+/// Constant values used across the BFF service (cookie names, header names, route prefixes).
+/// </summary>
 public static class BffConstants
 {
     public static class Sessions

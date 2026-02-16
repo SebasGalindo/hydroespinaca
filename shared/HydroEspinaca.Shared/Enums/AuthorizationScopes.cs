@@ -97,6 +97,10 @@ public static class AuthorizationScopes
     public const string FuzzyEvaluationRead = "fuzzy:evaluation:read";
     public const string FuzzyEvaluationCreate = "fuzzy:evaluation:create";
 
+    // BI scopes
+    public const string BiRead = "bi:read";
+    public const string BiWrite = "bi:write";
+
     // System-level scopes
     public const string SystemAdmin = "system:admin";
     public const string SystemHealth = "system:health";
@@ -170,6 +174,14 @@ public static class AuthorizationScopes
         SystemHealth, SystemMonitor
     };
 
+    /// <summary>
+    /// Gets all BI scopes
+    /// </summary>
+    public static readonly string[] BiScopes =
+    {
+        BiRead, BiWrite
+    };
+
 
     /// <summary>
     /// Gets all system-level scopes
@@ -209,6 +221,9 @@ public static class AuthorizationScopes
         FuzzySystemRead, FuzzySystemCreate, FuzzySystemUpdate, FuzzySystemDelete,
         FuzzyVariableRead, FuzzyVariableCreate, FuzzyVariableUpdate, FuzzyVariableDelete,
         FuzzyEvaluationRead, FuzzyEvaluationCreate,
+
+        // BI
+        BiRead, BiWrite,
         
         // System
         SystemAdmin, SystemHealth, SystemMonitor

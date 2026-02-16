@@ -3,6 +3,9 @@ using HydroEspinaca.Shared.DTOs.Authentication;
 
 namespace BffService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for logout request input.
+/// </summary>
 public class LogoutRequestValidator : AbstractValidator<LogoutRequestDto>
 {
     public LogoutRequestValidator()
@@ -13,6 +16,9 @@ public class LogoutRequestValidator : AbstractValidator<LogoutRequestDto>
     }
 }
 
+/// <summary>
+/// FluentValidation validator for refresh token request input.
+/// </summary>
 public class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenRequestDto>
 {
     public RefreshTokenRequestValidator()

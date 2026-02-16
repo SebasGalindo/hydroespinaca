@@ -12,6 +12,9 @@ using System.Text.Json;
 
 namespace ActuatorService.Infrastructure.Messaging.Mqtt;
 
+/// <summary>
+/// MQTT subscriber that listens for routine completion acknowledgments from ESP32 nodes.
+/// </summary>
 public class MqttRoutineCompletionSubscriber : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;

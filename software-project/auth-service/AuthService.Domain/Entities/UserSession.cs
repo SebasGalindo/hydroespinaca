@@ -2,6 +2,9 @@ using HydroEspinaca.Shared.Abstractions;
 
 namespace AuthService.Domain.Entities;
 
+/// <summary>
+/// Represents an active user session with associated access and refresh tokens.
+/// </summary>
 public class UserSession : IIdentifiableMutable
 {
     public string Id { get; private set; }

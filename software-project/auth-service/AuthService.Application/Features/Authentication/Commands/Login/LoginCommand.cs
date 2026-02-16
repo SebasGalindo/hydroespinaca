@@ -3,6 +3,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
+/// <summary>
+/// Command for authenticating a user with email and password credentials.
+/// </summary>
 public record LoginCommand(
     string Email,
     string Password,

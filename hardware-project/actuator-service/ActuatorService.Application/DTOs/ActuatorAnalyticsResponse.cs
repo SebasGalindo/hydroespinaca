@@ -1,5 +1,8 @@
 namespace ActuatorService.Application.DTOs;
 
+/// <summary>
+/// Response DTO containing actuator usage analytics (activation counts, total durations, etc.).
+/// </summary>
 public record ActuatorAnalyticsResponse
 {
     public List<TimelineItem> Timeline { get; init; } = new();

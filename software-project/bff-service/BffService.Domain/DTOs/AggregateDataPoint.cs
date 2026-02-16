@@ -1,5 +1,8 @@
 namespace BffService.Domain.DTOs;
 
+/// <summary>
+/// DTO representing a single data point in an aggregated sensor time series.
+/// </summary>
 public class AggregateDataPoint
 {
     public DateTime Timestamp { get; set; }

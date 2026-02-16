@@ -4,6 +4,9 @@ using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
 
 namespace AuthService.Infrastructure.Services;
+/// <summary>
+/// Infrastructure service for registering client applications and generating their credentials.
+/// </summary>
 public class ClientAppRegistrationService : IClientAppRegistrationService
 {
     private readonly IClientAppRepository _repo;

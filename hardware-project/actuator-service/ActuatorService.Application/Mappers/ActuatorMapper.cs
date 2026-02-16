@@ -3,6 +3,9 @@ using ActuatorService.Domain.Entities;
 using HydroEspinaca.Shared.Enums;
 
 namespace ActuatorService.Application.Mappers;
+/// <summary>
+/// Mapper for converting between Actuator domain entities and DTOs.
+/// </summary>
 public static class ActuatorMapper
 {
     public static Actuator ToEntity(CreateActuatorDto dto)
@@ -22,6 +25,7 @@ public static class ActuatorMapper
             PhysicalId = dto.PhysicalId,
             Pin = dto.Pin,
             Location = dto.Location,
+            PowerConsumptionWatts = dto.PowerConsumptionWatts,
             Status = ActuatorStatus.Active,
             CreatedAt = DateTime.UtcNow
         };
@@ -39,6 +43,7 @@ public static class ActuatorMapper
         entity.Mode = mode;
         entity.Location = dto.Location;
         entity.Pin = dto.Pin;
+        entity.PowerConsumptionWatts = dto.PowerConsumptionWatts;
         entity.Status = status;
     }
 
@@ -53,6 +58,7 @@ public static class ActuatorMapper
         Pin = x.Pin,
         Location = x.Location,
         Status = x.Status.ToString(),
+        PowerConsumptionWatts = x.PowerConsumptionWatts,
         CreatedAt = x.CreatedAt
     };
 }

@@ -8,6 +8,9 @@ using BffService.Application.Services;
 
 namespace BffService.Api.Controllers;
 
+/// <summary>
+/// Main BFF controller that handles login, logout, session refresh, CSRF token issuance, and proxying requests to backend services.
+/// </summary>
 [ApiController]
 [Route("proxy")]
 [AllowAnonymous] // Allow anonymous access, we'll check authentication internally based on route

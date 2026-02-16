@@ -12,6 +12,9 @@ using System.Security.Claims;
 
 namespace BffService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service that communicates with the Auth microservice for login, token refresh, and JWKS retrieval.
+/// </summary>
 public class AuthService : IAuthService
 {
     private readonly HttpClient _httpClient;

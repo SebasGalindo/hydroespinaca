@@ -4,6 +4,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
+/// <summary>
+/// MongoDB document schema for user records.
+/// </summary>
 public class UserDocument : IIdentifiableMutable
 {
     [BsonId]

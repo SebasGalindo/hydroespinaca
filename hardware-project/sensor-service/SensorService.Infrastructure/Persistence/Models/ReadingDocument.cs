@@ -4,6 +4,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// Documento MongoDB que representa una lectura individual de un sensor hidropónico.
+/// Contiene el valor medido, el código del sensor, la variable y la marca temporal.
+/// </summary>
 public class ReadingDocument : IIdentifiableMutable
 {
     [BsonId]

@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Roles.Commands.DeleteRole;
 
+/// <summary>
+/// Validator ensuring a valid role ID is provided for deletion.
+/// </summary>
 public class DeleteRoleCommandValidator : BaseValidator<DeleteRoleCommand>
 {
     public DeleteRoleCommandValidator()
