@@ -35,6 +35,10 @@ interface AuthState {
 const authService = new AuthApiService();
 const platform = detectPlatform();
 
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log(`[authStore] Module loaded — platform=${platform}`);
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
@@ -46,10 +50,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
 
+    if (__DEV__) {
+      console.log(`[authStore.login] Starting login — platform=${platform}, email=${email}`);
+    }
+
     try {
       const credentials = { Email: email, Password: password };
 
       if (platform === 'web') {
+        if (__DEV__) console.log('[authStore.login] Taking WEB branch');
         // Web: cookies are set automatically by server
         await authService.loginWeb(credentials);
 
@@ -79,6 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: null,
         });
       } else {
+        if (__DEV__) console.log('[authStore.login] Taking MOBILE branch');
         // Mobile: get tokens from response and store them
         const mobileResponse = await authService.loginMobile(credentials);
 
@@ -115,6 +125,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
     } catch (error) {
+      if (__DEV__) {
+        console.error('[authStore.login] ERROR caught:', error);
+        if (error instanceof ApiError) {
+          console.error(`[authStore.login] ApiError status=${error.status}, message=${error.message}`);
+        }
+      }
       let errorMessage = 'Error al iniciar sesión';
 
       if (error instanceof ApiError) {
@@ -136,6 +152,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: errorMessage,
       });
+
+      // Re-throw so callers (e.g. LoginForm) can detect failure
+      throw error;
     }
   },
 

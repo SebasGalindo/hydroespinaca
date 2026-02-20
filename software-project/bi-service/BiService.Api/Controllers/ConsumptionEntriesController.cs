@@ -38,7 +38,8 @@ public class ConsumptionEntriesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var command = new CreateConsumptionEntryCommand(
-            request.Date,
+            request.DateFrom,
+            request.DateTo,
             request.Type,
             request.Amount,
             request.Note,
@@ -47,7 +48,7 @@ public class ConsumptionEntriesController : ControllerBase
         var created = await _sender.Send(command, cancellationToken);
         return CreatedAtAction(
             nameof(GetByRange),
-            new { from = created.Date.Date, to = created.Date.Date },
+            new { from = created.DateFrom, to = created.DateTo },
             created);
     }
 

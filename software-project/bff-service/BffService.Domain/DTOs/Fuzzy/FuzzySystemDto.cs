@@ -9,8 +9,7 @@ public class OperatorsConfigDto
 {
     public string AndMethod { get; set; } = "min";
     public string OrMethod { get; set; } = "max";
-    public string AggregationMethod { get; set; } = "max";
-    public string DefuzzificationMethod { get; set; } = "centroid";
+    public string NotMethod { get; set; } = "complement";
 }
 
 /// <summary>

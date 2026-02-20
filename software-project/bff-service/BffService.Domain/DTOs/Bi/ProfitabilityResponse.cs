@@ -47,6 +47,17 @@ public class ManualConsumptionCostDetail
     public decimal CostWater { get; set; }
     public decimal CostNutrients { get; set; }
     public decimal TotalManualCost { get; set; }
+    public List<ManualConsumptionEntryItem> Entries { get; set; } = new();
+}
+
+public class ManualConsumptionEntryItem
+{
+    public int Type { get; set; }
+    public decimal Amount { get; set; }
+    public decimal CostAmount { get; set; }
+    public string? Note { get; set; }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
 }
 
 public class RevenueInfo

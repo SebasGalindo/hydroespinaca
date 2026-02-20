@@ -1,4 +1,5 @@
 using BiService.Application.DTOs.OperationalCost;
+using BiService.Domain.Enums;
 
 namespace BiService.Application.DTOs.Profitability;
 
@@ -108,6 +109,33 @@ public class ManualConsumptionCostDetail
 
     /// <summary>Costo total de todos los consumos manuales.</summary>
     public decimal TotalManualCost { get; set; }
+
+    /// <summary>Entradas individuales de consumo manual.</summary>
+    public List<ManualConsumptionEntryItem> Entries { get; set; } = new();
+}
+
+/// <summary>
+/// Elemento individual de consumo manual incluido en el análisis de rentabilidad.
+/// </summary>
+public class ManualConsumptionEntryItem
+{
+    /// <summary>Tipo de recurso consumido.</summary>
+    public ConsumptionType Type { get; set; }
+
+    /// <summary>Cantidad consumida.</summary>
+    public decimal Amount { get; set; }
+
+    /// <summary>Costo calculado para esta entrada.</summary>
+    public decimal CostAmount { get; set; }
+
+    /// <summary>Nota descriptiva opcional.</summary>
+    public string? Note { get; set; }
+
+    /// <summary>Fecha de inicio del consumo.</summary>
+    public DateTime DateFrom { get; set; }
+
+    /// <summary>Fecha de fin del consumo.</summary>
+    public DateTime DateTo { get; set; }
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 // Base API Service — centralized request handling for all API services
-import { getApiUrl } from '../utils/apiConfig';
+import { getApiUrl, detectPlatform } from '../utils/apiConfig';
 import { authFetch } from '../utils/authFetch';
+import { SessionStorage } from '../utils'; // Import from index to use platform-specific version
 
 // ==================== Shared Error Type ====================
 
@@ -72,15 +73,27 @@ export abstract class BaseApiService {
   ): Promise<T> {
     const { body, nullOn404, headers, ...fetchOpts } = opts;
     const url = `${this.baseUrl}${path}`;
+    const platform = detectPlatform();
+
+    const defaultHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(headers as Record<string, string>),
+    };
+
+    // For mobile: add session headers from secure storage
+    if (platform === 'mobile') {
+      const sessionId = await SessionStorage.getSessionId();
+      const csrfToken = await SessionStorage.getCsrfToken();
+      if (sessionId) defaultHeaders['X-Session-Id'] = sessionId;
+      if (csrfToken) defaultHeaders['X-CSRF-Token'] = csrfToken;
+    }
 
     const init: RequestInit = {
       method: 'GET',
       ...fetchOpts,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(headers as Record<string, string>),
-      },
-      credentials: 'include',
+      headers: defaultHeaders,
+      // Web: use cookies; Mobile: use explicit headers
+      credentials: platform === 'mobile' ? 'omit' : 'include',
     };
 
     if (body !== undefined) {

@@ -10,6 +10,7 @@ export interface FormFieldProps {
   error?: string;
   min?: string;
   max?: string;
+  maxLength?: number;
   step?: string;
   options?: { value: string; label: string }[];
   disabled?: boolean;
@@ -26,6 +27,7 @@ const FormField: React.FC<FormFieldProps> = ({
   error,
   min,
   max,
+  maxLength,
   step,
   options = [],
   disabled = false,
@@ -67,6 +69,7 @@ const FormField: React.FC<FormFieldProps> = ({
         required={required}
         min={min}
         max={max}
+        maxLength={maxLength}
         step={step}
         disabled={disabled}
         className={baseInputClasses}

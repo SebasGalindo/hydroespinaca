@@ -18,7 +18,8 @@ public class ManualConsumptionEntryMapper : IEntityMapper<ManualConsumptionEntry
     {
         var entity = new ManualConsumptionEntry
         {
-            Date = doc.Date,
+            DateFrom = doc.DateFrom,
+            DateTo = doc.DateTo,
             Type = doc.Type,
             Amount = doc.Amount,
             UnitCostSnapshot = doc.UnitCostSnapshot,
@@ -44,7 +45,8 @@ public class ManualConsumptionEntryMapper : IEntityMapper<ManualConsumptionEntry
         return new ManualConsumptionEntryDocument
         {
             Id = entity.Id,
-            Date = entity.Date,
+            DateFrom = entity.DateFrom,
+            DateTo = entity.DateTo,
             Type = entity.Type,
             Amount = entity.Amount,
             UnitCostSnapshot = entity.UnitCostSnapshot,

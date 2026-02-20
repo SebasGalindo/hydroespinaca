@@ -3,19 +3,23 @@
 import React from 'react';
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import type { FuzzyRule, FuzzyVariable, FuzzyTerm } from '@hydroespinaca/shared';
 
 interface RulesSectionProps {
   rules: FuzzyRule[];
   variables: FuzzyVariable[];
   terms: FuzzyTerm[];
+  onAddRule?: () => void;
+  onEditRule?: (rule: FuzzyRule) => void;
+  onDeleteRule?: (id: string) => void;
 }
 
 /**
  * Renders fuzzy rules with Mamdani consequents.
  * Desktop: Table layout. Mobile: Card layout.
  */
-const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) => {
+const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms, onAddRule, onEditRule, onDeleteRule }) => {
   const variableMap = React.useMemo(
     () => new Map(variables.map((v) => [v.id, v])),
     [variables]
@@ -34,7 +38,7 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) 
    * "SI Temp IS Alta AND Humedad IS Baja ENTONCES Ventilador = {Alto, Máximo} (max)"
    */
   const buildRuleText = (rule: FuzzyRule): string => {
-    if (rule.ruleText) return rule.ruleText;
+    // Always build locally to resolve variable names (ruleText from backend uses raw IDs)
 
     // Conditions
     const condParts = rule.conditions.map((c, i) => {
@@ -61,9 +65,14 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) 
         <h3 className="text-lg font-medium text-gray-900 font-inter mb-1">
           No hay reglas definidas
         </h3>
-        <p className="text-gray-500 font-inter">
+        <p className="text-gray-500 font-inter mb-4">
           Este sistema fuzzy no tiene reglas configuradas.
         </p>
+        {onAddRule && (
+          <Button variant="primary" size="sm" onClick={onAddRule}>
+            ➕ Crear regla
+          </Button>
+        )}
       </div>
     );
   }
@@ -116,6 +125,36 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) 
         );
       },
     },
+    ...((onEditRule || onDeleteRule) ? [{
+      key: 'actions',
+      label: '',
+      className: 'w-24',
+      render: (_: unknown, row: unknown) => {
+        const r = row as FuzzyRule;
+        return (
+          <div className="flex items-center gap-1">
+            {onEditRule && (
+              <button
+                onClick={() => onEditRule(r)}
+                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                title="Editar regla"
+              >
+                ✏️
+              </button>
+            )}
+            {onDeleteRule && (
+              <button
+                onClick={() => onDeleteRule(r.id)}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Eliminar regla"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+        );
+      },
+    }] : []),
   ];
 
   // Prepare data with index for table
@@ -153,6 +192,21 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) 
             ))}
           </div>
         </div>
+
+        {(onEditRule || onDeleteRule) && (
+          <div className="flex gap-2 pt-2 border-t border-gray-100">
+            {onEditRule && (
+              <Button variant="ghost" size="sm" onClick={() => onEditRule(rule)}>
+                ✏️ Editar
+              </Button>
+            )}
+            {onDeleteRule && (
+              <Button variant="ghost" size="sm" onClick={() => onDeleteRule(rule.id)} className="text-red-500 hover:bg-red-50">
+                🗑️ Eliminar
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -166,9 +220,16 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms }) 
             Reglas de inferencia Mamdani del sistema
           </p>
         </div>
-        <Badge variant="default" size="md">
-          {rules.length} regla{rules.length !== 1 ? 's' : ''}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="default" size="md">
+            {rules.length} regla{rules.length !== 1 ? 's' : ''}
+          </Badge>
+          {onAddRule && (
+            <Button variant="primary" size="sm" onClick={onAddRule}>
+              ➕ Regla
+            </Button>
+          )}
+        </div>
       </div>
 
       <Table

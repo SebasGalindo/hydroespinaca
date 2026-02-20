@@ -36,7 +36,8 @@ class RuleEvaluationEngine:
         self,
         system: FuzzySystem,
         rules: List[FuzzyRule],
-        fuzzification_results: List[FuzzificationResult]
+        fuzzification_results: List[FuzzificationResult],
+        is_simulation: bool = False
     ) -> BatchRuleEvaluationResult:
         """Evalúa todas las reglas del sistema con los resultados de fuzzificación.
 
@@ -47,6 +48,7 @@ class RuleEvaluationEngine:
             system: Sistema fuzzy con configuración de operadores
             rules: Lista de reglas del sistema activo
             fuzzification_results: Resultados de la fuzzificación de variables
+            is_simulation: Si es True, se omite la validación de estado operacional
 
         Returns:
             Resultado de la evaluación de todas las reglas
@@ -61,8 +63,8 @@ class RuleEvaluationEngine:
                 f"Iniciando evaluación de {len(rules)} reglas para sistema {system.id}"
             )
             
-            # Validar que el sistema esté activo
-            if not self._is_system_operational(system):
+            # Validar que el sistema esté activo (omitir en simulación)
+            if not is_simulation and not self._is_system_operational(system):
                 raise ValidationError(
                     f"Sistema {system.id} no está operativo para evaluación de reglas"
                 )

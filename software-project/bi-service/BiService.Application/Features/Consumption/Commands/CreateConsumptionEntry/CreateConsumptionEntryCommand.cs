@@ -8,7 +8,8 @@ namespace BiService.Application.Features.Consumption.Commands.CreateConsumptionE
 /// Comando para registrar un consumo manual de recurso (electricidad, agua o nutrientes).
 /// </summary>
 public record CreateConsumptionEntryCommand(
-    DateTime Date,
+    DateTime DateFrom,
+    DateTime? DateTo,
     ConsumptionType Type,
     decimal Amount,
     string? Note,

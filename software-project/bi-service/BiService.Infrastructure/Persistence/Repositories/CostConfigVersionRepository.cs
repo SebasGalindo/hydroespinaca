@@ -24,13 +24,21 @@ public class CostConfigVersionRepository : ICostConfigVersionRepository
     }
 
     /// <summary>
-    /// Obtiene la versión de configuración de costos activa más reciente.
+    /// Obtiene la versión de configuración de costos vigente en la fecha actual,
+    /// determinada por EffectiveFrom &lt;= ahora y (EffectiveTo &gt;= ahora o EffectiveTo nulo).
     /// </summary>
     /// <param name="cancellationToken">Token de cancelación.</param>
-    /// <returns>La versión activa actual, o <c>null</c> si no existe ninguna.</returns>
+    /// <returns>La versión vigente actual, o <c>null</c> si no existe ninguna.</returns>
     public async Task<CostConfigVersion?> GetCurrentAsync(CancellationToken cancellationToken = default)
     {
-        var filter = Builders<CostConfigVersionDocument>.Filter.Eq(x => x.IsActive, true);
+        var now = DateTime.UtcNow;
+        var filter = Builders<CostConfigVersionDocument>.Filter.And(
+            Builders<CostConfigVersionDocument>.Filter.Lte(x => x.EffectiveFrom, now),
+            Builders<CostConfigVersionDocument>.Filter.Or(
+                Builders<CostConfigVersionDocument>.Filter.Gte(x => x.EffectiveTo, now),
+                Builders<CostConfigVersionDocument>.Filter.Eq(x => x.EffectiveTo, null)
+            )
+        );
         var sort = Builders<CostConfigVersionDocument>.Sort.Descending(x => x.EffectiveFrom);
 
         var docs = await _collection.Find(filter).Sort(sort).Limit(1).ToListAsync(cancellationToken);
@@ -98,7 +106,8 @@ public class CostConfigVersionRepository : ICostConfigVersionRepository
     }
 
     /// <summary>
-    /// Crea una nueva versión de configuración de costos dentro de una transacción. Desactiva la versión activa anterior y establece la nueva como activa.
+    /// Crea una nueva versión de configuración de costos y recalcula EffectiveTo e IsActive
+    /// de todas las versiones dentro de una transacción.
     /// </summary>
     /// <param name="version">Nueva versión de configuración a crear.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
@@ -110,28 +119,79 @@ public class CostConfigVersionRepository : ICostConfigVersionRepository
 
         try
         {
-            var currentFilter = Builders<CostConfigVersionDocument>.Filter.Eq(x => x.IsActive, true);
-            var current = await _collection
-                .Find(session, currentFilter)
-                .SortByDescending(x => x.EffectiveFrom)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (current is not null)
-            {
-                var update = Builders<CostConfigVersionDocument>.Update
-                    .Set(x => x.IsActive, false)
-                    .Set(x => x.EffectiveTo, version.EffectiveFrom);
-
-                await _collection.UpdateOneAsync(
-                    session,
-                    Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, current.Id),
-                    update,
-                    cancellationToken: cancellationToken);
-            }
-
+            // Insert the new version
             var newDoc = _mapper.ToDocument(version);
             await _collection.InsertOneAsync(session, newDoc, cancellationToken: cancellationToken);
             version.SetId(newDoc.Id);
+
+            // Recalculate all versions: get all sorted by EffectiveFrom ascending
+            var allDocs = await _collection
+                .Find(session, Builders<CostConfigVersionDocument>.Filter.Empty)
+                .Sort(Builders<CostConfigVersionDocument>.Sort.Ascending(x => x.EffectiveFrom))
+                .ToListAsync(cancellationToken);
+
+            var now = DateTime.UtcNow;
+
+            for (var i = 0; i < allDocs.Count; i++)
+            {
+                var doc = allDocs[i];
+
+                // Auto-calculate EffectiveTo: one day before the next version's EffectiveFrom,
+                // unless the user manually set EffectiveTo and it's earlier.
+                DateTime? autoEffectiveTo = null;
+                if (i < allDocs.Count - 1)
+                {
+                    autoEffectiveTo = allDocs[i + 1].EffectiveFrom.AddDays(-1);
+                }
+
+                // If EffectiveTo was manually set by user (already in DB for existing records)
+                // and it's earlier than the auto-calculated value, keep the manual value.
+                // For the newly inserted doc, respect EffectiveTo if it was provided.
+                DateTime? finalEffectiveTo;
+                if (i < allDocs.Count - 1)
+                {
+                    // Not the last version: must have an end date
+                    if (doc.EffectiveTo.HasValue && doc.EffectiveTo.Value < autoEffectiveTo)
+                    {
+                        // User set a tighter end date, keep it
+                        finalEffectiveTo = doc.EffectiveTo;
+                    }
+                    else
+                    {
+                        finalEffectiveTo = autoEffectiveTo;
+                    }
+                }
+                else
+                {
+                    // Last (most recent) version: keep EffectiveTo if user set it, otherwise null
+                    finalEffectiveTo = doc.EffectiveTo;
+                }
+
+                // Determine IsActive based on date coverage of "now"
+                var isActive = doc.EffectiveFrom <= now
+                    && (!finalEffectiveTo.HasValue || finalEffectiveTo.Value >= now);
+
+                // Update if any field changed
+                if (doc.EffectiveTo != finalEffectiveTo || doc.IsActive != isActive)
+                {
+                    var update = Builders<CostConfigVersionDocument>.Update
+                        .Set(x => x.EffectiveTo, finalEffectiveTo)
+                        .Set(x => x.IsActive, isActive);
+
+                    await _collection.UpdateOneAsync(
+                        session,
+                        Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, doc.Id),
+                        update,
+                        cancellationToken: cancellationToken);
+                }
+
+                // Update local reference for the newly created version
+                if (doc.Id == newDoc.Id)
+                {
+                    version.EffectiveTo = finalEffectiveTo;
+                    version.IsActive = isActive;
+                }
+            }
 
             await session.CommitTransactionAsync(cancellationToken);
             return version;
@@ -140,6 +200,130 @@ public class CostConfigVersionRepository : ICostConfigVersionRepository
         {
             await session.AbortTransactionAsync(cancellationToken);
             throw;
+        }
+    }
+
+    public async Task<CostConfigVersion?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, id);
+        var doc = await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
+        return doc is null ? null : _mapper.ToEntity(doc);
+    }
+
+    public async Task<CostConfigVersion> UpdateVersionAsync(
+        CostConfigVersion version, CancellationToken cancellationToken = default)
+    {
+        using var session = await _collection.Database.Client.StartSessionAsync(cancellationToken: cancellationToken);
+        session.StartTransaction();
+
+        try
+        {
+            var doc = _mapper.ToDocument(version);
+            var filter = Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, doc.Id);
+            var update = Builders<CostConfigVersionDocument>.Update
+                .Set(x => x.Currency, doc.Currency)
+                .Set(x => x.ElectricityCostPerKwh, doc.ElectricityCostPerKwh)
+                .Set(x => x.WaterCostPerLiter, doc.WaterCostPerLiter)
+                .Set(x => x.NutrientCostPerLiter, doc.NutrientCostPerLiter)
+                .Set(x => x.EffectiveFrom, doc.EffectiveFrom)
+                .Set(x => x.EffectiveTo, doc.EffectiveTo);
+
+            await _collection.UpdateOneAsync(session, filter, update, cancellationToken: cancellationToken);
+
+            await RecalculateAllVersionsAsync(session, cancellationToken);
+
+            // Re-read the updated version to get the recalculated values
+            var updated = await _collection.Find(session, filter).FirstOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException("Version not found after update");
+            var entity = _mapper.ToEntity(updated);
+
+            await session.CommitTransactionAsync(cancellationToken);
+            return entity;
+        }
+        catch
+        {
+            await session.AbortTransactionAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteVersionAsync(string id, CancellationToken cancellationToken = default)
+    {
+        using var session = await _collection.Database.Client.StartSessionAsync(cancellationToken: cancellationToken);
+        session.StartTransaction();
+
+        try
+        {
+            var filter = Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, id);
+            var result = await _collection.DeleteOneAsync(session, filter, cancellationToken: cancellationToken);
+
+            if (result.DeletedCount == 0)
+            {
+                await session.AbortTransactionAsync(cancellationToken);
+                return false;
+            }
+
+            await RecalculateAllVersionsAsync(session, cancellationToken);
+
+            await session.CommitTransactionAsync(cancellationToken);
+            return true;
+        }
+        catch
+        {
+            await session.AbortTransactionAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Recalcula EffectiveTo e IsActive de todas las versiones dentro de una transacción.
+    /// </summary>
+    private async Task RecalculateAllVersionsAsync(
+        IClientSessionHandle session, CancellationToken cancellationToken)
+    {
+        var allDocs = await _collection
+            .Find(session, Builders<CostConfigVersionDocument>.Filter.Empty)
+            .Sort(Builders<CostConfigVersionDocument>.Sort.Ascending(x => x.EffectiveFrom))
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+
+        for (var i = 0; i < allDocs.Count; i++)
+        {
+            var doc = allDocs[i];
+
+            DateTime? autoEffectiveTo = null;
+            if (i < allDocs.Count - 1)
+                autoEffectiveTo = allDocs[i + 1].EffectiveFrom.AddDays(-1);
+
+            DateTime? finalEffectiveTo;
+            if (i < allDocs.Count - 1)
+            {
+                if (doc.EffectiveTo.HasValue && doc.EffectiveTo.Value < autoEffectiveTo)
+                    finalEffectiveTo = doc.EffectiveTo;
+                else
+                    finalEffectiveTo = autoEffectiveTo;
+            }
+            else
+            {
+                finalEffectiveTo = doc.EffectiveTo;
+            }
+
+            var isActive = doc.EffectiveFrom <= now
+                && (!finalEffectiveTo.HasValue || finalEffectiveTo.Value >= now);
+
+            if (doc.EffectiveTo != finalEffectiveTo || doc.IsActive != isActive)
+            {
+                var upd = Builders<CostConfigVersionDocument>.Update
+                    .Set(x => x.EffectiveTo, finalEffectiveTo)
+                    .Set(x => x.IsActive, isActive);
+
+                await _collection.UpdateOneAsync(
+                    session,
+                    Builders<CostConfigVersionDocument>.Filter.Eq(x => x.Id, doc.Id),
+                    upd,
+                    cancellationToken: cancellationToken);
+            }
         }
     }
 }

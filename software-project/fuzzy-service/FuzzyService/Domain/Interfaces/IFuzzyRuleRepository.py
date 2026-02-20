@@ -221,6 +221,12 @@ class IFuzzyRuleRepository(ABC):
         """
         pass
 
+    # ---- Bulk operations (for clone / import) ----
+    @abstractmethod
+    async def create_many(self, rules: List[FuzzyRule]) -> List[FuzzyRule]:
+        """Bulk-inserts rules without per-entity validation. Returns entities with assigned IDs."""
+        pass
+
     # Lightweight queries
     @abstractmethod
     async def get_all_rules_name_description(self, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:

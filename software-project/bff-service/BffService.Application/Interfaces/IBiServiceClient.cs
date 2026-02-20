@@ -29,6 +29,20 @@ public interface IBiServiceClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates an existing cost configuration version
+    /// </summary>
+    Task<CostConfigVersionDto> UpdateCostConfigVersionAsync(
+        string accessToken, string id, UpdateCostConfigVersionRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a cost configuration version
+    /// </summary>
+    Task DeleteCostConfigVersionAsync(
+        string accessToken, string id,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new manual consumption entry
     /// </summary>
     Task<ManualConsumptionEntryDto> CreateConsumptionEntryAsync(

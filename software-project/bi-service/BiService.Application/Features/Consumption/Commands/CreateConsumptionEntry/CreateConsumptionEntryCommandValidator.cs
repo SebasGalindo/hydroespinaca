@@ -17,11 +17,16 @@ public class CreateConsumptionEntryCommandValidator : AbstractValidator<CreateCo
             .IsInEnum()
             .WithMessage("El tipo de consumo no es válido");
 
-        RuleFor(x => x.Date)
+        RuleFor(x => x.DateFrom)
             .NotEqual(default(DateTime))
-            .WithMessage("La fecha es requerida")
+            .WithMessage("La fecha de inicio es requerida")
             .LessThanOrEqualTo(DateTime.UtcNow.AddDays(1))
-            .WithMessage("La fecha no puede ser futura");
+            .WithMessage("La fecha de inicio no puede ser futura");
+
+        RuleFor(x => x.DateTo)
+            .GreaterThanOrEqualTo(x => x.DateFrom)
+            .When(x => x.DateTo.HasValue)
+            .WithMessage("La fecha de fin no puede ser anterior a la fecha de inicio");
 
         RuleFor(x => x.UserId)
             .NotEmpty()

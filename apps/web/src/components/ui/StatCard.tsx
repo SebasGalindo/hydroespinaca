@@ -62,7 +62,7 @@ const StatCard: React.FC<StatCardProps> = ({
             )}
           </div>
           {trend && trendLabel && (
-            <p className={`mt-1 text-xs font-medium ${trendColors[trend]} font-inter`}>
+            <p className={`mt-1 text-sm font-semibold ${trendColors[trend]} font-inter`}>
               {trendIcons[trend]} {trendLabel}
             </p>
           )}

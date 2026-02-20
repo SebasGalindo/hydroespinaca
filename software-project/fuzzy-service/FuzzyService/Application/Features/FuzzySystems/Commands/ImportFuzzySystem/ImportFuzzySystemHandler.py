@@ -28,9 +28,10 @@ _logger = logging.getLogger(__name__)
 
 class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
     """Handler del comando ImportFuzzySystemCommand.
-    
+
     Reconstruye un sistema difuso completo desde el formato de exportación portable.
     Los índices de posición (variable_ref, term_refs) se resuelven a nuevos IDs.
+    Usa operaciones bulk para minimizar round-trips a la base de datos.
     """
 
     async def __call__(self, request: ImportFuzzySystemCommand) -> None:
@@ -42,10 +43,27 @@ class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
         system_data = request.system
         _logger.info("Importando sistema '%s' (version=%s)", system_data.get("name"), request.version)
 
-        # 1. Crear las variables
-        created_variables: List[FuzzyVariable] = []  # índice → variable creada
-        for idx, var_data in enumerate(request.variables):
-            new_var = FuzzyVariable(
+        # ── 1. Crear sistema vacío primero (para tener system_id real) ──
+        operators_data = system_data.get("operators", {})
+        operators = OperatorsConfig.from_dict(operators_data) if operators_data else OperatorsConfig()
+
+        empty_system = FuzzySystem(
+            name=system_data["name"],
+            status=FuzzySystemStatus.DRAFT,
+            defuzzification_method=system_data.get("defuzzification_method", "centroid"),
+            operators=operators,
+            input_variable_ids=[],
+            output_variable_ids=[],
+            rule_ids=[],
+        )
+        created_system = await system_repo.create(empty_system)
+        new_system_id = created_system.id
+        _logger.info("Sistema importado (vacío): id=%s", str(new_system_id))
+
+        # ── 2. Bulk-crear variables ─────────────────────────────────
+        vars_to_insert: List[FuzzyVariable] = []
+        for var_data in request.variables:
+            vars_to_insert.append(FuzzyVariable(
                 name=var_data["name"],
                 description=var_data.get("description", ""),
                 variable_type=var_data.get("variable_type", "input"),
@@ -55,24 +73,23 @@ class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
                 universe_max=var_data.get("universe_max"),
                 reference_code=var_data.get("reference_code"),
                 terms=[],
-            )
-            created_var = await variable_repo.create(new_var)
-            created_variables.append(created_var)
-            _logger.debug("Variable importada [%d]: '%s' → id=%s", idx, created_var.name, str(created_var.id))
+            ))
 
-        # 2. Crear los términos (resolviendo variable_ref → variable ID)
-        created_terms: List[FuzzyTerm] = []  # índice → término creado
+        created_variables = await variable_repo.create_many(vars_to_insert)
+        _logger.debug("Variables importadas: %d", len(created_variables))
+
+        # ── 3. Preparar y bulk-crear términos ───────────────────────
+        terms_to_insert: List[FuzzyTerm] = []
         for idx, term_data in enumerate(request.terms):
             var_ref = term_data.get("variable_ref")
             if var_ref is None or var_ref < 0 or var_ref >= len(created_variables):
                 raise ValidationError(
                     f"Término [{idx}]: variable_ref={var_ref} fuera de rango (0-{len(created_variables)-1})"
                 )
-
             target_var = created_variables[var_ref]
             mf_data = term_data.get("membership_function", {})
 
-            new_term = FuzzyTerm(
+            terms_to_insert.append(FuzzyTerm(
                 variable_id=target_var.id,
                 label=term_data["label"],
                 membership_function=MembershipFunction(
@@ -81,25 +98,31 @@ class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
                     universe_min=mf_data["universe_min"],
                     universe_max=mf_data["universe_max"],
                 ),
-            )
-            created_term = await term_repo.create(new_term)
-            created_terms.append(created_term)
-            _logger.debug("Término importado [%d]: '%s' → id=%s", idx, created_term.label, str(created_term.id))
+            ))
 
-            # Agregar el término a la variable
-            target_var.terms.append(created_term.id)
+        created_terms = await term_repo.create_many(terms_to_insert)
+        _logger.debug("Términos importados: %d", len(created_terms))
 
-        # 3. Actualizar variables con sus términos
-        for var in created_variables:
-            if var.terms:
-                await variable_repo.update(var)
+        # ── 4. Bulk-update variables con sus term_ids ───────────────
+        # Agrupar terms por variable
+        var_term_map: Dict[str, List[FuzzyTermId]] = {}
+        for ct in created_terms:
+            key = str(ct.variable_id)
+            var_term_map.setdefault(key, []).append(ct.id)
 
-        # 4. Clasificar variables en input/output
+        term_updates = [
+            (cv.id, var_term_map.get(str(cv.id), []))
+            for cv in created_variables
+            if str(cv.id) in var_term_map
+        ]
+        await variable_repo.update_many_terms(term_updates)
+
+        # ── 5. Clasificar variables en input/output ─────────────────
         input_var_ids = [v.id for v in created_variables if v.variable_type == "input"]
         output_var_ids = [v.id for v in created_variables if v.variable_type == "output"]
 
-        # 5. Crear las reglas (resolviendo variable_ref y term_refs)
-        created_rule_ids = []
+        # ── 6. Preparar y bulk-crear reglas (con system_id real) ────
+        rules_to_insert: List[FuzzyRule] = []
         for idx, rule_data in enumerate(request.rules):
             # Resolver condiciones
             conditions = []
@@ -115,7 +138,6 @@ class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
                     "value": cond["value"],
                 })
 
-            # Resolver conectores
             connectors = [RuleConnector(c) for c in rule_data.get("connectors", [])]
 
             # Resolver consecuentes
@@ -141,44 +163,28 @@ class ImportFuzzySystemHandler(CommandHandler[ImportFuzzySystemCommand]):
                     aggregation_method=cons.get("aggregation_method", "max"),
                 ))
 
-            new_rule = FuzzyRule(
+            rules_to_insert.append(FuzzyRule(
                 name=rule_data["name"],
-                system_id=None,  # Se actualizará después
+                system_id=new_system_id,
                 description=rule_data.get("description"),
                 conditions=conditions,
                 connectors=connectors,
                 consequents=consequents,
-            )
-            created_rule = await rule_repo.create(new_rule)
-            created_rule_ids.append(created_rule.id)
-            _logger.debug("Regla importada [%d]: '%s' → id=%s", idx, created_rule.name, str(created_rule.id))
+            ))
 
-        # 6. Crear el sistema
-        operators_data = system_data.get("operators", {})
-        operators = OperatorsConfig.from_dict(operators_data) if operators_data else OperatorsConfig()
+        created_rules = await rule_repo.create_many(rules_to_insert)
+        new_rule_ids = [r.id for r in created_rules]
 
-        new_system = FuzzySystem(
-            name=system_data["name"],
-            status=FuzzySystemStatus.DRAFT,
-            defuzzification_method=system_data.get("defuzzification_method", "centroid"),
-            operators=operators,
-            input_variable_ids=input_var_ids,
-            output_variable_ids=output_var_ids,
-            rule_ids=created_rule_ids,
-        )
-        created_system = await system_repo.create(new_system)
-
-        # 7. Actualizar system_id en las reglas
-        for rule_id in created_rule_ids:
-            rule = await rule_repo.get_by_id(rule_id)
-            if rule is not None:
-                rule.system_id = created_system.id
-                await rule_repo.update(rule)
+        # ── 7. Actualizar sistema con variable_ids y rule_ids ───────
+        created_system.input_variable_ids = input_var_ids
+        created_system.output_variable_ids = output_var_ids
+        created_system.rule_ids = new_rule_ids
+        final_system = await system_repo.update(created_system)
 
         _logger.info(
             "Sistema importado exitosamente: '%s' (id=%s, %d vars, %d terms, %d rules)",
-            created_system.name, str(created_system.id),
-            len(created_variables), len(created_terms), len(created_rule_ids),
+            final_system.name, str(final_system.id),
+            len(created_variables), len(created_terms), len(new_rule_ids),
         )
 
-        request._result = FuzzySystemDto.from_entity(created_system)
+        request._result = FuzzySystemDto.from_entity(final_system)

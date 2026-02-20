@@ -11,11 +11,26 @@ import {
   VariableSection,
   RulesSection,
   SimulationPanel,
+  SystemForm,
+  VariableForm,
+  TermForm,
+  RuleForm,
 } from '@/components/fuzzy';
 import {
   useFuzzyStore,
   type FuzzySystemExport,
+  type FuzzyVariable,
+  type FuzzyTerm,
+  type FuzzyRule,
+  type UpdateFuzzySystemRequest,
+  type CreateFuzzyVariableRequest,
+  type UpdateFuzzyVariableRequest,
+  type CreateFuzzyTermRequest,
+  type UpdateFuzzyTermRequest,
+  type CreateFuzzyRuleRequest,
+  type UpdateFuzzyRuleRequest,
 } from '@hydroespinaca/shared';
+import Swal from 'sweetalert2';
 
 // ─── Tab definitions ─────────────────────────────────────────
 
@@ -46,6 +61,16 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
 
+  // Modal state
+  const [showSystemForm, setShowSystemForm] = useState(false);
+  const [showVariableForm, setShowVariableForm] = useState(false);
+  const [editingVariable, setEditingVariable] = useState<FuzzyVariable | null>(null);
+  const [showTermForm, setShowTermForm] = useState(false);
+  const [editingTerm, setEditingTerm] = useState<FuzzyTerm | null>(null);
+  const [termVariable, setTermVariable] = useState<FuzzyVariable | null>(null);
+  const [showRuleForm, setShowRuleForm] = useState(false);
+  const [editingRule, setEditingRule] = useState<FuzzyRule | null>(null);
+
   const {
     selectedDetail,
     detailLoading,
@@ -54,12 +79,23 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
     simulationLoading,
     simulationError,
     operationLoading,
+    crudLoading,
     fetchSystemDetail,
     clearSelectedDetail,
+    updateSystem,
     activateSystem,
     cloneSystem,
     deleteSystem,
     exportSystem,
+    createVariable,
+    updateVariable,
+    deleteVariable,
+    createTerm,
+    updateTerm,
+    deleteTerm,
+    createRule,
+    updateRule,
+    deleteRule,
     simulateSystem,
     clearSimulation,
   } = useFuzzyStore();
@@ -100,6 +136,166 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   ) => {
     await simulateSystem(id, request);
   }, [simulateSystem]);
+
+  // ─── System edit callback ──────────────────────────────────
+
+  const handleEditSystem = useCallback(async (request: UpdateFuzzySystemRequest) => {
+    try {
+      await updateSystem(systemId, request as UpdateFuzzySystemRequest);
+      Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo actualizar el sistema.', 'error');
+    }
+  }, [updateSystem, systemId]);
+
+  // ─── Variable CRUD callbacks ───────────────────────────────
+
+  const handleCreateVariable = useCallback(async (request: CreateFuzzyVariableRequest | UpdateFuzzyVariableRequest) => {
+    try {
+      await createVariable(request as CreateFuzzyVariableRequest);
+      Swal.fire({ title: '¡Variable creada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo crear la variable.', 'error');
+    }
+  }, [createVariable]);
+
+  const handleUpdateVariable = useCallback(async (id: string, request: CreateFuzzyVariableRequest | UpdateFuzzyVariableRequest) => {
+    try {
+      await updateVariable(id, request as UpdateFuzzyVariableRequest);
+      Swal.fire({ title: '¡Variable actualizada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo actualizar la variable.', 'error');
+    }
+  }, [updateVariable]);
+
+  const handleDeleteVariable = useCallback(async (id: string) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar variable?',
+      html: 'Se eliminarán también todos los términos asociados.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteVariable(id);
+      Swal.fire({ title: '¡Eliminada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo eliminar la variable.', 'error');
+    }
+  }, [deleteVariable]);
+
+  // ─── Term CRUD callbacks ───────────────────────────────────
+
+  const handleCreateTerm = useCallback(async (request: CreateFuzzyTermRequest | UpdateFuzzyTermRequest) => {
+    try {
+      await createTerm(request as CreateFuzzyTermRequest);
+      Swal.fire({ title: '¡Término creado!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo crear el término.', 'error');
+    }
+  }, [createTerm]);
+
+  const handleUpdateTerm = useCallback(async (id: string, request: CreateFuzzyTermRequest | UpdateFuzzyTermRequest) => {
+    try {
+      await updateTerm(id, request as UpdateFuzzyTermRequest);
+      Swal.fire({ title: '¡Término actualizado!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo actualizar el término.', 'error');
+    }
+  }, [updateTerm]);
+
+  const handleDeleteTerm = useCallback(async (id: string) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar término?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteTerm(id);
+      Swal.fire({ title: '¡Eliminado!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo eliminar el término.', 'error');
+    }
+  }, [deleteTerm]);
+
+  // ─── Rule CRUD callbacks ───────────────────────────────────
+
+  const handleCreateRule = useCallback(async (request: CreateFuzzyRuleRequest | UpdateFuzzyRuleRequest) => {
+    try {
+      await createRule(request as CreateFuzzyRuleRequest);
+      Swal.fire({ title: '¡Regla creada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo crear la regla.', 'error');
+    }
+  }, [createRule]);
+
+  const handleUpdateRule = useCallback(async (id: string, request: CreateFuzzyRuleRequest | UpdateFuzzyRuleRequest) => {
+    try {
+      await updateRule(id, request as UpdateFuzzyRuleRequest);
+      Swal.fire({ title: '¡Regla actualizada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo actualizar la regla.', 'error');
+    }
+  }, [updateRule]);
+
+  const handleDeleteRule = useCallback(async (id: string) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar regla?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteRule(id);
+      Swal.fire({ title: '¡Eliminada!', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo eliminar la regla.', 'error');
+    }
+  }, [deleteRule]);
+
+  // ─── Variable/Term form open helpers ────────────────────────
+
+  const openCreateVariable = useCallback(() => {
+    setEditingVariable(null);
+    setShowVariableForm(true);
+  }, []);
+
+  const openEditVariable = useCallback((variable: FuzzyVariable) => {
+    setEditingVariable(variable);
+    setShowVariableForm(true);
+  }, []);
+
+  const openCreateTerm = useCallback((variable: FuzzyVariable) => {
+    setEditingTerm(null);
+    setTermVariable(variable);
+    setShowTermForm(true);
+  }, []);
+
+  const openEditTerm = useCallback((variable: FuzzyVariable, term: FuzzyTerm) => {
+    setEditingTerm(term);
+    setTermVariable(variable);
+    setShowTermForm(true);
+  }, []);
+
+  const openCreateRule = useCallback(() => {
+    setEditingRule(null);
+    setShowRuleForm(true);
+  }, []);
+
+  const openEditRule = useCallback((rule: FuzzyRule) => {
+    setEditingRule(rule);
+    setShowRuleForm(true);
+  }, []);
 
   // ─── Loading state ─────────────────────────────────────────
 
@@ -174,6 +370,7 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
               onClone={handleClone}
               onDelete={handleDelete}
               onExport={handleExport}
+              onEdit={() => setShowSystemForm(true)}
               disabled={operationLoading}
             />
           </div>
@@ -327,11 +524,27 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
           )}
 
           {activeTab === 'variables' && (
-            <VariableSection variables={variables} terms={terms} />
+            <VariableSection
+              variables={variables}
+              terms={terms}
+              onAddVariable={openCreateVariable}
+              onEditVariable={openEditVariable}
+              onDeleteVariable={handleDeleteVariable}
+              onAddTerm={openCreateTerm}
+              onEditTerm={openEditTerm}
+              onDeleteTerm={handleDeleteTerm}
+            />
           )}
 
           {activeTab === 'rules' && (
-            <RulesSection rules={rules} variables={variables} terms={terms} />
+            <RulesSection
+              rules={rules}
+              variables={variables}
+              terms={terms}
+              onAddRule={openCreateRule}
+              onEditRule={openEditRule}
+              onDeleteRule={handleDeleteRule}
+            />
           )}
 
           {activeTab === 'simulate' && (
@@ -347,6 +560,70 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
             />
           )}
         </div>
+
+        {/* ── CRUD Modals ── */}
+
+        {/* Edit system */}
+        <SystemForm
+          isOpen={showSystemForm}
+          onClose={() => setShowSystemForm(false)}
+          onSubmit={handleEditSystem}
+          isLoading={crudLoading}
+          system={system}
+        />
+
+        {/* Create / Edit variable */}
+        <VariableForm
+          isOpen={showVariableForm}
+          onClose={() => { setShowVariableForm(false); setEditingVariable(null); }}
+          onSubmit={async (req) => {
+            if (editingVariable) {
+              await handleUpdateVariable(editingVariable.id, req);
+            } else {
+              await handleCreateVariable(req);
+            }
+          }}
+          isLoading={crudLoading}
+          systemId={systemId}
+          variable={editingVariable}
+        />
+
+        {/* Create / Edit term */}
+        {termVariable && (
+          <TermForm
+            isOpen={showTermForm}
+            onClose={() => { setShowTermForm(false); setEditingTerm(null); setTermVariable(null); }}
+            onSubmit={async (req) => {
+              if (editingTerm) {
+                await handleUpdateTerm(editingTerm.id, req);
+              } else {
+                await handleCreateTerm(req);
+              }
+            }}
+            isLoading={crudLoading}
+            variable={termVariable}
+            existingTerms={terms.filter((t) => t.variableId === termVariable.id)}
+            term={editingTerm}
+          />
+        )}
+
+        {/* Create / Edit rule */}
+        <RuleForm
+          isOpen={showRuleForm}
+          onClose={() => { setShowRuleForm(false); setEditingRule(null); }}
+          onSubmit={async (req) => {
+            if (editingRule) {
+              await handleUpdateRule(editingRule.id, req);
+            } else {
+              await handleCreateRule(req);
+            }
+          }}
+          isLoading={crudLoading}
+          systemId={systemId}
+          variables={variables}
+          terms={terms}
+          rule={editingRule}
+        />
       </div>
     </PageLayout>
   );

@@ -21,7 +21,8 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
   isLoading = false,
 }) => {
   const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0] ?? '',
+    dateFrom: new Date().toISOString().split('T')[0] ?? '',
+    dateTo: '',
     type: '1',
     amount: '',
     note: '',
@@ -46,8 +47,11 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.date) {
-      newErrors.date = 'La fecha es requerida';
+    if (!form.dateFrom) {
+      newErrors.dateFrom = 'La fecha de inicio es requerida';
+    }
+    if (form.dateTo && form.dateFrom && form.dateTo < form.dateFrom) {
+      newErrors.dateTo = 'La fecha de fin no puede ser anterior a la de inicio';
     }
     if (!form.amount || Number(form.amount) <= 0) {
       newErrors.amount = 'La cantidad debe ser mayor a 0';
@@ -62,7 +66,8 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
 
     const trimmedNote = form.note.trim();
     const request: CreateManualConsumptionEntryRequest = {
-      date: new Date(form.date!).toISOString(),
+      dateFrom: `${form.dateFrom}T12:00:00Z`,
+      ...(form.dateTo ? { dateTo: `${form.dateTo}T12:00:00Z` } : {}),
       type: Number(form.type) as ConsumptionType,
       amount: Number(form.amount),
       ...(trimmedNote ? { note: trimmedNote } : {}),
@@ -73,7 +78,7 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
   };
 
   const handleClose = () => {
-    setForm({ date: new Date().toISOString().split('T')[0] ?? '', type: '1', amount: '', note: '' });
+    setForm({ dateFrom: new Date().toISOString().split('T')[0] ?? '', dateTo: '', type: '1', amount: '', note: '' });
     setErrors({});
     onClose();
   };
@@ -83,11 +88,19 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
       <div className="space-y-4">
         <FormField
           type="date"
-          label="Fecha"
-          value={form.date}
-          onChange={(val) => setForm({ ...form, date: val })}
+          label="Fecha desde"
+          value={form.dateFrom}
+          onChange={(val) => setForm({ ...form, dateFrom: val })}
           required
-          error={errors.date ?? ''}
+          error={errors.dateFrom ?? ''}
+        />
+
+        <FormField
+          type="date"
+          label="Fecha hasta (opcional)"
+          value={form.dateTo}
+          onChange={(val) => setForm({ ...form, dateTo: val })}
+          error={errors.dateTo ?? ''}
         />
 
         <FormField
@@ -117,6 +130,8 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
           value={form.note}
           onChange={(val) => setForm({ ...form, note: val })}
           placeholder="Ej: Lectura del medidor semanal"
+          maxLength={120}
+          helperText={`${form.note.length}/120 caracteres`}
         />
 
         <div className="flex gap-3 pt-4 border-t border-gray-200">

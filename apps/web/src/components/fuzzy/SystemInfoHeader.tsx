@@ -77,7 +77,7 @@ const SystemInfoHeader: React.FC<SystemInfoHeaderProps> = ({ detail }) => {
       <div className="flex flex-wrap gap-2 text-sm">
         <Badge variant="default" size="sm">AND: {system.operators.andMethod}</Badge>
         <Badge variant="default" size="sm">OR: {system.operators.orMethod}</Badge>
-        <Badge variant="default" size="sm">Agregación: {system.operators.aggregationMethod}</Badge>
+        <Badge variant="default" size="sm">NOT: {system.operators.notMethod}</Badge>
       </div>
     </div>
   );

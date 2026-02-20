@@ -139,6 +139,66 @@ public class BiServiceClient : IBiServiceClient
         }
     }
 
+    public async Task<CostConfigVersionDto> UpdateCostConfigVersionAsync(
+        string accessToken, string id, UpdateCostConfigVersionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating cost config version {Id} in bi-service", id);
+
+            var httpRequest = CreateRequest(HttpMethod.Put,
+                $"/api/bi/cost-config/versions/{id}", accessToken);
+            httpRequest.Content = new StringContent(
+                JsonSerializer.Serialize(request, _jsonOptions),
+                Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            await EnsureSuccessOrThrow(response, "updating cost config version", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<CostConfigVersionDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("bi-service returned null for updated cost config version");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error updating cost config version in bi-service");
+            throw;
+        }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Unexpected error updating cost config version in bi-service");
+            throw;
+        }
+    }
+
+    public async Task DeleteCostConfigVersionAsync(
+        string accessToken, string id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting cost config version {Id} from bi-service", id);
+
+            var request = CreateRequest(HttpMethod.Delete,
+                $"/api/bi/cost-config/versions/{id}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            await EnsureSuccessOrThrow(response, "deleting cost config version", cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error deleting cost config version from bi-service");
+            throw;
+        }
+        catch (Exception ex) when (ex is not HttpRequestException)
+        {
+            _logger.LogError(ex, "Unexpected error deleting cost config version from bi-service");
+            throw;
+        }
+    }
+
     public async Task<ManualConsumptionEntryDto> CreateConsumptionEntryAsync(
         string accessToken, CreateManualConsumptionEntryRequest request,
         CancellationToken cancellationToken = default)

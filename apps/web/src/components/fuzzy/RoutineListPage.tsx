@@ -9,13 +9,15 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import FuzzySystemCard from '@/components/ui/FuzzySystemCard';
-import { SystemStatusBadge } from '@/components/fuzzy';
+import { SystemStatusBadge, SystemForm } from '@/components/fuzzy';
 import Swal from 'sweetalert2';
 import {
   useFuzzyStore,
   type FuzzySystem,
   type FuzzySystemStatus,
   type FuzzySystemExport,
+  type CreateFuzzySystemRequest,
+  type UpdateFuzzySystemRequest,
   FUZZY_STATUS_LABELS,
 } from '@hydroespinaca/shared';
 
@@ -38,7 +40,10 @@ const RoutineListPage: React.FC = () => {
     systemsLoading,
     systemsError,
     operationLoading,
+    importLoading,
+    crudLoading,
     fetchSystems,
+    createSystem,
     activateSystem,
     cloneSystem,
     deleteSystem,
@@ -49,6 +54,8 @@ const RoutineListPage: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [showSystemForm, setShowSystemForm] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSystems();
@@ -66,6 +73,16 @@ const RoutineListPage: React.FC = () => {
   // ─── Card actions ──────────────────────────────────────────
 
   const handleNavigate = (id: string) => router.push(`/rutinas/${id}`);
+
+  const handleCreateSystem = useCallback(async (request: CreateFuzzySystemRequest | UpdateFuzzySystemRequest) => {
+    try {
+      const created = await createSystem(request as CreateFuzzySystemRequest);
+      Swal.fire({ title: '¡Sistema creado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      router.push(`/rutinas/${created.id}`);
+    } catch {
+      Swal.fire('Error', 'No se pudo crear el sistema.', 'error');
+    }
+  }, [createSystem, router]);
 
   const handleActivate = useCallback(async (id: string) => {
     const sys = systems.find((s) => s.id === id);
@@ -104,10 +121,13 @@ const RoutineListPage: React.FC = () => {
     });
     if (!name) return;
     try {
+      setLoadingMessage('Duplicando rutina… esto puede tardar unos segundos');
       await cloneSystem(id, { name });
       Swal.fire({ title: '¡Duplicada!', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch {
       Swal.fire('Error', 'No se pudo duplicar.', 'error');
+    } finally {
+      setLoadingMessage(null);
     }
   }, [systems, cloneSystem]);
 
@@ -161,11 +181,13 @@ const RoutineListPage: React.FC = () => {
         Swal.fire('Formato inválido', 'El archivo no parece ser una exportación válida.', 'error');
         return;
       }
+      setLoadingMessage('Importando rutina… esto puede tardar unos segundos');
       await importSystem(data);
       Swal.fire({ title: '¡Importada!', text: 'La rutina fue importada correctamente.', icon: 'success', timer: 2000, showConfirmButton: false });
     } catch {
       Swal.fire('Error', 'No se pudo importar el archivo.', 'error');
     } finally {
+      setLoadingMessage(null);
       // reset the file input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -179,6 +201,17 @@ const RoutineListPage: React.FC = () => {
 
   return (
     <PageLayout>
+      {/* Loading overlay for clone/import */}
+      {(loadingMessage || operationLoading || importLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl px-8 py-6 flex flex-col items-center gap-4 max-w-sm mx-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-green-200 border-t-green-600" />
+            <p className="text-sm font-medium text-gray-700 text-center font-inter">
+              {loadingMessage ?? 'Procesando…'}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <PageHeader
           title="Rutinas Fuzzy"
@@ -186,6 +219,9 @@ const RoutineListPage: React.FC = () => {
           alignment="left"
         >
           <div className="flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" onClick={() => setShowSystemForm(true)}>
+              ➕ Crear Sistema
+            </Button>
             <Button variant="outline" size="sm" onClick={handleImportClick}>
               📥 Importar JSON
             </Button>
@@ -287,12 +323,25 @@ const RoutineListPage: React.FC = () => {
                 : 'Ajusta los filtros para ver más resultados.'}
             </p>
             {systems.length === 0 && (
-              <Button variant="outline" onClick={handleImportClick}>
-                📥 Importar rutina
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button variant="primary" onClick={() => setShowSystemForm(true)}>
+                  ➕ Crear sistema
+                </Button>
+                <Button variant="outline" onClick={handleImportClick}>
+                  📥 Importar rutina
+                </Button>
+              </div>
             )}
           </div>
         )}
+
+        {/* Create system modal */}
+        <SystemForm
+          isOpen={showSystemForm}
+          onClose={() => setShowSystemForm(false)}
+          onSubmit={handleCreateSystem}
+          isLoading={crudLoading}
+        />
       </div>
     </PageLayout>
   );

@@ -69,8 +69,8 @@ public class ManualConsumptionEntryRepository : IManualConsumptionEntryRepositor
     {
         var filters = new List<FilterDefinition<ManualConsumptionEntryDocument>>
         {
-            Builders<ManualConsumptionEntryDocument>.Filter.Gte(x => x.Date, from),
-            Builders<ManualConsumptionEntryDocument>.Filter.Lte(x => x.Date, to)
+            Builders<ManualConsumptionEntryDocument>.Filter.Lte(x => x.DateFrom, to),
+            Builders<ManualConsumptionEntryDocument>.Filter.Gte(x => x.DateTo, from)
         };
 
         if (type.HasValue)
@@ -81,7 +81,7 @@ public class ManualConsumptionEntryRepository : IManualConsumptionEntryRepositor
         var filter = Builders<ManualConsumptionEntryDocument>.Filter.And(filters);
         var docs = await _collection
             .Find(filter)
-            .SortByDescending(x => x.Date)
+            .SortByDescending(x => x.DateFrom)
             .ToListAsync(cancellationToken);
 
         return docs.Select(_mapper.ToEntity).ToList();

@@ -268,4 +268,19 @@ class IFuzzyVariableRepository(ABC):
         """
         pass
     
+    # ---- Bulk operations (for clone / import) ----
+    @abstractmethod
+    async def create_many(self, variables: List[FuzzyVariable]) -> List[FuzzyVariable]:
+        """Bulk-inserts variables without per-entity validation. Returns entities with assigned IDs."""
+        pass
+
+    @abstractmethod
+    async def update_many_terms(self, updates: List[tuple]) -> None:
+        """Bulk-updates the terms array for multiple variables.
+        
+        Args:
+            updates: List of (variable_id, term_id_list) tuples.
+        """
+        pass
+
     # Validation methods removed - device_id is deprecated, use reference_id validation in handlers

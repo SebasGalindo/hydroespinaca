@@ -3,6 +3,7 @@ import { BaseApiService, ApiServiceError } from './BaseApiService';
 import type {
   CostConfigVersion,
   CreateCostConfigVersionRequest,
+  UpdateCostConfigVersionRequest,
   ManualConsumptionEntry,
   CreateManualConsumptionEntryRequest,
   BiSummary,
@@ -46,6 +47,17 @@ export class BiApiService extends BaseApiService {
       method: 'POST',
       body: request,
     });
+  }
+
+  async updateCostConfigVersion(id: string, request: UpdateCostConfigVersionRequest): Promise<CostConfigVersion> {
+    return this.request<CostConfigVersion>(`/bi/cost-config/versions/${id}`, {
+      method: 'PUT',
+      body: request,
+    });
+  }
+
+  async deleteCostConfigVersion(id: string): Promise<void> {
+    return this.deleteRequest(`/bi/cost-config/versions/${id}`);
   }
 
   // ────────────────────────────────────────

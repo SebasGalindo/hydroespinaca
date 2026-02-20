@@ -39,6 +39,27 @@ public interface IFuzzyServiceClient
         string accessToken, string id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Creates a new fuzzy system with the given name and optional configuration.
+    /// </summary>
+    Task<FuzzySystemDto> CreateSystemAsync(
+        string accessToken, CreateFuzzySystemRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing fuzzy system's properties.
+    /// </summary>
+    Task<FuzzySystemDto> UpdateSystemAsync(
+        string accessToken, string id, UpdateFuzzySystemRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Changes the status of a fuzzy system (DRAFT, ACTIVE, INACTIVE, TESTING).
+    /// </summary>
+    Task<FuzzySystemDto> UpdateSystemStatusAsync(
+        string accessToken, string id, UpdateFuzzySystemStatusRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Activates a fuzzy system exclusively (deactivates all others).
     /// </summary>
     Task<FuzzySystemDto> ActivateSystemAsync(
@@ -87,6 +108,26 @@ public interface IFuzzyServiceClient
     Task<List<FuzzyVariableDto>> GetVariablesBySystemAsync(
         string accessToken, string systemId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Creates a new fuzzy variable and associates it with a system.
+    /// </summary>
+    Task<FuzzyVariableDto> CreateVariableAsync(
+        string accessToken, CreateFuzzyVariableRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing fuzzy variable's properties.
+    /// </summary>
+    Task<FuzzyVariableDto> UpdateVariableAsync(
+        string accessToken, string id, UpdateFuzzyVariableRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a fuzzy variable by ID.
+    /// </summary>
+    Task DeleteVariableAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default);
+
     // ──────────────────────────────────────────────
     //  Fuzzy Terms
     // ──────────────────────────────────────────────
@@ -97,6 +138,26 @@ public interface IFuzzyServiceClient
     Task<List<FuzzyTermDto>> GetTermsByVariableAsync(
         string accessToken, string variableId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Creates a new fuzzy term for a variable.
+    /// </summary>
+    Task<FuzzyTermDto> CreateTermAsync(
+        string accessToken, CreateFuzzyTermRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing fuzzy term's label or membership function.
+    /// </summary>
+    Task<FuzzyTermDto> UpdateTermAsync(
+        string accessToken, string id, UpdateFuzzyTermRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a fuzzy term by ID.
+    /// </summary>
+    Task DeleteTermAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default);
+
     // ──────────────────────────────────────────────
     //  Fuzzy Rules
     // ──────────────────────────────────────────────
@@ -106,4 +167,24 @@ public interface IFuzzyServiceClient
     /// </summary>
     Task<List<FuzzyRuleDto>> GetRulesBySystemAsync(
         string accessToken, string systemId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new fuzzy rule for a system.
+    /// </summary>
+    Task<FuzzyRuleDto> CreateRuleAsync(
+        string accessToken, CreateFuzzyRuleRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing fuzzy rule's conditions, connectors or consequents.
+    /// </summary>
+    Task<FuzzyRuleDto> UpdateRuleAsync(
+        string accessToken, string id, UpdateFuzzyRuleRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a fuzzy rule by ID.
+    /// </summary>
+    Task DeleteRuleAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default);
 }

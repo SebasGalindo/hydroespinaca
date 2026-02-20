@@ -1,33 +1,51 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 import FormField from '@/components/ui/FormField';
 import Button from '@/components/ui/Button';
 
-import type { CreateCostConfigVersionRequest } from '@hydroespinaca/shared';
+import type { CreateCostConfigVersionRequest, UpdateCostConfigVersionRequest, CostConfigVersion } from '@hydroespinaca/shared';
 
 interface CostConfigFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (request: CreateCostConfigVersionRequest) => Promise<void>;
+  onSubmit: (request: CreateCostConfigVersionRequest | UpdateCostConfigVersionRequest) => Promise<void>;
   isLoading?: boolean;
+  editData?: CostConfigVersion | null;
 }
+
+const getInitialForm = (editData?: CostConfigVersion | null) => ({
+  currency: editData?.currency ?? 'COP',
+  electricityCostPerKwh: editData ? String(editData.electricityCostPerKwh) : '',
+  waterCostPerLiter: editData ? String(editData.waterCostPerLiter) : '',
+  nutrientCostPerLiter: editData ? String(editData.nutrientCostPerLiter) : '',
+  effectiveFrom: editData
+    ? new Date(editData.effectiveFrom).toISOString().split('T')[0] ?? ''
+    : new Date().toISOString().split('T')[0] ?? '',
+  effectiveTo: editData?.effectiveTo
+    ? new Date(editData.effectiveTo).toISOString().split('T')[0] ?? ''
+    : '',
+});
 
 const CostConfigForm: React.FC<CostConfigFormProps> = ({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
+  editData = null,
 }) => {
-  const [form, setForm] = useState({
-    currency: 'COP',
-    electricityCostPerKwh: '',
-    waterCostPerLiter: '',
-    nutrientCostPerLiter: '',
-    effectiveFrom: new Date().toISOString().split('T')[0] ?? '',
-  });
+  const [form, setForm] = useState(getInitialForm(editData));
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isEditMode = !!editData;
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm(getInitialForm(editData));
+      setErrors({});
+    }
+  }, [isOpen, editData]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -44,6 +62,9 @@ const CostConfigForm: React.FC<CostConfigFormProps> = ({
     if (!form.effectiveFrom) {
       newErrors.effectiveFrom = 'La fecha de inicio es requerida';
     }
+    if (form.effectiveTo && form.effectiveFrom && new Date(form.effectiveTo) <= new Date(form.effectiveFrom)) {
+      newErrors.effectiveTo = 'La fecha "hasta" debe ser posterior a la fecha "desde"';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -52,32 +73,27 @@ const CostConfigForm: React.FC<CostConfigFormProps> = ({
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    const request: CreateCostConfigVersionRequest = {
+    const payload = {
       currency: form.currency,
       electricityCostPerKwh: Number(form.electricityCostPerKwh),
       waterCostPerLiter: Number(form.waterCostPerLiter),
       nutrientCostPerLiter: Number(form.nutrientCostPerLiter),
-      effectiveFrom: new Date(form.effectiveFrom!).toISOString(),
+      effectiveFrom: `${form.effectiveFrom}T12:00:00Z`,
+      ...(form.effectiveTo ? { effectiveTo: `${form.effectiveTo}T12:00:00Z` } : {}),
     };
 
-    await onSubmit(request);
+    await onSubmit(payload);
     handleClose();
   };
 
   const handleClose = () => {
-    setForm({
-      currency: 'COP',
-      electricityCostPerKwh: '',
-      waterCostPerLiter: '',
-      nutrientCostPerLiter: '',
-      effectiveFrom: new Date().toISOString().split('T')[0] ?? '',
-    });
+    setForm(getInitialForm());
     setErrors({});
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Nueva Configuración de Costos" maxWidth="md">
+    <Modal isOpen={isOpen} onClose={handleClose} title={isEditMode ? 'Editar Configuración de Costos' : 'Nueva Configuración de Costos'} maxWidth="md">
       <div className="space-y-4">
         <FormField
           type="select"
@@ -136,7 +152,16 @@ const CostConfigForm: React.FC<CostConfigFormProps> = ({
           onChange={(val) => setForm({ ...form, effectiveFrom: val })}
           required
           error={errors.effectiveFrom ?? ''}
-          helperText="La configuración anterior se cerrará automáticamente"
+          helperText="La fecha a partir de la cual aplica esta configuración"
+        />
+
+        <FormField
+          type="date"
+          label="Vigente hasta"
+          value={form.effectiveTo}
+          onChange={(val) => setForm({ ...form, effectiveTo: val })}
+          error={errors.effectiveTo ?? ''}
+          helperText="Opcional — se calcula automáticamente si existe una versión posterior"
         />
 
         <div className="flex gap-3 pt-4 border-t border-gray-200">
@@ -149,7 +174,7 @@ const CostConfigForm: React.FC<CostConfigFormProps> = ({
             isLoading={isLoading}
             className="flex-1"
           >
-            Crear Configuración
+            {isEditMode ? 'Guardar Cambios' : 'Crear Configuración'}
           </Button>
         </div>
       </div>

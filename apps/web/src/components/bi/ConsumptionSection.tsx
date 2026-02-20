@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useBiStore, formatCurrency, formatDate, CONSUMPTION_TYPE_LABELS } from '@hydroespinaca/shared';
 import type { ConsumptionType, ManualConsumptionEntry } from '@hydroespinaca/shared';
 import Table from '@/components/ui/Table';
@@ -42,14 +42,20 @@ const ConsumptionSection: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
 
   const loadData = useCallback(async () => {
-    const fromISO = new Date(from!).toISOString();
-    const toISO = new Date(to + 'T23:59:59').toISOString();
+    const fromISO = `${from}T00:00:00Z`;
+    const toISO = `${to}T23:59:59Z`;
     await Promise.all([
       fetchConsumptionEntries(fromISO, toISO, typeFilter || undefined),
       fetchConsumptionSummary(fromISO, toISO),
     ]);
     setLoaded(true);
   }, [from, to, typeFilter, fetchConsumptionEntries, fetchConsumptionSummary]);
+
+  // Auto-load the last 30 days on mount
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreate = async (request: Parameters<typeof createConsumptionEntry>[0]) => {
     try {
@@ -98,9 +104,14 @@ const ConsumptionSection: React.FC = () => {
 
   const columns = [
     {
-      key: 'date',
+      key: 'dateFrom',
       label: 'Fecha',
-      render: (value: unknown) => formatDate(String(value)),
+      render: (value: unknown, row: unknown) => {
+        const entry = row as ManualConsumptionEntry;
+        const from = formatDate(String(value));
+        if (entry.dateFrom === entry.dateTo) return from;
+        return `${from} — ${formatDate(entry.dateTo)}`;
+      },
     },
     {
       key: 'type',

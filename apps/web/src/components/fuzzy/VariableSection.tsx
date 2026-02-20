@@ -3,6 +3,7 @@
 import React from 'react';
 import Badge from '@/components/ui/Badge';
 import BaseCard from '@/components/ui/BaseCard';
+import Button from '@/components/ui/Button';
 import MembershipFunctionChart from './MembershipFunctionChart';
 import {
   VARIABLE_TYPE_LABELS,
@@ -13,9 +14,24 @@ import type { FuzzyVariable, FuzzyTerm } from '@hydroespinaca/shared';
 interface VariableSectionProps {
   variables: FuzzyVariable[];
   terms: FuzzyTerm[];
+  onAddVariable?: () => void;
+  onEditVariable?: (variable: FuzzyVariable) => void;
+  onDeleteVariable?: (id: string) => void;
+  onAddTerm?: (variable: FuzzyVariable) => void;
+  onEditTerm?: (variable: FuzzyVariable, term: FuzzyTerm) => void;
+  onDeleteTerm?: (id: string) => void;
 }
 
-const VariableSection: React.FC<VariableSectionProps> = ({ variables, terms }) => {
+const VariableSection: React.FC<VariableSectionProps> = ({
+  variables,
+  terms,
+  onAddVariable,
+  onEditVariable,
+  onDeleteVariable,
+  onAddTerm,
+  onEditTerm,
+  onDeleteTerm,
+}) => {
   const getTermsByVariable = (variableId: string): FuzzyTerm[] =>
     terms.filter((t) => t.variableId === variableId);
 
@@ -53,22 +69,34 @@ const VariableSection: React.FC<VariableSectionProps> = ({ variables, terms }) =
         <h3 className="text-lg font-medium text-gray-900 font-inter mb-2">
           No hay variables definidas
         </h3>
-        <p className="text-gray-600 font-inter">
+        <p className="text-gray-600 font-inter mb-4">
           Este sistema no tiene variables configuradas.
         </p>
+        {onAddVariable && (
+          <Button variant="primary" size="sm" onClick={onAddVariable}>
+            ➕ Agregar variable
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-gray-200 pb-4">
-        <h2 className="text-xl font-semibold text-gray-900 font-inter">
-          Variables y Términos
-        </h2>
-        <p className="text-sm text-gray-600 font-inter mt-1">
-          Definición de variables con sus términos lingüísticos y funciones de membresía
-        </p>
+      <div className="border-b border-gray-200 pb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 font-inter">
+            Variables y Términos
+          </h2>
+          <p className="text-sm text-gray-600 font-inter mt-1">
+            Definición de variables con sus términos lingüísticos y funciones de membresía
+          </p>
+        </div>
+        {onAddVariable && (
+          <Button variant="primary" size="sm" onClick={onAddVariable}>
+            ➕ Variable
+          </Button>
+        )}
       </div>
 
       {variables.map((variable) => {
@@ -88,12 +116,24 @@ const VariableSection: React.FC<VariableSectionProps> = ({ variables, terms }) =
                 <h3 className="text-lg font-semibold text-gray-900 font-inter">
                   {variable.name}
                 </h3>
-                <Badge
-                  variant={variable.variableType === 'input' ? 'success' : 'error'}
-                  size="md"
-                >
-                  {VARIABLE_TYPE_LABELS[variable.variableType]}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={variable.variableType === 'input' ? 'success' : 'error'}
+                    size="md"
+                  >
+                    {VARIABLE_TYPE_LABELS[variable.variableType]}
+                  </Badge>
+                  {onEditVariable && (
+                    <Button variant="ghost" size="sm" onClick={() => onEditVariable(variable)}>
+                      ✏️
+                    </Button>
+                  )}
+                  {onDeleteVariable && (
+                    <Button variant="ghost" size="sm" onClick={() => onDeleteVariable(variable.id)} className="text-red-500 hover:bg-red-50">
+                      🗑️
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {variable.description && (
@@ -123,14 +163,43 @@ const VariableSection: React.FC<VariableSectionProps> = ({ variables, terms }) =
             {/* Term list */}
             {variableTerms.length > 0 && (
               <div className="mb-6">
-                <h4 className="text-md font-medium text-gray-800 font-inter mb-4">
-                  Términos Lingüísticos
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-md font-medium text-gray-800 font-inter">
+                    Términos Lingüísticos
+                  </h4>
+                  {onAddTerm && (
+                    <Button variant="outline" size="sm" onClick={() => onAddTerm(variable)}>
+                      ➕ Término
+                    </Button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {variableTerms.map((term) => (
-                    <div key={term.id} className="bg-gray-50 p-4 rounded-lg">
-                      <h5 className="font-medium text-gray-900 mb-1">{term.label}</h5>
-                      <p className="text-sm text-gray-600">{describeMF(term)}</p>
+                    <div key={term.id} className="bg-gray-50 p-4 rounded-lg flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h5 className="font-medium text-gray-900 mb-1">{term.label}</h5>
+                        <p className="text-sm text-gray-600">{describeMF(term)}</p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                        {onEditTerm && (
+                          <button
+                            onClick={() => onEditTerm(variable, term)}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Editar término"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        {onDeleteTerm && (
+                          <button
+                            onClick={() => onDeleteTerm(term.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Eliminar término"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -146,7 +215,12 @@ const VariableSection: React.FC<VariableSectionProps> = ({ variables, terms }) =
 
             {variableTerms.length === 0 && (
               <div className="text-center py-8 text-gray-500 font-inter">
-                No hay términos definidos para esta variable
+                <p className="mb-3">No hay términos definidos para esta variable</p>
+                {onAddTerm && (
+                  <Button variant="outline" size="sm" onClick={() => onAddTerm(variable)}>
+                    ➕ Agregar término
+                  </Button>
+                )}
               </div>
             )}
           </BaseCard>

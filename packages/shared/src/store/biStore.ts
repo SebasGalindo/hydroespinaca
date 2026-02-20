@@ -3,6 +3,7 @@ import { biService, BiApiError } from '../api/biService';
 import type {
   CostConfigVersion,
   CreateCostConfigVersionRequest,
+  UpdateCostConfigVersionRequest,
   ManualConsumptionEntry,
   CreateManualConsumptionEntryRequest,
   BiSummary,
@@ -52,6 +53,8 @@ interface BiActions {
   fetchCurrentCostConfig: () => Promise<void>;
   fetchCostConfigVersions: (from?: string, to?: string) => Promise<void>;
   createCostConfigVersion: (request: CreateCostConfigVersionRequest) => Promise<CostConfigVersion>;
+  updateCostConfigVersion: (id: string, request: UpdateCostConfigVersionRequest) => Promise<CostConfigVersion>;
+  deleteCostConfigVersion: (id: string) => Promise<void>;
 
   // Consumption entry actions
   fetchConsumptionEntries: (from: string, to: string, type?: string) => Promise<void>;
@@ -145,12 +148,57 @@ export const useBiStore = create<BiState & BiActions>()((set, get) => ({
     set({ costConfigLoading: true, costConfigError: null });
     try {
       const created = await biService.createCostConfigVersion(request);
-      set((state) => ({
-        costConfigVersions: [created, ...state.costConfigVersions],
-        currentCostConfig: created.isActive ? created : state.currentCostConfig,
+      // Re-fetch all versions and current since the backend recalculates
+      // EffectiveTo and IsActive for all versions on create
+      const [current, versions] = await Promise.all([
+        biService.getCurrentCostConfig(),
+        biService.getCostConfigVersions(),
+      ]);
+      set({
+        costConfigVersions: versions,
+        currentCostConfig: current,
         costConfigLoading: false,
-      }));
+      });
       return created;
+    } catch (error) {
+      set({ costConfigError: extractErrorMessage(error), costConfigLoading: false });
+      throw error;
+    }
+  },
+
+  updateCostConfigVersion: async (id: string, request: UpdateCostConfigVersionRequest) => {
+    set({ costConfigLoading: true, costConfigError: null });
+    try {
+      const updated = await biService.updateCostConfigVersion(id, request);
+      const [current, versions] = await Promise.all([
+        biService.getCurrentCostConfig(),
+        biService.getCostConfigVersions(),
+      ]);
+      set({
+        costConfigVersions: versions,
+        currentCostConfig: current,
+        costConfigLoading: false,
+      });
+      return updated;
+    } catch (error) {
+      set({ costConfigError: extractErrorMessage(error), costConfigLoading: false });
+      throw error;
+    }
+  },
+
+  deleteCostConfigVersion: async (id: string) => {
+    set({ costConfigLoading: true, costConfigError: null });
+    try {
+      await biService.deleteCostConfigVersion(id);
+      const [current, versions] = await Promise.all([
+        biService.getCurrentCostConfig(),
+        biService.getCostConfigVersions(),
+      ]);
+      set({
+        costConfigVersions: versions,
+        currentCostConfig: current,
+        costConfigLoading: false,
+      });
     } catch (error) {
       set({ costConfigError: extractErrorMessage(error), costConfigLoading: false });
       throw error;

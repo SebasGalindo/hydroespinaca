@@ -43,6 +43,10 @@ export class AuthApiService {
   ): Promise<ApiResponse<T>> {
     const fullUrl = `${this.baseUrl}${url}`;
 
+    if (__DEV__) {
+      console.log(`[AuthService.request] ${options.method || 'GET'} ${fullUrl} (platform=${platform})`);
+    }
+
     const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -98,6 +102,7 @@ export class AuthApiService {
    * Web login - uses HttpOnly cookies set by the server
    */
   async loginWeb(credentials: LoginRequest): Promise<void> {
+    if (__DEV__) console.log('[AuthService] loginWeb called');
     await this.request('/auth/login/web', {
       method: 'POST',
       body: JSON.stringify(credentials),

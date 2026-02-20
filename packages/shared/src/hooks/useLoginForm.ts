@@ -30,7 +30,13 @@ export const useLoginForm = (): UseLoginFormReturn => {
   
   const handleSubmit = async (e: FormEvent | { preventDefault: () => void }) => {
     e.preventDefault();
-    await login(formState.email, formState.password);
+    try {
+      await login(formState.email, formState.password);
+    } catch {
+      // Error is already set in authStore state — re-throw so
+      // component-level callers (e.g. LoginForm.handleFormSubmit) can react
+      throw new Error('Login failed');
+    }
   };
   
   return {

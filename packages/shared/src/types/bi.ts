@@ -18,6 +18,16 @@ export interface CreateCostConfigVersionRequest {
   waterCostPerLiter: number;
   nutrientCostPerLiter: number;
   effectiveFrom?: string; // ISO 8601
+  effectiveTo?: string; // ISO 8601, optional — auto-calculated if omitted
+}
+
+export interface UpdateCostConfigVersionRequest {
+  currency?: string;
+  electricityCostPerKwh: number;
+  waterCostPerLiter: number;
+  nutrientCostPerLiter: number;
+  effectiveFrom?: string; // ISO 8601
+  effectiveTo?: string; // ISO 8601, optional
 }
 
 // ==================== Consumption Entry Types ====================
@@ -50,7 +60,8 @@ export const CONSUMPTION_TYPE_ICONS: Record<ConsumptionType, string> = {
 
 export interface ManualConsumptionEntry {
   id: string;
-  date: string; // ISO 8601
+  dateFrom: string; // ISO 8601
+  dateTo: string; // ISO 8601
   type: ConsumptionType;
   amount: number;
   unitCostSnapshot: number;
@@ -62,7 +73,8 @@ export interface ManualConsumptionEntry {
 }
 
 export interface CreateManualConsumptionEntryRequest {
-  date: string; // ISO 8601
+  dateFrom: string; // ISO 8601
+  dateTo?: string; // ISO 8601, optional — defaults to dateFrom
   type: ConsumptionType;
   amount: number;
   note?: string;
@@ -123,12 +135,12 @@ export interface CostConfigPeriodUsed {
 
 export interface ActuatorOperationalCostItem {
   actuatorCode: string;
-  totalDurationSeconds: number;
-  activationCount: number;
   powerConsumptionWatts: number;
+  totalDurationSeconds: number;
+  totalHours: number;
   estimatedKwh: number;
-  costPerPeriod: CostConfigPeriodCost[];
-  totalCost: number;
+  estimatedCost: number;
+  activationCount: number;
 }
 
 export interface CostConfigPeriodCost {
@@ -167,22 +179,34 @@ export interface ProductionInfo {
 }
 
 export interface OperationalCostDetail {
-  actuatorCode: string;
-  estimatedKwh: number;
-  cost: number;
+  actuators: ActuatorOperationalCostItem[];
+  totalEstimatedKwh: number;
+  totalOperationalCost: number;
 }
 
 export interface ManualConsumptionCostDetail {
+  totalElectricityKwh: number;
+  totalWaterLiters: number;
+  totalNutrientLiters: number;
+  costElectricity: number;
+  costWater: number;
+  costNutrients: number;
+  totalManualCost: number;
+  entries: ManualConsumptionEntryItem[];
+}
+
+export interface ManualConsumptionEntryItem {
   type: ConsumptionType;
-  totalAmount: number;
-  totalCost: number;
+  amount: number;
+  costAmount: number;
+  note: string | null;
+  dateFrom: string; // ISO 8601
+  dateTo: string; // ISO 8601
 }
 
 export interface ExpensesInfo {
-  operationalCosts: OperationalCostDetail[];
-  totalOperationalCost: number;
-  manualConsumptionCosts: ManualConsumptionCostDetail[];
-  totalManualConsumptionCost: number;
+  operationalCost: OperationalCostDetail;
+  manualConsumptionCost: ManualConsumptionCostDetail;
   totalExpenses: number;
 }
 

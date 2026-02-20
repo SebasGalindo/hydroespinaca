@@ -102,7 +102,16 @@ public class CalculateProfitabilityQueryHandler
                     CostElectricity = costElectricity,
                     CostWater = costWater,
                     CostNutrients = costNutrients,
-                    TotalManualCost = totalManualCost
+                    TotalManualCost = totalManualCost,
+                    Entries = entries.Select(e => new ManualConsumptionEntryItem
+                    {
+                        Type = e.Type,
+                        Amount = e.Amount,
+                        CostAmount = e.CostAmount,
+                        Note = e.Note,
+                        DateFrom = e.DateFrom,
+                        DateTo = e.DateTo
+                    }).ToList()
                 },
                 TotalExpenses = decimal.Round(totalExpenses, 4)
             },

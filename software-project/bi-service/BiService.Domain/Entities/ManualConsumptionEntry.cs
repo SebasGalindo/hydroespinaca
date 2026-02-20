@@ -13,8 +13,11 @@ public class ManualConsumptionEntry : IIdentifiableMutable
     /// <summary>Identificador único del registro (asignado por MongoDB).</summary>
     public string Id { get; private set; } = string.Empty;
 
-    /// <summary>Fecha en la que ocurrió el consumo.</summary>
-    public DateTime Date { get; set; }
+    /// <summary>Fecha de inicio del consumo (o fecha única si no es rango).</summary>
+    public DateTime DateFrom { get; set; }
+
+    /// <summary>Fecha de fin del consumo. Igual a <see cref="DateFrom"/> si es un solo día.</summary>
+    public DateTime DateTo { get; set; }
 
     /// <summary>Tipo de recurso consumido.</summary>
     public ConsumptionType Type { get; set; }

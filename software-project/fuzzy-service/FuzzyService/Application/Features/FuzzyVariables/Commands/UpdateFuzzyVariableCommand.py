@@ -11,7 +11,7 @@ from FuzzyService.Application.Features.FuzzyVariables.DTOs.FuzzyVariableDto impo
 class UpdateFuzzyVariableCommand(BaseModel, Command):
     """Comando para actualizar una variable difusa existente."""
 
-    id: str = Field(..., min_length=1)
+    id: Optional[str] = Field(default=None, description="Id de la variable (set from path)")
 
     # Campos actualizables (opcionales)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)

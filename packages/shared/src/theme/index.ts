@@ -10,7 +10,7 @@ export * from './borderRadius';
 export * from './shadows';
 
 // Re-export commonly used tokens for convenience
-export { colors, semanticColors } from './colors';
+export { colors, semanticColors, chartColors, chartColorPalette } from './colors';
 export { spacing } from './spacing';
 export { typography } from './typography';
 export { borderRadius } from './borderRadius';

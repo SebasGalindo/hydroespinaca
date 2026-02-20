@@ -1,12 +1,27 @@
 // API Configuration utilities
 
 /**
- * Detect the platform we're running on
+ * Detect the platform we're running on.
+ * Uses multiple heuristics to work on both JSC and Hermes engines.
  */
 export function detectPlatform(): 'web' | 'mobile' | 'unknown' {
+  // Check 1: navigator.product (works on JSC, not on Hermes)
   if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
     return 'mobile';
   }
+  // Check 2: Hermes engine global (React Native with Hermes)
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).HermesInternal !== 'undefined') {
+    return 'mobile';
+  }
+  // Check 3: ExpoModules global (Expo environment)
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).expo !== 'undefined') {
+    return 'mobile';
+  }
+  // Check 4: __DEV__ is defined AND no document (React Native dev mode)
+  if (typeof (globalThis as any).__DEV__ !== 'undefined' && typeof document === 'undefined') {
+    return 'mobile';
+  }
+  // Check 5: Standard browser environment
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     return 'web';
   }
@@ -17,6 +32,11 @@ export function detectPlatform(): 'web' | 'mobile' | 'unknown' {
  * Check if we're in development mode
  */
 export function isDevelopmentMode(): boolean {
+  // __DEV__ is the most reliable check in React Native
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    return true;
+  }
+
   if (typeof process !== 'undefined' && process.env) {
     const nodeEnv = process.env.NODE_ENV;
     if (nodeEnv === 'development') {
@@ -56,8 +76,9 @@ export function getApiUrlFromEnv(): string | null {
  */
 function getDefaultApiUrl(platform: 'web' | 'mobile' | 'unknown', isDev: boolean): string {
   if (platform === 'mobile') {
+    // Android emulator uses 10.0.2.2 to reach host machine's localhost
     return isDev
-      ? 'http://localhost/api'
+      ? 'http://10.0.2.2/api'
       : 'https://api.hydroespinaca.online/api';
   } else if (platform === 'web') {
     return isDev
@@ -75,5 +96,9 @@ export function getApiUrl(): string {
   const platform = detectPlatform();
   const isDev = isDevelopmentMode();
   const envApiUrl = getApiUrlFromEnv();
-  return envApiUrl ?? getDefaultApiUrl(platform, isDev);
+  const result = envApiUrl ?? getDefaultApiUrl(platform, isDev);
+  if (__DEV__) {
+    console.log(`[apiConfig] getApiUrl() => platform=${platform}, isDev=${isDev}, envUrl=${envApiUrl}, result=${result}`);
+  }
+  return result;
 }

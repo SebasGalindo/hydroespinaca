@@ -28,8 +28,15 @@ public class CreateConsumptionEntryCommandHandler
         CreateConsumptionEntryCommand request,
         CancellationToken cancellationToken)
     {
-        var activeConfig = await _costConfigRepository.GetCurrentAsync(cancellationToken)
-            ?? throw new InvalidOperationException("No existe una configuración de costos activa. Cree una antes de registrar consumos.");
+        // Find the cost config version that covers this consumption's date range
+        var dateTo = request.DateTo ?? request.DateFrom;
+        var matchingVersions = await _costConfigRepository.GetVersionsForRangeAsync(
+            request.DateFrom, dateTo, cancellationToken);
+
+        var activeConfig = matchingVersions.FirstOrDefault()
+            ?? throw new InvalidOperationException(
+                "No existe una configuración de costos para el período indicado. " +
+                "Cree una que cubra el rango de fechas del consumo.");
 
         var unitCost = request.Type switch
         {
@@ -41,7 +48,8 @@ public class CreateConsumptionEntryCommandHandler
 
         var entry = new ManualConsumptionEntry
         {
-            Date = request.Date,
+            DateFrom = request.DateFrom,
+            DateTo = request.DateTo ?? request.DateFrom,
             Type = request.Type,
             Amount = request.Amount,
             UnitCostSnapshot = unitCost,
@@ -58,7 +66,8 @@ public class CreateConsumptionEntryCommandHandler
         return new ManualConsumptionEntryDto
         {
             Id = created.Id,
-            Date = created.Date,
+            DateFrom = created.DateFrom,
+            DateTo = created.DateTo,
             Type = created.Type,
             Amount = created.Amount,
             UnitCostSnapshot = created.UnitCostSnapshot,

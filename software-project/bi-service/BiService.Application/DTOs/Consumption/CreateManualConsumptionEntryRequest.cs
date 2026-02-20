@@ -7,8 +7,11 @@ namespace BiService.Application.DTOs.Consumption;
 /// </summary>
 public class CreateManualConsumptionEntryRequest
 {
-    /// <summary>Fecha del consumo.</summary>
-    public DateTime Date { get; set; }
+    /// <summary>Fecha de inicio del consumo (o fecha única).</summary>
+    public DateTime DateFrom { get; set; }
+
+    /// <summary>Fecha de fin del consumo (opcional, si se omite se usa DateFrom).</summary>
+    public DateTime? DateTo { get; set; }
 
     /// <summary>Tipo de recurso consumido.</summary>
     public ConsumptionType Type { get; set; }

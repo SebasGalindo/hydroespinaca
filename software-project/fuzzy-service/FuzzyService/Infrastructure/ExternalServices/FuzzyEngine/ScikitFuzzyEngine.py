@@ -257,18 +257,24 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 raise ValidationError(f"Función gaussiana requiere 2 parámetros, recibidos: {len(params)}")
             mean, sigma = params
             return fuzz.gaussmf(universe, mean, sigma)
+
+        elif mf.function_type == MembershipFunctionType.SIGMOID:
+            if len(params) != 2:
+                raise ValidationError(f"Función sigmoide requiere 2 parámetros, recibidos: {len(params)}")
+            b, c = params  # b = pendiente, c = centro
+            return fuzz.sigmf(universe, c, b)
+
+        elif mf.function_type == MembershipFunctionType.BELL:
+            if len(params) != 3:
+                raise ValidationError(f"Función campana requiere 3 parámetros, recibidos: {len(params)}")
+            a, b, c = params  # a = ancho, b = pendiente, c = centro
+            return fuzz.gbellmf(universe, a, b, c)
             
         else:
-            # Para otros tipos, usar triangular como fallback
-            self.logger.warning(
-                f"Tipo de función {mf.function_type} (tipo: {type(mf.function_type)}) no soportado, usando triangular como fallback"
+            raise ValidationError(
+                f"Tipo de función de membresía '{mf.function_type}' no soportado. "
+                f"Tipos soportados: triangular, trapezoidal, gaussian, sigmoid, bell"
             )
-            if len(params) >= 3:
-                return fuzz.trimf(universe, params[:3])
-            else:
-                # Crear una función triangular básica
-                mid = (mf.universe_min + mf.universe_max) / 2
-                return fuzz.trimf(universe, [mf.universe_min, mid, mf.universe_max])
     
     async def evaluate_fuzzy_logic(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Método principal para evaluación fuzzy.
@@ -543,7 +549,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         system: FuzzySystem,
         rules: List[FuzzyRule],
         fuzzification_results: List[FuzzificationResult],
-        variables: List[FuzzyVariable]
+        variables: List[FuzzyVariable],
+        is_simulation: bool = False
     ) -> BatchRuleEvaluationResult:
         """Evalúa las reglas fuzzy usando los resultados de fuzzificación.
 
@@ -554,6 +561,7 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             rules: Lista de reglas fuzzy a evaluar
             fuzzification_results: Resultados de la fuzzificación
             variables: Variables del sistema fuzzy
+            is_simulation: Si es True, se omite la validación de estado operacional
 
         Returns:
             Resultado de la evaluación de reglas con firing strengths
@@ -566,7 +574,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
             return self.rule_evaluation_engine.evaluate_rules(
                 system=system,
                 rules=rules,
-                fuzzification_results=fuzzification_results
+                fuzzification_results=fuzzification_results,
+                is_simulation=is_simulation
             )
             
         except Exception as e:
@@ -984,7 +993,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
         variables: List[FuzzyVariable],
         terms: List[FuzzyTerm],
         rules: List[FuzzyRule],
-        sensor_readings: Dict[str, float]
+        sensor_readings: Dict[str, float],
+        is_simulation: bool = False
     ) -> Dict[str, Any]:
         """Realiza una evaluación fuzzy completa del sistema.
         
@@ -1021,7 +1031,8 @@ class ScikitFuzzyEngine(IFuzzyEngine):
                 system=system,
                 rules=rules,
                 fuzzification_results=fuzzification_results,
-                variables=variables
+                variables=variables,
+                is_simulation=is_simulation
             )
 
             # Paso 3: Defuzzificación Mamdani con consecuentes directos

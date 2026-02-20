@@ -19,8 +19,8 @@ class SimulateFuzzySystemQuery(BaseModel, Query):
     a los actuadores. Útil para experimentar con diferentes valores de entrada.
     """
 
-    # ID del sistema a simular
-    id: str = Field(min_length=1)
+    # ID del sistema a simular (se asigna desde el path en el controller)
+    id: Optional[str] = Field(default=None)
 
     # Inputs de simulación
     inputs: List[SimulateInput] = Field(

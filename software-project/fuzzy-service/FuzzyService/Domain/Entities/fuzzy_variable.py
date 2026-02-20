@@ -100,15 +100,11 @@ class FuzzyVariable(DomainBaseModel):
     @field_validator("universe_min")
     @classmethod
     def _validate_universe_min(cls, v: Optional[float]) -> Optional[float]:
-        if v is not None and v < 0:
-            raise ValueError(f"universe_min no puede ser negativo, recibido: {v}")
         return v
 
     @field_validator("universe_max")
     @classmethod
     def _validate_universe_max(cls, v: Optional[float]) -> Optional[float]:
-        if v is not None and v < 0:
-            raise ValueError(f"universe_max no puede ser negativo, recibido: {v}")
         return v
 
     @model_validator(mode="after")

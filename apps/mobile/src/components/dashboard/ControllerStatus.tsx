@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 import { FuzzyRulesInfo } from './FuzzyRulesInfo';
-import { semanticColors, spacing, borderRadius, colors } from '@hydroespinaca/shared';
+import { semanticColors, spacing, borderRadius, colors, typography } from '@hydroespinaca/shared';
 import type { JobStatus, Stats, InternalRoutine } from '@hydroespinaca/shared';
 
 interface ControllerStatusProps {
@@ -48,30 +48,30 @@ export function ControllerStatus({
   const getStatusBgColor = (status: string): string => {
     switch (status) {
       case 'running':
-        return '#dcfce7';
+        return semanticColors.successLight;
       case 'scheduled':
-        return '#fef3c7';
+        return semanticColors.warningLight;
       case 'queued':
-        return '#fed7aa';
+        return semanticColors.warningBorderLight;
       case 'failed':
-        return '#fee2e2';
+        return semanticColors.errorLight;
       default:
-        return '#f3f4f6';
+        return semanticColors.backgroundTertiary;
     }
   };
 
   const getStatusTextColor = (status: string): string => {
     switch (status) {
       case 'running':
-        return '#15803d';
+        return semanticColors.successText;
       case 'scheduled':
-        return '#a16207';
+        return semanticColors.warningIcon;
       case 'queued':
-        return '#c2410c';
+        return semanticColors.dangerIcon;
       case 'failed':
-        return '#b91c1c';
+        return semanticColors.errorText;
       default:
-        return '#6b7280';
+        return semanticColors.textTertiary;
     }
   };
 
@@ -107,7 +107,7 @@ export function ControllerStatus({
           <Text variant="caption" color={semanticColors.textSecondary}>
             Activos
           </Text>
-          <Text variant="h2" color="#16a34a" style={styles.statValue}>
+          <Text variant="h2" color={semanticColors.success} style={styles.statValue}>
             {stats.activeCount}
           </Text>
         </View>
@@ -116,7 +116,7 @@ export function ControllerStatus({
           <Text variant="caption" color={semanticColors.textSecondary}>
             Pendientes
           </Text>
-          <Text variant="h2" color="#f59e0b" style={styles.statValue}>
+          <Text variant="h2" color={semanticColors.warning} style={styles.statValue}>
             {stats.pendingCount}
           </Text>
         </View>
@@ -134,7 +134,7 @@ export function ControllerStatus({
           <Text variant="caption" color={semanticColors.textSecondary}>
             Controladores
           </Text>
-          <Text variant="h2" color="#3b82f6" style={styles.statValue}>
+          <Text variant="h2" color={semanticColors.info} style={styles.statValue}>
             {stats.esp32Ids.length}
           </Text>
         </View>
@@ -230,7 +230,7 @@ export function ControllerStatus({
                     <Icon
                       name={routine.isActive ? 'check-circle' : 'x-circle'}
                       size={18}
-                      color={routine.isActive ? '#16a34a' : '#9ca3af'}
+                      color={routine.isActive ? semanticColors.success : semanticColors.textPlaceholder}
                     />
                   </View>
                   <View style={[styles.tableCell, styles.routineColumn]}>
@@ -245,7 +245,7 @@ export function ControllerStatus({
                   </View>
                   <View style={[styles.tableCell, styles.intervalColumn]}>
                     <View style={styles.intervalContainer}>
-                      <Icon name="clock" size={12} color="#9ca3af" />
+                      <Icon name="clock" size={12} color={semanticColors.textPlaceholder} />
                       <Text variant="caption" color={semanticColors.textSecondary}>
                         {routine.interval}
                       </Text>
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
     flex: 1,
   },
   statsGrid: {
@@ -295,28 +295,28 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.background,
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   statValue: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
     marginTop: spacing.xs,
   },
   section: {
     backgroundColor: semanticColors.background,
     padding: spacing.md,
     borderRadius: borderRadius.lg,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   subsectionTitle: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
     marginBottom: spacing.md,
   },
   commandList: {
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing.sm,
-    backgroundColor: '#f9fafb',
+    backgroundColor: semanticColors.backgroundSecondary,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: semanticColors.borderLight,
@@ -339,13 +339,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commandEmoji: {
-    fontSize: 20,
+    fontSize: typography.fontSize.xl,
   },
   commandInfo: {
     flex: 1,
   },
   commandName: {
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
     textTransform: 'capitalize',
   },
   statusBadge: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   statusBadgeText: {
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
     fontSize: 11,
   },
   emptyText: {
@@ -377,13 +377,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tableHeaderCell: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: semanticColors.backgroundSecondary,
   },
   tableHeaderText: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   tableCellText: {
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
   },
   statusColumn: {
     width: 60,

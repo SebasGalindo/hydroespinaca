@@ -181,16 +181,67 @@ export const semanticColors = {
   inputPlaceholder: colors.gray[400],
   inputDisabled: colors.gray[100],
 
+  // Status colors - Light backgrounds (for badges, indicators)
+  successLight: colors.success[100],   // #dcfce7
+  warningLight: colors.warning[100],   // #fef3c7
+  errorLight: colors.error[100],       // #fee2e2
+  infoLight: colors.info[100],         // #dbeafe
+
+  // Extended warning colors
+  warningDark: colors.warning[800],    // #92400e
+  warningBgLight: '#fff7ed',           // orange-50 for banners
+  warningBorderLight: '#fed7aa',       // orange-200 for banners
+
+  // Extended text/icon colors
+  warningIcon: '#a16207',              // amber-700 for dark warning icons
+  dangerIcon: '#c2410c',               // orange-700 for disconnection states
+
   // Overlay colors
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.25)',
+  overlayMedium: 'rgba(0, 0, 0, 0.4)',
   overlayDark: 'rgba(0, 0, 0, 0.75)',
+  overlayStrong: 'rgba(0, 0, 0, 0.8)',
+  overlayWhite: 'rgba(255, 255, 255, 0.7)',
+  overlayWhiteStrong: 'rgba(255, 255, 255, 0.8)',
 
   // Shadow colors
   shadow: 'rgba(0, 0, 0, 0.1)',
   shadowMedium: 'rgba(0, 0, 0, 0.15)',
   shadowStrong: 'rgba(0, 0, 0, 0.25)',
 };
+
+// Chart color palette for data visualization
+export const chartColors = {
+  blue: '#3b82f6',
+  red: '#ef4444',
+  green: '#10b981',
+  amber: '#f59e0b',
+  cyan: '#06b6d4',
+  violet: '#8b5cf6',
+  pink: '#ec4899',
+  teal: '#14b8a6',
+  orange: '#f97316',
+  indigo: '#6366f1',
+  lime: '#84cc16',
+  rose: '#f43f5e',
+} as const;
+
+// Ordered palette array for indexed access
+export const chartColorPalette = [
+  chartColors.blue,
+  chartColors.red,
+  chartColors.green,
+  chartColors.amber,
+  chartColors.cyan,
+  chartColors.violet,
+  chartColors.pink,
+  chartColors.teal,
+  chartColors.orange,
+  chartColors.indigo,
+  chartColors.lime,
+  chartColors.rose,
+] as const;
 
 // Export types for TypeScript
 export type ColorScale = typeof colors.primary;

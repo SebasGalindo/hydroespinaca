@@ -6,7 +6,7 @@ import { Button } from '../atoms/Button';
 import { Icon } from '../atoms/Icon';
 import { Spinner } from '../atoms/Spinner';
 import { Pressable as CustomPressable } from '../atoms/Pressable';
-import { semanticColors, spacing, borderRadius, fuzzyRulesService, type FuzzyRuleSummary } from '@hydroespinaca/shared';
+import { semanticColors, spacing, borderRadius, typography, colors, fuzzyRulesService, type FuzzyRuleSummary } from '@hydroespinaca/shared';
 
 /**
  * Component that displays fuzzy logic rules in a modal dialog.
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: semanticColors.overlay,
     justifyContent: 'flex-end',
   },
   modalWrapper: {
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     height: '85%',
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {
       width: 0,
       height: -2,
@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     flex: 1,
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: typography.fontWeight.bold,
+    fontSize: typography.fontSize.base,
   },
   closeButton: {
     padding: spacing.xs,
@@ -254,17 +254,17 @@ const styles = StyleSheet.create({
   ruleIconContainer: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: '#dcfce7',
+    borderRadius: borderRadius.xl,
+    backgroundColor: semanticColors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ruleIcon: {
-    fontSize: 14,
+    fontSize: typography.fontSize.sm,
   },
   ruleName: {
     flex: 1,
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   ruleDescription: {
     lineHeight: 18,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   errorTitle: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
     marginTop: spacing.sm,
   },
   errorMessage: {
@@ -293,13 +293,13 @@ const styles = StyleSheet.create({
   emptyIconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: '#f3f4f6',
+    borderRadius: borderRadius['4xl'],
+    backgroundColor: semanticColors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitle: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   emptyMessage: {
     textAlign: 'center',

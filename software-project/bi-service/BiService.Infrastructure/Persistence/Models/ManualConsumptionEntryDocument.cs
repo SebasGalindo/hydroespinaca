@@ -14,8 +14,11 @@ public class ManualConsumptionEntryDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
 
-    [BsonElement("date")]
-    public DateTime Date { get; set; }
+    [BsonElement("date_from")]
+    public DateTime DateFrom { get; set; }
+
+    [BsonElement("date_to")]
+    public DateTime DateTo { get; set; }
 
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]

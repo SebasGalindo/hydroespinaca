@@ -11,6 +11,7 @@ interface SystemActionButtonsProps {
   onClone: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onExport: (id: string) => Promise<FuzzySystemExport>;
+  onEdit?: () => void;
   disabled?: boolean;
 }
 
@@ -20,6 +21,7 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
   onClone,
   onDelete,
   onExport,
+  onEdit,
   disabled = false,
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -151,6 +153,18 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
 
   return (
     <div className="flex flex-wrap gap-2">
+      {/* Edit */}
+      {onEdit && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onEdit}
+          disabled={disabled || loadingAction !== null}
+        >
+          ✏️ Editar
+        </Button>
+      )}
+
       {/* Activate */}
       {!isActive && (
         <Button

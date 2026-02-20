@@ -27,7 +27,8 @@ public class GetConsumptionEntriesQueryHandler
         return entries.Select(e => new ManualConsumptionEntryDto
         {
             Id = e.Id,
-            Date = e.Date,
+            DateFrom = e.DateFrom,
+            DateTo = e.DateTo,
             Type = e.Type,
             Amount = e.Amount,
             UnitCostSnapshot = e.UnitCostSnapshot,

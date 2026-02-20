@@ -11,6 +11,7 @@ export const borderRadius = {
   xl: 12,
   '2xl': 16,
   '3xl': 24,
+  '4xl': 32,  // Pill badges, large rounded
   full: 9999, // Fully rounded (circle/pill)
 } as const;
 

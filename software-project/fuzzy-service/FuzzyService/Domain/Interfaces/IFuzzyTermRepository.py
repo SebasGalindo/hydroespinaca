@@ -173,3 +173,9 @@ class IFuzzyTermRepository(ABC):
             Total number of fuzzy terms
         """
         pass
+
+    # ---- Bulk operations (for clone / import) ----
+    @abstractmethod
+    async def create_many(self, terms: List[FuzzyTerm]) -> List[FuzzyTerm]:
+        """Bulk-inserts terms without per-entity validation. Returns entities with assigned IDs."""
+        pass

@@ -2,8 +2,20 @@ import { create } from 'zustand';
 import { fuzzyService, FuzzyApiError } from '../api/fuzzyService';
 import type {
   FuzzySystem,
+  FuzzyVariable,
+  FuzzyTerm,
+  FuzzyRule,
   FuzzySystemDetail,
   CloneFuzzySystemRequest,
+  CreateFuzzySystemRequest,
+  UpdateFuzzySystemRequest,
+  UpdateFuzzySystemStatusRequest,
+  CreateFuzzyVariableRequest,
+  UpdateFuzzyVariableRequest,
+  CreateFuzzyTermRequest,
+  UpdateFuzzyTermRequest,
+  CreateFuzzyRuleRequest,
+  UpdateFuzzyRuleRequest,
   SimulateFuzzySystemRequest,
   SimulateFuzzySystemResponse,
   FuzzySystemExport,
@@ -36,6 +48,10 @@ interface FuzzyState {
   // Generic operation (activate, clone, delete)
   operationLoading: boolean;
   operationError: string | null;
+
+  // CRUD operation state
+  crudLoading: boolean;
+  crudError: string | null;
 }
 
 // ==================== Actions Interface ====================
@@ -48,10 +64,30 @@ interface FuzzyActions {
   fetchSystemDetail: (id: string) => Promise<void>;
   clearSelectedDetail: () => void;
 
+  // System CRUD
+  createSystem: (request: CreateFuzzySystemRequest) => Promise<FuzzySystem>;
+  updateSystem: (id: string, request: UpdateFuzzySystemRequest) => Promise<FuzzySystem>;
+  updateSystemStatus: (id: string, request: UpdateFuzzySystemStatusRequest) => Promise<FuzzySystem>;
+
   // Advanced operations
   activateSystem: (id: string) => Promise<FuzzySystem>;
   cloneSystem: (id: string, request?: CloneFuzzySystemRequest) => Promise<FuzzySystem>;
   deleteSystem: (id: string) => Promise<void>;
+
+  // Variable CRUD
+  createVariable: (request: CreateFuzzyVariableRequest) => Promise<FuzzyVariable>;
+  updateVariable: (id: string, request: UpdateFuzzyVariableRequest) => Promise<FuzzyVariable>;
+  deleteVariable: (id: string) => Promise<void>;
+
+  // Term CRUD
+  createTerm: (request: CreateFuzzyTermRequest) => Promise<FuzzyTerm>;
+  updateTerm: (id: string, request: UpdateFuzzyTermRequest) => Promise<FuzzyTerm>;
+  deleteTerm: (id: string) => Promise<void>;
+
+  // Rule CRUD
+  createRule: (request: CreateFuzzyRuleRequest) => Promise<FuzzyRule>;
+  updateRule: (id: string, request: UpdateFuzzyRuleRequest) => Promise<FuzzyRule>;
+  deleteRule: (id: string) => Promise<void>;
 
   // Export / Import
   exportSystem: (id: string) => Promise<FuzzySystemExport>;
@@ -88,6 +124,9 @@ const initialState: FuzzyState = {
 
   operationLoading: false,
   operationError: null,
+
+  crudLoading: false,
+  crudError: null,
 };
 
 // ==================== Store ====================
@@ -202,6 +241,266 @@ export const useFuzzyStore = create<FuzzyState & FuzzyActions>()((set, get) => (
   },
 
   // ────────────────────────────────────────
+  //  System CRUD
+  // ────────────────────────────────────────
+
+  createSystem: async (request: CreateFuzzySystemRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const created = await fuzzyService.createSystem(request);
+      set((state) => ({
+        systems: [created, ...state.systems],
+        crudLoading: false,
+      }));
+      return created;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  updateSystem: async (id: string, request: UpdateFuzzySystemRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const updated = await fuzzyService.updateSystem(id, request);
+      set((state) => ({
+        systems: state.systems.map((s) => (s.id === id ? updated : s)),
+        selectedDetail: state.selectedDetail?.system.id === id
+          ? { ...state.selectedDetail, system: updated }
+          : state.selectedDetail,
+        crudLoading: false,
+      }));
+      return updated;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  updateSystemStatus: async (id: string, request: UpdateFuzzySystemStatusRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const updated = await fuzzyService.updateSystemStatus(id, request);
+      set((state) => ({
+        systems: state.systems.map((s) => (s.id === id ? updated : s)),
+        selectedDetail: state.selectedDetail?.system.id === id
+          ? { ...state.selectedDetail, system: updated }
+          : state.selectedDetail,
+        crudLoading: false,
+      }));
+      return updated;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  // ────────────────────────────────────────
+  //  Variable CRUD
+  // ────────────────────────────────────────
+
+  createVariable: async (request: CreateFuzzyVariableRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const created = await fuzzyService.createVariable(request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            variables: [...state.selectedDetail.variables, created],
+          },
+          crudLoading: false,
+        };
+      });
+      return created;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  updateVariable: async (id: string, request: UpdateFuzzyVariableRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const updated = await fuzzyService.updateVariable(id, request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            variables: state.selectedDetail.variables.map((v) =>
+              v.id === id ? updated : v
+            ),
+          },
+          crudLoading: false,
+        };
+      });
+      return updated;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  deleteVariable: async (id: string) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      await fuzzyService.deleteVariable(id);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            variables: state.selectedDetail.variables.filter((v) => v.id !== id),
+            terms: state.selectedDetail.terms.filter((t) => t.variableId !== id),
+          },
+          crudLoading: false,
+        };
+      });
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  // ────────────────────────────────────────
+  //  Term CRUD
+  // ────────────────────────────────────────
+
+  createTerm: async (request: CreateFuzzyTermRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const created = await fuzzyService.createTerm(request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            terms: [...state.selectedDetail.terms, created],
+          },
+          crudLoading: false,
+        };
+      });
+      return created;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  updateTerm: async (id: string, request: UpdateFuzzyTermRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const updated = await fuzzyService.updateTerm(id, request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            terms: state.selectedDetail.terms.map((t) =>
+              t.id === id ? updated : t
+            ),
+          },
+          crudLoading: false,
+        };
+      });
+      return updated;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  deleteTerm: async (id: string) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      await fuzzyService.deleteTerm(id);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            terms: state.selectedDetail.terms.filter((t) => t.id !== id),
+          },
+          crudLoading: false,
+        };
+      });
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  // ────────────────────────────────────────
+  //  Rule CRUD
+  // ────────────────────────────────────────
+
+  createRule: async (request: CreateFuzzyRuleRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const created = await fuzzyService.createRule(request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            rules: [...state.selectedDetail.rules, created],
+          },
+          crudLoading: false,
+        };
+      });
+      return created;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  updateRule: async (id: string, request: UpdateFuzzyRuleRequest) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      const updated = await fuzzyService.updateRule(id, request);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            rules: state.selectedDetail.rules.map((r) =>
+              r.id === id ? updated : r
+            ),
+          },
+          crudLoading: false,
+        };
+      });
+      return updated;
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  deleteRule: async (id: string) => {
+    set({ crudLoading: true, crudError: null });
+    try {
+      await fuzzyService.deleteRule(id);
+      set((state) => {
+        if (!state.selectedDetail) return { crudLoading: false };
+        return {
+          selectedDetail: {
+            ...state.selectedDetail,
+            rules: state.selectedDetail.rules.filter((r) => r.id !== id),
+          },
+          crudLoading: false,
+        };
+      });
+    } catch (error) {
+      set({ crudError: extractErrorMessage(error), crudLoading: false });
+      throw error;
+    }
+  },
+
+  // ────────────────────────────────────────
   //  Export / Import
   // ────────────────────────────────────────
 
@@ -261,6 +560,7 @@ export const useFuzzyStore = create<FuzzyState & FuzzyActions>()((set, get) => (
       simulationError: null,
       exportImportError: null,
       operationError: null,
+      crudError: null,
     });
   },
 

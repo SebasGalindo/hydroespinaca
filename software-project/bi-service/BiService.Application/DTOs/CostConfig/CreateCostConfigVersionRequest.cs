@@ -19,4 +19,7 @@ public class CreateCostConfigVersionRequest
 
     /// <summary>Fecha a partir de la cual entra en vigencia esta configuración.</summary>
     public DateTime? EffectiveFrom { get; set; }
+
+    /// <summary>Fecha hasta la cual está vigente esta configuración (opcional, se calcula automáticamente si no se proporciona).</summary>
+    public DateTime? EffectiveTo { get; set; }
 }

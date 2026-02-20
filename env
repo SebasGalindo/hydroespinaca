@@ -160,6 +160,7 @@ FUZZY_SERVICE_URL=http://fuzzy-service:8000
 BI_SERVICE_URL=http://bi-service:8080
 
 NEXT_PUBLIC_API_URL=http://localhost/api
+EXPO_PUBLIC_API_URL=http://localhost/api
 # In production, set to: https://api.hydroespinaca.online/api
 
 

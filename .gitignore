@@ -180,3 +180,6 @@ sonar-report.html
 # NOTA: El script central genera estos temporalmente
 software-project/fuzzy-service/coverage.xml
 software-project/fuzzy-service/.coverage
+
+# OLD version frontend folder
+olv_frontend_version/

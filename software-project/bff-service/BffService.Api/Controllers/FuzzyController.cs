@@ -85,6 +85,89 @@ public class FuzzyController : BaseAuthenticatedController
     }
 
     /// <summary>
+    /// Creates a new fuzzy system
+    /// </summary>
+    [HttpPost("systems")]
+    [ProducesResponseType(typeof(FuzzySystemDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(409)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CreateSystem(
+        [FromBody] CreateFuzzySystemRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.CreateSystemAsync(
+                session.AccessToken, request, cancellationToken);
+            return StatusCode(201, result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "creating fuzzy system");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing fuzzy system
+    /// </summary>
+    [HttpPut("systems/{id}")]
+    [ProducesResponseType(typeof(FuzzySystemDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateSystem(
+        string id,
+        [FromBody] UpdateFuzzySystemRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.UpdateSystemAsync(
+                session.AccessToken, id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating fuzzy system", id);
+        }
+    }
+
+    /// <summary>
+    /// Updates the status of a fuzzy system (active/inactive/draft)
+    /// </summary>
+    [HttpPatch("systems/{id}/status")]
+    [ProducesResponseType(typeof(FuzzySystemDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateSystemStatus(
+        string id,
+        [FromBody] UpdateFuzzySystemStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.UpdateSystemStatusAsync(
+                session.AccessToken, id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating fuzzy system status", id);
+        }
+    }
+
+    /// <summary>
     /// Gets a detailed view of a fuzzy system with all variables, terms and rules.
     /// BFF orchestrates multiple calls to fuzzy-service.
     /// </summary>
@@ -303,6 +386,327 @@ public class FuzzyController : BaseAuthenticatedController
         {
             return ControllerExceptionHandler.HandleException(
                 ex, Logger, "simulating fuzzy system", id);
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //  Fuzzy Variables CRUD
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Gets all variables for a fuzzy system
+    /// </summary>
+    [HttpGet("systems/{systemId}/variables")]
+    [ProducesResponseType(typeof(List<FuzzyVariableDto>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetVariablesBySystem(
+        string systemId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetVariablesBySystemAsync(
+                session.AccessToken, systemId, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting variables for system", systemId);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new fuzzy variable
+    /// </summary>
+    [HttpPost("variables")]
+    [ProducesResponseType(typeof(FuzzyVariableDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CreateVariable(
+        [FromBody] CreateFuzzyVariableRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.CreateVariableAsync(
+                session.AccessToken, request, cancellationToken);
+            return StatusCode(201, result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "creating fuzzy variable");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing fuzzy variable
+    /// </summary>
+    [HttpPut("variables/{id}")]
+    [ProducesResponseType(typeof(FuzzyVariableDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateVariable(
+        string id,
+        [FromBody] UpdateFuzzyVariableRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.UpdateVariableAsync(
+                session.AccessToken, id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating fuzzy variable", id);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a fuzzy variable by ID
+    /// </summary>
+    [HttpDelete("variables/{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> DeleteVariable(
+        string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            await _fuzzyServiceClient.DeleteVariableAsync(
+                session.AccessToken, id, cancellationToken);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "deleting fuzzy variable", id);
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //  Fuzzy Terms CRUD
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Gets all terms for a fuzzy variable
+    /// </summary>
+    [HttpGet("variables/{variableId}/terms")]
+    [ProducesResponseType(typeof(List<FuzzyTermDto>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetTermsByVariable(
+        string variableId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetTermsByVariableAsync(
+                session.AccessToken, variableId, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting terms for variable", variableId);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new fuzzy term
+    /// </summary>
+    [HttpPost("terms")]
+    [ProducesResponseType(typeof(FuzzyTermDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CreateTerm(
+        [FromBody] CreateFuzzyTermRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.CreateTermAsync(
+                session.AccessToken, request, cancellationToken);
+            return StatusCode(201, result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "creating fuzzy term");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing fuzzy term
+    /// </summary>
+    [HttpPut("terms/{id}")]
+    [ProducesResponseType(typeof(FuzzyTermDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateTerm(
+        string id,
+        [FromBody] UpdateFuzzyTermRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.UpdateTermAsync(
+                session.AccessToken, id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating fuzzy term", id);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a fuzzy term by ID
+    /// </summary>
+    [HttpDelete("terms/{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> DeleteTerm(
+        string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            await _fuzzyServiceClient.DeleteTermAsync(
+                session.AccessToken, id, cancellationToken);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "deleting fuzzy term", id);
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //  Fuzzy Rules CRUD
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Gets all rules for a fuzzy system
+    /// </summary>
+    [HttpGet("systems/{systemId}/rules")]
+    [ProducesResponseType(typeof(List<FuzzyRuleDto>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetRulesBySystem(
+        string systemId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetRulesBySystemAsync(
+                session.AccessToken, systemId, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting rules for system", systemId);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new fuzzy rule
+    /// </summary>
+    [HttpPost("rules")]
+    [ProducesResponseType(typeof(FuzzyRuleDto), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> CreateRule(
+        [FromBody] CreateFuzzyRuleRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.CreateRuleAsync(
+                session.AccessToken, request, cancellationToken);
+            return StatusCode(201, result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "creating fuzzy rule");
+        }
+    }
+
+    /// <summary>
+    /// Updates an existing fuzzy rule
+    /// </summary>
+    [HttpPut("rules/{id}")]
+    [ProducesResponseType(typeof(FuzzyRuleDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateRule(
+        string id,
+        [FromBody] UpdateFuzzyRuleRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.UpdateRuleAsync(
+                session.AccessToken, id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating fuzzy rule", id);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a fuzzy rule by ID
+    /// </summary>
+    [HttpDelete("rules/{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> DeleteRule(
+        string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            await _fuzzyServiceClient.DeleteRuleAsync(
+                session.AccessToken, id, cancellationToken);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "deleting fuzzy rule", id);
         }
     }
 }

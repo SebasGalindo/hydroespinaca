@@ -2,16 +2,12 @@ import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import { setAuthCallbacks, setAuthStoreRedirectCallback, useAuthStore } from '@hydroespinaca/shared';
+import type { RootStackParamList } from '../navigation/types';
 
 // Configuración del refresco de sesión
 // IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
 const SESSION_REFRESH_INTERVAL = 90 * 1000; // 90 segundos (1.5 minutos)
 const MIN_TIME_BETWEEN_CHECKS = 30 * 1000; // 30 segundos (throttle)
-
-type RootStackParamList = {
-  Login: undefined;
-  Dashboard: undefined;
-};
 
 interface MobileAuthInitializerProps {
   navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;

@@ -12,5 +12,6 @@ public record CreateCostConfigVersionCommand(
     decimal WaterCostPerLiter,
     decimal NutrientCostPerLiter,
     DateTime? EffectiveFrom,
+    DateTime? EffectiveTo,
     string UserId
 ) : IRequest<CostConfigVersionDto>;

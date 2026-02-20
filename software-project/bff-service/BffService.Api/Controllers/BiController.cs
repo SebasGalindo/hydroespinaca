@@ -118,6 +118,62 @@ public class BiController : BaseAuthenticatedController
         }
     }
 
+    /// <summary>
+    /// Updates an existing cost configuration version
+    /// </summary>
+    [HttpPut("cost-config/versions/{id}")]
+    [ProducesResponseType(typeof(CostConfigVersionDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> UpdateCostConfigVersion(
+        string id,
+        [FromBody] UpdateCostConfigVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _biServiceClient.UpdateCostConfigVersionAsync(
+                session.AccessToken, id, request, cancellationToken);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "updating cost config version");
+        }
+    }
+
+    /// <summary>
+    /// Deletes a cost configuration version
+    /// </summary>
+    [HttpDelete("cost-config/versions/{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> DeleteCostConfigVersion(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            await _biServiceClient.DeleteCostConfigVersionAsync(
+                session.AccessToken, id, cancellationToken);
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "deleting cost config version");
+        }
+    }
+
     // ──────────────────────────────────────────────
     //  Consumption Entries
     // ──────────────────────────────────────────────
@@ -141,7 +197,7 @@ public class BiController : BaseAuthenticatedController
                 session.AccessToken, request, cancellationToken);
 
             return CreatedAtAction(nameof(GetConsumptionEntries),
-                new { from = result.Date.Date, to = result.Date.Date }, result);
+                new { from = result.DateFrom, to = result.DateTo }, result);
         }
         catch (Exception ex)
         {

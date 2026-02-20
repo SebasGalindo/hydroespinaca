@@ -32,8 +32,7 @@ export const FUZZY_STATUS_ICONS: Record<FuzzySystemStatus, string> = {
 export interface OperatorsConfig {
   andMethod: string;
   orMethod: string;
-  aggregationMethod: string;
-  defuzzificationMethod: string;
+  notMethod: string;
 }
 
 /**
@@ -96,12 +95,7 @@ export type MembershipFunctionType =
   | 'trapezoidal'
   | 'gaussian'
   | 'sigmoid'
-  | 'bell'
-  | 'pi_shaped'
-  | 's_shaped'
-  | 'z_shaped'
-  | 'linear'
-  | 'constant';
+  | 'bell';
 
 export const MEMBERSHIP_FUNCTION_LABELS: Record<string, string> = {
   triangular: 'Triangular',
@@ -109,11 +103,6 @@ export const MEMBERSHIP_FUNCTION_LABELS: Record<string, string> = {
   gaussian: 'Gaussiana',
   sigmoid: 'Sigmoide',
   bell: 'Campana Generalizada',
-  pi_shaped: 'Forma Pi',
-  s_shaped: 'Forma S',
-  z_shaped: 'Forma Z',
-  linear: 'Lineal',
-  constant: 'Constante',
 };
 
 /**
@@ -199,6 +188,160 @@ export interface CloneFuzzySystemRequest {
   name?: string;
 }
 
+// ==================== CRUD Request Types ====================
+
+/**
+ * Request to create a new fuzzy system
+ */
+export interface CreateFuzzySystemRequest {
+  name: string;
+  defuzzificationMethod?: string;
+  operators?: Partial<OperatorsConfig>;
+}
+
+/**
+ * Request to update a fuzzy system
+ */
+export interface UpdateFuzzySystemRequest {
+  name?: string;
+  defuzzificationMethod?: string;
+  operators?: Partial<OperatorsConfig>;
+}
+
+/**
+ * Request to change a fuzzy system's status
+ */
+export interface UpdateFuzzySystemStatusRequest {
+  status: FuzzySystemStatus;
+}
+
+/**
+ * Request to create a new fuzzy variable
+ */
+export interface CreateFuzzyVariableRequest {
+  systemId: string;
+  name: string;
+  variableType: VariableType;
+  description?: string;
+  actuatorType?: ActuatorType;
+  defuzzificationThreshold?: number;
+  universeMin?: number;
+  universeMax?: number;
+  referenceCode?: string;
+}
+
+/**
+ * Request to update a fuzzy variable
+ */
+export interface UpdateFuzzyVariableRequest {
+  name?: string;
+  description?: string;
+  variableType?: VariableType;
+  actuatorType?: ActuatorType;
+  defuzzificationThreshold?: number;
+  universeMin?: number;
+  universeMax?: number;
+  referenceCode?: string;
+}
+
+/**
+ * Request to create a new fuzzy term
+ */
+export interface CreateFuzzyTermRequest {
+  variableId: string;
+  label: string;
+  membershipFunction: MembershipFunction;
+}
+
+/**
+ * Request to update a fuzzy term
+ */
+export interface UpdateFuzzyTermRequest {
+  label?: string;
+  membershipFunction?: MembershipFunction;
+}
+
+/**
+ * Request to create a new fuzzy rule
+ */
+export interface CreateFuzzyRuleRequest {
+  systemId: string;
+  name: string;
+  description?: string;
+  conditions: RuleCondition[];
+  connectors: RuleConnector[];
+  consequents: RuleConsequent[];
+}
+
+/**
+ * Request to update a fuzzy rule
+ */
+export interface UpdateFuzzyRuleRequest {
+  name?: string;
+  description?: string;
+  conditions?: RuleCondition[];
+  connectors?: RuleConnector[];
+  consequents?: RuleConsequent[];
+}
+
+// ==================== Helper Constants ====================
+
+/**
+ * Number of parameters required for each membership function type
+ */
+export const MF_PARAM_COUNTS: Record<MembershipFunctionType, number> = {
+  triangular: 3,
+  trapezoidal: 4,
+  gaussian: 2,
+  sigmoid: 2,
+  bell: 3,
+};
+
+/**
+ * Human-readable parameter labels per membership function type
+ */
+export const MF_PARAM_LABELS: Record<MembershipFunctionType, string[]> = {
+  triangular: ['Izquierda (a)', 'Centro (b)', 'Derecha (c)'],
+  trapezoidal: ['Izquierda (a)', 'Izq-Centro (b)', 'Der-Centro (c)', 'Derecha (d)'],
+  gaussian: ['Centro (c)', 'Sigma (σ)'],
+  sigmoid: ['Centro (c)', 'Pendiente (a)'],
+  bell: ['Ancho (a)', 'Pendiente (b)', 'Centro (c)'],
+};
+
+/**
+ * Default defuzzification methods
+ */
+export const DEFUZZIFICATION_METHODS = [
+  { value: 'centroid', label: 'Centroide' },
+  { value: 'bisector', label: 'Bisector' },
+  { value: 'mom', label: 'Media del Máximo (MOM)' },
+  { value: 'lom', label: 'Más Grande del Máximo (LOM)' },
+  { value: 'som', label: 'Más Pequeño del Máximo (SOM)' },
+] as const;
+
+/**
+ * Operator method options
+ */
+export const AND_METHODS = [
+  { value: 'min', label: 'Mínimo' },
+  { value: 'prod', label: 'Producto' },
+] as const;
+
+export const OR_METHODS = [
+  { value: 'max', label: 'Máximo' },
+  { value: 'probor', label: 'OR Probabilístico' },
+] as const;
+
+export const AGGREGATION_METHODS = [
+  { value: 'max', label: 'Máximo' },
+  { value: 'sum', label: 'Suma' },
+  { value: 'probabilistic_or', label: 'OR Probabilístico' },
+] as const;
+
+export const NOT_METHODS = [
+  { value: 'complement', label: 'Complemento' },
+] as const;
+
 /**
  * A single simulation input
  */
@@ -215,13 +358,23 @@ export interface SimulateFuzzySystemRequest {
 }
 
 /**
+ * An output value produced by a rule activation during simulation
+ */
+export interface SimulateOutputValue {
+  referenceCode: string;
+  power: string | null;
+  dutyCycle: number | null;
+  duration: number;
+}
+
+/**
  * A rule activation result from simulation
  */
 export interface SimulateRuleActivation {
   ruleId: string;
   ruleName: string;
   firingStrength: number;
-  outputValues: Record<string, number>;
+  outputValues: SimulateOutputValue[];
 }
 
 /**

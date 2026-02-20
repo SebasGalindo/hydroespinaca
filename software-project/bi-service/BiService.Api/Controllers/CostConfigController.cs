@@ -1,5 +1,7 @@
 using BiService.Application.DTOs.CostConfig;
 using BiService.Application.Features.CostConfig.Commands.CreateCostConfigVersion;
+using BiService.Application.Features.CostConfig.Commands.UpdateCostConfigVersion;
+using BiService.Application.Features.CostConfig.Commands.DeleteCostConfigVersion;
 using BiService.Application.Features.CostConfig.Queries.GetCostConfigVersions;
 using BiService.Application.Features.CostConfig.Queries.GetCurrentCostConfig;
 using HydroEspinaca.Shared.Extensions;
@@ -78,10 +80,48 @@ public class CostConfigController : ControllerBase
             request.WaterCostPerLiter,
             request.NutrientCostPerLiter,
             request.EffectiveFrom,
+            request.EffectiveTo,
             GetUserId());
 
         var created = await _sender.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetCurrent), new { }, created);
+    }
+
+    /// <summary>
+    /// Actualiza una versión de configuración de costos existente.
+    /// </summary>
+    [HttpPut("versions/{id}")]
+    [Authorize(Policy = PolicyNames.BiWrite)]
+    public async Task<IActionResult> UpdateVersion(
+        string id,
+        [FromBody] UpdateCostConfigVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateCostConfigVersionCommand(
+            id,
+            request.Currency,
+            request.ElectricityCostPerKwh,
+            request.WaterCostPerLiter,
+            request.NutrientCostPerLiter,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            GetUserId());
+
+        var updated = await _sender.Send(command, cancellationToken);
+        return Ok(updated);
+    }
+
+    /// <summary>
+    /// Elimina una versión de configuración de costos.
+    /// </summary>
+    [HttpDelete("versions/{id}")]
+    [Authorize(Policy = PolicyNames.BiWrite)]
+    public async Task<IActionResult> DeleteVersion(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        await _sender.Send(new DeleteCostConfigVersionCommand(id), cancellationToken);
+        return NoContent();
     }
 
     /// <summary>

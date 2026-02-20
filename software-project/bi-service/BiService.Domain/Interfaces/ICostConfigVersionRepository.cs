@@ -23,9 +23,18 @@ public interface ICostConfigVersionRepository
     /// <param name="cancellationToken">Token de cancelación.</param>
     Task<IReadOnlyList<CostConfigVersion>> GetVersionsForRangeAsync(DateTime from, DateTime to, CancellationToken cancellationToken = default);
 
-    /// <summary>Crea una nueva versión de costos, desactivando la anterior en una transacción.</summary>
+    /// <summary>Crea una nueva versión de costos y recalcula las fechas EffectiveTo e IsActive de todas las versiones.</summary>
     /// <param name="version">Entidad de la nueva versión a persistir.</param>
     /// <param name="cancellationToken">Token de cancelación.</param>
     /// <returns>La versión creada con su ID asignado.</returns>
     Task<CostConfigVersion> CreateVersionAsync(CostConfigVersion version, CancellationToken cancellationToken = default);
+
+    /// <summary>Obtiene una versión de costos por su identificador único.</summary>
+    Task<CostConfigVersion?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>Actualiza una versión existente y recalcula EffectiveTo/IsActive de todas las versiones.</summary>
+    Task<CostConfigVersion> UpdateVersionAsync(CostConfigVersion version, CancellationToken cancellationToken = default);
+
+    /// <summary>Elimina una versión de costos y recalcula EffectiveTo/IsActive de las restantes.</summary>
+    Task<bool> DeleteVersionAsync(string id, CancellationToken cancellationToken = default);
 }

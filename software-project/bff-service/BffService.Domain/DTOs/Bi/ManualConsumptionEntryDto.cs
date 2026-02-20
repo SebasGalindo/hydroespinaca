@@ -6,7 +6,8 @@ namespace BffService.Domain.DTOs.Bi;
 public class ManualConsumptionEntryDto
 {
     public string Id { get; set; } = string.Empty;
-    public DateTime Date { get; set; }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
     public int Type { get; set; }
     public decimal Amount { get; set; }
     public decimal UnitCostSnapshot { get; set; }

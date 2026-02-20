@@ -10,4 +10,5 @@ public class CreateCostConfigVersionRequest
     public decimal WaterCostPerLiter { get; set; }
     public decimal NutrientCostPerLiter { get; set; }
     public DateTime? EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
 }

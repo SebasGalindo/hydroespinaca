@@ -7,10 +7,11 @@ export interface SecureStorageInterface {
 }
 
 /**
- * Detect if we're running in React Native
+ * This file (.native.ts) is only loaded by Metro bundler in React Native.
+ * No runtime detection needed — if this file is executing, we ARE in React Native.
  */
 const isReactNative = (): boolean => {
-  return typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+  return true;
 };
 
 /**
@@ -161,9 +162,10 @@ const mobileStorage: SecureStorageInterface = {
 };
 
 /**
- * Secure storage instance that automatically uses the right implementation
+ * Secure storage instance — this .native.ts file is only loaded in React Native,
+ * so we always use mobileStorage (SecureStore > AsyncStorage > localStorage fallback).
  */
-export const secureStorage: SecureStorageInterface = isReactNative() ? mobileStorage : webStorage;
+export const secureStorage: SecureStorageInterface = mobileStorage;
 
 /**
  * Session storage helper functions

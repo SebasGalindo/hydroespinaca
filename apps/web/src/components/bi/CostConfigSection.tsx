@@ -9,10 +9,10 @@ import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import StatCard from '@/components/ui/StatCard';
 import CostConfigForm from './CostConfigForm';
-import { SettingsIcon, BoltIcon, DropletIcon, PlantIcon, PlusIcon } from '@/components/ui/icons/Icons';
+import { SettingsIcon, BoltIcon, DropletIcon, PlantIcon, PlusIcon, EditIcon, TrashIcon } from '@/components/ui/icons/Icons';
 import Swal from 'sweetalert2';
 
-import type { CostConfigVersion } from '@hydroespinaca/shared';
+import type { CostConfigVersion, UpdateCostConfigVersionRequest } from '@hydroespinaca/shared';
 
 const CostConfigSection: React.FC = () => {
   const {
@@ -23,9 +23,12 @@ const CostConfigSection: React.FC = () => {
     fetchCurrentCostConfig,
     fetchCostConfigVersions,
     createCostConfigVersion,
+    updateCostConfigVersion,
+    deleteCostConfigVersion,
   } = useBiStore();
 
   const [showForm, setShowForm] = useState(false);
+  const [editingVersion, setEditingVersion] = useState<CostConfigVersion | null>(null);
 
   useEffect(() => {
     fetchCurrentCostConfig();
@@ -35,8 +38,6 @@ const CostConfigSection: React.FC = () => {
   const handleCreate = async (request: Parameters<typeof createCostConfigVersion>[0]) => {
     try {
       await createCostConfigVersion(request);
-      await fetchCurrentCostConfig();
-      await fetchCostConfigVersions();
       Swal.fire({
         icon: 'success',
         title: 'Configuración creada',
@@ -51,6 +52,68 @@ const CostConfigSection: React.FC = () => {
         text: 'No se pudo crear la configuración de costos.',
       });
     }
+  };
+
+  const handleUpdate = async (request: UpdateCostConfigVersionRequest) => {
+    if (!editingVersion) return;
+    try {
+      await updateCostConfigVersion(editingVersion.id, request);
+      Swal.fire({
+        icon: 'success',
+        title: 'Configuración actualizada',
+        text: 'La configuración de costos ha sido actualizada exitosamente.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo actualizar la configuración de costos.',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar configuración?',
+      text: 'Esta acción no se puede deshacer. Las demás versiones serán recalculadas.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Cancelar',
+      confirmButtonText: 'Sí, eliminar',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteCostConfigVersion(id);
+        Swal.fire({
+          icon: 'success',
+          title: 'Eliminada',
+          text: 'La configuración ha sido eliminada.',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } catch {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la configuración.' });
+      }
+    }
+  };
+
+  const openEditForm = (version: CostConfigVersion) => {
+    setEditingVersion(version);
+    setShowForm(true);
+  };
+
+  const openCreateForm = () => {
+    setEditingVersion(null);
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingVersion(null);
   };
 
   const columns = [
@@ -90,6 +153,31 @@ const CostConfigSection: React.FC = () => {
       key: 'effectiveTo',
       label: 'Hasta',
       render: (value: unknown) => value ? formatDate(String(value)) : '—',
+    },
+    {
+      key: 'id',
+      label: 'Acciones',
+      render: (_value: unknown, row: unknown) => {
+        const version = row as CostConfigVersion;
+        return (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); openEditForm(version); }}
+              className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Editar"
+            >
+              <EditIcon size={16} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDelete(version.id); }}
+              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="Eliminar"
+            >
+              <TrashIcon size={16} />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -140,7 +228,7 @@ const CostConfigSection: React.FC = () => {
         <h3 className="text-sm font-semibold text-gray-700 font-inter">
           Historial de Versiones
         </h3>
-        <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+        <Button variant="primary" size="sm" onClick={openCreateForm}>
           <span className="flex items-center gap-1">
             <PlusIcon size={16} />
             Nueva Versión
@@ -154,7 +242,7 @@ const CostConfigSection: React.FC = () => {
           icon={<SettingsIcon size={48} />}
           title="Sin configuración de costos"
           description="Crea la primera configuración de costos para poder registrar consumos y calcular gastos."
-          action={{ label: 'Crear Configuración', onClick: () => setShowForm(true) }}
+          action={{ label: 'Crear Configuración', onClick: openCreateForm }}
         />
       ) : (
         <Table
@@ -164,12 +252,13 @@ const CostConfigSection: React.FC = () => {
         />
       )}
 
-      {/* Create form modal */}
+      {/* Create / Edit form modal */}
       <CostConfigForm
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        onSubmit={handleCreate}
+        onClose={closeForm}
+        onSubmit={editingVersion ? handleUpdate : handleCreate}
         isLoading={costConfigLoading}
+        editData={editingVersion}
       />
     </div>
   );

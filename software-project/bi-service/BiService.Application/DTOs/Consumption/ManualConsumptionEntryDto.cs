@@ -10,8 +10,11 @@ public class ManualConsumptionEntryDto
     /// <summary>Identificador único del registro.</summary>
     public string Id { get; set; } = string.Empty;
 
-    /// <summary>Fecha del consumo.</summary>
-    public DateTime Date { get; set; }
+    /// <summary>Fecha de inicio del consumo.</summary>
+    public DateTime DateFrom { get; set; }
+
+    /// <summary>Fecha de fin del consumo.</summary>
+    public DateTime DateTo { get; set; }
 
     /// <summary>Tipo de recurso consumido.</summary>
     public ConsumptionType Type { get; set; }

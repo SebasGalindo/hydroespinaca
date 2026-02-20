@@ -101,10 +101,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
 
-                # Timeouts
+                # Timeouts (300s for heavy operations like fuzzy clone/import)
                 proxy_connect_timeout 60s;
-                proxy_send_timeout 60s;
-                proxy_read_timeout 60s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
             }
 
             # Next.js frontend - proxy to Next.js server
@@ -265,10 +265,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection \"upgrade\";
             
-            # Timeouts
+            # Timeouts (300s for heavy operations like fuzzy clone/import)
             proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
         }
         
         # Deny all other requests to API domain
@@ -365,10 +365,10 @@ else
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
 
-                # Timeouts
+                # Timeouts (300s for heavy operations like fuzzy clone/import)
                 proxy_connect_timeout 60s;
-                proxy_send_timeout 60s;
-                proxy_read_timeout 60s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
             }
 
             # Next.js frontend - proxy to Next.js server

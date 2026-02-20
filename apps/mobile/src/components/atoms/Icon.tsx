@@ -1,6 +1,6 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { IconName } from '@hydroespinaca/shared';
+import { IconName, colors } from '@hydroespinaca/shared';
 
 export interface IconProps {
   name: IconName;
@@ -63,12 +63,57 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'search': 'search-outline',
   'calendar': 'calendar-outline',
   'clock': 'time-outline',
+
+  // Analytics
+  'bar-chart': 'bar-chart-outline',
+  'pie-chart': 'pie-chart-outline',
+  'stats': 'stats-chart-outline',
+  'share': 'share-outline',
+  'flash': 'flash-outline',
+  'funnel': 'funnel-outline',
+  'swap': 'swap-horizontal-outline',
+  'download': 'download-outline',
+  'filter': 'filter-outline',
+
+  // BI
+  'bolt': 'flash-outline',
+  'plant': 'leaf-outline',
+  'leaf': 'leaf-outline',
+  'cash': 'cash-outline',
+  'wallet': 'wallet-outline',
+  'trash': 'trash-outline',
+  'add': 'add-outline',
+  'chevron-right': 'chevron-forward-outline',
+  'chevron-up': 'chevron-up-outline',
+  'calculator': 'calculator-outline',
+  'receipt': 'receipt-outline',
+  'pricetag': 'pricetag-outline',
+  'cube': 'cube-outline',
+  'arrow-up': 'arrow-up-outline',
+  'arrow-down': 'arrow-down-outline',
+
+  // Fuzzy
+  'copy': 'copy-outline',
+  'play': 'play-outline',
+  'code': 'code-slash-outline',
+  'list': 'list-outline',
+  'layers': 'layers-outline',
+  'git-branch': 'git-branch-outline',
+  'document': 'document-outline',
+  'chevron-down': 'chevron-down-outline',
+  'radio-on': 'radio-button-on-outline',
+  'radio-off': 'radio-button-off-outline',
+  'ellipsis': 'ellipsis-horizontal-outline',
+  'power': 'power-outline',
+  'flask': 'flask-outline',
+  'file-edit': 'document-outline',
+  'upload': 'cloud-upload-outline',
 };
 
 export function Icon({
   name,
   size = 24,
-  color = '#000000',
+  color = colors.black,
   style,
   testID,
 }: IconProps): React.ReactElement {

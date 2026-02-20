@@ -112,6 +112,7 @@ class SimulateFuzzySystemHandler(QueryHandler[SimulateFuzzySystemQuery, Dict[str
                 terms=all_terms,
                 rules=rules,
                 sensor_readings=sensor_readings,
+                is_simulation=True,
             )
         except Exception as e:
             _logger.error("Error al simular evaluación fuzzy: %s", str(e), exc_info=True)

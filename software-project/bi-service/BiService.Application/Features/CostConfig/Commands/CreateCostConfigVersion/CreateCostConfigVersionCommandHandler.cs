@@ -31,6 +31,7 @@ public class CreateCostConfigVersionCommandHandler
             WaterCostPerLiter = request.WaterCostPerLiter,
             NutrientCostPerLiter = request.NutrientCostPerLiter,
             EffectiveFrom = request.EffectiveFrom ?? DateTime.UtcNow,
+            EffectiveTo = request.EffectiveTo,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = request.UserId
         };

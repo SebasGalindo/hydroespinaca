@@ -119,6 +119,72 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         catch (Exception ex) when (ex is not HttpRequestException) { _logger.LogError(ex, "Unexpected error fetching fuzzy system {Id}", id); throw; }
     }
 
+    public async Task<FuzzySystemDto> CreateSystemAsync(
+        string accessToken, CreateFuzzySystemRequest createRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating fuzzy system with name: {Name}", createRequest.Name);
+            var request = CreateRequest(HttpMethod.Post, "/api/fuzzy-systems", accessToken);
+            request.Content = CreateJsonContent(createRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "creating fuzzy system", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzySystemDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for created system");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error creating fuzzy system"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error creating fuzzy system"); throw; }
+    }
+
+    public async Task<FuzzySystemDto> UpdateSystemAsync(
+        string accessToken, string id, UpdateFuzzySystemRequest updateRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating fuzzy system {Id}", id);
+            var request = CreateRequest(HttpMethod.Put, $"/api/fuzzy-systems/{id}", accessToken);
+            request.Content = CreateJsonContent(updateRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "updating fuzzy system", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzySystemDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for updated system");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error updating fuzzy system {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error updating fuzzy system {Id}", id); throw; }
+    }
+
+    public async Task<FuzzySystemDto> UpdateSystemStatusAsync(
+        string accessToken, string id, UpdateFuzzySystemStatusRequest statusRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating fuzzy system {Id} status to {Status}", id, statusRequest.Status);
+            var request = CreateRequest(HttpMethod.Patch, $"/api/fuzzy-systems/{id}/status", accessToken);
+            request.Content = CreateJsonContent(statusRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "updating fuzzy system status", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzySystemDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for status update");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error updating fuzzy system status {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error updating fuzzy system status {Id}", id); throw; }
+    }
+
     public async Task<FuzzySystemDto> ActivateSystemAsync(
         string accessToken, string id, CancellationToken cancellationToken = default)
     {
@@ -272,6 +338,66 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         { _logger.LogError(ex, "Unexpected error fetching variables for system {Id}", systemId); throw; }
     }
 
+    public async Task<FuzzyVariableDto> CreateVariableAsync(
+        string accessToken, CreateFuzzyVariableRequest createRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating fuzzy variable: {Name} for system {SystemId}",
+                createRequest.Name, createRequest.SystemId);
+            var request = CreateRequest(HttpMethod.Post, "/api/fuzzy-variables", accessToken);
+            request.Content = CreateJsonContent(createRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "creating fuzzy variable", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyVariableDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for created variable");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error creating fuzzy variable"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error creating fuzzy variable"); throw; }
+    }
+
+    public async Task<FuzzyVariableDto> UpdateVariableAsync(
+        string accessToken, string id, UpdateFuzzyVariableRequest updateRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating fuzzy variable {Id}", id);
+            var request = CreateRequest(HttpMethod.Put, $"/api/fuzzy-variables/{id}", accessToken);
+            request.Content = CreateJsonContent(updateRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "updating fuzzy variable", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyVariableDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for updated variable");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error updating fuzzy variable {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error updating fuzzy variable {Id}", id); throw; }
+    }
+
+    public async Task DeleteVariableAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting fuzzy variable {Id}", id);
+            var request = CreateRequest(HttpMethod.Delete, $"/api/fuzzy-variables/{id}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "deleting fuzzy variable", cancellationToken);
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error deleting fuzzy variable {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException)
+        { _logger.LogError(ex, "Unexpected error deleting fuzzy variable {Id}", id); throw; }
+    }
+
     // ──────────────────────────────────────────────
     //  Fuzzy Terms
     // ──────────────────────────────────────────────
@@ -294,6 +420,66 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error fetching terms for variable {Id}", variableId); throw; }
         catch (Exception ex) when (ex is not HttpRequestException)
         { _logger.LogError(ex, "Unexpected error fetching terms for variable {Id}", variableId); throw; }
+    }
+
+    public async Task<FuzzyTermDto> CreateTermAsync(
+        string accessToken, CreateFuzzyTermRequest createRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating fuzzy term: {Label} for variable {VariableId}",
+                createRequest.Label, createRequest.VariableId);
+            var request = CreateRequest(HttpMethod.Post, "/api/fuzzy-terms", accessToken);
+            request.Content = CreateJsonContent(createRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "creating fuzzy term", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyTermDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for created term");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error creating fuzzy term"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error creating fuzzy term"); throw; }
+    }
+
+    public async Task<FuzzyTermDto> UpdateTermAsync(
+        string accessToken, string id, UpdateFuzzyTermRequest updateRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating fuzzy term {Id}", id);
+            var request = CreateRequest(HttpMethod.Put, $"/api/fuzzy-terms/{id}", accessToken);
+            request.Content = CreateJsonContent(updateRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "updating fuzzy term", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyTermDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for updated term");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error updating fuzzy term {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error updating fuzzy term {Id}", id); throw; }
+    }
+
+    public async Task DeleteTermAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting fuzzy term {Id}", id);
+            var request = CreateRequest(HttpMethod.Delete, $"/api/fuzzy-terms/{id}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "deleting fuzzy term", cancellationToken);
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error deleting fuzzy term {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException)
+        { _logger.LogError(ex, "Unexpected error deleting fuzzy term {Id}", id); throw; }
     }
 
     // ──────────────────────────────────────────────
@@ -320,6 +506,66 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         { _logger.LogError(ex, "Unexpected error fetching rules for system {Id}", systemId); throw; }
     }
 
+    public async Task<FuzzyRuleDto> CreateRuleAsync(
+        string accessToken, CreateFuzzyRuleRequest createRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating fuzzy rule: {Name} for system {SystemId}",
+                createRequest.Name, createRequest.SystemId);
+            var request = CreateRequest(HttpMethod.Post, "/api/fuzzy-rules", accessToken);
+            request.Content = CreateJsonContent(createRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "creating fuzzy rule", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyRuleDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for created rule");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error creating fuzzy rule"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error creating fuzzy rule"); throw; }
+    }
+
+    public async Task<FuzzyRuleDto> UpdateRuleAsync(
+        string accessToken, string id, UpdateFuzzyRuleRequest updateRequest,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating fuzzy rule {Id}", id);
+            var request = CreateRequest(HttpMethod.Put, $"/api/fuzzy-rules/{id}", accessToken);
+            request.Content = CreateJsonContent(updateRequest);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "updating fuzzy rule", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyRuleDto>(content, _jsonOptions)
+                ?? throw new InvalidOperationException("fuzzy-service returned null for updated rule");
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error updating fuzzy rule {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException and not InvalidOperationException)
+        { _logger.LogError(ex, "Unexpected error updating fuzzy rule {Id}", id); throw; }
+    }
+
+    public async Task DeleteRuleAsync(
+        string accessToken, string id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Deleting fuzzy rule {Id}", id);
+            var request = CreateRequest(HttpMethod.Delete, $"/api/fuzzy-rules/{id}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "deleting fuzzy rule", cancellationToken);
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error deleting fuzzy rule {Id}", id); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException)
+        { _logger.LogError(ex, "Unexpected error deleting fuzzy rule {Id}", id); throw; }
+    }
+
     // ──────────────────────────────────────────────
     //  Private Helpers
     // ──────────────────────────────────────────────
@@ -333,6 +579,9 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return request;
     }
+
+    private StringContent CreateJsonContent<T>(T data) =>
+        new(JsonSerializer.Serialize(data, _jsonOptions), Encoding.UTF8, "application/json");
 
     private async Task EnsureSuccessOrThrow(
         HttpResponseMessage response, string context, CancellationToken cancellationToken)

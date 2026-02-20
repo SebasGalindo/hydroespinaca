@@ -1,7 +1,9 @@
 // AuthProvider context for mobile app
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
-import { useAuth as useBaseAuth } from '@hydroespinaca/shared';
-import type { UseAuthReturn, AuthConfig } from '@hydroespinaca/shared';
+// Bridges directly to useAuthStore (Zustand) so that login (useLoginForm → Zustand)
+// and logout (screens → useAuth → Zustand) share THE SAME auth state.
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import { useAuthStore } from '@hydroespinaca/shared';
+import type { UseAuthReturn } from '@hydroespinaca/shared';
 
 const AuthContext = createContext<UseAuthReturn | null>(null);
 
@@ -11,18 +13,36 @@ interface AuthProviderProps {
 
 /**
  * AuthProvider component
- * Provides authentication state and methods to all child components
+ * Bridges Zustand auth store into React context so existing screens
+ * that consume useAuth() keep working unchanged.
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // Configure for mobile platform
-  const authConfig: AuthConfig = useMemo(() => ({
-    platform: 'mobile',
-  }), []);
+  const session = useAuthStore(s => s.session);
+  const isLoading = useAuthStore(s => s.isLoading);
+  const error = useAuthStore(s => s.error);
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  const login = useAuthStore(s => s.login);
+  const logout = useAuthStore(s => s.logout);
+  const clearError = useAuthStore(s => s.clearError);
+  const checkSession = useAuthStore(s => s.checkSession);
 
-  const authState = useBaseAuth(authConfig);
+  // On mount, verify if there's an existing session (e.g. stored tokens)
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const value: UseAuthReturn = {
+    session,
+    isLoading,
+    error,
+    isAuthenticated,
+    login,
+    logout,
+    clearError,
+  };
 
   return (
-    <AuthContext.Provider value={authState}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
