@@ -1,6 +1,6 @@
 using HydroEspinaca.Shared.Abstractions;
 
-namespace NotificationService.Domain.Models;
+namespace NotificationService.Domain.Entities;
 
 // Estados de entrega que almacenamos para auditoría y monitoreo
 public enum EmailDeliveryStatus { Queued, Sent, Failed }

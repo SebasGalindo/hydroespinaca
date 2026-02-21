@@ -8,7 +8,9 @@ import {
   TrendingUpIcon,
   BrainIcon,
   MenuIcon,
-  CalculatorIcon
+  CalculatorIcon,
+  CloudSunIcon,
+  BellIcon
 } from '@/components/ui/icons/Icons';
 
 interface BottomNavigationProps {
@@ -47,6 +49,18 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
       icon: BrainIcon,
       label: 'Rutinas',
       active: pathname?.startsWith('/rutinas') ?? false
+    },
+    {
+      href: '/clima',
+      icon: CloudSunIcon,
+      label: 'Clima',
+      active: pathname === '/clima'
+    },
+    {
+      href: '/notificaciones',
+      icon: BellIcon,
+      label: 'Alertas',
+      active: pathname === '/notificaciones'
     }
   ];
 

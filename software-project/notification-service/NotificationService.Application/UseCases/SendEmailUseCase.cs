@@ -2,7 +2,7 @@ using HydroEspinaca.Shared.DTOs.Notifications;
 using Microsoft.Extensions.Logging;
 using NotificationService.Application.Interfaces;
 using NotificationService.Domain.Interfaces;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 
 namespace NotificationService.Application.UseCases;
 

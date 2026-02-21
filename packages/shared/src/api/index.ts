@@ -37,3 +37,6 @@ export { BiApiService, biService, BiApiError } from './biService';
 
 // Fuzzy
 export { FuzzyApiService, fuzzyService, FuzzyApiError } from './fuzzyService';
+
+// Notifications
+export { NotificationApiService, notificationService } from './notificationService';

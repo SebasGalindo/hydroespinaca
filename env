@@ -142,6 +142,18 @@ SMTP_USE_STARTTLS=true
 SMTP_USERNAME=juanmiguelvasquezmoreno@gmail.com
 SMTP_PASSWORD=qmnitbizabkawcuq
 
+# Push Notification Configuration
+VAPID_SUBJECT=mailto:hydroespinaca@resend.dev
+VAPID_PUBLIC_KEY=placeholder-generate-with-web-push-generate-vapid-keys
+VAPID_PRIVATE_KEY=placeholder-generate-with-web-push-generate-vapid-keys
+EXPO_PUSH_API_URL=https://exp.host/--/api/v2/push/send
+
+# WhatsApp Configuration (disabled by default)
+WHATSAPP_ENABLED=false
+TWILIO_ACCOUNT_SID=placeholder
+TWILIO_AUTH_TOKEN=placeholder
+TWILIO_WHATSAPP_FROM=+14155238886
+
 # ================================================================
 # BFF SERVICE CONFIGURATION
 # ================================================================

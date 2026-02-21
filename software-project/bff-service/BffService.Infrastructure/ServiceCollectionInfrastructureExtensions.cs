@@ -37,6 +37,7 @@ public static class ServiceCollectionInfrastructureExtensions
         });
         services.AddHttpClient<IBiServiceClient, BiServiceClient>();
         services.AddHttpClient<IWeatherServiceClient, WeatherServiceClient>();
+        services.AddHttpClient<INotificationServiceClient, NotificationServiceClient>();
 
         return services;
     }

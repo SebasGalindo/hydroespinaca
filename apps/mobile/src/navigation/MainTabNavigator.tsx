@@ -6,6 +6,7 @@ import { colors, semanticColors, typography, borderRadius } from '@hydroespinaca
 import { useAuth } from '../context/AuthProvider';
 import type { MainTabParamList } from './types';
 import { DashboardStack } from './stacks/DashboardStack';
+import { WeatherStack } from './stacks/WeatherStack';
 import { AnalyticsStack } from './stacks/AnalyticsStack';
 import { BiStack } from './stacks/BiStack';
 import { FuzzyStack } from './stacks/FuzzyStack';
@@ -15,6 +16,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TAB_ICONS: Record<keyof MainTabParamList, { focused: keyof typeof Ionicons.glyphMap; unfocused: keyof typeof Ionicons.glyphMap }> = {
   DashboardTab: { focused: 'home', unfocused: 'home-outline' },
+  WeatherTab: { focused: 'partly-sunny', unfocused: 'partly-sunny-outline' },
   AnalyticsTab: { focused: 'stats-chart', unfocused: 'stats-chart-outline' },
   BiTab: { focused: 'wallet', unfocused: 'wallet-outline' },
   FuzzyTab: { focused: 'git-network', unfocused: 'git-network-outline' },
@@ -23,6 +25,7 @@ const TAB_ICONS: Record<keyof MainTabParamList, { focused: keyof typeof Ionicons
 
 const TAB_LABELS: Record<keyof MainTabParamList, string> = {
   DashboardTab: 'Inicio',
+  WeatherTab: 'Clima',
   AnalyticsTab: 'Análisis',
   BiTab: 'Consumo',
   FuzzyTab: 'Rutinas',
@@ -53,6 +56,7 @@ export function MainTabNavigator(): React.ReactElement {
       })}
     >
       <Tab.Screen name="DashboardTab" component={DashboardStack} />
+      <Tab.Screen name="WeatherTab" component={WeatherStack} />
       <Tab.Screen name="AnalyticsTab" component={AnalyticsStack} />
       <Tab.Screen name="BiTab" component={BiStack} />
       <Tab.Screen name="FuzzyTab" component={FuzzyStack} />

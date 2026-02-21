@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MoreMenuScreen, ProfileScreen } from '../../screens';
+import { MoreMenuScreen, ProfileScreen, NotificationSettingsScreen, NotificationHistoryScreen } from '../../screens';
 import { AdminAccessScreen, AdminSessionsScreen } from '../../screens';
 import type { MoreStackParamList } from '../types';
 import { semanticColors, colors } from '@hydroespinaca/shared';
@@ -23,6 +23,28 @@ export function MoreStack(): React.ReactElement {
         options={{
           headerShown: true,
           title: 'Mi Perfil',
+          headerTintColor: semanticColors.primary,
+          headerStyle: { backgroundColor: colors.white },
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          headerShown: true,
+          title: 'Notificaciones',
+          headerTintColor: semanticColors.primary,
+          headerStyle: { backgroundColor: colors.white },
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="NotificationHistory"
+        component={NotificationHistoryScreen}
+        options={{
+          headerShown: true,
+          title: 'Historial',
           headerTintColor: semanticColors.primary,
           headerStyle: { backgroundColor: colors.white },
           animation: 'slide_from_right',

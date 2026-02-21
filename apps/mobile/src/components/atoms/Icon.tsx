@@ -63,6 +63,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'search': 'search-outline',
   'calendar': 'calendar-outline',
   'clock': 'time-outline',
+  'bell': 'notifications-outline',
 
   // Analytics
   'bar-chart': 'bar-chart-outline',

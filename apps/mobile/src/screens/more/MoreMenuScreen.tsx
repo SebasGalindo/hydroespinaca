@@ -51,6 +51,20 @@ export function MoreMenuScreen(): React.ReactElement {
             icon: 'user',
             screen: 'Profile',
           },
+          {
+            id: 'notifications',
+            label: 'Notificaciones',
+            subtitle: 'Canales y preferencias',
+            icon: 'bell',
+            screen: 'NotificationSettings',
+          },
+          {
+            id: 'notification-history',
+            label: 'Historial',
+            subtitle: 'Notificaciones enviadas',
+            icon: 'mail',
+            screen: 'NotificationHistory',
+          },
         ],
       },
     ];

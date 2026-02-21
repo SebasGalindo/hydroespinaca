@@ -2,6 +2,8 @@
 export { useAuthStore, setAuthStoreRedirectCallback } from './authStore';
 export { useBiStore } from './biStore';
 export { useFuzzyStore } from './fuzzyStore';
+export { useWeatherStore } from './weatherStore';
+export { useNotificationStore } from './notificationStore';
 
 // Export types
 export type { User } from './authStore';

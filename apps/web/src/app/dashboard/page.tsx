@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import VariableCard from '@/components/dashboard/VariableCard';
 import ControllerStatus from '@/components/dashboard/ControllerStatus';
 import WeatherCard from '@/components/dashboard/WeatherCard';
+import WeatherAlertWidget from '@/components/dashboard/WeatherAlertWidget';
 import PageLayout from '@/components/layout/PageLayout';
 import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
 import {
@@ -394,11 +395,18 @@ export default function DashboardPage() {
         <h2 id="weather-heading" className="text-xl font-bold text-green-800 mb-4 font-inter">
           Condiciones Climáticas
         </h2>
-        <WeatherCard
-          weather={weather}
-          isLoading={weatherLoading}
-          error={weatherError}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <WeatherCard
+              weather={weather}
+              isLoading={weatherLoading}
+              error={weatherError}
+            />
+          </div>
+          <div className="lg:col-span-1">
+            <WeatherAlertWidget />
+          </div>
+        </div>
       </section>
 
       {/* Indicador global de última actualización */}

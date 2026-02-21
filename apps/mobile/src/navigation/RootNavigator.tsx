@@ -19,6 +19,12 @@ const linking: LinkingOptions<RootStackParamList> = {
           DashboardTab: {
             screens: { Dashboard: 'dashboard' },
           },
+          WeatherTab: {
+            screens: {
+              Weather: 'clima',
+              WeatherAlertDetail: 'clima/alerta/:alertId',
+            },
+          },
           AnalyticsTab: {
             screens: { Analytics: 'analytics' },
           },
@@ -35,6 +41,8 @@ const linking: LinkingOptions<RootStackParamList> = {
             screens: {
               MoreMenu: 'mas',
               Profile: 'perfil',
+              NotificationSettings: 'notificaciones',
+              NotificationHistory: 'notificaciones/historial',
               AdminAccess: 'admin/acceso',
               AdminSessions: 'admin/sesiones',
             },

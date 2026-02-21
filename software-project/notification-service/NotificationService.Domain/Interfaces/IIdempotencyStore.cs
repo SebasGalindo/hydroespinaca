@@ -1,6 +1,6 @@
 namespace NotificationService.Domain.Interfaces;
 
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 
 // Almacén distribuido de idempotencia (Mongo con TTL) para evitar envíos duplicados
 public interface IIdempotencyStore

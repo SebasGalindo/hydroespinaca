@@ -1,6 +1,6 @@
 using HydroEspinaca.Shared.Abstractions;
 
-namespace NotificationService.Domain.Models;
+namespace NotificationService.Domain.Entities;
 
 public enum IdempotencyStatus { Reserved, Queued, Sent, Failed }
 

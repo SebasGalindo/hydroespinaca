@@ -7,6 +7,8 @@
 export { useAuthStore, setAuthStoreRedirectCallback } from './store';
 export { useBiStore } from './store';
 export { useFuzzyStore } from './store';
+export { useWeatherStore } from './store';
+export { useNotificationStore } from './store';
 
 // Export store-specific types
 export type { User } from './store';
@@ -55,7 +57,49 @@ export { SystemStatusService, systemStatusService } from './api/systemStatusServ
 export { FuzzyRulesService, fuzzyRulesService } from './api/fuzzyRulesService';
 export type { FuzzyRuleSummary } from './types/fuzzyRules';
 export { WeatherService, weatherService } from './api/weatherService';
-export type { WeatherSummary } from './types/weather';
+export type {
+  WeatherSummary,
+  ForecastCurrent,
+  HourlyForecast,
+  DailyForecast,
+  GovernmentAlert,
+  ForecastResponse,
+  AlertType,
+  AlertThreshold,
+  WeatherAlertConfig,
+  UpdateAlertConfigRequest,
+  SeedAlertConfigRequest,
+  NotifiedUser,
+  WeatherAlert,
+  AlertFilterParams,
+  AlertSeverity,
+} from './types/weather';
+export {
+  ALERT_TYPE_LABELS,
+  ALERT_TYPE_ICONS,
+  ALERT_SEVERITY_COLORS,
+} from './types/weather';
+export { NotificationApiService, notificationService } from './api/notificationService';
+export type {
+  NotificationChannel,
+  ChannelPreference,
+  DailySummaryConfig,
+  WeatherAlertSubscription,
+  QuietHoursConfig,
+  NotificationPreferences,
+  UpdatePreferencesRequest,
+  PushSubscriptionInfo,
+  RegisterPushRequest,
+  NotificationLogEntry,
+  HistoryParams,
+  SendMultiChannelRequest,
+  ChannelResult,
+  SendMultiChannelResponse,
+} from './types/notification';
+export {
+  CHANNEL_LABELS,
+  CHANNEL_ICONS,
+} from './types/notification';
 export { AnalyticsApiService, analyticsService, AnalyticsApiError } from './api/analyticsService';
 export type {
   EnvironmentalAnalyticsRequest,

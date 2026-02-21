@@ -12,6 +12,7 @@ export type RootStackParamList = {
 // ─── Bottom Tabs ───────────────────────────────────────────────
 export type MainTabParamList = {
   DashboardTab: undefined;
+  WeatherTab: undefined;
   AnalyticsTab: undefined;
   BiTab: undefined;
   FuzzyTab: undefined;
@@ -22,6 +23,11 @@ export type MainTabParamList = {
 
 export type DashboardStackParamList = {
   Dashboard: undefined;
+};
+
+export type WeatherStackParamList = {
+  Weather: undefined;
+  WeatherAlertDetail: { alertId: string };
 };
 
 export type AnalyticsStackParamList = {
@@ -40,6 +46,8 @@ export type FuzzyStackParamList = {
 export type MoreStackParamList = {
   MoreMenu: undefined;
   Profile: undefined;
+  NotificationSettings: undefined;
+  NotificationHistory: undefined;
   AdminAccess: undefined;
   AdminSessions: undefined;
 };

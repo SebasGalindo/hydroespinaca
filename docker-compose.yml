@@ -308,6 +308,21 @@ services:
       - EMAIL__Smtp__UseStartTls=${SMTP_USE_STARTTLS}
       - EMAIL__Smtp__Username=${SMTP_USERNAME}
       - EMAIL__Smtp__Password=${SMTP_PASSWORD}
+      # Push Notification Configuration
+      - PUSH__WebPush__VapidSubject=${VAPID_SUBJECT}
+      - PUSH__WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      - PUSH__WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
+      - PUSH__Expo__ApiUrl=${EXPO_PUSH_API_URL}
+      # WhatsApp Configuration
+      - WHATSAPP__Enabled=${WHATSAPP_ENABLED}
+      - WHATSAPP__Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
+      - WHATSAPP__Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
+      - WHATSAPP__Twilio__FromNumber=${TWILIO_WHATSAPP_FROM}
+      # Internal Service URLs (for DailySummary aggregator)
+      - SERVICES__SensorServiceUrl=http://sensor-service:8080
+      - SERVICES__ActuatorServiceUrl=http://actuator-service:8080
+      - SERVICES__FuzzyServiceUrl=http://fuzzy-service:8080
+      - SERVICES__WeatherServiceUrl=http://weather-service:8080
       # ASP.NET Environment
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
