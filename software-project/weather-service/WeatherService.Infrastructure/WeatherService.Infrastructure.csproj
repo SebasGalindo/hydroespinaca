@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="HydroEspinaca.Shared" Version="1.0.3-dev-20260212213545" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.7" />
+		<PackageReference Include="MongoDB.Driver" Version="3.4.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\WeatherService.Application\WeatherService.Application.csproj" />
+		<ProjectReference Include="..\WeatherService.Domain\WeatherService.Domain.csproj" />
+	</ItemGroup>
+
+</Project>

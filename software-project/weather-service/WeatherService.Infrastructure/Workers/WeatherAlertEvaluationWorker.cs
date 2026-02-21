@@ -1,0 +1,480 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using WeatherService.Domain.DTOs;
+using WeatherService.Domain.Entities;
+using WeatherService.Domain.Enums;
+using WeatherService.Domain.Interfaces;
+using WeatherService.Domain.Settings;
+
+namespace WeatherService.Infrastructure.Workers;
+
+/// <summary>
+/// Background worker that runs every N minutes (default 30).
+/// Fetches forecast, evaluates against alert thresholds per fuzzy system,
+/// creates deduplicated alerts, and sends notifications to subscribed users.
+/// </summary>
+public class WeatherAlertEvaluationWorker : BackgroundService
+{
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<WeatherAlertEvaluationWorker> _logger;
+    private readonly WeatherSettings _weatherSettings;
+
+    public WeatherAlertEvaluationWorker(
+        IServiceProvider serviceProvider,
+        IOptions<WeatherSettings> weatherSettings,
+        ILogger<WeatherAlertEvaluationWorker> logger)
+    {
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+        _weatherSettings = weatherSettings.Value;
+    }
+
+    /// <summary>
+    /// Main execution loop of the worker. It runs indefinitely until the application is stopped, 
+    /// performing alert evaluation cycles at configured intervals.
+    /// </summary>
+    /// <param name="stoppingToken"></param>
+    /// <returns></returns>
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation(
+            "WeatherAlertEvaluationWorker started. Interval: {Interval}min, Dedup window: {Dedup}h",
+            _weatherSettings.AlertEvaluationIntervalMinutes,
+            _weatherSettings.AlertDeduplicationHours);
+
+        // Wait a bit on startup to let other services initialize
+        await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await EvaluateAlertsAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in alert evaluation cycle");
+            }
+
+            await Task.Delay(
+                TimeSpan.FromMinutes(_weatherSettings.AlertEvaluationIntervalMinutes),
+                stoppingToken);
+        }
+
+        _logger.LogInformation("WeatherAlertEvaluationWorker stopped");
+    }
+
+    /// <summary>
+    /// Main method that performs the alert evaluation cycle:
+    /// 1. Fetches the latest forecast from the OpenWeather client.
+    /// 2. Persists the forecast to the cache repository.
+    /// 3. Retrieves all active alert configurations.
+    /// 4. Evaluates each configuration against the forecast data, creating alerts as needed while preventing duplicates.
+    /// 5. Notifies subscribers of any new alerts through the notification service client
+    /// </summary>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    private async Task EvaluateAlertsAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("Starting alert evaluation cycle");
+
+        using var scope = _serviceProvider.CreateScope();
+        var openWeatherClient = scope.ServiceProvider.GetRequiredService<IOpenWeatherClient>();
+        var alertConfigRepo = scope.ServiceProvider.GetRequiredService<IWeatherAlertConfigRepository>();
+        var alertRepo = scope.ServiceProvider.GetRequiredService<IWeatherAlertRepository>();
+        var forecastCacheRepo = scope.ServiceProvider.GetRequiredService<IForecastCacheRepository>();
+        var notificationClient = scope.ServiceProvider.GetRequiredService<INotificationServiceClient>();
+
+        // 1. Fetch forecast
+        var forecast = await openWeatherClient.GetForecastAsync(ct);
+
+        // 2. Persist to MongoDB cache (survives restarts)
+        await PersistForecastCacheAsync(forecastCacheRepo, forecast, ct);
+
+        // 3. Get all active alert configs
+        var configs = await alertConfigRepo.GetAllActiveAsync(ct);
+        if (configs.Count == 0)
+        {
+            _logger.LogDebug("No active alert configs found. Skipping evaluation.");
+            return;
+        }
+
+        _logger.LogInformation("Evaluating {Count} active alert configs", configs.Count);
+
+        var totalAlertsCreated = 0;
+
+        // 4. Evaluate each config
+        foreach (var config in configs)
+        {
+            try
+            {
+                var alertsCreated = await EvaluateConfigAsync(
+                    config, forecast, alertRepo, notificationClient, ct);
+                totalAlertsCreated += alertsCreated;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error evaluating config for fuzzy system {FuzzySystemId}",
+                    config.FuzzySystemId);
+            }
+        }
+
+        _logger.LogInformation("Alert evaluation cycle complete. Alerts created: {Count}", totalAlertsCreated);
+    }
+
+    /// <summary>
+    /// Persists the fetched forecast to the cache repository with an expiration time based on settings.
+    /// This allows the system to retain the last known forecast across restarts and provides a source of truth for alert evaluations, 
+    /// even if the OpenWeather API is temporarily unavailable. 
+    /// The cache entry includes the fetched timestamp and an expiration timestamp 
+    /// calculated from the configured cache duration. 
+    /// This method is called during each alert evaluation cycle after 
+    /// fetching the latest forecast data.
+    /// </summary>
+    /// <param name="repo">The forecast cache repository to persist the forecast to.</param>
+    /// <param name="forecast">The forecast data to persist.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns></returns>
+    private async Task PersistForecastCacheAsync(
+        IForecastCacheRepository repo, ForecastResponseDto forecast, CancellationToken ct)
+    {
+        var cache = new ForecastCache
+        {
+            FetchedAt = forecast.FetchedAt,
+            ExpiresAt = forecast.FetchedAt.AddMinutes(_weatherSettings.ForecastCacheMinutes),
+            Current = forecast.Current,
+            Hourly = forecast.Hourly,
+            Daily = forecast.Daily,
+            GovernmentAlerts = forecast.GovernmentAlerts
+        };
+
+        await repo.UpsertAsync(cache, ct);
+    }
+
+    /// <summary>
+    /// Evaluates a single alert config against the provided forecast data.
+    /// For each enabled threshold in the config, it checks if the forecast meets the alert conditions. 
+    /// If an alert condition is met, it checks for recent similar alerts to avoid duplicates
+    /// and creates a new alert in the repository if it's a new event.
+    /// </summary>
+    /// <param name="config">The alert configuration to evaluate.</param>
+    /// <param name="forecast">The forecast data to evaluate against.</param>
+    /// <param name="alertRepo">The repository to create new alerts in.</param>
+    /// <param name="notificationClient">The notification service client to notify subscribers.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>The number of alerts created.</returns>
+    private async Task<int> EvaluateConfigAsync(
+        WeatherAlertConfig config,
+        ForecastResponseDto forecast,
+        IWeatherAlertRepository alertRepo,
+        INotificationServiceClient notificationClient,
+        CancellationToken ct)
+    {
+        var alertsCreated = 0;
+        var enabledThresholds = config.Alerts.Where(a => a.Enabled).ToList();
+
+        if (enabledThresholds.Count == 0) return 0;
+
+        // Evaluate daily forecast (8 days)
+        foreach (var daily in forecast.Daily)
+        {
+            foreach (var threshold in enabledThresholds)
+            {
+                var evaluation = EvaluateDailyAgainstThreshold(daily, threshold);
+                if (evaluation == null) continue;
+
+                // Check deduplication
+                if (await alertRepo.ExistsRecentAsync(
+                        threshold.Type, config.FuzzySystemId,
+                        _weatherSettings.AlertDeduplicationHours, ct))
+                    continue;
+
+                var alert = BuildAlert(config, threshold, evaluation.Value, daily.DateTime);
+                await alertRepo.CreateAsync(alert, ct);
+                alertsCreated++;
+
+                _logger.LogInformation(
+                    "Alert created: {Type} for fuzzy system {FuzzySystemId} — {Title}",
+                    threshold.Type, config.FuzzySystemId, alert.Title);
+
+                // Notify subscribers
+                await NotifySubscribersAsync(
+                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
+            }
+        }
+
+        // Evaluate hourly forecast (next 48h) — only for rain accumulation
+        var heavyRainThreshold = enabledThresholds.FirstOrDefault(
+            t => t.Type == AlertTypes.HeavyRain);
+        if (heavyRainThreshold != null)
+        {
+            await EvaluateHourlyRainAsync(
+                forecast.Hourly, heavyRainThreshold, config, alertRepo, notificationClient, ct);
+        }
+
+        // Forward government alerts
+        if (forecast.GovernmentAlerts.Count > 0)
+        {
+            foreach (var govAlert in forecast.GovernmentAlerts)
+            {
+                if (await alertRepo.ExistsRecentAsync(
+                        AlertTypes.Government, config.FuzzySystemId,
+                        _weatherSettings.AlertDeduplicationHours, ct))
+                    continue;
+
+                var alert = new WeatherAlert
+                {
+                    FuzzySystemId = config.FuzzySystemId,
+                    AlertType = AlertTypes.Government,
+                    Severity = "critical",
+                    Title = $"🚨 Alerta gubernamental: {govAlert.Event}",
+                    Message = $"{govAlert.SenderName}: {govAlert.Description}",
+                    Recommendation = "Alerta emitida por autoridades. Tome las precauciones necesarias para proteger sus cultivos.",
+                    ForecastDatetime = govAlert.Start,
+                    ForecastCondition = govAlert.Event,
+                    GovernmentAlert = true
+                };
+
+                await alertRepo.CreateAsync(alert, ct);
+                alertsCreated++;
+
+                await NotifySubscribersAsync(
+                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
+            }
+        }
+
+        return alertsCreated;
+    }
+
+    /// <summary>
+    /// Evaluates the hourly forecast data for heavy rain conditions based on a 
+    /// 3-hour accumulation of rain.
+    /// It checks if the accumulated rain exceeds the configured threshold and 
+    /// creates an alert if necessary,
+    /// </summary>
+    /// <param name="hourly">The hourly forecast data to evaluate.</param>
+    /// <param name="threshold">The alert threshold to compare against.</param>
+    /// <param name="config">The weather alert configuration.</param>
+    /// <param name="alertRepo">The alert repository.</param>
+    /// <param name="notificationClient">The notification service client.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns></returns>
+    private async Task EvaluateHourlyRainAsync(
+        List<HourlyForecastDto> hourly,
+        AlertThreshold threshold,
+        WeatherAlertConfig config,
+        IWeatherAlertRepository alertRepo,
+        INotificationServiceClient notificationClient,
+        CancellationToken ct)
+    {
+        // Accumulate rain over 3-hour windows
+        for (var i = 0; i + 2 < hourly.Count; i++)
+        {
+            var rain3h = (hourly[i].Rain1h ?? 0)
+                       + (hourly[i + 1].Rain1h ?? 0)
+                       + (hourly[i + 2].Rain1h ?? 0);
+
+            if (threshold.ThresholdValue.HasValue && rain3h > threshold.ThresholdValue.Value)
+            {
+                if (await alertRepo.ExistsRecentAsync(
+                        AlertTypes.HeavyRain, config.FuzzySystemId,
+                        _weatherSettings.AlertDeduplicationHours, ct))
+                    return;
+
+                var alert = new WeatherAlert
+                {
+                    FuzzySystemId = config.FuzzySystemId,
+                    AlertType = AlertTypes.HeavyRain,
+                    Severity = rain3h > threshold.ThresholdValue.Value * 2 ? "critical" : "warning",
+                    Title = "🌧️ Lluvia intensa pronosticada",
+                    Message = $"Se pronostican {rain3h:F1}mm en 3 horas a partir de las {hourly[i].DateTime:HH:mm} UTC",
+                    Recommendation = threshold.Recommendation,
+                    ForecastDatetime = hourly[i].DateTime,
+                    ForecastValue = rain3h
+                };
+
+                await alertRepo.CreateAsync(alert, ct);
+                await NotifySubscribersAsync(
+                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
+                return; // One alert per cycle is enough
+            }
+        }
+    }
+
+    /// <summary>
+    /// Evaluates a daily forecast against a specific alert threshold.
+    /// </summary>
+    /// <param name="daily">The daily forecast data to evaluate.</param>
+    /// <param name="threshold">The alert threshold to compare against.</param>
+    /// <returns>A tuple containing the value that triggered the alert and its severity, or null if no alert is triggered.</returns>
+    private static (double value, string severity)? EvaluateDailyAgainstThreshold(
+        DailyForecastDto daily, AlertThreshold threshold)
+    {
+        return threshold.Type switch
+        {
+            AlertTypes.ExtremeHeat => EvaluateNumeric(daily.TempMax, threshold),
+            AlertTypes.ExtremeCold => EvaluateNumeric(daily.TempMin, threshold),
+            AlertTypes.HighHumidity => EvaluateNumeric(daily.Humidity, threshold),
+            AlertTypes.LowHumidity => EvaluateNumeric(daily.Humidity, threshold),
+            AlertTypes.HighCloudiness => EvaluateNumeric(daily.Cloudiness, threshold),
+            AlertTypes.StrongWind => EvaluateNumeric(daily.WindSpeed, threshold),
+            AlertTypes.ExtremeUv => EvaluateNumeric(daily.Uvi, threshold),
+            AlertTypes.Thunderstorm => EvaluateThunderstorm(daily),
+            // HeavyRain is evaluated separately via hourly data
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Evaluates a numeric forecast value against an alert threshold, 
+    /// determining if the condition is met and calculating the severity 
+    /// based on the deviation from the threshold.
+    /// </summary>
+    /// <param name="actual">The actual forecast value to evaluate.</param>
+    /// <param name="threshold">The alert threshold to compare against.</param>
+    /// <returns>A tuple containing the value that triggered the alert and its severity, or null if no alert is triggered.</returns>
+    private static (double value, string severity)? EvaluateNumeric(
+        double actual, AlertThreshold threshold)
+    {
+        if (!threshold.ThresholdValue.HasValue || threshold.Comparison == null)
+            return null;
+
+        var exceeds = threshold.Comparison switch
+        {
+            "gt" => actual > threshold.ThresholdValue.Value,
+            "lt" => actual < threshold.ThresholdValue.Value,
+            _ => false
+        };
+
+        if (!exceeds) return null;
+
+        // Determine severity: >150% deviation from threshold = critical
+        var deviation = Math.Abs(actual - threshold.ThresholdValue.Value) / threshold.ThresholdValue.Value;
+        var severity = deviation > 0.5 ? "critical" : "warning";
+
+        return (actual, severity);
+    }
+
+    /// <summary>
+    /// Evaluates a daily forecast for thunderstorm conditions based on weather codes,
+    /// and assigns a severity level based on the specific thunderstorm type.
+    /// </summary>
+    /// <param name="daily">The daily forecast data to evaluate.</param>
+    /// <returns></returns>
+    private static (double value, string severity)? EvaluateThunderstorm(DailyForecastDto daily)
+    {
+        // OW weather IDs 2xx = Thunderstorm group
+        if (daily.WeatherId is >= 200 and < 300)
+        {
+            var severity = daily.WeatherId switch
+            {
+                >= 202 and <= 212 => "critical", // heavy thunderstorm
+                _ => "warning"
+            };
+            return (daily.WeatherId, severity);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Builds a WeatherAlert entity based on the alert configuration, 
+    /// threshold that was triggered, the evaluation result, 
+    /// and the forecast datetime.
+    /// </summary>
+    /// <param name="config">The alert configuration.</param>
+    /// <param name="threshold">The threshold that was triggered.</param>
+    /// <param name="evaluation">The evaluation result.</param>
+    /// <param name="forecastDatetime">The forecast datetime.</param>
+    /// <returns>The built WeatherAlert entity.</returns>
+    private static WeatherAlert BuildAlert(
+        WeatherAlertConfig config,
+        AlertThreshold threshold,
+        (double value, string severity) evaluation,
+        DateTime forecastDatetime)
+    {
+        var title = threshold.Type switch
+        {
+            AlertTypes.ExtremeHeat => $"🔥 Calor extremo pronosticado: {evaluation.value:F1}°C",
+            AlertTypes.ExtremeCold => $"🥶 Frío extremo pronosticado: {evaluation.value:F1}°C",
+            AlertTypes.HighHumidity => $"💧 Humedad alta pronosticada: {evaluation.value:F0}%",
+            AlertTypes.LowHumidity => $"🏜️ Humedad baja pronosticada: {evaluation.value:F0}%",
+            AlertTypes.HighCloudiness => $"☁️ Nubosidad alta pronosticada: {evaluation.value:F0}%",
+            AlertTypes.StrongWind => $"💨 Viento fuerte pronosticado: {evaluation.value:F1} m/s",
+            AlertTypes.ExtremeUv => $"☀️ UV extremo pronosticado: {evaluation.value:F1}",
+            AlertTypes.Thunderstorm => "⛈️ Tormenta eléctrica pronosticada",
+            _ => $"⚠️ Alerta meteorológica: {threshold.Type}"
+        };
+
+        var message = $"Pronosticado para {forecastDatetime:dddd dd MMM yyyy}" +
+                      (threshold.ThresholdValue.HasValue
+                          ? $" — valor: {evaluation.value:F1}, umbral: {threshold.Comparison} {threshold.ThresholdValue.Value:F1}"
+                          : "");
+
+        return new WeatherAlert
+        {
+            FuzzySystemId = config.FuzzySystemId,
+            AlertType = threshold.Type,
+            Severity = evaluation.severity,
+            Title = title,
+            Message = message,
+            Recommendation = threshold.Recommendation,
+            ForecastDatetime = forecastDatetime,
+            ForecastValue = evaluation.value,
+            GovernmentAlert = false
+        };
+    }
+
+    /// <summary>
+    /// Notifies all subscribers of a fuzzy system about a new alert 
+    /// by sending them a notification through the notification service client.
+    /// </summary>
+    /// <param name="alert">The alert to notify subscribers about.</param>
+    /// <param name="fuzzySystemId">The fuzzy system ID.</param>
+    /// <param name="alertRepo">The alert repository.</param>
+    /// <param name="notificationClient">The notification service client.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns></returns>
+    private static async Task NotifySubscribersAsync(
+        WeatherAlert alert,
+        string fuzzySystemId,
+        IWeatherAlertRepository alertRepo,
+        INotificationServiceClient notificationClient,
+        CancellationToken ct)
+    {
+        // Get subscribers for the fuzzy system from the notification service
+        var subscribers = await notificationClient.GetSubscribersForFuzzySystemAsync(fuzzySystemId, ct);
+
+        foreach (var subscriber in subscribers)
+        {
+            // Send notification to the subscriber through the notification service
+            await notificationClient.SendAlertNotificationAsync(
+                subscriber.UserId,
+                "weather_alert",
+                alert.Title,
+                $"{alert.Message}\n\n💡 {alert.Recommendation}",
+                new Dictionary<string, string>
+                {
+                    ["alertId"] = alert.Id,
+                    ["alertType"] = alert.AlertType,
+                    ["severity"] = alert.Severity,
+                    ["fuzzySystemId"] = fuzzySystemId
+                },
+                ct);
+
+            // Record that this user has been notified for this alert to prevent duplicate notifications and allow tracking read/unread status
+            await alertRepo.AddNotifiedUserAsync(alert.Id, new NotifiedUser
+            {
+                UserId = subscriber.UserId,
+                Channels = subscriber.Channels,
+                SentAt = DateTime.UtcNow,
+                IsRead = false
+            }, ct);
+        }
+    }
+}

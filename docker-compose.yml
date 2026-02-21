@@ -237,6 +237,7 @@ services:
       - actuator-service
       - bi-service
       - fuzzy-service
+      - weather-service
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -260,10 +261,10 @@ services:
       - Services__AuthService__Url=${AUTH_SERVICE_URL}
       - Services__BiService__Url=${BI_SERVICE_URL}
       - Services__FuzzyService__Url=${FUZZY_SERVICE_URL}
+      - Services__WeatherService__Url=http://weather-service:8080
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
-      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
       - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
@@ -308,6 +309,42 @@ services:
       - EMAIL__Smtp__Username=${SMTP_USERNAME}
       - EMAIL__Smtp__Password=${SMTP_PASSWORD}
       # ASP.NET Environment
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
+
+  weather-service:
+    build:
+      context: .
+      dockerfile: software-project/weather-service/Dockerfile
+    container_name: weather-service
+    expose:
+      - "8080"
+    ports:
+      - "5030:8080"
+    depends_on:
+      - auth-service
+    environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - ExternalApis__OpenWeather__BaseUrl=https://api.openweathermap.org/data/3.0
+      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
+      - ExternalApis__OpenWeather__Latitude=4.7002001
+      - ExternalApis__OpenWeather__Longitude=-74.2385058
+      - Weather__ForecastCacheMinutes=30
+      - Weather__AlertEvaluationIntervalMinutes=30
+      - Weather__AlertDeduplicationHours=6
+      - Services__NotificationService__Url=http://notification-service:8080
+      - M2M__ClientId=${WEATHER_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${WEATHER_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net

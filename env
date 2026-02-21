@@ -112,6 +112,9 @@ FUZZY_SERVICE_CLIENT_SECRET=12RreUNF23Rc
 BI_SERVICE_CLIENT_ID=bi-service-m2m
 BI_SERVICE_CLIENT_SECRET=Bk93xPq7mNz2
 
+WEATHER_SERVICE_CLIENT_ID=weather-service-m2m
+WEATHER_SERVICE_CLIENT_SECRET=Wt72kRs9vXp4
+
 # ================================================================
 # FUZZY SERVICE CONFIGURATION
 # ================================================================
@@ -169,7 +172,7 @@ EXPO_PUBLIC_API_URL=http://localhost/api
 # ================================================================
 # OpenWeather One Call 3.0 API (for weather data)
 # Backend service uses OPENWEATHER_API_KEY (no frontend exposure)
-OPENWEATHER_API_KEY=cb85da1e30537f775f0b44befd8fe17e
+OPENWEATHER_API_KEY=40c31c3e56317c6cc89f20f151ce99dc
 CLOUDFLARE_API_TOKEN=QLdC9ie8_VMuoLfaej3jqVh2O4FJS7fqlw-yFXYB
 # ================================================================
 # PRODUCTION CONFIGURATION OVERRIDES

@@ -97,6 +97,10 @@ public static class AuthorizationScopes
     public const string FuzzyEvaluationRead = "fuzzy:evaluation:read";
     public const string FuzzyEvaluationCreate = "fuzzy:evaluation:create";
 
+    // Weather scopes
+    public const string WeatherRead = "weather:read";
+    public const string WeatherWrite = "weather:write";
+
     // BI scopes
     public const string BiRead = "bi:read";
     public const string BiWrite = "bi:write";
@@ -175,6 +179,14 @@ public static class AuthorizationScopes
     };
 
     /// <summary>
+    /// Gets all weather-related scopes
+    /// </summary>
+    public static readonly string[] WeatherScopes =
+    {
+        WeatherRead, WeatherWrite
+    };
+
+    /// <summary>
     /// Gets all BI scopes
     /// </summary>
     public static readonly string[] BiScopes =
@@ -221,6 +233,9 @@ public static class AuthorizationScopes
         FuzzySystemRead, FuzzySystemCreate, FuzzySystemUpdate, FuzzySystemDelete,
         FuzzyVariableRead, FuzzyVariableCreate, FuzzyVariableUpdate, FuzzyVariableDelete,
         FuzzyEvaluationRead, FuzzyEvaluationCreate,
+
+        // Weather
+        WeatherRead, WeatherWrite,
 
         // BI
         BiRead, BiWrite,

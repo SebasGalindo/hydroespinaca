@@ -36,6 +36,7 @@ public static class ServiceCollectionInfrastructureExtensions
             client.Timeout = TimeSpan.FromMinutes(5);
         });
         services.AddHttpClient<IBiServiceClient, BiServiceClient>();
+        services.AddHttpClient<IWeatherServiceClient, WeatherServiceClient>();
 
         return services;
     }

@@ -1,169 +1,124 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NotificationService.Application.DTOs;
-using NotificationService.Domain.Entities;
-using NotificationService.Domain.Interfaces;
+using NotificationService.Application.Features.NotificationGroups.Commands.CreateNotificationGroup;
+using NotificationService.Application.Features.NotificationGroups.Commands.UpdateNotificationGroup;
+using NotificationService.Application.Features.NotificationGroups.Commands.DeleteNotificationGroup;
+using NotificationService.Application.Features.NotificationGroups.Queries.GetAllNotificationGroups;
+using NotificationService.Application.Features.NotificationGroups.Queries.GetNotificationGroupByName;
 using HydroEspinaca.Shared.Extensions;
+using MediatR;
 
 namespace NotificationService.Api.Controllers;
 
+/// <summary>
+/// Controller responsible for managing notification groups, 
+/// including creating, updating, retrieving, and deleting groups.
+/// </summary>
 [ApiController]
 [Route("api/notification-groups")]
 public class NotificationGroupController : ControllerBase
 {
-    private readonly INotificationGroupRepository _repository;
+    private readonly IMediator _mediator;
 
-    public NotificationGroupController(INotificationGroupRepository repository)
+    public NotificationGroupController(IMediator mediator)
     {
-        _repository = repository;
+        _mediator = mediator;
     }
 
     /// <summary>
-    /// Obtiene todos los grupos de notificación
+    /// Retrieves all notification groups. Requires notification:read scope.
     /// </summary>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A collection of notification group DTOs.</returns>
     [HttpGet]
     [Authorize(Policy = PolicyNames.NotificationRead)]
     public async Task<ActionResult<IEnumerable<NotificationGroupDto>>> GetAllGroups(CancellationToken ct = default)
     {
-        var groups = await _repository.GetAllAsync(ct);
-        var dtos = groups.Select(MapToDto);
-        return Ok(dtos);
+        var query = new GetAllNotificationGroupsQuery();
+        var result = await _mediator.Send(query, ct);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Obtiene un grupo por nombre
+    /// Retrieves a notification group by its name. Requires notification:read scope.
     /// </summary>
+    /// <param name="groupName">The name of the notification group to retrieve.</param>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>The DTO of the notification group if found, otherwise a 404 Not Found response.</returns>
     [HttpGet("{groupName}")]
     [Authorize(Policy = PolicyNames.NotificationRead)]
     public async Task<ActionResult<NotificationGroupDto>> GetGroup(string groupName, CancellationToken ct = default)
     {
-        var group = await _repository.GetByGroupNameAsync(groupName, ct);
-        if (group == null)
-        {
-            return NotFound($"Group '{groupName}' not found");
-        }
+        var query = new GetNotificationGroupByNameQuery(groupName);
+        var result = await _mediator.Send(query, ct);
 
-        return Ok(MapToDto(group));
+        if (result == null)
+            return NotFound($"Group '{groupName}' not found");
+
+        return Ok(result);
     }
 
     /// <summary>
-    /// Crea un nuevo grupo de notificación
+    /// Creates a new notification group. Requires notification:manage scope.
     /// </summary>
+    /// <param name="dto">The details of the notification group to be created, including name, description, and recipients.</param>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>The DTO of the created notification group along with a 201 Created response.</returns>
     [HttpPost]
     [Authorize(Policy = PolicyNames.NotificationManage)]
     public async Task<ActionResult<NotificationGroupDto>> CreateGroup(
-        [FromBody] CreateNotificationGroupDto dto, 
+        [FromBody] CreateNotificationGroupDto dto,
         CancellationToken ct = default)
     {
-        // Verificar que el grupo no exista
-        if (await _repository.ExistsAsync(dto.GroupName, ct))
-        {
-            return Conflict($"Group '{dto.GroupName}' already exists");
-        }
+        var command = new CreateNotificationGroupCommand(
+            dto.GroupName,
+            dto.Description,
+            dto.Recipients);
 
-        var group = MapToEntity(dto);
-        var createdGroup = await _repository.CreateAsync(group, ct);
-        var responseDto = MapToDto(createdGroup);
+        var result = await _mediator.Send(command, ct);
 
         return CreatedAtAction(
-            nameof(GetGroup), 
-            new { groupName = createdGroup.GroupName }, 
-            responseDto);
+            nameof(GetGroup),
+            new { groupName = result.GroupName },
+            result);
     }
 
     /// <summary>
-    /// Actualiza un grupo existente
+    /// Updates an existing notification group. Requires notification:manage scope.
     /// </summary>
+    /// <param name="groupName">The name of the notification group to update.</param>
+    /// <param name="dto">The updated details of the notification group, including description and recipients.</param>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>The DTO of the updated notification group.</returns>
     [HttpPut("{groupName}")]
     [Authorize(Policy = PolicyNames.NotificationManage)]
     public async Task<ActionResult<NotificationGroupDto>> UpdateGroup(
-        string groupName, 
-        [FromBody] UpdateNotificationGroupDto dto, 
+        string groupName,
+        [FromBody] UpdateNotificationGroupDto dto,
         CancellationToken ct = default)
     {
-        var existingGroup = await _repository.GetByGroupNameAsync(groupName, ct);
-        if (existingGroup == null)
-        {
-            return NotFound($"Group '{groupName}' not found");
-        }
+        var command = new UpdateNotificationGroupCommand(
+            groupName,
+            dto.Description,
+            dto.Recipients);
 
-        // Aplicar cambios
-        if (dto.Description != null)
-        {
-            existingGroup.Description = dto.Description;
-        }
-
-        if (dto.Recipients != null)
-        {
-            existingGroup.Recipients = dto.Recipients.Select(MapRecipientToEntity).ToList();
-        }
-
-        var updatedGroup = await _repository.UpdateAsync(groupName, existingGroup, ct);
-        if (updatedGroup == null)
-        {
-            return NotFound($"Group '{groupName}' not found");
-        }
-
-        return Ok(MapToDto(updatedGroup));
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Elimina un grupo de notificación
+    /// Deletes a notification group. Requires notification:manage scope.
     /// </summary>
+    /// <param name="groupName">The name of the notification group to delete.</param>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A 204 No Content response if deletion is successful, otherwise a 404 Not Found response if the group does not exist.</returns>
     [HttpDelete("{groupName}")]
     [Authorize(Policy = PolicyNames.NotificationManage)]
     public async Task<ActionResult> DeleteGroup(string groupName, CancellationToken ct = default)
     {
-        var deleted = await _repository.DeleteAsync(groupName, ct);
-        if (!deleted)
-        {
-            return NotFound($"Group '{groupName}' not found");
-        }
-
+        var command = new DeleteNotificationGroupCommand(groupName);
+        await _mediator.Send(command, ct);
         return NoContent();
-    }
-
-    // Mapping methods
-    private static NotificationGroupDto MapToDto(NotificationGroup group)
-    {
-        return new NotificationGroupDto
-        {
-            Id = group.Id,
-            GroupName = group.GroupName,
-            Description = group.Description,
-            Recipients = group.Recipients.Select(MapRecipientToDto).ToList(),
-            CreatedAt = group.CreatedAt,
-            UpdatedAt = group.UpdatedAt
-        };
-    }
-
-    private static GroupRecipientDto MapRecipientToDto(GroupRecipient recipient)
-    {
-        return new GroupRecipientDto
-        {
-            Email = recipient.Email,
-            Type = (RecipientTypeDto)recipient.Type,
-            IsActive = recipient.IsActive
-        };
-    }
-
-    private static NotificationGroup MapToEntity(CreateNotificationGroupDto dto)
-    {
-        return new NotificationGroup
-        {
-            GroupName = dto.GroupName,
-            Description = dto.Description,
-            Recipients = dto.Recipients.Select(MapRecipientToEntity).ToList()
-        };
-    }
-
-    private static GroupRecipient MapRecipientToEntity(GroupRecipientDto dto)
-    {
-        return new GroupRecipient
-        {
-            Email = dto.Email,
-            Type = (RecipientType)dto.Type,
-            IsActive = dto.IsActive
-        };
     }
 }
