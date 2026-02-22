@@ -1,6 +1,7 @@
 # ===============================
 # ARCHIVOS SENSIBLES / SECRETS
 # ===============================
+env
 .env*
 */.env*
 **/.env*
@@ -183,3 +184,6 @@ software-project/fuzzy-service/.coverage
 
 # OLD version frontend folder
 olv_frontend_version/
+
+# Agent Docs
+docs/

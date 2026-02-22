@@ -462,6 +462,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
       - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -492,6 +493,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
       - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
     volumes:
       # Bind mount: source code from host with live reload
       - .:/workspace:cached
