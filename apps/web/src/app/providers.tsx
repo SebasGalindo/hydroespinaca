@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setAuthCallbacks, useAuthStore } from '@hydroespinaca/shared';
+import { ChatProvider } from '@/components/chat/ChatProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -22,5 +23,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {/* Global AI chat — available on every page when authenticated */}
+      <ChatProvider />
+    </>
+  );
 }

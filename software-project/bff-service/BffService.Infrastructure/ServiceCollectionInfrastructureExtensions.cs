@@ -38,6 +38,11 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddHttpClient<IBiServiceClient, BiServiceClient>();
         services.AddHttpClient<IWeatherServiceClient, WeatherServiceClient>();
         services.AddHttpClient<INotificationServiceClient, NotificationServiceClient>();
+        services.AddHttpClient<IChatbotServiceClient, ChatbotServiceClient>(client =>
+        {
+            // SSE streaming can be long-lived; extend timeout to match Gemini generation
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
 
         return services;
     }

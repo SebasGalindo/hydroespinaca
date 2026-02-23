@@ -105,6 +105,11 @@ public static class AuthorizationScopes
     public const string BiRead = "bi:read";
     public const string BiWrite = "bi:write";
 
+    // Chatbot scopes
+    public const string ChatRead = "chat:read";
+    public const string ChatWrite = "chat:write";
+    public const string RagManage = "rag:manage";
+
     // System-level scopes
     public const string SystemAdmin = "system:admin";
     public const string SystemHealth = "system:health";
@@ -196,6 +201,14 @@ public static class AuthorizationScopes
 
 
     /// <summary>
+    /// Gets all chatbot scopes
+    /// </summary>
+    public static readonly string[] ChatbotScopes =
+    {
+        ChatRead, ChatWrite, RagManage
+    };
+
+    /// <summary>
     /// Gets all system-level scopes
     /// </summary>
     public static readonly string[] SystemScopes =
@@ -239,6 +252,9 @@ public static class AuthorizationScopes
 
         // BI
         BiRead, BiWrite,
+
+        // Chatbot
+        ChatRead, ChatWrite, RagManage,
         
         // System
         SystemAdmin, SystemHealth, SystemMonitor

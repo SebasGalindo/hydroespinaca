@@ -40,3 +40,6 @@ export { FuzzyApiService, fuzzyService, FuzzyApiError } from './fuzzyService';
 
 // Notifications
 export { NotificationApiService, notificationService } from './notificationService';
+
+// Chat
+export { ChatApiService, chatService, ChatApiError } from './chatService';

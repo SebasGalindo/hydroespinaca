@@ -4,6 +4,7 @@ export { useBiStore } from './store';
 export { useFuzzyStore } from './store';
 export { useWeatherStore } from './store';
 export { useNotificationStore } from './store';
+export { useChatStore } from './store';
 
 // Export store-specific types
 export type { User } from './store';
@@ -172,3 +173,16 @@ export type {
   Stats,
   InternalRoutine,
 } from './types/systemStatus';
+
+// Chat
+export { ChatApiService, chatService, ChatApiError } from './api/chatService';
+export type {
+  ChatSession,
+  ChatMessage,
+  ChatContextFilters,
+  SendMessageRequest,
+  CreateSessionRequest,
+  CreateSessionResponse,
+  StreamTokenEvent,
+  StreamDoneEvent,
+} from './types/chat';

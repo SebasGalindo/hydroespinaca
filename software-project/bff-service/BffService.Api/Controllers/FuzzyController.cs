@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using BffService.Application.Interfaces;
 using BffService.Domain.Interfaces;
 using BffService.Domain.DTOs.Fuzzy;
+using BffService.Domain.DTOs.Chatbot;
 using BffService.Api.Helpers;
 
 namespace BffService.Api.Controllers;
@@ -11,6 +12,8 @@ namespace BffService.Api.Controllers;
 /// Controller for Fuzzy Systems management.
 /// Proxies requests to fuzzy-service with session-based authentication.
 /// Provides an orchestrated detail endpoint that aggregates system + variables + terms + rules.
+/// After mutations (create/update/delete), fires a best-effort sync to chatbot-service
+/// for reactive re-vectorization of the affected knowledge chunk.
 /// </summary>
 [ApiController]
 [Route("fuzzy")]
@@ -18,15 +21,44 @@ namespace BffService.Api.Controllers;
 public class FuzzyController : BaseAuthenticatedController
 {
     private readonly IFuzzyServiceClient _fuzzyServiceClient;
+    private readonly IChatbotServiceClient _chatbotClient;
 
     public FuzzyController(
         IFuzzyServiceClient fuzzyServiceClient,
+        IChatbotServiceClient chatbotClient,
         ISessionTokenService sessionTokenService,
         IConfiguration configuration,
         ILogger<FuzzyController> logger)
         : base(sessionTokenService, configuration, logger)
     {
         _fuzzyServiceClient = fuzzyServiceClient;
+        _chatbotClient = chatbotClient;
+    }
+
+    /// <summary>
+    /// Fires a best-effort knowledge sync to chatbot-service.
+    /// Does not block the response — errors are logged and swallowed.
+    /// </summary>
+    private void FireKnowledgeSync(string accessToken, string sourceType, string sourceId, string action)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _chatbotClient.SyncKnowledgeAsync(accessToken, new SyncKnowledgeRequest
+                {
+                    SourceType = sourceType,
+                    SourceId = sourceId,
+                    Action = action
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex,
+                    "Best-effort knowledge sync failed for {SourceType}/{SourceId} ({Action})",
+                    sourceType, sourceId, action);
+            }
+        });
     }
 
     // ──────────────────────────────────────────────
@@ -102,6 +134,11 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.CreateSystemAsync(
                 session.AccessToken, request, cancellationToken);
+
+            // Reactive vectorization: sync new system to chatbot knowledge base
+            if (result.Id != null)
+                FireKnowledgeSync(session.AccessToken, "fuzzy_system", result.Id, "upsert");
+
             return StatusCode(201, result);
         }
         catch (Exception ex)
@@ -130,6 +167,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.UpdateSystemAsync(
                 session.AccessToken, id, request, cancellationToken);
+
+            // Reactive vectorization: sync updated system
+            FireKnowledgeSync(session.AccessToken, "fuzzy_system", id, "upsert");
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -245,6 +286,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             await _fuzzyServiceClient.DeleteSystemAsync(
                 session.AccessToken, id, cancellationToken);
+
+            // Reactive vectorization: remove deleted system from knowledge base
+            FireKnowledgeSync(session.AccessToken, "fuzzy_system", id, "delete");
+
             return NoContent();
         }
         catch (Exception ex)
@@ -434,6 +479,11 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.CreateVariableAsync(
                 session.AccessToken, request, cancellationToken);
+
+            // Reactive vectorization: sync new variable to chatbot knowledge base
+            if (result.Id != null)
+                FireKnowledgeSync(session.AccessToken, "fuzzy_variable", result.Id, "upsert");
+
             return StatusCode(201, result);
         }
         catch (Exception ex)
@@ -462,6 +512,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.UpdateVariableAsync(
                 session.AccessToken, id, request, cancellationToken);
+
+            // Reactive vectorization: sync updated variable
+            FireKnowledgeSync(session.AccessToken, "fuzzy_variable", id, "upsert");
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -487,6 +541,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             await _fuzzyServiceClient.DeleteVariableAsync(
                 session.AccessToken, id, cancellationToken);
+
+            // Reactive vectorization: remove deleted variable from knowledge base
+            FireKnowledgeSync(session.AccessToken, "fuzzy_variable", id, "delete");
+
             return NoContent();
         }
         catch (Exception ex)
@@ -541,6 +599,11 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.CreateTermAsync(
                 session.AccessToken, request, cancellationToken);
+
+            // Reactive vectorization: sync new term to chatbot knowledge base
+            if (result.Id != null)
+                FireKnowledgeSync(session.AccessToken, "fuzzy_term", result.Id, "upsert");
+
             return StatusCode(201, result);
         }
         catch (Exception ex)
@@ -569,6 +632,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.UpdateTermAsync(
                 session.AccessToken, id, request, cancellationToken);
+
+            // Reactive vectorization: sync updated term
+            FireKnowledgeSync(session.AccessToken, "fuzzy_term", id, "upsert");
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -594,6 +661,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             await _fuzzyServiceClient.DeleteTermAsync(
                 session.AccessToken, id, cancellationToken);
+
+            // Reactive vectorization: remove deleted term from knowledge base
+            FireKnowledgeSync(session.AccessToken, "fuzzy_term", id, "delete");
+
             return NoContent();
         }
         catch (Exception ex)
@@ -648,6 +719,11 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.CreateRuleAsync(
                 session.AccessToken, request, cancellationToken);
+
+            // Reactive vectorization: sync new rule to chatbot knowledge base
+            if (result.Id != null)
+                FireKnowledgeSync(session.AccessToken, "fuzzy_rule", result.Id, "upsert");
+
             return StatusCode(201, result);
         }
         catch (Exception ex)
@@ -676,6 +752,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             var result = await _fuzzyServiceClient.UpdateRuleAsync(
                 session.AccessToken, id, request, cancellationToken);
+
+            // Reactive vectorization: sync updated rule
+            FireKnowledgeSync(session.AccessToken, "fuzzy_rule", id, "upsert");
+
             return Ok(result);
         }
         catch (Exception ex)
@@ -701,6 +781,10 @@ public class FuzzyController : BaseAuthenticatedController
             var session = await ValidateSessionAsync(cancellationToken);
             await _fuzzyServiceClient.DeleteRuleAsync(
                 session.AccessToken, id, cancellationToken);
+
+            // Reactive vectorization: remove deleted rule from knowledge base
+            FireKnowledgeSync(session.AccessToken, "fuzzy_rule", id, "delete");
+
             return NoContent();
         }
         catch (Exception ex)
