@@ -176,7 +176,7 @@ public class WeatherAlertEvaluationWorker : BackgroundService
         INotificationServiceClient notificationClient,
         CancellationToken ct)
     {
-        var alertsCreated = 0;
+        var newAlerts = new List<WeatherAlert>();
         var enabledThresholds = config.Alerts.Where(a => a.Enabled).ToList();
 
         if (enabledThresholds.Count == 0) return 0;
@@ -197,15 +197,11 @@ public class WeatherAlertEvaluationWorker : BackgroundService
 
                 var alert = BuildAlert(config, threshold, evaluation.Value, daily.DateTime);
                 await alertRepo.CreateAsync(alert, ct);
-                alertsCreated++;
+                newAlerts.Add(alert);
 
                 _logger.LogInformation(
                     "Alert created: {Type} for fuzzy system {FuzzySystemId} — {Title}",
                     threshold.Type, config.FuzzySystemId, alert.Title);
-
-                // Notify subscribers
-                await NotifySubscribersAsync(
-                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
             }
         }
 
@@ -215,11 +211,12 @@ public class WeatherAlertEvaluationWorker : BackgroundService
         if (heavyRainThreshold != null)
         {
             await EvaluateHourlyRainAsync(
-                forecast.Hourly, heavyRainThreshold, config, alertRepo, notificationClient, ct);
+                forecast.Hourly, heavyRainThreshold, config, alertRepo, newAlerts, ct);
         }
 
         // Forward government alerts
-        if (forecast.GovernmentAlerts.Count > 0)
+        var govThreshold = enabledThresholds.FirstOrDefault(t => t.Type == AlertTypes.Government);
+        if (govThreshold != null && forecast.GovernmentAlerts.Count > 0)
         {
             foreach (var govAlert in forecast.GovernmentAlerts)
             {
@@ -233,44 +230,34 @@ public class WeatherAlertEvaluationWorker : BackgroundService
                     FuzzySystemId = config.FuzzySystemId,
                     AlertType = AlertTypes.Government,
                     Severity = "critical",
-                    Title = $"🚨 Alerta gubernamental: {govAlert.Event}",
-                    Message = $"{govAlert.SenderName}: {govAlert.Description}",
-                    Recommendation = "Alerta emitida por autoridades. Tome las precauciones necesarias para proteger sus cultivos.",
+                    Title = $"🚨 Alerta oficial: {govAlert.Event}",
+                    Message = $"{govAlert.SenderName} informa: {govAlert.Description}",
+                    Recommendation = govThreshold.Recommendation ?? "Alerta emitida por autoridades. Tome las precauciones necesarias para proteger sus cultivos.",
                     ForecastDatetime = govAlert.Start,
                     ForecastCondition = govAlert.Event,
                     GovernmentAlert = true
                 };
 
                 await alertRepo.CreateAsync(alert, ct);
-                alertsCreated++;
-
-                await NotifySubscribersAsync(
-                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
+                newAlerts.Add(alert);
             }
         }
 
-        return alertsCreated;
+        // Notify subscribers with all grouped alerts
+        if (newAlerts.Count > 0)
+        {
+            await NotifySubscribersGroupedAsync(newAlerts, config.FuzzySystemId, alertRepo, notificationClient, ct);
+        }
+
+        return newAlerts.Count;
     }
 
-    /// <summary>
-    /// Evaluates the hourly forecast data for heavy rain conditions based on a 
-    /// 3-hour accumulation of rain.
-    /// It checks if the accumulated rain exceeds the configured threshold and 
-    /// creates an alert if necessary,
-    /// </summary>
-    /// <param name="hourly">The hourly forecast data to evaluate.</param>
-    /// <param name="threshold">The alert threshold to compare against.</param>
-    /// <param name="config">The weather alert configuration.</param>
-    /// <param name="alertRepo">The alert repository.</param>
-    /// <param name="notificationClient">The notification service client.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns></returns>
     private async Task EvaluateHourlyRainAsync(
         List<HourlyForecastDto> hourly,
         AlertThreshold threshold,
         WeatherAlertConfig config,
         IWeatherAlertRepository alertRepo,
-        INotificationServiceClient notificationClient,
+        List<WeatherAlert> newAlerts,
         CancellationToken ct)
     {
         // Accumulate rain over 3-hour windows
@@ -293,19 +280,19 @@ public class WeatherAlertEvaluationWorker : BackgroundService
                     AlertType = AlertTypes.HeavyRain,
                     Severity = rain3h > threshold.ThresholdValue.Value * 2 ? "critical" : "warning",
                     Title = "🌧️ Lluvia intensa pronosticada",
-                    Message = $"Se pronostican {rain3h:F1}mm en 3 horas a partir de las {hourly[i].DateTime:HH:mm} UTC",
+                    Message = $"Se pronostica una acumulación de lluvia de {rain3h:F1} mm en 3 horas a partir del {hourly[i].DateTime:dd/MM/yyyy} a las {hourly[i].DateTime:HH:mm} UTC.",
                     Recommendation = threshold.Recommendation,
                     ForecastDatetime = hourly[i].DateTime,
                     ForecastValue = rain3h
                 };
 
                 await alertRepo.CreateAsync(alert, ct);
-                await NotifySubscribersAsync(
-                    alert, config.FuzzySystemId, alertRepo, notificationClient, ct);
+                newAlerts.Add(alert);
                 return; // One alert per cycle is enough
             }
         }
     }
+
 
     /// <summary>
     /// Evaluates a daily forecast against a specific alert threshold.
@@ -411,10 +398,12 @@ public class WeatherAlertEvaluationWorker : BackgroundService
             _ => $"⚠️ Alerta meteorológica: {threshold.Type}"
         };
 
-        var message = $"Pronosticado para {forecastDatetime:dddd dd MMM yyyy}" +
-                      (threshold.ThresholdValue.HasValue
-                          ? $" — valor: {evaluation.value:F1}, umbral: {threshold.Comparison} {threshold.ThresholdValue.Value:F1}"
-                          : "");
+        var dateStr = forecastDatetime.ToString("dd/MM/yyyy");
+        string comparisonText = threshold.Comparison == "gt" ? "mayor" : (threshold.Comparison == "lt" ? "menor" : "diferente");
+
+        var message = threshold.ThresholdValue.HasValue
+            ? $"Se pronostica para el {dateStr} un valor de {evaluation.value:F1}, el cual es {comparisonText} al umbral de riesgo configurado ({threshold.ThresholdValue.Value:F1})."
+            : $"Se ha detectado una condición de riesgo meteorológico pronosticada para el {dateStr}.";
 
         return new WeatherAlert
         {
@@ -431,50 +420,91 @@ public class WeatherAlertEvaluationWorker : BackgroundService
     }
 
     /// <summary>
-    /// Notifies all subscribers of a fuzzy system about a new alert 
-    /// by sending them a notification through the notification service client.
+    /// Notifies all subscribers of a fuzzy system about new alerts grouped in a single notification.
     /// </summary>
-    /// <param name="alert">The alert to notify subscribers about.</param>
+    /// <param name="newAlerts">The alerts to notify subscribers about.</param>
     /// <param name="fuzzySystemId">The fuzzy system ID.</param>
     /// <param name="alertRepo">The alert repository.</param>
     /// <param name="notificationClient">The notification service client.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns></returns>
-    private static async Task NotifySubscribersAsync(
-        WeatherAlert alert,
+    private static async Task NotifySubscribersGroupedAsync(
+        List<WeatherAlert> newAlerts,
         string fuzzySystemId,
         IWeatherAlertRepository alertRepo,
         INotificationServiceClient notificationClient,
         CancellationToken ct)
     {
+        if (newAlerts.Count == 0) return;
+
         // Get subscribers for the fuzzy system from the notification service
         var subscribers = await notificationClient.GetSubscribersForFuzzySystemAsync(fuzzySystemId, ct);
+        if (subscribers.Count == 0) return;
+
+        // Build a grouped message
+        var title = newAlerts.Count == 1 
+            ? newAlerts[0].Title 
+            : $"⚠️ {newAlerts.Count} nuevas alertas meteorológicas detectadas";
+            
+        var bodyBuilder = new System.Text.StringBuilder();
+        if (newAlerts.Count == 1)
+        {
+            var a = newAlerts[0];
+            bodyBuilder.AppendLine(a.Message);
+            if (!string.IsNullOrEmpty(a.Recommendation))
+                bodyBuilder.AppendLine($"\n💡 {a.Recommendation}");
+        }
+        else
+        {
+            bodyBuilder.AppendLine("Se han pronosticado las siguientes condiciones que superan tus umbrales:\n");
+            foreach (var a in newAlerts)
+            {
+                bodyBuilder.AppendLine($"• {a.Title}: {a.Message}");
+                if (!string.IsNullOrEmpty(a.Recommendation))
+                    bodyBuilder.AppendLine($"  💡 {a.Recommendation}");
+                bodyBuilder.AppendLine();
+            }
+        }
+        
+        var body = bodyBuilder.ToString().TrimEnd();
+
+        // Data dictionary for navigation
+        var data = new Dictionary<string, string>
+        {
+            ["fuzzySystemId"] = fuzzySystemId,
+            ["isGrouped"] = newAlerts.Count > 1 ? "true" : "false",
+            ["alertCount"] = newAlerts.Count.ToString()
+        };
+        if (newAlerts.Count == 1)
+        {
+            data["alertId"] = newAlerts[0].Id;
+            data["alertType"] = newAlerts[0].AlertType;
+            data["severity"] = newAlerts[0].Severity;
+        }
 
         foreach (var subscriber in subscribers)
         {
-            // Send notification to the subscriber through the notification service
+            // Send single grouped notification to the subscriber
             await notificationClient.SendAlertNotificationAsync(
                 subscriber.UserId,
                 "weather_alert",
-                alert.Title,
-                $"{alert.Message}\n\n💡 {alert.Recommendation}",
-                new Dictionary<string, string>
-                {
-                    ["alertId"] = alert.Id,
-                    ["alertType"] = alert.AlertType,
-                    ["severity"] = alert.Severity,
-                    ["fuzzySystemId"] = fuzzySystemId
-                },
+                title,
+                body,
+                data,
                 ct);
 
-            // Record that this user has been notified for this alert to prevent duplicate notifications and allow tracking read/unread status
-            await alertRepo.AddNotifiedUserAsync(alert.Id, new NotifiedUser
+            // Record that this user has been notified for ALL these alerts
+            foreach (var alert in newAlerts)
             {
-                UserId = subscriber.UserId,
-                Channels = subscriber.Channels,
-                SentAt = DateTime.UtcNow,
-                IsRead = false
-            }, ct);
+                await alertRepo.AddNotifiedUserAsync(alert.Id, new NotifiedUser
+                {
+                    UserId = subscriber.UserId,
+                    Channels = subscriber.Channels,
+                    SentAt = DateTime.UtcNow,
+                    IsRead = false
+                }, ct);
+            }
         }
     }
 }
+

@@ -35,22 +35,51 @@ public class LiveContextProvider : ILiveContextProvider
     /// <inheritdoc />
     public async Task<string> GetSensorReadingsSummaryAsync(int lastHours, CancellationToken ct)
     {
-        // El endpoint de sensor-service solo soporta "latest", no por horas. Se ignora lastHours.
-        _logger.LogInformation("Consultando resumen de sensores vía sensor-service HTTP client (lastHours={LastHours})", lastHours);
-        return await _sensorServiceClient.GetLatestReadingsSummaryAsync(ct);
+        _logger.LogDebug("[LiveContext] → Consultando sensor-service /api/readings/latest (lastHours={LastHours})", lastHours);
+        try
+        {
+            var result = await _sensorServiceClient.GetLatestReadingsSummaryAsync(ct);
+            _logger.LogDebug("[LiveContext] ← sensor-service respondió: {Len} chars", result?.Length ?? 0);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[LiveContext] ✗ Error consultando sensor-service");
+            return "[Error al obtener lecturas de sensores]";
+        }
     }
 
     /// <inheritdoc />
     public async Task<string> GetRecentEvaluationsSummaryAsync(int lastHours, CancellationToken ct)
     {
-        _logger.LogInformation("Consultando evaluaciones fuzzy vía fuzzy-service HTTP client (lastHours={LastHours})", lastHours);
-        return await _fuzzyServiceClient.GetRecentEvaluationsSummaryAsync(lastHours, ct);
+        _logger.LogDebug("[LiveContext] → Consultando fuzzy-service /api/fuzzy-evaluations/recent (lastHours={LastHours})", lastHours);
+        try
+        {
+            var result = await _fuzzyServiceClient.GetRecentEvaluationsSummaryAsync(lastHours, ct);
+            _logger.LogDebug("[LiveContext] ← fuzzy-service respondió: {Len} chars", result?.Length ?? 0);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[LiveContext] ✗ Error consultando fuzzy-service");
+            return "[Error al obtener evaluaciones fuzzy]";
+        }
     }
 
     /// <inheritdoc />
     public async Task<string> GetActuatorStatesSummaryAsync(CancellationToken ct)
     {
-        _logger.LogInformation("Consultando estados de actuadores vía actuator-service HTTP client");
-        return await _actuatorServiceClient.GetActuatorStatesSummaryAsync(ct);
+        _logger.LogDebug("[LiveContext] → Consultando actuator-service /api/actuators/states");
+        try
+        {
+            var result = await _actuatorServiceClient.GetActuatorStatesSummaryAsync(ct);
+            _logger.LogDebug("[LiveContext] ← actuator-service respondió: {Len} chars", result?.Length ?? 0);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[LiveContext] ✗ Error consultando actuator-service");
+            return "[Error al obtener estados de actuadores]";
+        }
     }
 }

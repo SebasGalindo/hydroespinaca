@@ -1,5 +1,3 @@
-import styles from './TypingCursor.module.css';
-
 /**
  * Atom — animated blinking cursor `|` shown while the LLM is streaming.
  *
@@ -8,5 +6,10 @@ import styles from './TypingCursor.module.css';
  */
 export function TypingCursor({ visible }: { visible: boolean }) {
     if (!visible) return null;
-    return <span className={styles.cursor} aria-hidden="true" />;
+    return (
+        <span
+            className="inline-block w-[2px] h-4 bg-green-500 rounded-sm ml-0.5 align-middle animate-pulse"
+            aria-hidden="true"
+        />
+    );
 }

@@ -3,7 +3,6 @@
 import { useChatStore } from '@hydroespinaca/shared';
 import { ChatBubbleWeb } from '../atoms/ChatBubbleWeb';
 import { TypingCursor } from '../atoms/TypingCursor';
-import styles from './StreamingMessage.module.css';
 
 /**
  * Molecule — live bubble that accumulates SSE token fragments.
@@ -22,7 +21,7 @@ export function StreamingMessage() {
 
     return (
         <ChatBubbleWeb role="model" isStreaming={isStreaming}>
-            <span className={styles.text}>{streamingText}</span>
+            <span className="whitespace-pre-wrap">{streamingText}</span>
             <TypingCursor visible={isStreaming} />
         </ChatBubbleWeb>
     );

@@ -37,6 +37,7 @@ public class SendMultiChannelNotificationHandler
             command.Title,
             command.Body,
             command.Data,
+            null,
             ct);
 
         var channelResults = results

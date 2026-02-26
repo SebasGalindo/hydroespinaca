@@ -4,3 +4,4 @@ export { useAuth } from './useAuth';
 export { useWebAuth } from './useWebAuth';
 export { useNativeAuth } from './useNativeAuth';
 export { ProtectedRoute } from './ProtectedRoute';
+export { useChatSSE } from './useChatSSE';

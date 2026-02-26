@@ -47,9 +47,19 @@ public class EmailChannelAdapter : INotificationChannel
 
         try
         {
-            // Build email-specific HTML from the notification body
-            var safeBody = _sanitizer.Sanitize(message.Body);
-            var finalHtml = await _renderer.RenderAsync("base", safeBody, model: null, ct);
+            string finalHtml;
+            if (message.Data != null && message.Data.TryGetValue("html_body", out var customHtml))
+            {
+                // Use pre-rendered and sanitized custom HTML (e.g., from DailySummaryJob)
+                finalHtml = customHtml;
+            }
+            else
+            {
+                // Convert plain text newlines to HTML line breaks for generic alerts
+                var bodyWithBr = message.Body.Replace("\r\n", "\n").Replace("\n", "<br>");
+                var safeBody = _sanitizer.Sanitize(bodyWithBr);
+                finalHtml = await _renderer.RenderAsync(message.TemplateKey ?? "base", safeBody, model: null, ct);
+            }
 
             var emailMessage = new EmailMessage
             {

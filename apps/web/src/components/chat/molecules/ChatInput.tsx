@@ -3,7 +3,6 @@
 import { useRef, useEffect } from 'react';
 import { useChatStore } from '@hydroespinaca/shared';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
-import styles from './ChatInput.module.css';
 
 interface ChatInputProps {
     onSend: (message: string) => void;
@@ -49,12 +48,21 @@ export function ChatInput({ onSend }: ChatInputProps) {
         ta.style.height = 'auto';
     };
 
+    const isDisabled = isStreaming || !activeSessionId;
+
     return (
-        <div className={styles.wrapper}>
+        <div className="flex items-end gap-2 px-3 py-3 border-t border-gray-200 bg-white">
             <textarea
                 ref={textareaRef}
                 id="chat-input-textarea"
-                className={styles.textarea}
+                className={[
+                    'flex-1 resize-none bg-gray-50 rounded-xl px-3 py-2 text-gray-800 text-sm border border-gray-200',
+                    'placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500',
+                    'min-h-[40px] leading-snug scrollbar-hidden',
+                    isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : '',
+                ]
+                    .filter(Boolean)
+                    .join(' ')}
                 placeholder={
                     !activeSessionId
                         ? 'Selecciona o crea una conversación…'
@@ -62,20 +70,27 @@ export function ChatInput({ onSend }: ChatInputProps) {
                             ? 'Esperando respuesta…'
                             : 'Escribe tu pregunta… (Enter para enviar)'
                 }
-                disabled={isStreaming || !activeSessionId}
+                disabled={isDisabled}
                 onKeyDown={handleKeyDown}
                 rows={1}
                 aria-label="Mensaje de chat"
             />
             <button
                 id="chat-send-button"
-                className={styles.sendBtn}
+                className={[
+                    'flex-shrink-0 p-2.5 rounded-xl border border-transparent',
+                    'bg-green-600 hover:bg-green-500',
+                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                    'transition-colors duration-150',
+                ]
+                    .filter(Boolean)
+                    .join(' ')}
                 onClick={handleSend}
-                disabled={isStreaming || !activeSessionId}
+                disabled={isDisabled}
                 aria-label="Enviar mensaje"
                 title="Enviar"
             >
-                <PaperAirplaneIcon className={styles.sendIcon} />
+                <PaperAirplaneIcon className="h-5 w-5 text-white" />
             </button>
         </div>
     );

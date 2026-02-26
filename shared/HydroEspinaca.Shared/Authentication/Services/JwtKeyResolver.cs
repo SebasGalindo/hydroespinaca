@@ -2,6 +2,7 @@ using HydroEspinaca.Shared.Authentication.Interfaces;
 using HydroEspinaca.Shared.DTOs.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -14,8 +15,8 @@ public class JwtKeyResolver : IJwtKeyResolver
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<JwtKeyResolver> _logger;
-    private readonly Dictionary<string, (JsonWebKeySetDto Keys, DateTime CachedAt)> _keyCache = new();
-    private readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(15);
+    private static readonly ConcurrentDictionary<string, (JsonWebKeySetDto Keys, DateTime CachedAt)> _keyCache = new();
+    private static readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(15);
 
     public JwtKeyResolver(HttpClient httpClient, ILogger<JwtKeyResolver> logger)
     {

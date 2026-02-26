@@ -76,6 +76,8 @@ interface ChatActions {
     finalizeStream: (event: StreamDoneEvent) => void;
     /** Marks streaming as started before the first token arrives. */
     startStream: () => void;
+    /** Optimistically appends a user message to the UI before backend confirms it */
+    appendUserMessage: (content: string) => void;
 
     // Utility
     /** Clears all error fields. */
@@ -210,6 +212,17 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
         // Optimistically append the user message placeholder is handled by the hook caller.
         // Here we only reset streaming text and mark stream as active.
         set({ isStreaming: true, streamingText: '' });
+    },
+
+    appendUserMessage: (content: string) => {
+        set((state) => {
+            const userMessage: ChatMessage = {
+                role: 'user',
+                content,
+                timestamp: new Date().toISOString(),
+            };
+            return { messages: [...state.messages, userMessage] };
+        });
     },
 
     appendStreamToken: (token: string) => {

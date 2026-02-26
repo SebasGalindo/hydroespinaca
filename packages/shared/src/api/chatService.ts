@@ -143,6 +143,24 @@ export class ChatApiService extends BaseApiService {
 
         return response;
     }
+
+    // ──────────────────────────────────────
+    //  RAG Knowledge Management
+    // ──────────────────────────────────────
+
+    /**
+     * Triggers a full re-indexation of all fuzzy knowledge chunks.
+     * This rebuilds vector embeddings for all systems, variables, terms, and rules.
+     * Only accessible to admin users.
+     *
+     * @returns Object with `success` and `totalChunksIndexed`.
+     */
+    async reindexKnowledge(): Promise<{ success: boolean; totalChunksIndexed: number }> {
+        return this.request<{ success: boolean; totalChunksIndexed: number }>(
+            '/chat/reindex-knowledge',
+            { method: 'POST' }
+        );
+    }
 }
 
 // ==================== Singleton ====================

@@ -44,8 +44,13 @@ async def list_fuzzy_rules(
             limit=limit
         )
     
-    await mediator.send(query)
-    return query._result
+    result = await mediator.send(query)
+    
+    if result is not None:
+        return result
+    if hasattr(query, '_result') and query._result is not None:
+        return query._result
+    return []
 
 
 @router.get("/{rule_id}", response_model=FuzzyRuleDto)
@@ -87,7 +92,7 @@ async def add_condition_to_rule(
             connector=connector
         )
         await mediator.send(command)
-        return command.result
+        return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except (ValueError, BusinessRuleViolationError) as e:
@@ -108,7 +113,7 @@ async def remove_condition_from_rule(
             variable_id=variable_id
         )
         await mediator.send(command)
-        return command.result
+        return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except (ValueError, BusinessRuleViolationError) as e:
@@ -129,7 +134,7 @@ async def update_rule_connectors(
             connectors=connectors
         )
         await mediator.send(command)
-        return command.result
+        return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except (ValueError, BusinessRuleViolationError) as e:
@@ -150,7 +155,7 @@ async def update_rule_consequent(
             consequents=consequents
         )
         await mediator.send(command)
-        return command.result
+        return command._result
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except (ValueError, BusinessRuleViolationError) as e:
@@ -214,8 +219,12 @@ async def get_fuzzy_rules_by_system(
             skip=skip,
             limit=limit
         )
-        await mediator.send(query)
-        return query._result
+        result = await mediator.send(query)
+        if result is not None:
+            return result
+        if hasattr(query, '_result') and query._result is not None:
+            return query._result
+        return []
     except EntityNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -232,5 +241,4 @@ async def get_all_rules_name_description(
         skip=skip,
         limit=limit
     )
-    await mediator.send(query)
-    return query._result
+    return await mediator.send(query)

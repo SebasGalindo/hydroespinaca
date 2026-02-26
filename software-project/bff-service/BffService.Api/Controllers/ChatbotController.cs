@@ -152,10 +152,16 @@ public class ChatbotController : BaseAuthenticatedController
         try
         {
             var session = await ValidateSessionAsync(ct);
+            Logger.LogInformation("[BFF-SSE] Iniciando stream passthrough: sesión={SessionId}, usuario={UserId}",
+                sessionId, session.UserId);
 
             // Get the streaming response from chatbot-service
             using var upstreamResponse = await _chatbotClient.StreamMessageAsync(
                 session.AccessToken, sessionId, request, ct);
+
+            Logger.LogDebug("[BFF-SSE] Respuesta upstream recibida: statusCode={StatusCode}, contentType={ContentType}",
+                (int)upstreamResponse.StatusCode,
+                upstreamResponse.Content.Headers.ContentType?.ToString() ?? "null");
 
             // Set SSE headers on our response
             Response.StatusCode = 200;
@@ -170,22 +176,35 @@ public class ChatbotController : BaseAuthenticatedController
 
             var buffer = new char[512];
             int bytesRead;
+            long totalBytes = 0;
+            int chunkCount = 0;
 
             while ((bytesRead = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
             {
+                totalBytes += bytesRead;
+                chunkCount++;
+
+                if (chunkCount <= 3)
+                    Logger.LogDebug("[BFF-SSE] Chunk #{Num}: {Len} chars, contenido: {Content}",
+                        chunkCount, bytesRead,
+                        bytesRead > 100 ? new string(buffer, 0, 100) + "..." : new string(buffer, 0, bytesRead));
+
                 await Response.Body.WriteAsync(
                     System.Text.Encoding.UTF8.GetBytes(buffer, 0, bytesRead), ct);
                 await Response.Body.FlushAsync(ct);
             }
+
+            Logger.LogInformation("[BFF-SSE] Stream passthrough completado: sesión={SessionId}, totalBytes={Bytes}, chunks={Chunks}",
+                sessionId, totalBytes, chunkCount);
         }
         catch (OperationCanceledException)
         {
             // Client disconnected — normal for SSE
-            Logger.LogDebug("Client disconnected from SSE stream for session {SessionId}", sessionId);
+            Logger.LogDebug("[BFF-SSE] Cliente desconectado del stream SSE: sesión={SessionId}", sessionId);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error streaming chat response for session {SessionId}", sessionId);
+            Logger.LogError(ex, "[BFF-SSE] Error streaming chat response: sesión={SessionId}", sessionId);
 
             // If we haven't started writing the response body yet, we can return an error
             if (!Response.HasStarted)
@@ -195,6 +214,39 @@ public class ChatbotController : BaseAuthenticatedController
                 await Response.WriteAsJsonAsync(
                     new { message = "Error streaming chat response" }, ct);
             }
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //  RAG Knowledge Reindex (Admin)
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Triggers a full re-indexation of all fuzzy knowledge chunks in the chatbot RAG.
+    /// This fetches all fuzzy systems, variables, terms, and rules from fuzzy-service
+    /// and rebuilds vector embeddings in chatbot-service's knowledge_chunks collection.
+    /// Only accessible to admin users.
+    /// </summary>
+    [HttpPost("reindex-knowledge")]
+    [ProducesResponseType(typeof(ReindexKnowledgeResponse), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> ReindexKnowledge(CancellationToken ct)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(ct);
+            Logger.LogInformation("[BFF-RAG] Reindex knowledge triggered by user {UserId}", session.UserId);
+
+            var result = await _chatbotClient.ReindexKnowledgeAsync(session.AccessToken, ct);
+
+            Logger.LogInformation("[BFF-RAG] Reindex completed: {Total} chunks indexed", result.TotalChunksIndexed);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "reindexing knowledge base");
         }
     }
 }

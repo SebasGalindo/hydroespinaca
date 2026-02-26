@@ -14,6 +14,7 @@ public class KnowledgeChunk : IIdentifiableMutable
     /// </summary>
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfDefault]
     public string Id { get; set; } = string.Empty;
 
     /// <summary>
@@ -56,6 +57,11 @@ public class KnowledgeChunk : IIdentifiableMutable
     /// Fecha de la última re-vectorización.
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Puntuación de similitud devuelta por Atlas Vector Search (sólo para resultados de búsqueda, se ignora al guardar).
+    /// </summary>
+    public double? Score { get; set; }
 
     /// <summary>
     /// Implementación de interfaz base.

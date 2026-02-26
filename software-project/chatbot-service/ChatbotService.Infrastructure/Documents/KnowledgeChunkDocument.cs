@@ -8,6 +8,7 @@ namespace ChatbotService.Infrastructure.Documents;
 /// Documento MongoDB para la colección <c>knowledge_chunks</c>.
 /// Contiene el vector de embeddings utilizado por Atlas Vector Search.
 /// </summary>
+[BsonIgnoreExtraElements]
 public class KnowledgeChunkDocument : IIdentifiableMutable
 {
     /// <summary>
@@ -15,7 +16,8 @@ public class KnowledgeChunkDocument : IIdentifiableMutable
     /// </summary>
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonIgnoreIfDefault]
+    public string Id { get; set; } = null!;
 
     /// <summary>
     /// Tipo de fuente: fuzzy_rule, fuzzy_system, fuzzy_variable, fuzzy_term, system_manual.
@@ -66,6 +68,14 @@ public class KnowledgeChunkDocument : IIdentifiableMutable
     [BsonElement("updated_at")]
     [BsonIgnoreIfNull]
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Puntuación calculada por Atlas Vector Search.
+    /// Se ignora al insertar/actualizar.
+    /// </summary>
+    [BsonElement("score")]
+    [BsonIgnoreIfNull]
+    public double? Score { get; set; }
 
     /// <inheritdoc />
     public void SetId(string id) => Id = id;

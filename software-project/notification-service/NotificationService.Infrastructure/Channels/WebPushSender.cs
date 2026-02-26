@@ -52,24 +52,31 @@ public class WebPushSender : INotificationChannel
     /// <inheritdoc />
     public async Task<NotificationSendResult> SendAsync(NotificationMessage message, CancellationToken ct = default)
     {
+        _logger.LogInformation("[WebPushSender] Starting SendAsync for UserId: {UserId}, CorrelationId: {CorrelationId}", message.UserId, message.CorrelationId);
+
         if (!_isConfigured)
         {
+            _logger.LogWarning("[WebPushSender] Web Push VAPID keys not configured");
             return new NotificationSendResult(false, ChannelType, "vapid", null,
                 "Web Push VAPID keys not configured");
         }
 
         if (string.IsNullOrEmpty(message.WebPushSubscription))
         {
+            _logger.LogWarning("[WebPushSender] No Web Push subscription provided in the message");
             return new NotificationSendResult(false, ChannelType, "vapid", null,
                 "No Web Push subscription provided");
         }
 
         try
         {
+            _logger.LogInformation("[WebPushSender] Raw subscription token: {Token}", message.WebPushSubscription);
             // Parse the PushSubscription JSON stored in the token field
-            var subJson = JsonSerializer.Deserialize<WebPushSubscriptionJson>(message.WebPushSubscription);
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var subJson = JsonSerializer.Deserialize<WebPushSubscriptionJson>(message.WebPushSubscription, options);
             if (subJson == null || string.IsNullOrEmpty(subJson.Endpoint))
             {
+                _logger.LogWarning("[WebPushSender] Invalid Web Push subscription JSON. Endpoint is missing or null. subJson is null? {IsNull}", subJson == null);
                 return new NotificationSendResult(false, ChannelType, "vapid", null,
                     "Invalid Web Push subscription JSON");
             }
@@ -86,23 +93,24 @@ public class WebPushSender : INotificationChannel
                 body = message.Body,
                 data = message.Data
             });
+            _logger.LogInformation("[WebPushSender] Sending payload to endpoint {Endpoint}", subJson.Endpoint[..Math.Min(50, subJson.Endpoint.Length)]);
 
             await _webPushClient.SendNotificationAsync(subscription, payload, _vapidDetails);
 
-            _logger.LogInformation("Web Push sent to endpoint {Endpoint}",
+            _logger.LogInformation("[WebPushSender] Web Push sent successfully to endpoint {Endpoint}",
                 subJson.Endpoint[..Math.Min(50, subJson.Endpoint.Length)]);
             return new NotificationSendResult(true, ChannelType, "vapid", null, null);
         }
         catch (WebPushException ex)
         {
-            _logger.LogWarning(ex, "Web Push failed: {StatusCode} {Message}",
+            _logger.LogWarning(ex, "[WebPushSender] Web Push failed: {StatusCode} {Message}",
                 ex.StatusCode, ex.Message);
             return new NotificationSendResult(false, ChannelType, "vapid", null,
                 $"WebPush error {ex.StatusCode}: {ex.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception sending Web Push");
+            _logger.LogError(ex, "[WebPushSender] Exception sending Web Push");
             return new NotificationSendResult(false, ChannelType, "vapid", null, ex.Message);
         }
     }

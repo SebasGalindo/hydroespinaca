@@ -39,6 +39,7 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
         string title,
         string body,
         Dictionary<string, string>? data = null,
+        List<string>? allowedChannels = null,
         CancellationToken ct = default)
     {
         var correlationId = Guid.NewGuid().ToString("N");
@@ -61,6 +62,10 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
 
         // Log enabled channels for this user
         var enabledChannels = prefs.GetEnabledChannels();
+        if (allowedChannels != null && allowedChannels.Count > 0)
+        {
+            enabledChannels = enabledChannels.Intersect(allowedChannels).ToList();
+        }
         _logger.LogInformation("Dispatching notification to user {UserId} via channels: {Channels}",
             userId, string.Join(", ", enabledChannels));
 
@@ -151,18 +156,39 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
 
             case NotificationChannels.WebPush:
             {
+                var webPushBody = body;
+                if (templateKey == "weather_alert")
+                {
+                    var countStr = data != null && data.TryGetValue("alertCount", out var c) ? c : "1";
+                    var isPlural = countStr != "1";
+                    webPushBody = $"Tienes {countStr} nueva{(isPlural ? "s" : "")} alerta{(isPlural ? "s" : "")} meteorológica{(isPlural ? "s" : "")}, entra a la web y toma las medidas necesarias para mantener el invernadero adecuadamente.";
+                }
+
+                _logger.LogInformation("[CompositeDispatcher] Getting active Web Push subscriptions for user {UserId}", userId);
                 // Send to ALL active Web Push subscriptions for this user
                 var webSubs = await _pushSubscriptionRepository
-                    .GetActiveByUserIdAsync(userId, "web", ct);
+                    .GetActiveByUserIdAsync(userId, "web_push", ct);
+                
+                _logger.LogInformation("[CompositeDispatcher] Found {Count} active Web Push subscriptions for user {UserId}", webSubs.Count(), userId);
+
                 foreach (var sub in webSubs)
                 {
-                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, body, data);
+                    _logger.LogInformation("[CompositeDispatcher] Processing Web Push sub: {SubId}", sub.Id);
+                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, webPushBody, data);
                     msg.WebPushSubscription = sub.Token;
                     var result = await SendAndLogAsync(channel, msg, ct);
                     results.Add(result);
 
-                    if (result.Success) sub.RecordSuccess();
-                    else sub.RecordFailure();
+                    if (result.Success) 
+                    {
+                        _logger.LogInformation("[CompositeDispatcher] Web Push to {SubId} succeeded", sub.Id);
+                        sub.RecordSuccess();
+                    }
+                    else 
+                    {
+                        _logger.LogWarning("[CompositeDispatcher] Web Push to {SubId} failed: {Error}", sub.Id, result.Error);
+                        sub.RecordFailure();
+                    }
                     await _pushSubscriptionRepository.UpdateAsync(sub, ct);
                 }
                 break;

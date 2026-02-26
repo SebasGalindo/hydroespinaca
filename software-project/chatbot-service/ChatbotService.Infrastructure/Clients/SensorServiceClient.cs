@@ -47,7 +47,7 @@ public class SensorServiceClient : ISensorServiceClient
             {
                 _logger.LogWarning("sensor-service retornó {StatusCode} para /api/readings/latest",
                     response.StatusCode);
-                return "[Error al obtener lecturas de sensores]";
+                return "[Nota para el LLM: Actualmente los sensores están desconectados o el servicio no está disponible. Sin embargo, debes saber que el sistema cuenta con: Sensor de Temperatura del Aire, Sensor de Humedad Ambiental, Sensor de Temperatura del Agua, Sensor de Nivel de Agua, y Sensores de pH/EC. Por favor, informa al usuario sobre esta lista de sensores de forma amigable y explícale que no hay lecturas en tiempo real disponibles en este momento.]";
             }
 
             var content = await response.Content.ReadAsStringAsync(ct);
@@ -56,7 +56,7 @@ public class SensorServiceClient : ISensorServiceClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error consultando sensor-service");
-            return "[Error al obtener lecturas de sensores]";
+            return "[Nota para el LLM: Actualmente los sensores están desconectados o el servicio no está disponible. Sin embargo, debes saber que el sistema cuenta con: Sensor de Temperatura del Aire, Sensor de Humedad Ambiental, Sensor de Temperatura del Agua, Sensor de Nivel de Agua, y Sensores de pH/EC. Por favor, informa al usuario sobre esta lista de sensores de forma amigable y explícale que no hay lecturas en tiempo real disponibles en este momento.]";
         }
     }
 
@@ -160,10 +160,12 @@ public class SensorServiceClient : ISensorServiceClient
     /// </summary>
     private async Task ConfigureAuthAsync(CancellationToken ct)
     {
+        _logger.LogDebug("[M2M-Auth] Obteniendo token M2M para sensor-service...");
         using var scope = _serviceScopeFactory.CreateScope();
         var m2mTokenService = scope.ServiceProvider.GetRequiredService<M2MTokenService>();
         var accessToken = await m2mTokenService.GetAccessTokenAsync(ct);
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
+        _logger.LogDebug("[M2M-Auth] Token M2M configurado correctamente para sensor-service");
     }
 }

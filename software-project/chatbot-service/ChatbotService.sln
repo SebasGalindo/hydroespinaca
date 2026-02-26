@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatbotService.Domain", "Ch
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatbotService.Infrastructure", "ChatbotService.Infrastructure\ChatbotService.Infrastructure.csproj", "{1A593A0D-80AA-42EE-A1FF-2009172C4AD9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatbotService.Domain.Tests", "ChatbotService.Domain.Tests\ChatbotService.Domain.Tests.csproj", "{C2937DEF-FD27-479C-A1F0-BF4B351BBB0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatbotService.Application.Tests", "ChatbotService.Application.Tests\ChatbotService.Application.Tests.csproj", "{39F1B71D-C59B-44A2-80AA-8B59B4856ACC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +40,13 @@ Global
 		{1A593A0D-80AA-42EE-A1FF-2009172C4AD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A593A0D-80AA-42EE-A1FF-2009172C4AD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A593A0D-80AA-42EE-A1FF-2009172C4AD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2937DEF-FD27-479C-A1F0-BF4B351BBB0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2937DEF-FD27-479C-A1F0-BF4B351BBB0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2937DEF-FD27-479C-A1F0-BF4B351BBB0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2937DEF-FD27-479C-A1F0-BF4B351BBB0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39F1B71D-C59B-44A2-80AA-8B59B4856ACC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39F1B71D-C59B-44A2-80AA-8B59B4856ACC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39F1B71D-C59B-44A2-80AA-8B59B4856ACC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39F1B71D-C59B-44A2-80AA-8B59B4856ACC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

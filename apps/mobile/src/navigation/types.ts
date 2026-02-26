@@ -50,4 +50,5 @@ export type MoreStackParamList = {
   NotificationHistory: undefined;
   AdminAccess: undefined;
   AdminSessions: undefined;
+  Chat: undefined;
 };

@@ -43,17 +43,20 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
     /// <inheritdoc />
     public async Task<IAsyncEnumerable<string>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Procesando mensaje RAG: sesión={SessionId}, usuario={UserId}",
-            request.SessionId, request.UserId);
+        logger.LogInformation("[RAG] ═══ INICIO pipeline RAG: sesión={SessionId}, usuario={UserId}, mensaje={MsgLength} chars",
+            request.SessionId, request.UserId, request.Message?.Length ?? 0);
 
         // 1. Cargar sesión y validar ownership
+        logger.LogDebug("[RAG] Paso 1/8: Cargando sesión desde MongoDB...");
         var session = await sessionRepository.GetByIdAsync(request.SessionId, cancellationToken)
             ?? throw new InvalidOperationException($"Sesión {request.SessionId} no encontrada.");
 
         if (session.UserId != request.UserId)
             throw new UnauthorizedAccessException("La sesión no pertenece al usuario.");
+        logger.LogDebug("[RAG] Sesión cargada: {MsgCount} mensajes previos", session.Messages.Count);
 
         // 2. Persistir el mensaje del usuario
+        logger.LogDebug("[RAG] Paso 2/8: Persistiendo mensaje del usuario...");
         var userMessage = new ChatMessage
         {
             Role = "user",
@@ -63,15 +66,21 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
         await sessionRepository.AddMessageToSessionAsync(request.SessionId, userMessage, cancellationToken);
 
         // 3. Generar embedding de la pregunta (taskType = RETRIEVAL_QUERY)
+        logger.LogDebug("[RAG] Paso 3/8: Generando embedding de la pregunta...");
         var queryEmbedding = await embeddingProvider.GenerateEmbeddingAsync(
             request.Message, EmbeddingTaskType.RetrievalQuery, cancellationToken);
+        logger.LogDebug("[RAG] Embedding generado: {Dims} dimensiones", queryEmbedding.Length);
 
         // 4. Buscar contexto vectorial (reglas fuzzy similares)
+        logger.LogDebug("[RAG] Paso 4/8: Buscando contexto vectorial (Atlas Vector Search, topK={TopK})...", TopKRetrieval);
         var similarChunks = await vectorStore.SearchSimilarAsync(
             queryEmbedding, TopKRetrieval, null, cancellationToken);
         var vectorContext = BuildVectorContext(similarChunks);
+        logger.LogInformation("[RAG] Contexto vectorial: {ChunkCount} chunks similares encontrados, {ContextLength} chars",
+            similarChunks.Count, vectorContext.Length);
 
         // 5. Obtener datos en vivo (vía HTTP clients a cada microservicio)
+        logger.LogDebug("[RAG] Paso 5/8: Obteniendo datos en vivo (sensor, fuzzy, actuador) en paralelo...");
         var liveHours = request.ContextFilters?.TimeRangeHours ?? DefaultLiveContextHours;
 
         var sensorTask = liveContextProvider.GetSensorReadingsSummaryAsync(liveHours, cancellationToken);
@@ -84,16 +93,28 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
         var evaluationsSummary = await evaluationsTask;
         var actuatorSummary = await actuatorsTask;
 
+        logger.LogInformation("[RAG] Datos en vivo obtenidos — sensores: {SensorLen} chars, fuzzy: {FuzzyLen} chars, actuadores: {ActLen} chars",
+            sensorSummary?.Length ?? 0, evaluationsSummary?.Length ?? 0, actuatorSummary?.Length ?? 0);
+        logger.LogDebug("[RAG] Sensor resumen: {Sensor}", sensorSummary?.Length > 200 ? sensorSummary[..200] + "..." : sensorSummary);
+        logger.LogDebug("[RAG] Fuzzy resumen: {Fuzzy}", evaluationsSummary?.Length > 200 ? evaluationsSummary[..200] + "..." : evaluationsSummary);
+        logger.LogDebug("[RAG] Actuador resumen: {Act}", actuatorSummary?.Length > 200 ? actuatorSummary[..200] + "..." : actuatorSummary);
+
         // 6. Ensamblar el prompt
+        logger.LogDebug("[RAG] Paso 6/8: Ensamblando system instruction...");
         var systemInstruction = AssembleSystemInstruction(
             vectorContext, sensorSummary, evaluationsSummary, actuatorSummary);
+        logger.LogInformation("[RAG] System instruction ensamblada: {InstructionLength} chars", systemInstruction.Length);
+        logger.LogInformation("[RAG] Final System Instruction Prompt:\n{SystemInstruction}", systemInstruction);
 
         // 7. Preparar historial (últimos N mensajes)
+        logger.LogDebug("[RAG] Paso 7/8: Preparando historial ({MaxHistory} máx)...", MaxHistoryMessages);
         var history = session.Messages
             .TakeLast(MaxHistoryMessages)
             .ToList();
+        logger.LogDebug("[RAG] Historial preparado: {Count} mensajes", history.Count);
 
         // 8. Generar respuesta streaming y persistir
+        logger.LogDebug("[RAG] Paso 8/8: Iniciando generación streaming vía Gemini + persistencia...");
         return StreamAndPersist(request.SessionId, session, systemInstruction, history, request.Message, cancellationToken);
     }
 
@@ -112,12 +133,20 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
         var fullResponse = new System.Text.StringBuilder();
         var tokenCount = 0;
 
+        logger.LogDebug("[STREAM] Iterando tokens del LLM para sesión={SessionId}...", sessionId);
+
         await foreach (var token in llmProvider.GenerateStreamAsync(systemInstruction, history, userMessage, ct))
         {
             fullResponse.Append(token);
             tokenCount++;
+            if (tokenCount <= 5)
+                logger.LogDebug("[STREAM] Token #{Num}: '{Token}'", tokenCount,
+                    token.Length > 50 ? token[..50] + "..." : token);
             yield return token;
         }
+
+        logger.LogInformation("[STREAM] LLM streaming finalizado: sesión={SessionId}, tokens={Tokens}, respuesta={RespLen} chars",
+            sessionId, tokenCount, fullResponse.Length);
 
         // Persistir la respuesta completa del modelo
         var modelMessage = new ChatMessage
@@ -128,15 +157,17 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
             TokensUsed = tokenCount
         };
         await sessionRepository.AddMessageToSessionAsync(sessionId, modelMessage, ct);
+        logger.LogDebug("[STREAM] Mensaje del modelo persistido en sesión={SessionId}", sessionId);
 
         // Auto-generar título si es el primer intercambio
         if (session.Messages.Count <= 1)
         {
             var title = userMessage.Length > 50 ? userMessage[..50] + "..." : userMessage;
             await sessionRepository.UpdateTitleAsync(sessionId, title, ct);
+            logger.LogDebug("[STREAM] Título auto-generado: '{Title}'", title);
         }
 
-        logger.LogInformation("Respuesta RAG completada: sesión={SessionId}, tokens={Tokens}",
+        logger.LogInformation("[RAG] ═══ FIN pipeline RAG completado: sesión={SessionId}, tokens={Tokens}",
             sessionId, tokenCount);
     }
 

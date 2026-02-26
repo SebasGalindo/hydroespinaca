@@ -13,17 +13,17 @@ namespace BffService.Application.Services;
 public class SystemStatusService : ISystemStatusService
 {
     private readonly IProxyService _proxyService;
-    private readonly IWeatherService _weatherService;
+    private readonly IWeatherServiceClient _weatherServiceClient;
     private readonly ILogger<SystemStatusService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public SystemStatusService(
         IProxyService proxyService,
-        IWeatherService weatherService,
+        IWeatherServiceClient weatherServiceClient,
         ILogger<SystemStatusService> logger)
     {
         _proxyService = proxyService;
-        _weatherService = weatherService;
+        _weatherServiceClient = weatherServiceClient;
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
         {
@@ -156,7 +156,7 @@ public class SystemStatusService : ISystemStatusService
     {
         try
         {
-            var weather = await _weatherService.GetWeatherAsync(cancellationToken);
+            var weather = await _weatherServiceClient.GetCurrentWeatherAsync(cancellationToken);
             return weather;
         }
         catch (Exception ex)

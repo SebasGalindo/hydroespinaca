@@ -45,7 +45,8 @@ public class GeminiLlmProvider : ILlmProvider
         string userMessage,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        _logger.LogInformation("Iniciando generación streaming con modelo {Model}", _settings.TextModel);
+        _logger.LogInformation("[Gemini] Iniciando generación streaming con modelo {Model}, historial={HistoryCount} msgs, instrucción={InstructionLen} chars",
+            _settings.TextModel, history.Count, systemInstruction.Length);
 
         var contents = BuildContents(history, userMessage);
 
@@ -59,20 +60,30 @@ public class GeminiLlmProvider : ILlmProvider
             MaxOutputTokens = _ragSettings.MaxTokensPerResponse
         };
 
+        _logger.LogDebug("[Gemini] Config: temperature={Temp}, maxTokens={MaxTokens}",
+            _ragSettings.Temperature, _ragSettings.MaxTokensPerResponse);
+
         var streamResponse = _client.Models.GenerateContentStreamAsync(
             _settings.TextModel, contents, config);
 
+        var chunkCount = 0;
         await foreach (var chunk in streamResponse.WithCancellation(ct))
         {
             if (chunk.Candidates is { Count: > 0 } candidates)
             {
                 var text = candidates[0].Content?.Parts?.FirstOrDefault()?.Text;
                 if (!string.IsNullOrEmpty(text))
+                {
+                    chunkCount++;
+                    if (chunkCount <= 3)
+                        _logger.LogDebug("[Gemini] Chunk #{Num}: '{Text}'", chunkCount,
+                            text.Length > 80 ? text[..80] + "..." : text);
                     yield return text;
+                }
             }
         }
 
-        _logger.LogInformation("Generación streaming completada");
+        _logger.LogInformation("[Gemini] Generación streaming completada: {ChunkCount} chunks emitidos", chunkCount);
     }
 
     /// <summary>

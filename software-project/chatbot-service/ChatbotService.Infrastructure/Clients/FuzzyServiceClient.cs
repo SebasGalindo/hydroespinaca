@@ -230,10 +230,12 @@ public class FuzzyServiceClient : IFuzzyServiceClient
     /// </summary>
     private async Task ConfigureAuthAsync(CancellationToken ct)
     {
+        _logger.LogDebug("[M2M-Auth] Obteniendo token M2M para fuzzy-service...");
         using var scope = _serviceScopeFactory.CreateScope();
         var m2mTokenService = scope.ServiceProvider.GetRequiredService<M2MTokenService>();
         var accessToken = await m2mTokenService.GetAccessTokenAsync(ct);
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
+        _logger.LogDebug("[M2M-Auth] Token M2M configurado correctamente para fuzzy-service");
     }
 }

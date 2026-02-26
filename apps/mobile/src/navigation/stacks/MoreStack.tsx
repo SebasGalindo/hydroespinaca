@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MoreMenuScreen, ProfileScreen, NotificationSettingsScreen, NotificationHistoryScreen } from '../../screens';
 import { AdminAccessScreen, AdminSessionsScreen } from '../../screens';
+import { ChatScreen } from '../../screens/ChatScreen';
 import type { MoreStackParamList } from '../types';
 import { semanticColors, colors } from '@hydroespinaca/shared';
 
@@ -70,6 +71,14 @@ export function MoreStack(): React.ReactElement {
           headerTintColor: semanticColors.primary,
           headerStyle: { backgroundColor: colors.white },
           animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
         }}
       />
     </Stack.Navigator>

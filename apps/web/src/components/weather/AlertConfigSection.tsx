@@ -59,14 +59,6 @@ const AlertConfigSection: React.FC<AlertConfigSectionProps> = ({ fuzzySystemId, 
     setIsDirty(true);
   };
 
-  const handleRecommendationChange = (idx: number, value: string) => {
-    const updated = [...editingAlerts];
-    const current = updated[idx]!;
-    updated[idx] = { ...current, recommendation: value };
-    setEditingAlerts(updated);
-    setIsDirty(true);
-  };
-
   const handleSave = async () => {
     if (!user?.id || !alertConfig) return;
     setSaving(true);
@@ -175,32 +167,32 @@ const AlertConfigSection: React.FC<AlertConfigSectionProps> = ({ fuzzySystemId, 
               </span>
             </div>
 
-            {/* Threshold input */}
-            {alert.enabled && alert.type !== 'government' && (
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-xs text-gray-500 whitespace-nowrap">
-                  {alert.comparison === 'greater_than' ? '>' : alert.comparison === 'less_than' ? '<' : '≥'}
-                </span>
-                <input
-                  type="number"
-                  value={alert.thresholdValue ?? ''}
-                  onChange={e => handleThresholdChange(idx, e.target.value)}
-                  className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Valor"
-                  step="0.1"
-                />
+            {/* Threshold input or placeholder */}
+            {alert.enabled && (
+              <div className="flex items-center gap-2 w-32 shrink-0">
+                {alert.type !== 'thunderstorm' && alert.type !== 'government' && (
+                  <>
+                    <span className="text-sm font-bold text-gray-500 whitespace-nowrap px-2">
+                      {alert.comparison === 'gt' ? '≥' : alert.comparison === 'lt' ? '≤' : ''}
+                    </span>
+                    <input
+                      type="number"
+                      value={alert.thresholdValue ?? ''}
+                      onChange={e => handleThresholdChange(idx, e.target.value)}
+                      className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Valor"
+                      step="0.1"
+                    />
+                  </>
+                )}
               </div>
             )}
 
-            {/* Recommendation */}
-            {alert.enabled && (
-              <input
-                type="text"
-                value={alert.recommendation}
-                onChange={e => handleRecommendationChange(idx, e.target.value)}
-                className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="Recomendación personalizada..."
-              />
+            {/* Recommendation (Read-only) */}
+            {alert.enabled && alert.recommendation && (
+              <div className="flex-1 text-xs text-gray-500 italic mt-2 sm:mt-0 sm:ml-4 flex items-center">
+                💡 {alert.recommendation}
+              </div>
             )}
           </div>
         ))}

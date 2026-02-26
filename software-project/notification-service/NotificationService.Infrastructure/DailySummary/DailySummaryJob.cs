@@ -119,6 +119,7 @@ public class DailySummaryJob : IJob
                 title,
                 plainText,
                 additionalData,
+                channels,
                 context.CancellationToken);
 
             _logger.LogInformation(

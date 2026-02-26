@@ -108,6 +108,14 @@ public class SeedAlertConfigHandler : IRequestHandler<SeedAlertConfigCommand, We
             ThresholdValue = 8,
             Comparison = "gt",
             Recommendation = "Índice UV extremo pronosticado. Considere activar sombras o mallas si las tiene disponibles, y evite exposición directa."
+        },
+        new()
+        {
+            Type = AlertTypes.Government,
+            Enabled = true,
+            ThresholdValue = null,
+            Comparison = null,
+            Recommendation = "Alerta emitida por autoridades. Tome las precauciones necesarias para proteger sus cultivos."
         }
     ];
 }

@@ -19,6 +19,7 @@ export function useChatStream() {
     const startStream = useChatStore((s) => s.startStream);
     const appendStreamToken = useChatStore((s) => s.appendStreamToken);
     const finalizeStream = useChatStore((s) => s.finalizeStream);
+    const appendUserMessage = useChatStore((s) => s.appendUserMessage);
     const isStreaming = useChatStore((s) => s.isStreaming);
 
     const sendMessage = useCallback(
@@ -27,6 +28,8 @@ export function useChatStream() {
 
             const request: SendMessageRequest = { message: userMessage };
 
+            // Optimistically update UI
+            appendUserMessage(userMessage);
             startStream();
 
             try {

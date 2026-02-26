@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AuthApiService, ApiError } from "../api/authService";
 import { SessionStorage } from "../utils"; // Import from index to use platform-specific version
-import { detectPlatform } from "../utils/apiConfig";
+import { detectPlatform, isDevelopmentMode } from "../utils/apiConfig";
 import type { Session } from "../types/auth";
 
 // Import to access redirect callback
@@ -35,7 +35,7 @@ interface AuthState {
 const authService = new AuthApiService();
 const platform = detectPlatform();
 
-if (typeof __DEV__ !== 'undefined' && __DEV__) {
+if (isDevelopmentMode()) {
   console.log(`[authStore] Module loaded — platform=${platform}`);
 }
 
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
 
-    if (__DEV__) {
+    if (isDevelopmentMode()) {
       console.log(`[authStore.login] Starting login — platform=${platform}, email=${email}`);
     }
 
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const credentials = { Email: email, Password: password };
 
       if (platform === 'web') {
-        if (__DEV__) console.log('[authStore.login] Taking WEB branch');
+        if (isDevelopmentMode()) console.log('[authStore.login] Taking WEB branch');
         // Web: cookies are set automatically by server
         await authService.loginWeb(credentials);
 
@@ -88,7 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: null,
         });
       } else {
-        if (__DEV__) console.log('[authStore.login] Taking MOBILE branch');
+        if (isDevelopmentMode()) console.log('[authStore.login] Taking MOBILE branch');
         // Mobile: get tokens from response and store them
         const mobileResponse = await authService.loginMobile(credentials);
 
@@ -125,7 +125,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
     } catch (error) {
-      if (__DEV__) {
+      if (isDevelopmentMode()) {
         console.error('[authStore.login] ERROR caught:', error);
         if (error instanceof ApiError) {
           console.error(`[authStore.login] ApiError status=${error.status}, message=${error.message}`);

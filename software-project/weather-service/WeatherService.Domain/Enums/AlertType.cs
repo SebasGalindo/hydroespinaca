@@ -19,6 +19,6 @@ public static class AlertTypes
     public static readonly string[] All =
     [
         ExtremeHeat, ExtremeCold, HighHumidity, LowHumidity,
-        HeavyRain, Thunderstorm, HighCloudiness, StrongWind, ExtremeUv
+        HeavyRain, Thunderstorm, HighCloudiness, StrongWind, ExtremeUv, Government
     ];
 }

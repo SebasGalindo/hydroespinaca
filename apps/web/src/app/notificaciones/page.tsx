@@ -75,15 +75,44 @@ const ChannelPreferencesSection: React.FC<{
                 <div>
                   <p className="text-sm font-medium text-gray-700">{CHANNEL_LABELS[ch]}</p>
                   {ch === 'web_push' && pref.enabled && (
-                    <button
-                      onClick={onWebPushRegister}
-                      className="text-xs text-green-600 hover:underline mt-0.5"
-                    >
-                      Habilitar notificaciones en este navegador
-                    </button>
+                    <div className="mt-2 space-y-2">
+                      <button
+                        onClick={onWebPushRegister}
+                        className="text-xs text-green-600 hover:underline font-medium block"
+                      >
+                        Habilitar notificaciones en este navegador
+                      </button>
+                      
+                      {/* Brave Browser specific warning */}
+                      <div className="p-3 mt-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed shadow-sm">
+                        <p className="font-semibold mb-1 text-amber-900 flex items-center gap-1">
+                          <span className="text-base">⚠️</span> Nota para usuarios de Brave:
+                        </p>
+                        <p className="mb-2">Por defecto, Brave bloquea las notificaciones push. Para habilitarlas:</p>
+                        <ol className="list-decimal ml-5 space-y-1 text-amber-900/90">
+                          <li>Ve a la URL <code className="bg-amber-100/80 px-1.5 py-0.5 rounded text-[11px] font-mono select-all">brave://settings/privacy</code></li>
+                          <li>Activa la opción <strong>"Usar los servicios de Google para la mensajería de inserción (push)"</strong></li>
+                          <li>Reinicia completamente el navegador</li>
+                        </ol>
+                      </div>
+                    </div>
                   )}
                   {ch === 'whatsapp' && pref.enabled && (
-                    <p className="text-xs text-gray-400 mt-0.5">Requiere sandbox Twilio activo</p>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-gray-400">Requiere sandbox Twilio activo</p>
+                      <input
+                        type="text"
+                        placeholder="+573001234567"
+                        value={pref.target || ''}
+                        onChange={(e) => {
+                          const newChannels = channels.map(c => 
+                            c.channel === ch ? { ...c, target: e.target.value } : c
+                          );
+                          onChange(newChannels);
+                        }}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -107,79 +136,104 @@ const DailySummarySection: React.FC<{
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
         <div>
-          <h3 className="font-semibold text-gray-800">Resumen Diario</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Recibe un resumen automático en tu correo cada día</p>
+          <h3 className="text-base font-semibold text-gray-800">Resumen Diario</h3>
+          <p className="text-sm text-gray-500 mt-1">Recibe un reporte automático con el estado de tu sistema cada día</p>
         </div>
         <Toggle enabled={config.enabled} onChange={() => update({ enabled: !config.enabled })} />
       </div>
+      
       {config.enabled && (
-        <div className="p-4 space-y-4">
-          {/* Time picker */}
-          <div className="flex items-center gap-4">
-            <label className="text-sm text-gray-600 w-24">Hora de envío</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number" min={0} max={23} value={config.hour}
-                onChange={e => update({ hour: parseInt(e.target.value) || 0 })}
-                className="w-16 px-2 py-1.5 text-sm text-center border border-gray-300 rounded-lg"
-              />
-              <span className="text-gray-500">:</span>
-              <input
-                type="number" min={0} max={59} step={5} value={config.minute}
-                onChange={e => update({ minute: parseInt(e.target.value) || 0 })}
-                className="w-16 px-2 py-1.5 text-sm text-center border border-gray-300 rounded-lg"
-              />
-              <span className="text-xs text-gray-400 ml-2">(hora Colombia)</span>
+        <div className="p-5 space-y-6">
+          
+          {/* Time Config */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Horario de entrega</h4>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                <input
+                  type="number" min={0} max={23} value={config.hour}
+                  onChange={e => update({ hour: parseInt(e.target.value) || 0 })}
+                  className="w-12 text-center text-base font-medium text-gray-800 focus:outline-none focus:ring-0 bg-transparent p-0 border-none"
+                  aria-label="Hora"
+                />
+                <span className="text-gray-400 font-bold">:</span>
+                <input
+                  type="number" min={0} max={59} step={5} value={config.minute}
+                  onChange={e => update({ minute: parseInt(e.target.value) || 0 })}
+                  className="w-12 text-center text-base font-medium text-gray-800 focus:outline-none focus:ring-0 bg-transparent p-0 border-none"
+                  aria-label="Minuto"
+                />
+              </div>
+              <span className="text-sm text-gray-500">Hora local (Colombia)</span>
             </div>
           </div>
 
-          {/* Include checkboxes */}
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Incluir en el resumen:</p>
-            <div className="grid grid-cols-2 gap-2">
+          {/* Content Config */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Contenido del resumen</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {([
                 ['includeSensorAverages', '📊 Promedios de sensores'],
-                ['includeActuatorRuntime', '⚡ Tiempo de actuadores'],
-                ['includeFuzzyRules', '🧠 Evaluaciones fuzzy'],
-                ['includeWeatherForecast', '🌤️ Pronóstico del clima'],
+                ['includeActuatorRuntime', '⚡ Tiempo de uso de actuadores'],
+                ['includeFuzzyRules', '🧠 Decisiones del sistema inteligente'],
+                ['includeWeatherForecast', '🌤️ Pronóstico meteorológico'],
               ] as const).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={config[key]}
-                    onChange={() => update({ [key]: !config[key] })}
-                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                  />
-                  {label}
+                <label key={key} className="flex items-start gap-3 cursor-pointer group hover:bg-white p-2 rounded-md transition-colors -ml-2">
+                  <div className="flex items-center h-5 mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={config[key as keyof DailySummaryConfig] as boolean}
+                      onChange={() => update({ [key]: !config[key as keyof DailySummaryConfig] })}
+                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 transition-shadow"
+                    />
+                  </div>
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900 select-none">{label}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Channel for summary */}
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Enviar resumen por:</p>
-            <div className="flex flex-wrap gap-2">
-              {ALL_CHANNELS.map(ch => (
-                <label key={ch} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={config.channels.includes(ch)}
-                    onChange={() => {
-                      const channels = config.channels.includes(ch)
-                        ? config.channels.filter(c => c !== ch)
-                        : [...config.channels, ch];
-                      update({ channels });
-                    }}
-                    className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                  />
-                  {CHANNEL_ICONS[ch]} {CHANNEL_LABELS[ch]}
-                </label>
-              ))}
+          {/* Channel Config */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Canales de entrega</h4>
+            <div className="flex flex-wrap gap-3">
+              {ALL_CHANNELS.map(ch => {
+                const isSelected = config.channels.includes(ch);
+                return (
+                  <label 
+                    key={ch} 
+                    className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border transition-all ${
+                      isSelected 
+                        ? 'bg-green-50 border-green-200 text-green-800 shadow-sm' 
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-green-300 hover:bg-green-50/50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={isSelected}
+                      onChange={() => {
+                        const channels = isSelected
+                          ? config.channels.filter(c => c !== ch)
+                          : [...config.channels, ch];
+                        update({ channels });
+                      }}
+                    />
+                    <span className="text-lg">{CHANNEL_ICONS[ch]}</span>
+                    <span className="text-sm font-medium select-none">{CHANNEL_LABELS[ch]}</span>
+                  </label>
+                );
+              })}
             </div>
+            {config.channels.length === 0 && (
+              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                <span>⚠️</span> Debes seleccionar al menos un canal para recibir el resumen.
+              </p>
+            )}
           </div>
+
         </div>
       )}
     </div>
@@ -291,40 +345,57 @@ const HistorySection: React.FC<{
     return 'bg-gray-100 text-gray-600';
   };
 
+  const extractEmojiAndText = (entry: NotificationLogEntry) => {
+    const rawTitle = entry.title || entry.templateKey || 'Notificación';
+    // Match one or more emojis at the start of the string, followed by optional spaces
+    const emojiMatch = rawTitle.match(/^([\p{Emoji_Presentation}\p{Emoji}\uFE0F]+)\s*/u);
+    if (emojiMatch) {
+      return {
+        icon: emojiMatch[1],
+        titleText: rawTitle.slice(emojiMatch[0].length).trim()
+      };
+    }
+    return {
+      icon: CHANNEL_ICONS[entry.channel as NotificationChannel] || '📨',
+      titleText: rawTitle
+    };
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-gray-100">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="p-4 border-b border-gray-100 shrink-0">
         <h3 className="font-semibold text-gray-800">Historial de Envíos</h3>
       </div>
       {loading && !history.length ? (
-        <div className="p-6 text-center">
+        <div className="p-6 text-center shrink-0">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto" />
         </div>
       ) : !history.length ? (
-        <div className="p-6 text-center">
+        <div className="p-6 text-center shrink-0">
           <span className="text-3xl block mb-2">📭</span>
           <p className="text-sm text-gray-500">No hay notificaciones enviadas</p>
         </div>
       ) : (
-        <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-          {history.map(entry => (
-            <div key={entry.id} className="p-3 flex items-center gap-3">
-              <span className="text-lg">
-                {CHANNEL_ICONS[entry.channel as NotificationChannel] || '📨'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 truncate">{entry.title || entry.templateKey || 'Notificación'}</p>
-                <p className="text-xs text-gray-400">
-                  {entry.sentAt
-                    ? new Date(entry.sentAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-                    : 'Pendiente'}
-                </p>
+        <div className="divide-y divide-gray-100 max-h-[120vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {history.map(entry => {
+            const { icon, titleText } = extractEmojiAndText(entry);
+            return (
+              <div key={entry.id} className="p-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+                <span className="text-2xl shrink-0">{icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm md:text-base font-medium text-gray-800 truncate">{titleText}</p>
+                  <p className="text-xs md:text-sm text-gray-400 mt-0.5">
+                    {entry.sentAt
+                      ? new Date(entry.sentAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
+                      : 'Pendiente'}
+                  </p>
+                </div>
+                <span className={`text-xs md:text-sm px-2.5 py-1 rounded-full shrink-0 ${getStatusStyle(entry.status)}`}>
+                  {entry.status === 'sent' ? 'Enviado' : entry.status === 'failed' ? 'Fallido' : entry.status}
+                </span>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusStyle(entry.status)}`}>
-                {entry.status === 'sent' ? 'Enviado' : entry.status === 'failed' ? 'Fallido' : entry.status}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -408,16 +479,53 @@ export default function NotificacionesPage() {
   const handleWebPushRegister = async () => {
     if (!user?.id) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Tu navegador no soporta notificaciones push.');
+      alert('Tu navegador no soporta notificaciones push o está en modo incógnito/privado.');
       return;
     }
 
+    // Helper to convert VAPID key
+    const urlBase64ToUint8Array = (base64String: string) => {
+      try {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      } catch (e) {
+        console.error('[WebPush] Error parsing VAPID key string:', e);
+        throw new Error('La clave VAPID tiene un formato inválido.');
+      }
+    };
+
     try {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+      
+      if (!vapidKey) {
+        console.error('[WebPush] NEXT_PUBLIC_VAPID_PUBLIC_KEY is empty or undefined');
+        alert('Error de configuración: No se encontró la clave pública VAPID.');
+        return;
+      }
+
+      console.log(`[WebPush] Key detected. Length: ${vapidKey.length} chars. Content: ${vapidKey.substring(0, 10)}...`);
+
       const reg = await navigator.serviceWorker.ready;
+      
+      // Check for existing subscription first
+      const existingSub = await reg.pushManager.getSubscription();
+      if (existingSub) {
+        console.log('[WebPush] Existing subscription found, unsubscribing first to refresh...');
+        await existingSub.unsubscribe();
+      }
+
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
+
+      console.log('[WebPush] Subscription successful:', subscription.endpoint);
 
       const p256dh = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!)));
       const auth = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)));
@@ -428,9 +536,29 @@ export default function NotificacionesPage() {
         token: JSON.stringify({ endpoint: subscription.endpoint, keys: { p256dh, auth } }),
         deviceName: navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Navegador',
       });
-    } catch (err) {
-      console.error('Error registering web push:', err);
-      alert('No se pudo registrar las notificaciones push. Verifica que hayas otorgado permisos.');
+      
+      // Auto-enable web_push channel in UI
+      setLocalChannels(prev => {
+        const hasWebPush = prev.some(c => c.channel === 'web_push');
+        if (hasWebPush) {
+          return prev.map(c => c.channel === 'web_push' ? { ...c, enabled: true } : c);
+        }
+        return [...prev, { channel: 'web_push', enabled: true }];
+      });
+      markDirty();
+      
+      alert('¡Notificaciones push habilitadas con éxito en este navegador! Recuerda guardar tus cambios.');
+      fetchDevices(user.id);
+    } catch (err: any) {
+      console.error('[WebPush] Detailed registration error:', err);
+      
+      if (err.name === 'AbortError') {
+        alert('Error: El servicio de push del navegador abortó la petición. Esto suele deberse a una clave VAPID inválida o problemas de red con los servidores de Google/Mozilla.');
+      } else if (err.name === 'NotAllowedError') {
+        alert('Permiso denegado: Has bloqueado las notificaciones en este sitio.');
+      } else {
+        alert(`Error al registrar notificaciones: ${err.message || 'Error desconocido'}`);
+      }
     }
   };
 

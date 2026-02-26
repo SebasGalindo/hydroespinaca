@@ -1,5 +1,4 @@
 using ChatbotService.Domain.Interfaces;
-using ChatbotService.Application.Features.Rag.Services;
 using ChatbotService.Infrastructure.Configuration;
 using ChatbotService.Infrastructure.Providers;
 using ChatbotService.Infrastructure.Repositories;
@@ -43,7 +42,10 @@ public static class DependencyInjection
         services.AddHttpClient<IFuzzyServiceClient, Clients.FuzzyServiceClient>();
 
         // ✅ Application Services
-        services.AddScoped<ContentSerializerService>();
+        services.AddScoped<ChatbotService.Application.Features.Rag.Services.ContentSerializerService>();
+
+        // ✅ Infrastructure Services
+        services.AddScoped<IFuzzyEntityHydratorService, FuzzyEntityHydratorService>();
 
         // ✅ Knowledge Base Initializer (lee .md de docs/manuals/ al startup)
         services.AddScoped<KnowledgeBaseInitializer>();

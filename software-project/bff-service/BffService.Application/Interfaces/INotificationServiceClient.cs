@@ -9,19 +9,20 @@ namespace BffService.Application.Interfaces;
 public interface INotificationServiceClient
 {
     // ──────── Preferences ────────
-    Task<NotificationPreferenceDto?> GetPreferencesAsync(string userId, CancellationToken ct = default);
-    Task<NotificationPreferenceDto> UpdatePreferencesAsync(string userId, UpdatePreferencesRequestDto request, CancellationToken ct = default);
+    Task<NotificationPreferenceDto?> GetPreferencesAsync(string userId, string accessToken, CancellationToken ct = default);
+    Task<NotificationPreferenceDto> UpdatePreferencesAsync(string userId, UpdatePreferencesRequestDto request, string accessToken, CancellationToken ct = default);
 
     // ──────── Push Subscriptions ────────
-    Task<PushSubscriptionDto> RegisterPushAsync(RegisterPushRequestDto request, CancellationToken ct = default);
-    Task UnregisterPushAsync(string subscriptionId, CancellationToken ct = default);
-    Task<List<PushSubscriptionDto>> GetPushSubscriptionsAsync(string userId, string? platform = null, CancellationToken ct = default);
+    Task<PushSubscriptionDto> RegisterPushAsync(RegisterPushRequestDto request, string accessToken, CancellationToken ct = default);
+    Task UnregisterPushAsync(string subscriptionId, string accessToken, CancellationToken ct = default);
+    Task<List<PushSubscriptionDto>> GetPushSubscriptionsAsync(string userId, string accessToken, string? platform = null, CancellationToken ct = default);
 
     // ──────── Notification History ────────
     Task<List<NotificationLogDto>> GetNotificationHistoryAsync(
-        string userId, string? channel = null, DateTime? from = null,
+        string userId, string accessToken, string? channel = null, DateTime? from = null,
         DateTime? to = null, int limit = 50, CancellationToken ct = default);
 
     // ──────── Multi-Channel Send ────────
-    Task<SendMultiChannelResponseDto> SendMultiChannelAsync(SendMultiChannelRequestDto request, CancellationToken ct = default);
+    Task<SendMultiChannelResponseDto> SendMultiChannelAsync(SendMultiChannelRequestDto request, string accessToken, CancellationToken ct = default);
 }
+

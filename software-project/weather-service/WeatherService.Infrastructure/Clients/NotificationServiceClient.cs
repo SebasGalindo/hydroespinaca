@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using WeatherService.Domain.Interfaces;
+using HydroEspinaca.Shared.Authentication.Services;
 
 namespace WeatherService.Infrastructure.Clients;
 
@@ -15,16 +16,19 @@ namespace WeatherService.Infrastructure.Clients;
 public class NotificationServiceClient : INotificationServiceClient
 {
     private readonly HttpClient _httpClient;
+    private readonly M2MTokenService _m2mTokenService;
     private readonly ILogger<NotificationServiceClient> _logger;
     private readonly string _baseUrl;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public NotificationServiceClient(
         HttpClient httpClient,
+        M2MTokenService m2mTokenService,
         IConfiguration configuration,
         ILogger<NotificationServiceClient> logger)
     {
         _httpClient = httpClient;
+        _m2mTokenService = m2mTokenService;
         _logger = logger;
         _baseUrl = configuration["Services:NotificationService:Url"]
             ?? "http://notification-service:8080";
@@ -41,6 +45,7 @@ public class NotificationServiceClient : INotificationServiceClient
     {
         try
         {
+            await _m2mTokenService.ConfigureHttpClientAsync(_httpClient, ct);
             var url = $"{_baseUrl}/api/preferences/subscribers?fuzzySystemId={Uri.EscapeDataString(fuzzySystemId)}";
             _logger.LogDebug("Getting subscribers for fuzzy system {FuzzySystemId}", fuzzySystemId);
 
@@ -78,6 +83,7 @@ public class NotificationServiceClient : INotificationServiceClient
     {
         try
         {
+            await _m2mTokenService.ConfigureHttpClientAsync(_httpClient, ct);
             // Construct the request payload
             var url = $"{_baseUrl}/api/notifications/multi";
             var payload = new
@@ -114,3 +120,4 @@ public class NotificationServiceClient : INotificationServiceClient
         }
     }
 }
+

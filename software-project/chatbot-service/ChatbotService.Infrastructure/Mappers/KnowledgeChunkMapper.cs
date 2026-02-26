@@ -25,7 +25,8 @@ public class KnowledgeChunkMapper : IEntityMapper<KnowledgeChunk, KnowledgeChunk
                 : null,
             Version = doc.Version,
             CreatedAt = doc.CreatedAt,
-            UpdatedAt = doc.UpdatedAt
+            UpdatedAt = doc.UpdatedAt,
+            Score = doc.Score
         };
         entity.SetId(doc.Id);
         return entity;
@@ -45,7 +46,8 @@ public class KnowledgeChunkMapper : IEntityMapper<KnowledgeChunk, KnowledgeChunk
                 : null,
             Version = entity.Version,
             CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
+            UpdatedAt = entity.UpdatedAt,
+            Score = entity.Score
         };
         if (!string.IsNullOrEmpty(entity.Id))
             doc.SetId(entity.Id);

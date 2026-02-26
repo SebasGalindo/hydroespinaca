@@ -85,4 +85,18 @@ public interface IChatbotServiceClient
     /// <param name="ct">Cancellation token.</param>
     Task SyncKnowledgeAsync(
         string accessToken, SyncKnowledgeRequest request, CancellationToken ct = default);
+
+    // ──────────────────────────────────────────────
+    //  RAG Reindex (Admin / manual)
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Triggers a full re-indexation of all fuzzy knowledge chunks in the chatbot RAG.
+    /// This rebuilds vector embeddings for all systems, variables, terms, and rules.
+    /// </summary>
+    /// <param name="accessToken">JWT access token with rag:manage scope.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Response with the total number of chunks indexed.</returns>
+    Task<ReindexKnowledgeResponse> ReindexKnowledgeAsync(
+        string accessToken, CancellationToken ct = default);
 }

@@ -20,11 +20,6 @@ public class WeatherServiceClient : IWeatherServiceClient
     private readonly string _baseUrl;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    /// <summary>
-    /// Colombia (Bogotá/Mosquera) is UTC-5 = -18000 seconds
-    /// </summary>
-    private const int TimezoneOffsetSeconds = -18000;
-
     public WeatherServiceClient(
         HttpClient httpClient,
         IConfiguration configuration,
@@ -135,10 +130,10 @@ public class WeatherServiceClient : IWeatherServiceClient
             WindSpeed = current.WindSpeed,
             Cloudiness = current.Cloudiness,
             Rain1h = current.Rain1h,
-            // Convert UTC times to local (UTC-5) for backward compatibility
-            Sunrise = current.Sunrise.AddSeconds(TimezoneOffsetSeconds),
-            Sunset = current.Sunset.AddSeconds(TimezoneOffsetSeconds),
-            LastUpdate = current.LastUpdate.AddSeconds(TimezoneOffsetSeconds)
+            // Pass through UTC times since the frontend converts them to local time natively
+            Sunrise = current.Sunrise,
+            Sunset = current.Sunset,
+            LastUpdate = current.LastUpdate
         };
     }
 

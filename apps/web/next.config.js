@@ -31,7 +31,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
- webpack: (config) => {
+  webpack: (config, { dev, webpack }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
@@ -40,6 +40,14 @@ const nextConfig = {
       'expo-secure-store': false,
       '@react-native-async-storage/async-storage': false,
     };
+
+    // Define __DEV__ global for cross-platform shared package compatibility
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        __DEV__: JSON.stringify(dev),
+      })
+    );
+
     return config;
   },
 };

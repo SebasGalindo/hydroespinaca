@@ -80,3 +80,19 @@ public class SyncKnowledgeRequest
     /// </summary>
     public string Action { get; set; } = "upsert";
 }
+
+/// <summary>
+/// Response returned when a full knowledge reindex is completed.
+/// </summary>
+public class ReindexKnowledgeResponse
+{
+    /// <summary>
+    /// Whether the reindex completed successfully.
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// Total number of knowledge chunks indexed.
+    /// </summary>
+    public int TotalChunksIndexed { get; set; }
+}

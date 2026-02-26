@@ -25,6 +25,9 @@ public static class DependencyInjection
 
         // Validaciones Fluent.
         services.AddValidatorsFromAssembly(currentAssembly);
+
+        // Servicios adicionales (Caching).
+        services.AddMemoryCache();
         
         return services;
     }

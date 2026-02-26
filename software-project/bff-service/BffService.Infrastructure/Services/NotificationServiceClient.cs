@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Net.Http.Headers;
 
 namespace BffService.Infrastructure.Services;
 
@@ -35,12 +36,18 @@ public class NotificationServiceClient : INotificationServiceClient
         };
     }
 
+    private void AddAuthHeader(string accessToken)
+    {
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+    }
+
     // ──────────────── Preferences ────────────────
 
-    public async Task<NotificationPreferenceDto?> GetPreferencesAsync(string userId, CancellationToken ct = default)
+    public async Task<NotificationPreferenceDto?> GetPreferencesAsync(string userId, string accessToken, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             _logger.LogDebug("Calling notification-service GET /api/preferences/{UserId}", userId);
             var response = await _httpClient.GetAsync($"{_baseUrl}/api/preferences/{userId}", ct);
 
@@ -59,10 +66,11 @@ public class NotificationServiceClient : INotificationServiceClient
     }
 
     public async Task<NotificationPreferenceDto> UpdatePreferencesAsync(
-        string userId, UpdatePreferencesRequestDto request, CancellationToken ct = default)
+        string userId, UpdatePreferencesRequestDto request, string accessToken, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             _logger.LogDebug("Calling notification-service PUT /api/preferences/{UserId}", userId);
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
@@ -83,10 +91,11 @@ public class NotificationServiceClient : INotificationServiceClient
 
     // ──────────────── Push Subscriptions ────────────────
 
-    public async Task<PushSubscriptionDto> RegisterPushAsync(RegisterPushRequestDto request, CancellationToken ct = default)
+    public async Task<PushSubscriptionDto> RegisterPushAsync(RegisterPushRequestDto request, string accessToken, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             _logger.LogDebug("Calling notification-service POST /api/push/register");
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
@@ -105,10 +114,11 @@ public class NotificationServiceClient : INotificationServiceClient
         }
     }
 
-    public async Task UnregisterPushAsync(string subscriptionId, CancellationToken ct = default)
+    public async Task UnregisterPushAsync(string subscriptionId, string accessToken, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             _logger.LogDebug("Calling notification-service DELETE /api/push/register/{SubscriptionId}", subscriptionId);
             var response = await _httpClient.DeleteAsync($"{_baseUrl}/api/push/register/{subscriptionId}", ct);
             response.EnsureSuccessStatusCode();
@@ -121,10 +131,11 @@ public class NotificationServiceClient : INotificationServiceClient
     }
 
     public async Task<List<PushSubscriptionDto>> GetPushSubscriptionsAsync(
-        string userId, string? platform = null, CancellationToken ct = default)
+        string userId, string accessToken, string? platform = null, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             var url = $"{_baseUrl}/api/push/subscriptions/{userId}";
             if (!string.IsNullOrEmpty(platform))
                 url += $"?platform={Uri.EscapeDataString(platform)}";
@@ -146,11 +157,12 @@ public class NotificationServiceClient : INotificationServiceClient
     // ──────────────── Notification History ────────────────
 
     public async Task<List<NotificationLogDto>> GetNotificationHistoryAsync(
-        string userId, string? channel = null, DateTime? from = null,
+        string userId, string accessToken, string? channel = null, DateTime? from = null,
         DateTime? to = null, int limit = 50, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             var queryParams = new List<string>();
             if (!string.IsNullOrEmpty(channel)) queryParams.Add($"channel={Uri.EscapeDataString(channel)}");
             if (from.HasValue) queryParams.Add($"from={from.Value:O}");
@@ -177,10 +189,11 @@ public class NotificationServiceClient : INotificationServiceClient
     // ──────────────── Multi-Channel Send ────────────────
 
     public async Task<SendMultiChannelResponseDto> SendMultiChannelAsync(
-        SendMultiChannelRequestDto request, CancellationToken ct = default)
+        SendMultiChannelRequestDto request, string accessToken, CancellationToken ct = default)
     {
         try
         {
+            AddAuthHeader(accessToken);
             _logger.LogDebug("Calling notification-service POST /api/notifications/multi");
             var json = JsonSerializer.Serialize(request, _jsonOptions);
             var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
@@ -199,3 +212,4 @@ public class NotificationServiceClient : INotificationServiceClient
         }
     }
 }
+

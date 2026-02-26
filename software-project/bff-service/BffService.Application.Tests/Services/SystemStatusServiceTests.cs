@@ -16,14 +16,14 @@ namespace BffService.Application.Tests.Services;
 public class SystemStatusServiceTests
 {
     private readonly Mock<IProxyService> _mockProxyService;
-    private readonly Mock<IWeatherService> _mockWeatherService;
+    private readonly Mock<IWeatherServiceClient> _mockWeatherService;
     private readonly Mock<ILogger<SystemStatusService>> _mockLogger;
     private readonly SystemStatusService _service;
 
     public SystemStatusServiceTests()
     {
         _mockProxyService = new Mock<IProxyService>();
-        _mockWeatherService = new Mock<IWeatherService>();
+        _mockWeatherService = new Mock<IWeatherServiceClient>();
         _mockLogger = new Mock<ILogger<SystemStatusService>>();
         _service = new SystemStatusService(_mockProxyService.Object, _mockWeatherService.Object, _mockLogger.Object);
     }
@@ -69,7 +69,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), JsonSerializer.Serialize(sensorResponse)));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(weatherResponse);
 
         // Act
@@ -105,7 +105,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), JsonSerializer.Serialize(new EnrichedLatestReadingsDto())));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act & Assert
@@ -141,7 +141,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(403, new Dictionary<string, string>(), null));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act & Assert
@@ -170,7 +170,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), JsonSerializer.Serialize(new EnrichedLatestReadingsDto())));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act
@@ -210,7 +210,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(500, new Dictionary<string, string>(), null));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act
@@ -249,7 +249,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), JsonSerializer.Serialize(new EnrichedLatestReadingsDto())));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Weather service unavailable"));
 
         // Act
@@ -281,7 +281,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), JsonSerializer.Serialize(new EnrichedLatestReadingsDto())));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act
@@ -320,7 +320,7 @@ public class SystemStatusServiceTests
             .ReturnsAsync(new ProxyResponse(200, new Dictionary<string, string>(), string.Empty));
 
         _mockWeatherService
-            .Setup(x => x.GetWeatherAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetCurrentWeatherAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WeatherDto());
 
         // Act

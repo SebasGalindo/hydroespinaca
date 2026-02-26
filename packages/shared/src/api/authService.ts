@@ -5,7 +5,7 @@
 //  - Mobile session headers (X-Session-Id, X-CSRF-Token)
 //  - Returns ApiResponse<T> wrapper instead of raw T
 // These requirements make it unsuitable for the shared base class.
-import { getApiUrl } from '../utils/apiConfig';
+import { getApiUrl, isDevelopmentMode } from '../utils/apiConfig';
 import { SessionStorage } from '../utils'; // Import from index to use platform-specific version
 import { authFetch } from '../utils/authFetch';
 import { ApiServiceError } from './BaseApiService';
@@ -43,7 +43,7 @@ export class AuthApiService {
   ): Promise<ApiResponse<T>> {
     const fullUrl = `${this.baseUrl}${url}`;
 
-    if (__DEV__) {
+    if (isDevelopmentMode()) {
       console.log(`[AuthService.request] ${options.method || 'GET'} ${fullUrl} (platform=${platform})`);
     }
 
@@ -102,7 +102,7 @@ export class AuthApiService {
    * Web login - uses HttpOnly cookies set by the server
    */
   async loginWeb(credentials: LoginRequest): Promise<void> {
-    if (__DEV__) console.log('[AuthService] loginWeb called');
+    if (isDevelopmentMode()) console.log('[AuthService] loginWeb called');
     await this.request('/auth/login/web', {
       method: 'POST',
       body: JSON.stringify(credentials),

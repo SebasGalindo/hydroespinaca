@@ -456,12 +456,52 @@ public class DataSeedingService
                 }
             },
             new {
+                Code = "weather-service-client",
+                ClientId = "weather-service-m2m",
+                ClientSecret = "Wt72kRs9vXp4",
+                Scopes = new[]
+                {
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.NotificationSend,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            new {
+                Code = "bi-service-client",
+                ClientId = "bi-service-m2m",
+                ClientSecret = "Bk93xPq7mNz2",
+                Scopes = new[]
+                {
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            new {
                 Code = "fuzzy-service-client",
                 ClientId = "fuzzy-service-m2m",
                 ClientSecret = "12RreUNF23Rc",
                 Scopes = new[]
                 {
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandCreate,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                }
+            },
+            new {
+                Code = "chatbot-service-client",
+                ClientId = "chatbot-service-m2m",
+                ClientSecret = "9s8Vh3X5yZ1q",
+                Scopes = new[]
+                {
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SensorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ReadingRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ActuatorRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyVariableRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyEvaluationRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ChatRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.ChatWrite,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.RagManage,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
                 }

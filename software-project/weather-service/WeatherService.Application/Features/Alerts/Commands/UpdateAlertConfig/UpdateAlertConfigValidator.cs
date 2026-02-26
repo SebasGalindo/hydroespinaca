@@ -25,10 +25,10 @@ public class UpdateAlertConfigValidator : AbstractValidator<UpdateAlertConfigCom
                 .WithMessage("Invalid alert type: {PropertyValue}");
 
             alert.RuleFor(a => a.Comparison)
-                .Must(c => c == null || ValidComparisons.Contains(c))
-                .WithMessage("Comparison must be 'gt' or 'lt'");
+                .Must(c => string.IsNullOrEmpty(c) || ValidComparisons.Contains(c))
+                .WithMessage("Comparison must be 'gt', 'lt' or empty");
 
-            alert.RuleFor(a => a.Recommendation).NotEmpty();
+            alert.RuleFor(a => a.Recommendation).NotNull();
         });
     }
 }

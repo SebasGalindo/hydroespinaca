@@ -75,6 +75,14 @@ public class MongoWeatherAlertConfigRepository : IWeatherAlertConfigRepository
     }
 
     /// <inheritdoc/>
+    public async Task<bool> DeleteAsync(string fuzzySystemId, CancellationToken ct = default)
+    {
+        var filter = Builders<WeatherAlertConfigDocument>.Filter.Eq(x => x.FuzzySystemId, fuzzySystemId);
+        var result = await _collection.DeleteOneAsync(filter, ct);
+        return result.DeletedCount > 0;
+    }
+
+    /// <inheritdoc/>
     public async Task<bool> ExistsAsync(string fuzzySystemId, CancellationToken ct = default)
     {
         var filter = Builders<WeatherAlertConfigDocument>.Filter.Eq(x => x.FuzzySystemId, fuzzySystemId);

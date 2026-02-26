@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import styles from './SessionDateLabel.module.css';
 
 interface SessionDateLabelProps {
     /** ISO 8601 date string of the session's last update */
@@ -14,7 +13,11 @@ interface SessionDateLabelProps {
  */
 export function SessionDateLabel({ date }: SessionDateLabelProps) {
     const label = useMemo(() => getRelativeLabel(date), [date]);
-    return <p className={styles.label}>{label}</p>;
+    return (
+        <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-green-700/80 select-none">
+            {label}
+        </p>
+    );
 }
 
 // ──────────────────────────────────────

@@ -25,5 +25,6 @@ public interface INotificationDispatcher
         string title,
         string body,
         Dictionary<string, string>? data = null,
+        List<string>? allowedChannels = null,
         CancellationToken ct = default);
 }

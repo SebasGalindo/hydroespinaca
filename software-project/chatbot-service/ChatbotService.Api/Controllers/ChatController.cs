@@ -21,6 +21,13 @@ namespace ChatbotService.Api.Controllers;
 public class ChatController(IMediator mediator, ILogger<ChatController> logger) : ControllerBase
 {
     /// <summary>
+    /// Opciones de serialización JSON con camelCase para compatibilidad con el frontend TypeScript.
+    /// </summary>
+    private static readonly JsonSerializerOptions CamelCaseJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    /// <summary>
     /// Crea una nueva sesión de chat vacía.
     /// </summary>
     /// <returns>El ID de la sesión creada.</returns>
@@ -90,6 +97,8 @@ public class ChatController(IMediator mediator, ILogger<ChatController> logger) 
     public async Task StreamMessage(string sessionId, [FromBody] SendMessageRequest request, CancellationToken ct)
     {
         var userId = GetUserId();
+        logger.LogInformation("[SSE] Iniciando streaming: sesión={SessionId}, usuario={UserId}, mensaje={MsgLength} chars",
+            sessionId, userId, request.Message?.Length ?? 0);
 
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
@@ -100,30 +109,45 @@ public class ChatController(IMediator mediator, ILogger<ChatController> logger) 
 
         try
         {
+            logger.LogDebug("[SSE] Enviando comando SendMessage al handler MediatR");
             var command = new SendMessageCommand(sessionId, userId, request.Message, request.ContextFilters);
             var tokenStream = await mediator.Send(command, ct);
+            logger.LogDebug("[SSE] Handler retornó IAsyncEnumerable, comenzando iteración de tokens");
 
             await foreach (var token in tokenStream.WithCancellation(ct))
             {
                 totalTokens++;
                 var tokenEvent = new StreamTokenEvent { Text = token };
-                var json = JsonSerializer.Serialize(tokenEvent);
+                var json = JsonSerializer.Serialize(tokenEvent, CamelCaseJsonOptions);
+
+                if (totalTokens <= 3)
+                    logger.LogDebug("[SSE] Token #{Num}: json={Json}", totalTokens, json);
 
                 await Response.WriteAsync($"event: token\ndata: {json}\n\n", ct);
                 await Response.Body.FlushAsync(ct);
             }
 
+            logger.LogInformation("[SSE] Stream completado: sesión={SessionId}, totalTokens={Tokens}",
+                sessionId, totalTokens);
+
             // Evento final con metadata
             var doneEvent = new StreamDoneEvent { TokensUsed = totalTokens, SessionTitle = sessionTitle };
-            var doneJson = JsonSerializer.Serialize(doneEvent);
+            var doneJson = JsonSerializer.Serialize(doneEvent, CamelCaseJsonOptions);
+            logger.LogDebug("[SSE] Enviando evento done: {Json}", doneJson);
             await Response.WriteAsync($"event: done\ndata: {doneJson}\n\n", ct);
             await Response.Body.FlushAsync(ct);
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("[SSE] Cliente desconectado durante streaming: sesión={SessionId}, tokens enviados={Tokens}",
+                sessionId, totalTokens);
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error durante streaming de chat: sesión={SessionId}", sessionId);
+            logger.LogError(ex, "[SSE] Error durante streaming de chat: sesión={SessionId}, tokens enviados={Tokens}",
+                sessionId, totalTokens);
 
-            var errorJson = JsonSerializer.Serialize(new { error = ex.Message });
+            var errorJson = JsonSerializer.Serialize(new { error = ex.Message }, CamelCaseJsonOptions);
             await Response.WriteAsync($"event: error\ndata: {errorJson}\n\n", ct);
             await Response.Body.FlushAsync(ct);
         }

@@ -5,7 +5,7 @@ import { useChatStore } from '@hydroespinaca/shared';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { ChatSessionItem } from '../molecules/ChatSessionItem';
 import { SessionDateLabel } from '../atoms/SessionDateLabel';
-import styles from './ChatSessionList.module.css';
+import type { ChatSession } from '@hydroespinaca/shared';
 
 /**
  * Organism — sidebar panel listing all sessions grouped by date.
@@ -31,30 +31,39 @@ export function ChatSessionList() {
     };
 
     return (
-        <aside id="chat-session-list" className={styles.panel}>
-            <div className={styles.header}>
-                <span className={styles.headerTitle}>Conversaciones</span>
+        <aside
+            id="chat-session-list"
+            className="w-[220px] flex-shrink-0 flex flex-col border-r border-gray-200 bg-green-50/50 overflow-hidden"
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-3 border-b border-gray-200">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-green-800">
+                    Conversaciones
+                </span>
                 <button
                     id="chat-new-session-button"
-                    className={styles.newBtn}
+                    className="p-1.5 rounded-lg hover:bg-green-200 text-green-600 transition-colors duration-150 disabled:opacity-40"
                     onClick={handleNew}
                     disabled={createSessionLoading}
                     title="Nueva conversación"
                     aria-label="Nueva conversación"
                 >
-                    <PlusIcon className={styles.newIcon} />
+                    <PlusIcon className="h-4 w-4" />
                 </button>
             </div>
 
-            <div className={styles.list}>
+            {/* Session list */}
+            <div className="flex-1 overflow-y-auto py-1 px-1 space-y-0.5 scrollbar-thin">
                 {sessionsLoading ? (
-                    <p className={styles.loadingText}>Cargando…</p>
+                    <p className="text-xs text-gray-500 px-3 py-4 text-center">Cargando…</p>
                 ) : sessions.length === 0 ? (
-                    <p className={styles.emptyText}>Sin conversaciones previas.</p>
+                    <p className="text-xs text-gray-500 px-3 py-4 text-center">
+                        Sin conversaciones previas.
+                    </p>
                 ) : (
                     grouped.map(({ label, items }) => (
                         <div key={label}>
-                            <SessionDateLabel date={items[0].updatedAt} />
+                            <SessionDateLabel date={items[0]!.updatedAt} />
                             {items.map((s) => (
                                 <ChatSessionItem
                                     key={s.id}
@@ -76,10 +85,10 @@ export function ChatSessionList() {
 //  Helpers
 // ──────────────────────────────────────
 
-type Group = { label: string; items: import('@hydroespinaca/shared').ChatSession[] };
+type Group = { label: string; items: ChatSession[] };
 
-function groupByDate(sessions: import('@hydroespinaca/shared').ChatSession[]): Group[] {
-    const groups = new Map<string, import('@hydroespinaca/shared').ChatSession[]>();
+function groupByDate(sessions: ChatSession[]): Group[] {
+    const groups = new Map<string, ChatSession[]>();
     for (const s of sessions) {
         const label = getLabel(s.updatedAt);
         if (!groups.has(label)) groups.set(label, []);

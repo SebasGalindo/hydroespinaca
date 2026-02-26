@@ -65,6 +65,13 @@ export function MoreMenuScreen(): React.ReactElement {
             icon: 'mail',
             screen: 'NotificationHistory',
           },
+          {
+            id: 'chat',
+            label: 'Asistente IA',
+            subtitle: 'Chat con RAG inteligente',
+            icon: 'zap',
+            screen: 'Chat',
+          },
         ],
       },
     ];

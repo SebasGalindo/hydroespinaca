@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class GetFuzzyRulesBySystemHandler(QueryHandler[GetFuzzyRulesBySystemQuery, List[FuzzyRuleDto]]):
     """Handler para obtener todas las reglas difusas de un sistema específico."""
 
-    async def __call__(self, request: GetFuzzyRulesBySystemQuery) -> None:
+    async def __call__(self, request: GetFuzzyRulesBySystemQuery) -> List[FuzzyRuleDto]:
         """Obtiene todas las reglas difusas de un sistema específico."""
         from kink import di
         
@@ -40,5 +40,6 @@ class GetFuzzyRulesBySystemHandler(QueryHandler[GetFuzzyRulesBySystemQuery, List
         # Convertir a DTOs
         rule_dtos = [FuzzyRuleDto.from_entity(rule) for rule in rules]
         
-        # Asignar resultado
+        # Asignar resultado y retornar
         request._result = rule_dtos
+        return rule_dtos

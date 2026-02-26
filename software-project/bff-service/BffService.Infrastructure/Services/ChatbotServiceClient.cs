@@ -64,7 +64,7 @@ public class ChatbotServiceClient : IChatbotServiceClient
     {
         _logger.LogInformation("Fetching chat sessions for user {UserId}", userId);
 
-        var url = $"{_baseUrl}/api/chat/sessions/{userId}?skip={skip}&limit={limit}";
+        var url = $"{_baseUrl}/api/chat/sessions?skip={skip}&limit={limit}";
         var request = CreateRequest(HttpMethod.Get, url, accessToken);
 
         var response = await _httpClient.SendAsync(request, ct);
@@ -154,6 +154,27 @@ public class ChatbotServiceClient : IChatbotServiceClient
                 "The chatbot's knowledge base may be stale until next reindex.",
                 syncRequest.SourceType, syncRequest.SourceId);
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<ReindexKnowledgeResponse> ReindexKnowledgeAsync(
+        string accessToken, CancellationToken ct)
+    {
+        _logger.LogInformation("Triggering full knowledge reindex on chatbot-service");
+
+        var url = $"{_baseUrl}/api/rag/reindex";
+        var request = CreateJsonRequest(HttpMethod.Post, url, accessToken, new { });
+
+        var response = await _httpClient.SendAsync(request, ct);
+        await EnsureSuccessAsync(response, "reindexing knowledge base", ct);
+
+        var content = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<ReindexKnowledgeResponse>(content, _jsonOptions);
+
+        _logger.LogInformation("Knowledge reindex completed: {TotalChunks} chunks indexed",
+            result?.TotalChunksIndexed ?? 0);
+
+        return result ?? new ReindexKnowledgeResponse { Success = false, TotalChunksIndexed = 0 };
     }
 
     // ──────────────────────────────────────────────

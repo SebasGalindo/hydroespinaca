@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { useChatStore } from '@hydroespinaca/shared';
 import { MarkdownMessage } from '../molecules/MarkdownMessage';
 import { StreamingMessage } from '../molecules/StreamingMessage';
-import styles from './MessageList.module.css';
 
 /**
  * Organism — scrollable list of all messages in the active session.
@@ -27,10 +26,14 @@ export function MessageList() {
 
     if (!activeSessionId) {
         return (
-            <div className={styles.empty}>
-                <div className={styles.emptyIcon}>💬</div>
-                <p className={styles.emptyTitle}>Asistente Inteligente HydroEspinaca</p>
-                <p className={styles.emptySubtitle}>
+            <div className="flex flex-col items-center justify-center flex-1 gap-3 p-8 text-center">
+                <span className="text-4xl select-none" aria-hidden="true">
+                    💬
+                </span>
+                <p className="text-sm font-bold text-green-800">
+                    Asistente Inteligente HydroEspinaca
+                </p>
+                <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
                     Crea una nueva conversación o selecciona una existente para comenzar.
                 </p>
             </div>
@@ -39,17 +42,22 @@ export function MessageList() {
 
     if (messagesLoading) {
         return (
-            <div className={styles.loading}>
-                <div className={styles.spinner} />
+            <div className="flex items-center justify-center flex-1">
+                <div className="h-8 w-8 rounded-full border-2 border-gray-200 border-t-green-500 animate-spin" />
             </div>
         );
     }
 
     return (
-        <div id="chat-message-list" className={styles.list} role="log" aria-live="polite">
+        <div
+            id="chat-message-list"
+            className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5 scrollbar-thin"
+            role="log"
+            aria-live="polite"
+        >
             {messages.length === 0 && !isStreaming ? (
-                <div className={styles.empty}>
-                    <p className={styles.emptySubtitle}>Escribe tu primera pregunta para comenzar.</p>
+                <div className="flex items-center justify-center h-full">
+                    <p className="text-xs text-gray-500">Escribe tu primera pregunta para comenzar.</p>
                 </div>
             ) : (
                 messages.map((msg, idx) => <MarkdownMessage key={idx} message={msg} />)

@@ -21,7 +21,8 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
     private readonly M2MTokenService _m2mTokenService;
     private readonly ServiceUrlSettings _serviceUrls;
     private readonly ILogger<DailySummaryDataAggregator> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _snakeCaseOptions;
+    private readonly JsonSerializerOptions _camelCaseOptions;
 
     public DailySummaryDataAggregator(
         IHttpClientFactory httpClientFactory,
@@ -33,11 +34,19 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
         _m2mTokenService = m2mTokenService;
         _serviceUrls = serviceUrls.Value;
         _logger = logger;
-        _jsonOptions = new JsonSerializerOptions
+        
+        _snakeCaseOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+        
+        _camelCaseOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
     }
 
@@ -86,14 +95,14 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
         {
             var client = await CreateAuthenticatedClient(ct);
             var requestBody = new { startDate = start, endDate = end, view = "daily" };
-            var json = JsonSerializer.Serialize(requestBody, _jsonOptions);
+            var json = JsonSerializer.Serialize(requestBody, _camelCaseOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await client.PostAsync(
                 $"{_serviceUrls.SensorServiceUrl}/api/aggregates/environmental", content, ct);
             response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<SensorAggregateResponse>(_jsonOptions, ct);
+            var result = await response.Content.ReadFromJsonAsync<SensorAggregateResponse>(_camelCaseOptions, ct);
             if (result?.Variables != null)
             {
                 data.SensorSummaries = result.Variables.Select(v => new SensorVariableSummary
@@ -123,14 +132,14 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
         {
             var client = await CreateAuthenticatedClient(ct);
             var requestBody = new { startDate = start, endDate = end, view = "daily" };
-            var json = JsonSerializer.Serialize(requestBody, _jsonOptions);
+            var json = JsonSerializer.Serialize(requestBody, _camelCaseOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await client.PostAsync(
                 $"{_serviceUrls.ActuatorServiceUrl}/api/commands/analytics", content, ct);
             response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<ActuatorAnalyticsResponse>(_jsonOptions, ct);
+            var result = await response.Content.ReadFromJsonAsync<ActuatorAnalyticsResponse>(_camelCaseOptions, ct);
             if (result != null)
             {
                 var durations = result.TotalDurationByActuator ?? [];
@@ -166,7 +175,7 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
                 $"{_serviceUrls.FuzzyServiceUrl}/api/fuzzy-evaluations/recent?hours=24&page_size=100", ct);
             response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<FuzzyEvaluationsResponse>(_jsonOptions, ct);
+            var result = await response.Content.ReadFromJsonAsync<FuzzyEvaluationsResponse>(_snakeCaseOptions, ct);
             if (result?.Evaluations != null)
             {
                 var evaluations = result.Evaluations;
@@ -215,7 +224,7 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
                 $"{_serviceUrls.WeatherServiceUrl}/api/weather/forecast/daily", ct);
             response.EnsureSuccessStatusCode();
 
-            var forecasts = await response.Content.ReadFromJsonAsync<List<DailyForecastItem>>(_jsonOptions, ct);
+            var forecasts = await response.Content.ReadFromJsonAsync<List<DailyForecastItem>>(_camelCaseOptions, ct);
             // Tomorrow's forecast (index 1 = tomorrow)
             var tomorrow = forecasts?.ElementAtOrDefault(1);
             if (tomorrow != null)

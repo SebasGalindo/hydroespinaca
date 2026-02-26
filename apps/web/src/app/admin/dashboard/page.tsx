@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import PageLayout from '@/components/layout/PageLayout';
 import { SessionsTable } from '@/components/admin/SessionsTable';
-import { adminService } from '@hydroespinaca/shared';
+import { adminService, chatService } from '@hydroespinaca/shared';
 import Swal from 'sweetalert2';
 import type { UserSessionsDto } from '@hydroespinaca/shared';
 
@@ -15,6 +15,7 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [isReindexing, setIsReindexing] = useState(false);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -72,6 +73,41 @@ export default function AdminDashboardPage() {
         confirmButtonColor: '#16a34a'
       });
       throw err;
+    }
+  };
+
+  const handleReindexKnowledge = async () => {
+    const confirm = await Swal.fire({
+      title: '¿Re-indexar base de conocimientos?',
+      text: 'Esto reconstruirá todos los embeddings vectoriales del chatbot RAG a partir de los sistemas fuzzy, variables, términos y reglas actuales. El proceso puede tardar unos minutos.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#16a34a',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, re-indexar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsReindexing(true);
+    try {
+      const result = await chatService.reindexKnowledge();
+      await Swal.fire({
+        title: '¡Re-indexación completada!',
+        text: `Se indexaron ${result.totalChunksIndexed} chunks de conocimiento exitosamente.`,
+        icon: 'success',
+        confirmButtonColor: '#16a34a',
+      });
+    } catch (err: any) {
+      await Swal.fire({
+        title: 'Error',
+        text: `Error al re-indexar: ${err.message}`,
+        icon: 'error',
+        confirmButtonColor: '#16a34a'
+      });
+    } finally {
+      setIsReindexing(false);
     }
   };
 
@@ -190,6 +226,49 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Knowledge Management Card */}
+          <div className="mt-6 bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-3">
+                    <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-medium text-gray-900">Base de Conocimientos RAG</h3>
+                    <p className="text-sm text-gray-500">
+                      Re-indexa todos los sistemas fuzzy, variables, términos y reglas para actualizar los embeddings vectoriales del chatbot.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleReindexKnowledge}
+                  disabled={isReindexing}
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isReindexing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Re-indexando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Re-indexar Todo
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* Sessions Table */}
           <div className="mt-6">

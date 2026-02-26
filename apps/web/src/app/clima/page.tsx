@@ -30,24 +30,34 @@ export default function ClimaPage() {
 
   // Fetch current weather
   useEffect(() => {
-    const load = async () => {
-      setWeatherLoading(true);
+    const load = async (showLoading = true) => {
+      if (showLoading) setWeatherLoading(true);
       try {
         const data = await weatherService.getWeather();
         setWeather(data);
       } catch (err: any) {
         setWeatherError(err.message || 'Error al cargar el clima');
       } finally {
-        setWeatherLoading(false);
+        if (showLoading) setWeatherLoading(false);
       }
     };
+    
     load();
+    const intervalId = setInterval(() => load(false), 3 * 60 * 1000); // Auto refresh every 3 minutes
+    return () => clearInterval(intervalId);
   }, []);
 
   // Fetch forecast
   useEffect(() => {
     fetchDailyForecast();
     fetchForecast();
+    
+    const intervalId = setInterval(() => {
+      fetchDailyForecast();
+      fetchForecast();
+    }, 3 * 60 * 1000); // Auto refresh every 3 minutes
+    
+    return () => clearInterval(intervalId);
   }, [fetchDailyForecast, fetchForecast]);
 
   // Fetch active fuzzy systems for the dropdown
@@ -107,19 +117,19 @@ export default function ClimaPage() {
           <h2 id="hourly-heading" className="text-xl font-bold text-green-800 mb-4 font-inter">
             Próximas 24 Horas
           </h2>
-          <div className="overflow-x-auto">
-            <div className="flex gap-2 min-w-max pb-2">
+          <div>
+            <div className="flex flex-wrap gap-3 pb-2 justify-center sm:justify-start">
               {forecast.hourly.slice(0, 24).map((h: import('@hydroespinaca/shared').HourlyForecast) => {
                 const hour = new Date(h.dateTime).toLocaleTimeString('es-CO', {
                   hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota',
                 });
                 const popPct = Math.round(h.pop * 100);
                 return (
-                  <div key={h.dateTime} className="flex-shrink-0 w-20 bg-white border border-gray-200 rounded-lg p-2 text-center shadow-sm">
-                    <p className="text-xs text-gray-500 mb-1">{hour}</p>
-                    <p className="text-lg font-bold text-gray-800">{Math.round(h.temperature)}°</p>
-                    <p className="text-xs text-gray-500 capitalize truncate">{h.description}</p>
-                    {popPct > 0 && <p className="text-xs text-blue-600 mt-0.5">💧{popPct}%</p>}
+                  <div key={h.dateTime} className="w-28 bg-white border border-gray-200 rounded-xl p-3 text-center shadow-sm transition-all hover:shadow-md hover:scale-[1.02]">
+                    <p className="text-sm font-medium text-gray-500 mb-1">{hour}</p>
+                    <p className="text-2xl font-bold text-gray-800">{Math.round(h.temperature)}°</p>
+                    <p className="text-xs text-gray-500 capitalize line-clamp-2 leading-tight mt-1 h-8" title={h.description}>{h.description}</p>
+                    {popPct > 0 && <p className="text-xs font-semibold text-blue-600 mt-1">💧 {popPct}%</p>}
                   </div>
                 );
               })}

@@ -94,15 +94,31 @@ export type MembershipFunctionType =
   | 'triangular'
   | 'trapezoidal'
   | 'gaussian'
+  | 'gaussian2'
   | 'sigmoid'
-  | 'bell';
+  | 'dsigmoid'
+  | 'psigmoid'
+  | 'bell'
+  | 'z_shaped'
+  | 's_shaped'
+  | 'pi_shaped'
+  | 'linear'
+  | 'constant';
 
 export const MEMBERSHIP_FUNCTION_LABELS: Record<string, string> = {
   triangular: 'Triangular',
   trapezoidal: 'Trapezoidal',
   gaussian: 'Gaussiana',
+  gaussian2: 'Gaussiana Doble',
   sigmoid: 'Sigmoide',
+  dsigmoid: 'Dif. Sigmoide',
+  psigmoid: 'Prod. Sigmoide',
   bell: 'Campana Generalizada',
+  z_shaped: 'Z-Shaped',
+  s_shaped: 'S-Shaped',
+  pi_shaped: 'Pi-Shaped',
+  linear: 'Lineal',
+  constant: 'Constante',
 };
 
 /**
@@ -293,8 +309,16 @@ export const MF_PARAM_COUNTS: Record<MembershipFunctionType, number> = {
   triangular: 3,
   trapezoidal: 4,
   gaussian: 2,
+  gaussian2: 4,
   sigmoid: 2,
+  dsigmoid: 4,
+  psigmoid: 4,
   bell: 3,
+  z_shaped: 2,
+  s_shaped: 2,
+  pi_shaped: 4,
+  linear: 2,
+  constant: 1,
 };
 
 /**
@@ -304,8 +328,16 @@ export const MF_PARAM_LABELS: Record<MembershipFunctionType, string[]> = {
   triangular: ['Izquierda (a)', 'Centro (b)', 'Derecha (c)'],
   trapezoidal: ['Izquierda (a)', 'Izq-Centro (b)', 'Der-Centro (c)', 'Derecha (d)'],
   gaussian: ['Centro (c)', 'Sigma (σ)'],
+  gaussian2: ['Centro 1 (c₁)', 'Sigma 1 (σ₁)', 'Centro 2 (c₂)', 'Sigma 2 (σ₂)'],
   sigmoid: ['Centro (c)', 'Pendiente (a)'],
+  dsigmoid: ['Pendiente 1 (a₁)', 'Centro 1 (c₁)', 'Pendiente 2 (a₂)', 'Centro 2 (c₂)'],
+  psigmoid: ['Pendiente 1 (a₁)', 'Centro 1 (c₁)', 'Pendiente 2 (a₂)', 'Centro 2 (c₂)'],
   bell: ['Ancho (a)', 'Pendiente (b)', 'Centro (c)'],
+  z_shaped: ['Inicio (a)', 'Fin (b)'],
+  s_shaped: ['Inicio (a)', 'Fin (b)'],
+  pi_shaped: ['Inicio S (a)', 'Fin S (b)', 'Inicio Z (c)', 'Fin Z (d)'],
+  linear: ['Pendiente (m)', 'Intercepto (b)'],
+  constant: ['Valor (c)'],
 };
 
 /**

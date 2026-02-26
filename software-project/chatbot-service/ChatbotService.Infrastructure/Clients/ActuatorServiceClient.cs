@@ -72,19 +72,20 @@ public class ActuatorServiceClient : IActuatorServiceClient
 
             var lines = new List<string> { "⚙️ Estado actual de actuadores:" };
 
-            // Respuesta esperada: { count: N, states: [ { actuatorId, state, mode, ... } ] }
+            // Respuesta esperada: { count: N, states: [ { actuatorId, code, state, mode, ... } ] }
             if (root.TryGetProperty("states", out var states) && states.ValueKind == JsonValueKind.Array)
             {
                 foreach (var actuator in states.EnumerateArray())
                 {
                     var id = actuator.TryGetProperty("actuatorId", out var aid) ? aid.GetString() : "N/A";
+                    var code = actuator.TryGetProperty("code", out var cStr) && !string.IsNullOrEmpty(cStr.GetString()) ? cStr.GetString() : id;
                     var state = actuator.TryGetProperty("state", out var s) ? s.GetString() : "desconocido";
                     var mode = actuator.TryGetProperty("mode", out var m) ? m.GetString() : "N/A";
                     var pin = actuator.TryGetProperty("pin", out var p) ? p.ToString() : "N/A";
                     var dutyCycle = actuator.TryGetProperty("dutyCycle", out var dc) ? dc.ToString() : null;
                     var lastUpdated = actuator.TryGetProperty("lastUpdated", out var lu) ? lu.GetString() : "";
 
-                    var detail = $"- {id}: estado={state}, modo={mode}, pin={pin}";
+                    var detail = $"- Actuador '{code}' (Pin {pin}): estado={state}, modo={mode}";
                     if (!string.IsNullOrEmpty(dutyCycle) && dutyCycle != "null")
                         detail += $", dutyCycle={dutyCycle}";
                     if (!string.IsNullOrEmpty(lastUpdated))
@@ -120,10 +121,12 @@ public class ActuatorServiceClient : IActuatorServiceClient
     /// </summary>
     private async Task ConfigureAuthAsync(CancellationToken ct)
     {
+        _logger.LogDebug("[M2M-Auth] Obteniendo token M2M para actuator-service...");
         using var scope = _serviceScopeFactory.CreateScope();
         var m2mTokenService = scope.ServiceProvider.GetRequiredService<M2MTokenService>();
         var accessToken = await m2mTokenService.GetAccessTokenAsync(ct);
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
+        _logger.LogDebug("[M2M-Auth] Token M2M configurado correctamente para actuator-service");
     }
 }

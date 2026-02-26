@@ -23,7 +23,6 @@ public class SystemStatusController : BaseAuthenticatedController
         ISessionService sessionService,
         ISystemStatusService systemStatusService,
         ISessionTokenService sessionTokenService,
-        IWeatherService weatherService,
         IFuzzyServiceClient fuzzyServiceClient,
         IMemoryCache cache,
         IConfiguration configuration,

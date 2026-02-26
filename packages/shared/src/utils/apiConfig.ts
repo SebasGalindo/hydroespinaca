@@ -33,7 +33,7 @@ export function detectPlatform(): 'web' | 'mobile' | 'unknown' {
  */
 export function isDevelopmentMode(): boolean {
   // __DEV__ is the most reliable check in React Native
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  if (typeof globalThis !== 'undefined' && (globalThis as any).__DEV__) {
     return true;
   }
 
@@ -97,7 +97,7 @@ export function getApiUrl(): string {
   const isDev = isDevelopmentMode();
   const envApiUrl = getApiUrlFromEnv();
   const result = envApiUrl ?? getDefaultApiUrl(platform, isDev);
-  if (__DEV__) {
+  if (isDev) {
     console.log(`[apiConfig] getApiUrl() => platform=${platform}, isDev=${isDev}, envUrl=${envApiUrl}, result=${result}`);
   }
   return result;
