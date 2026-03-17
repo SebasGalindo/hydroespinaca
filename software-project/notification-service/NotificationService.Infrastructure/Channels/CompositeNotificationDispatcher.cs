@@ -136,12 +136,20 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
 
             case NotificationChannels.Push:
             {
-                // Send to ALL active Expo push tokens for this user
-                var expoSubs = await _pushSubscriptionRepository
-                    .GetActiveByUserIdAsync(userId, "expo", ct);
+                // Push payloads have strict size limits (typically 4KB). We sanitize data and truncate body.
+                var pushData = SanitizeDataForPush(data);
+                var pushBody = TruncateForPush(body, 500); // Truncate body to be safe for mobile view
+
+                // Send to ALL active mobile push tokens for this user
+                var allSubs = await _pushSubscriptionRepository
+                    .GetActiveByUserIdAsync(userId, null, ct);
+                
+                // Filter specifically for mobile platforms (android, ios) or legacy 'expo'
+                var expoSubs = allSubs.Where(s => s.Platform == "android" || s.Platform == "ios" || s.Platform == "expo");
+
                 foreach (var sub in expoSubs)
                 {
-                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, body, data);
+                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, pushBody, pushData);
                     msg.ExpoPushToken = sub.Token;
                     var result = await SendAndLogAsync(channel, msg, ct);
                     results.Add(result);
@@ -156,7 +164,10 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
 
             case NotificationChannels.WebPush:
             {
-                var webPushBody = body;
+                // WebPush payloads have strict size limits (typicall 4KB).
+                var webPushData = SanitizeDataForPush(data);
+                var webPushBody = TruncateForPush(body, 500);
+
                 if (templateKey == "weather_alert")
                 {
                     var countStr = data != null && data.TryGetValue("alertCount", out var c) ? c : "1";
@@ -174,7 +185,7 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
                 foreach (var sub in webSubs)
                 {
                     _logger.LogInformation("[CompositeDispatcher] Processing Web Push sub: {SubId}", sub.Id);
-                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, webPushBody, data);
+                    var msg = BuildMessage(correlationId, userId, channel.ChannelType, templateKey, title, webPushBody, webPushData);
                     msg.WebPushSubscription = sub.Token;
                     var result = await SendAndLogAsync(channel, msg, ct);
                     results.Add(result);
@@ -291,5 +302,30 @@ public class CompositeNotificationDispatcher : INotificationDispatcher
         if (start > end)
             return hour >= start || hour < end;
         return hour >= start && hour < end;
+    }
+
+    /// <summary>
+    /// Removes large objects (like full HTML bodies) from data payload to fit within Push/WebPush 4KB limits.
+    /// </summary>
+    private static Dictionary<string, string> SanitizeDataForPush(Dictionary<string, string>? data)
+    {
+        if (data == null) return new Dictionary<string, string>();
+        
+        var safeData = new Dictionary<string, string>(data);
+        // Remove known large properties
+        if (safeData.ContainsKey("html_body"))
+            safeData.Remove("html_body");
+            
+        return safeData;
+    }
+
+    /// <summary>
+    /// Truncates string down to a safe maximum length, appending '...' if it was cut.
+    /// </summary>
+    private static string TruncateForPush(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        if (text.Length <= maxLength) return text;
+        return text.Substring(0, maxLength - 3) + "...";
     }
 }

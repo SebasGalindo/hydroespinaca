@@ -64,8 +64,18 @@ public class ExpoPushSender : INotificationChannel
                     $"HTTP {response.StatusCode}: {responseBody}");
             }
 
-            var result = JsonSerializer.Deserialize<ExpoPushResponse>(responseBody);
-            var ticket = result?.Data?.FirstOrDefault();
+            var serializeOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var result = JsonSerializer.Deserialize<ExpoPushResponse>(responseBody, serializeOptions);
+            
+            // Expo's API sometimes returns a single object instead of an array depending on how it was sent
+            ExpoPushTicket? ticket = null;
+            if (result?.Data != null)
+            {
+                ticket = result.Data;
+            }
 
             if (ticket?.Status == "ok")
             {
@@ -101,7 +111,7 @@ public class ExpoPushSender : INotificationChannel
 
     private class ExpoPushResponse
     {
-        [JsonPropertyName("data")] public List<ExpoPushTicket>? Data { get; set; }
+        [JsonPropertyName("data")] public ExpoPushTicket? Data { get; set; }
     }
 
     private class ExpoPushTicket
