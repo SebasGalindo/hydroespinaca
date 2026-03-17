@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../components/atoms/Text';
@@ -231,7 +231,7 @@ export function DashboardScreen(): React.ReactElement {
     };
   }, [shouldStartPolling, lastUpdateTimestamp, fetchSystemStatus]);
 
-  const isArtificialLightActive = (): boolean => {
+  const isArtificialLightActive = useMemo((): boolean => {
     if (!systemStatus?.jobStatus.queue) return false;
 
     return systemStatus.jobStatus.queue.some(job =>
@@ -239,7 +239,7 @@ export function DashboardScreen(): React.ReactElement {
       job.commandId.toLowerCase().includes('light') ||
       job.commandId.toLowerCase().includes('amplio-espectro')
     );
-  };
+  }, [systemStatus?.jobStatus.queue]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -333,7 +333,7 @@ export function DashboardScreen(): React.ReactElement {
           <VariablesGrid
             readings={systemStatus.readings.readings}
             previousReadings={previousReadings}
-            isArtificialLightActive={isArtificialLightActive()}
+            isArtificialLightActive={isArtificialLightActive}
           />
         )}
 

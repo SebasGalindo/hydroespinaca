@@ -10,11 +10,11 @@ import EmptyState from '@/components/ui/EmptyState';
 import StatCard from '@/components/ui/StatCard';
 import CostConfigForm from './CostConfigForm';
 import { SettingsIcon, BoltIcon, DropletIcon, PlantIcon, PlusIcon, EditIcon, TrashIcon } from '@/components/ui/icons/Icons';
-import Swal from 'sweetalert2';
+import { showConfirm, showError, showSuccess } from '@/lib/swal';
 
 import type { CostConfigVersion, UpdateCostConfigVersionRequest } from '@hydroespinaca/shared';
 
-const CostConfigSection: React.FC = () => {
+const CostConfigSection = React.memo(function CostConfigSection() {
   const {
     currentCostConfig,
     costConfigVersions,
@@ -38,19 +38,9 @@ const CostConfigSection: React.FC = () => {
   const handleCreate = async (request: Parameters<typeof createCostConfigVersion>[0]) => {
     try {
       await createCostConfigVersion(request);
-      Swal.fire({
-        icon: 'success',
-        title: 'Configuración creada',
-        text: 'La nueva configuración de costos ha sido creada exitosamente.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: 'Configuración creada', text: 'La nueva configuración de costos ha sido creada exitosamente.' });
     } catch {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo crear la configuración de costos.',
-      });
+      showError({ text: 'No se pudo crear la configuración de costos.' });
     }
   };
 
@@ -58,45 +48,21 @@ const CostConfigSection: React.FC = () => {
     if (!editingVersion) return;
     try {
       await updateCostConfigVersion(editingVersion.id, request);
-      Swal.fire({
-        icon: 'success',
-        title: 'Configuración actualizada',
-        text: 'La configuración de costos ha sido actualizada exitosamente.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: 'Configuración actualizada', text: 'La configuración de costos ha sido actualizada exitosamente.' });
     } catch {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo actualizar la configuración de costos.',
-      });
+      showError({ text: 'No se pudo actualizar la configuración de costos.' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar configuración?',
-      text: 'Esta acción no se puede deshacer. Las demás versiones serán recalculadas.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonText: 'Cancelar',
-      confirmButtonText: 'Sí, eliminar',
-    });
+    const confirmed = await showConfirm({ title: '¿Eliminar configuración?', text: 'Esta acción no se puede deshacer. Las demás versiones serán recalculadas.', confirmText: 'Sí, eliminar', danger: true });
 
-    if (result.isConfirmed) {
+    if (confirmed) {
       try {
         await deleteCostConfigVersion(id);
-        Swal.fire({
-          icon: 'success',
-          title: 'Eliminada',
-          text: 'La configuración ha sido eliminada.',
-          timer: 2000,
-          showConfirmButton: false,
-        });
+        showSuccess({ title: 'Eliminada', text: 'La configuración ha sido eliminada.' });
       } catch {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la configuración.' });
+        showError({ text: 'No se pudo eliminar la configuración.' });
       }
     }
   };
@@ -262,6 +228,6 @@ const CostConfigSection: React.FC = () => {
       />
     </div>
   );
-};
+});
 
 export default CostConfigSection;

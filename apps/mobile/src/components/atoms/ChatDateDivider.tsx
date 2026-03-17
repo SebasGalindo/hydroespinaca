@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing } from '@hydroespinaca/shared';
+import { colors, spacing, typography, formatRelativeDate } from '@hydroespinaca/shared';
 
 interface ChatDateDividerProps {
     /** ISO 8601 date string */
@@ -13,8 +13,8 @@ interface ChatDateDividerProps {
  * Displays "Hoy", "Ayer", or a short date in the centre with
  * decorative horizontal lines on both sides.
  */
-export function ChatDateDivider({ date }: ChatDateDividerProps): React.ReactElement {
-    const label = getRelativeLabel(date);
+export const ChatDateDivider = React.memo(function ChatDateDivider({ date }: ChatDateDividerProps): React.ReactElement {
+    const label = formatRelativeDate(date);
 
     return (
         <View style={styles.container}>
@@ -23,23 +23,7 @@ export function ChatDateDivider({ date }: ChatDateDividerProps): React.ReactElem
             <View style={styles.line} />
         </View>
     );
-}
-
-function getRelativeLabel(iso: string): string {
-    const now = new Date();
-    const d = new Date(iso);
-    const diffMs = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-
-    return d.toLocaleDateString('es-CO', {
-        day: 'numeric',
-        month: 'short',
-        year: diffDays > 300 ? 'numeric' : undefined,
-    });
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -55,10 +39,10 @@ const styles = StyleSheet.create({
     },
     label: {
         marginHorizontal: spacing.sm,
-        fontSize: 11,
-        fontWeight: '600',
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.semibold as any,
         color: colors.gray[400],
         textTransform: 'uppercase',
-        letterSpacing: 0.8,
+        letterSpacing: typography.letterSpacing.wide,
     },
 });

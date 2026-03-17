@@ -22,7 +22,7 @@ interface VariableSectionProps {
   onDeleteTerm?: (id: string) => void;
 }
 
-const VariableSection: React.FC<VariableSectionProps> = ({
+const VariableSection = React.memo(function VariableSection({
   variables,
   terms,
   onAddVariable,
@@ -31,7 +31,7 @@ const VariableSection: React.FC<VariableSectionProps> = ({
   onAddTerm,
   onEditTerm,
   onDeleteTerm,
-}) => {
+}: VariableSectionProps) {
   const getTermsByVariable = (variableId: string): FuzzyTerm[] =>
     terms.filter((t) => t.variableId === variableId);
 
@@ -228,6 +228,6 @@ const VariableSection: React.FC<VariableSectionProps> = ({
       })}
     </div>
   );
-};
+});
 
 export default VariableSection;

@@ -17,7 +17,6 @@ import {
   useAuthStore,
   spacing,
   semanticColors,
-  typography,
   colors,
 } from '@hydroespinaca/shared';
 import type {

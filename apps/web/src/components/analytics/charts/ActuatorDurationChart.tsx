@@ -12,7 +12,7 @@ interface ActuatorDurationChartProps {
   data: ActuatorActivity[];
 }
 
-export default function ActuatorDurationChart({ data }: ActuatorDurationChartProps) {
+const ActuatorDurationChart = React.memo(function ActuatorDurationChart({ data }: ActuatorDurationChartProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -86,4 +86,6 @@ export default function ActuatorDurationChart({ data }: ActuatorDurationChartPro
       </div>
     </div>
   );
-}
+});
+
+export default ActuatorDurationChart;

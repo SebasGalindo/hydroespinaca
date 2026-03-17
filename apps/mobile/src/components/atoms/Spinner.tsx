@@ -16,7 +16,7 @@ const sizeStyles = {
   lg: 32,
 } as const;
 
-export function Spinner({
+export const Spinner = React.memo(function Spinner({
   size = 'md',
   color = semanticColors.primary,
   animating = true,
@@ -35,4 +35,4 @@ export function Spinner({
       hidesWhenStopped
     />
   );
-}
+});

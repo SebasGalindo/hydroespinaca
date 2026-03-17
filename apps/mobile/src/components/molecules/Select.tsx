@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,8 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { semanticColors, spacing, borderRadius, typography, colors } from '@hydroespinaca/shared';
-import { Text } from './Text';
-import { Icon } from './Icon';
+import { Text } from '../atoms/Text';
+import { Icon } from '../atoms/Icon';
 
 export interface SelectOption {
   label: string;
@@ -29,7 +29,7 @@ export interface SelectProps {
   accessibilityLabel?: string;
 }
 
-export function Select({
+export const Select = React.memo(function Select({
   options,
   value,
   placeholder = 'Seleccionar...',
@@ -43,17 +43,26 @@ export function Select({
 }: SelectProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = useMemo(
+    () => options.find((opt) => opt.value === value),
+    [options, value],
+  );
 
-  const handleSelect = (optionValue: string) => {
+  const handleSelect = useCallback((optionValue: string) => {
     onValueChange?.(optionValue);
     setIsOpen(false);
-  };
+  }, [onValueChange]);
 
-  const getBorderColor = () => {
+  const handleOpen = useCallback(() => {
+    if (!disabled) setIsOpen(true);
+  }, [disabled]);
+
+  const handleClose = useCallback(() => setIsOpen(false), []);
+
+  const borderColor = useMemo(() => {
     if (error) return semanticColors.errorBorder;
     return colors.gray[300];
-  };
+  }, [error]);
 
   return (
     <>
@@ -61,13 +70,13 @@ export function Select({
         style={[
           styles.trigger,
           {
-            borderColor: getBorderColor(),
+            borderColor,
             opacity: disabled ? 0.5 : 1,
           },
           fullWidth && styles.fullWidth,
           style,
         ]}
-        onPress={() => !disabled && setIsOpen(true)}
+        onPress={handleOpen}
         disabled={disabled}
         testID={testID}
         accessibilityRole="combobox"
@@ -93,19 +102,19 @@ export function Select({
         visible={isOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
+        onRequestClose={handleClose}
       >
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
-          onPress={() => setIsOpen(false)}
+          onPress={handleClose}
         >
           <View style={styles.dropdown}>
             <View style={styles.dropdownHeader}>
               <Text variant="label" color={semanticColors.textPrimary}>
                 {accessibilityLabel || placeholder}
               </Text>
-              <TouchableOpacity onPress={() => setIsOpen(false)}>
+              <TouchableOpacity onPress={handleClose}>
                 <Icon name="close" size={22} color={semanticColors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -144,7 +153,7 @@ export function Select({
       </Modal>
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   trigger: {

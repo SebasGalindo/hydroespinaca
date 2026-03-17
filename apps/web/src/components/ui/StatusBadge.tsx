@@ -9,12 +9,12 @@ interface StatusBadgeProps {
   showIcon?: boolean;
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({
+const StatusBadge = React.memo(function StatusBadge({
   status,
   text,
   size = 'md',
   showIcon = true
-}) => {
+}: StatusBadgeProps) {
   const getStatusConfig = () => {
     switch (status) {
       case 'active':
@@ -119,6 +119,6 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
       {displayText}
     </span>
   );
-};
+});
 
 export default StatusBadge;

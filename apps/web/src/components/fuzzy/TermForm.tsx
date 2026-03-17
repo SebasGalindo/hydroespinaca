@@ -80,7 +80,7 @@ const mfTypeOptions = Object.entries(MEMBERSHIP_FUNCTION_LABELS).map(([value, la
 
 // ─── Component ───────────────────────────────────────────────
 
-const TermForm: React.FC<TermFormProps> = ({
+const TermForm = React.memo(function TermForm({
   isOpen,
   onClose,
   onSubmit,
@@ -88,7 +88,7 @@ const TermForm: React.FC<TermFormProps> = ({
   variable,
   existingTerms,
   term = null,
-}) => {
+}: TermFormProps) {
   const isEdit = !!term;
 
   const [label, setLabel] = useState('');
@@ -374,6 +374,6 @@ const TermForm: React.FC<TermFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default TermForm;

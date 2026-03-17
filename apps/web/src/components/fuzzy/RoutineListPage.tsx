@@ -10,7 +10,7 @@ import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import FuzzySystemCard from '@/components/ui/FuzzySystemCard';
 import { SystemStatusBadge, SystemForm } from '@/components/fuzzy';
-import Swal from 'sweetalert2';
+import { showError, showSuccess, showConfirm, showInput } from '@/lib/swal';
 import {
   useFuzzyStore,
   type FuzzySystem,
@@ -31,7 +31,7 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'TESTING', label: 'Pruebas' },
 ];
 
-const RoutineListPage: React.FC = () => {
+const RoutineListPage = React.memo(function RoutineListPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,55 +77,47 @@ const RoutineListPage: React.FC = () => {
   const handleCreateSystem = useCallback(async (request: CreateFuzzySystemRequest | UpdateFuzzySystemRequest) => {
     try {
       const created = await createSystem(request as CreateFuzzySystemRequest);
-      Swal.fire({ title: '¡Sistema creado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Sistema creado!' });
       router.push(`/rutinas/${created.id}`);
     } catch {
-      Swal.fire('Error', 'No se pudo crear el sistema.', 'error');
+      showError({ text: 'No se pudo crear el sistema.' });
     }
   }, [createSystem, router]);
 
   const handleActivate = useCallback(async (id: string) => {
     const sys = systems.find((s) => s.id === id);
     if (!sys) return;
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Activar esta rutina?',
       html: `<strong>${sys.name}</strong> será la rutina activa. Las demás se desactivarán.`,
       icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      confirmButtonText: 'Sí, activar',
-      cancelButtonText: 'Cancelar',
+      confirmText: 'Sí, activar',
     });
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
     try {
       await activateSystem(id);
-      Swal.fire({ title: '¡Activada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Activada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo activar.', 'error');
+      showError({ text: 'No se pudo activar.' });
     }
   }, [systems, activateSystem]);
 
   const handleClone = useCallback(async (id: string) => {
     const sys = systems.find((s) => s.id === id);
     if (!sys) return;
-    const { value: name } = await Swal.fire({
+    const name = await showInput({
       title: 'Duplicar rutina',
-      input: 'text',
-      inputLabel: 'Nombre para la copia',
-      inputValue: `Copia de ${sys.name}`,
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      confirmButtonText: 'Duplicar',
-      cancelButtonText: 'Cancelar',
-      inputValidator: (v) => (!v ? 'Nombre requerido' : null),
+      label: 'Nombre para la copia',
+      initialValue: `Copia de ${sys.name}`,
+      confirmText: 'Duplicar',
     });
     if (!name) return;
     try {
       setLoadingMessage('Duplicando rutina… esto puede tardar unos segundos');
       await cloneSystem(id, { name });
-      Swal.fire({ title: '¡Duplicada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Duplicada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo duplicar.', 'error');
+      showError({ text: 'No se pudo duplicar.' });
     } finally {
       setLoadingMessage(null);
     }
@@ -134,21 +126,18 @@ const RoutineListPage: React.FC = () => {
   const handleDelete = useCallback(async (id: string) => {
     const sys = systems.find((s) => s.id === id);
     if (!sys) return;
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Eliminar esta rutina?',
       html: `<strong>${sys.name}</strong> se eliminará permanentemente.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmText: 'Sí, eliminar',
+      danger: true,
     });
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
     try {
       await deleteSystem(id);
-      Swal.fire({ title: '¡Eliminada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Eliminada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo eliminar.', 'error');
+      showError({ text: 'No se pudo eliminar.' });
     }
   }, [systems, deleteSystem]);
 
@@ -178,14 +167,14 @@ const RoutineListPage: React.FC = () => {
       const text = await file.text();
       const data = JSON.parse(text) as FuzzySystemExport;
       if (!data.version || !data.system) {
-        Swal.fire('Formato inválido', 'El archivo no parece ser una exportación válida.', 'error');
+        showError({ title: 'Formato inválido', text: 'El archivo no parece ser una exportación válida.' });
         return;
       }
       setLoadingMessage('Importando rutina… esto puede tardar unos segundos');
       await importSystem(data);
-      Swal.fire({ title: '¡Importada!', text: 'La rutina fue importada correctamente.', icon: 'success', timer: 2000, showConfirmButton: false });
+      showSuccess({ title: '¡Importada!', text: 'La rutina fue importada correctamente.' });
     } catch {
-      Swal.fire('Error', 'No se pudo importar el archivo.', 'error');
+      showError({ text: 'No se pudo importar el archivo.' });
     } finally {
       setLoadingMessage(null);
       // reset the file input
@@ -345,6 +334,6 @@ const RoutineListPage: React.FC = () => {
       </div>
     </PageLayout>
   );
-};
+});
 
 export default RoutineListPage;

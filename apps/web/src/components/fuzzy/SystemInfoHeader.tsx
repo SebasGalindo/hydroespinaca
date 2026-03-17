@@ -9,7 +9,7 @@ interface SystemInfoHeaderProps {
   detail: FuzzySystemDetail;
 }
 
-const SystemInfoHeader: React.FC<SystemInfoHeaderProps> = ({ detail }) => {
+const SystemInfoHeader = React.memo(function SystemInfoHeader({ detail }: SystemInfoHeaderProps) {
   const { system, variables, rules } = detail;
   const inputVars = variables.filter((v) => v.variableType === 'input');
   const outputVars = variables.filter((v) => v.variableType === 'output');
@@ -81,7 +81,7 @@ const SystemInfoHeader: React.FC<SystemInfoHeaderProps> = ({ detail }) => {
       </div>
     </div>
   );
-};
+});
 
 // ─── Small helper sub-component ───────────────────────────────
 

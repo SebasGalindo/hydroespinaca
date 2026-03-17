@@ -22,7 +22,7 @@ const tabs: BiTab[] = [
   { id: 'profitability', label: 'Rentabilidad', description: 'Análisis financiero' },
 ];
 
-const BiTabs: React.FC<BiTabsProps> = ({ activeTab, onTabChange }) => {
+const BiTabs = React.memo(function BiTabs({ activeTab, onTabChange }: BiTabsProps) {
   return (
     <div className="border-b border-gray-200 mb-6">
       <nav className="flex gap-0 overflow-x-auto scrollbar-hidden" aria-label="Tabs de BI">
@@ -52,6 +52,6 @@ const BiTabs: React.FC<BiTabsProps> = ({ activeTab, onTabChange }) => {
       </nav>
     </div>
   );
-};
+});
 
 export default BiTabs;

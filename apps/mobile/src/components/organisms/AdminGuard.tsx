@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { semanticColors, spacing, colors, typography } from '@hydroespinaca/shared';
+import { semanticColors, spacing, colors, typography, isUserAdmin } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 import { useAuth } from '../../context/AuthProvider';
@@ -15,9 +15,7 @@ export function AdminGuard({
   fallback,
 }: AdminGuardProps): React.ReactElement {
   const { session } = useAuth();
-  const isAdmin =
-    session?.role?.toLowerCase() === 'administrador' ||
-    session?.role?.toLowerCase() === 'admin';
+  const isAdmin = isUserAdmin(session);
 
   if (!isAdmin) {
     if (fallback) {

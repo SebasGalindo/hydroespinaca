@@ -60,7 +60,7 @@ const variableColors: Record<string, string> = {
   TDS: '#10b981',
 };
 
-export default function EnvironmentalBoxplotChart({ variables, viewMode }: EnvironmentalBoxplotChartProps) {
+const EnvironmentalBoxplotChart = React.memo(function EnvironmentalBoxplotChart({ variables, viewMode }: EnvironmentalBoxplotChartProps) {
   // Initialize with first available variable
   const [selectedVariable, setSelectedVariable] = useState<string>(
     variables.length > 0 && variables[0] ? variables[0].variableCode : ''
@@ -209,4 +209,6 @@ export default function EnvironmentalBoxplotChart({ variables, viewMode }: Envir
       </div>
     </div>
   );
-}
+});
+
+export default EnvironmentalBoxplotChart;

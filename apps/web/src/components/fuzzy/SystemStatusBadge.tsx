@@ -33,11 +33,11 @@ const sizeMap = {
   lg: { container: 'px-4 py-1.5 text-base', dot: 'w-2.5 h-2.5', gap: 'gap-2' },
 };
 
-const SystemStatusBadge: React.FC<SystemStatusBadgeProps> = ({
+const SystemStatusBadge = React.memo(function SystemStatusBadge({
   status,
   size = 'md',
   showIcon = true,
-}) => {
+}: SystemStatusBadgeProps) {
   const colorKey = FUZZY_STATUS_COLORS[status] ?? 'gray';
   const label = FUZZY_STATUS_LABELS[status] ?? status;
   const sz = sizeMap[size];
@@ -62,6 +62,6 @@ const SystemStatusBadge: React.FC<SystemStatusBadgeProps> = ({
       {label}
     </span>
   );
-};
+});
 
 export default SystemStatusBadge;

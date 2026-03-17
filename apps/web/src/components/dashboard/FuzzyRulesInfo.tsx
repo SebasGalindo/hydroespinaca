@@ -10,7 +10,7 @@ import { fuzzyRulesService, type FuzzyRuleSummary } from '@hydroespinaca/shared'
  * Component that displays fuzzy logic rules in a modal dialog.
  * Fetches the rules once per session and caches them locally.
  */
-const FuzzyRulesInfo: React.FC = () => {
+const FuzzyRulesInfo = React.memo(function FuzzyRulesInfo() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rules, setRules] = useState<FuzzyRuleSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -202,6 +202,6 @@ const FuzzyRulesInfo: React.FC = () => {
       </Modal>
     </>
   );
-};
+});
 
 export default FuzzyRulesInfo;

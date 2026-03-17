@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, ViewStyle } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, TextInput, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { colors, spacing, borderRadius, typography, semanticColors } from '@hydroespinaca/shared';
 import { Icon } from '../atoms/Icon';
-import { TouchableOpacity } from 'react-native';
 
 export interface SearchBarProps {
   value: string;
@@ -13,7 +12,7 @@ export interface SearchBarProps {
   testID?: string;
 }
 
-export function SearchBar({
+export const SearchBar = React.memo(function SearchBar({
   value,
   onChangeText,
   placeholder = 'Buscar...',
@@ -23,10 +22,13 @@ export function SearchBar({
 }: SearchBarProps): React.ReactElement {
   const [isFocused, setIsFocused] = useState(false);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     onChangeText('');
     onClear?.();
-  };
+  }, [onChangeText, onClear]);
+
+  const handleFocus = useCallback(() => setIsFocused(true), []);
+  const handleBlur = useCallback(() => setIsFocused(false), []);
 
   return (
     <View
@@ -44,8 +46,8 @@ export function SearchBar({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={semanticColors.textTertiary}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         returnKeyType="search"
         accessibilityRole="search"
         accessibilityLabel={placeholder}
@@ -61,7 +63,7 @@ export function SearchBar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

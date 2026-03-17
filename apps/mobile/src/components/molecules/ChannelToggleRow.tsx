@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Switch } from '../atoms/Switch';
-import { Icon } from '../atoms/Icon';
 import {
   semanticColors, spacing, colors,
   CHANNEL_LABELS, CHANNEL_ICONS,
@@ -18,7 +17,7 @@ export interface ChannelToggleRowProps {
   testID?: string;
 }
 
-export function ChannelToggleRow({
+export const ChannelToggleRow = React.memo(function ChannelToggleRow({
   channel,
   enabled,
   onToggle,
@@ -28,6 +27,11 @@ export function ChannelToggleRow({
 }: ChannelToggleRowProps): React.ReactElement {
   const label = CHANNEL_LABELS[channel] ?? channel;
   const icon = CHANNEL_ICONS[channel] ?? '📬';
+
+  const handleToggle = useCallback(
+    (val: boolean) => onToggle(channel, val),
+    [onToggle, channel],
+  );
 
   return (
     <View style={[styles.container, style]} testID={testID}>
@@ -42,12 +46,12 @@ export function ChannelToggleRow({
       </View>
       <Switch
         value={enabled}
-        onValueChange={(val) => onToggle(channel, val)}
+        onValueChange={handleToggle}
         testID={`${testID}-switch`}
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

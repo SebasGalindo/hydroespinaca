@@ -14,12 +14,12 @@ interface ProductionFormProps {
   isLoading?: boolean;
 }
 
-const ProductionForm: React.FC<ProductionFormProps> = ({
+const ProductionForm = React.memo(function ProductionForm({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
-}) => {
+}: ProductionFormProps) {
   const [form, setForm] = useState({
     cropName: '',
     startDate: '',
@@ -182,6 +182,6 @@ const ProductionForm: React.FC<ProductionFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default ProductionForm;

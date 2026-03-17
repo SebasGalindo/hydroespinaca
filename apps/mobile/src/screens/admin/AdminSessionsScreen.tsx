@@ -32,7 +32,7 @@ import {
 } from '@hydroespinaca/shared';
 import type { UserSessionsDto, SessionMonitorDto } from '@hydroespinaca/shared';
 import { showToast } from '../../utils/toast';
-import { hapticSuccess, hapticError, hapticHeavy } from '../../utils/haptics';
+import { hapticError, hapticHeavy } from '../../utils/haptics';
 
 const AUTO_REFRESH_INTERVAL = 30_000; // 30 seconds
 

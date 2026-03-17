@@ -14,7 +14,7 @@ export interface ProgressBarProps {
   testID?: string;
 }
 
-export function ProgressBar({
+export const ProgressBar = React.memo(function ProgressBar({
   value,
   color = semanticColors.primary,
   trackColor = colors.gray[200],
@@ -39,7 +39,7 @@ export function ProgressBar({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   track: {

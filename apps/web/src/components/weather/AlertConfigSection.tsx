@@ -10,7 +10,7 @@ interface AlertConfigSectionProps {
   fuzzySystemName: string;
 }
 
-const AlertConfigSection: React.FC<AlertConfigSectionProps> = ({ fuzzySystemId, fuzzySystemName }) => {
+const AlertConfigSection = React.memo(function AlertConfigSection({ fuzzySystemId, fuzzySystemName }: AlertConfigSectionProps) {
   const user = useAuthStore(s => s.user);
   const {
     alertConfig, alertConfigLoading, alertConfigError,
@@ -199,6 +199,6 @@ const AlertConfigSection: React.FC<AlertConfigSectionProps> = ({ fuzzySystemId, 
       </div>
     </div>
   );
-};
+});
 
 export default AlertConfigSection;

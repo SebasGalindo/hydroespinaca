@@ -124,7 +124,9 @@ shared/HydroEspinaca.Shared/nupkg/
 **/*.apk
 **/*.aab
 **/*.ipa
-
+**/google-services.json
+#firebase key
+**/hydroespinaca-80d06-7c087b4d4b70.json
 
 # SonarQube analysis and temp files
 .scannerwork/

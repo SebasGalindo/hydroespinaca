@@ -19,7 +19,7 @@ interface RulesSectionProps {
  * Renders fuzzy rules with Mamdani consequents.
  * Desktop: Table layout. Mobile: Card layout.
  */
-const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms, onAddRule, onEditRule, onDeleteRule }) => {
+const RulesSection = React.memo(function RulesSection({ rules, variables, terms, onAddRule, onEditRule, onDeleteRule }: RulesSectionProps) {
   const variableMap = React.useMemo(
     () => new Map(variables.map((v) => [v.id, v])),
     [variables]
@@ -241,6 +241,6 @@ const RulesSection: React.FC<RulesSectionProps> = ({ rules, variables, terms, on
       />
     </div>
   );
-};
+});
 
 export default RulesSection;

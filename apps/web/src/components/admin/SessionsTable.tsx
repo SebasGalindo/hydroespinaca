@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import type { UserSessionsDto, SessionMonitorDto } from '@hydroespinaca/shared';
 import { useAuthStore } from '@hydroespinaca/shared';
-import Swal from 'sweetalert2';
+import { showConfirm } from '@/lib/swal';
 
 interface SessionsTableProps {
   sessions: UserSessionsDto[];
@@ -11,11 +11,11 @@ interface SessionsTableProps {
   isLoading?: boolean;
 }
 
-export const SessionsTable: React.FC<SessionsTableProps> = ({
+export const SessionsTable = React.memo(function SessionsTable({
   sessions,
   onRevokeSession,
   isLoading = false
-}) => {
+}: SessionsTableProps) {
   // Get current session ID to prevent revoking own session
   const currentSession = useAuthStore(state => state.session);
 
@@ -117,21 +117,15 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
   };
 
   const handleRevoke = async (sessionId: string) => {
-    // Confirm before proceeding
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Revocar sesión?',
       text: 'Esta acción revocará la sesión seleccionada. ¿Deseas continuar?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, revocar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      reverseButtons: true,
-      focusCancel: true
+      confirmText: 'Sí, revocar',
+      cancelText: 'Cancelar',
+      danger: true,
     });
 
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
 
     setRevoking(prev => new Set(prev).add(sessionId));
     try {
@@ -285,4 +279,4 @@ export const SessionsTable: React.FC<SessionsTableProps> = ({
       ))}
     </div>
   );
-};
+});

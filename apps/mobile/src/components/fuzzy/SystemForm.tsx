@@ -7,7 +7,7 @@ import { View, StyleSheet } from 'react-native';
 import { BottomSheetForm } from '../organisms/BottomSheetForm';
 import { FormField } from '../molecules/FormField';
 import { Input } from '../atoms/Input';
-import { Select } from '../atoms/Select';
+import { Select } from '../molecules/Select';
 import { Button } from '../atoms/Button';
 import { Alert } from '../molecules/Alert';
 import type {

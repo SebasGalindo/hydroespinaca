@@ -8,9 +8,9 @@ import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import ProductionForm from './ProductionForm';
 import { PlusIcon, TrashIcon, PlantIcon } from '@/components/ui/icons/Icons';
-import Swal from 'sweetalert2';
+import { showConfirm, showError, showSuccess } from '@/lib/swal';
 
-const ProductionSection: React.FC = () => {
+const ProductionSection = React.memo(function ProductionSection() {
   const {
     productionRecords,
     productionLoading,
@@ -29,42 +29,21 @@ const ProductionSection: React.FC = () => {
   const handleCreate = async (request: Parameters<typeof createProductionRecord>[0]) => {
     try {
       await createProductionRecord(request);
-      Swal.fire({
-        icon: 'success',
-        title: 'Producción registrada',
-        text: 'El registro de producción ha sido creado exitosamente.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: 'Producción registrada', text: 'El registro de producción ha sido creado exitosamente.' });
     } catch {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar la producción.' });
+      showError({ text: 'No se pudo registrar la producción.' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar producción?',
-      text: 'Esta acción no se puede deshacer. Los cálculos de rentabilidad asociados se perderán.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-    });
+    const confirmed = await showConfirm({ title: '¿Eliminar producción?', text: 'Esta acción no se puede deshacer. Los cálculos de rentabilidad asociados se perderán.', confirmText: 'Sí, eliminar', danger: true });
 
-    if (result.isConfirmed) {
+    if (confirmed) {
       try {
         await deleteProductionRecord(id);
-        Swal.fire({
-          icon: 'success',
-          title: 'Eliminado',
-          text: 'El registro de producción ha sido eliminado.',
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccess({ title: 'Eliminado', text: 'El registro de producción ha sido eliminado.' });
       } catch {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la producción.' });
+        showError({ text: 'No se pudo eliminar la producción.' });
       }
     }
   };
@@ -184,6 +163,6 @@ const ProductionSection: React.FC = () => {
       />
     </div>
   );
-};
+});
 
 export default ProductionSection;

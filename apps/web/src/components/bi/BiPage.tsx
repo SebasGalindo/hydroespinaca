@@ -9,7 +9,7 @@ import ConsumptionSection from './ConsumptionSection';
 import ProductionSection from './ProductionSection';
 import ProfitabilitySection from './ProfitabilitySection';
 
-const BiPage: React.FC = () => {
+const BiPage = React.memo(function BiPage() {
   const [activeTab, setActiveTab] = useState<BiTabId>('cost-config');
 
   return (
@@ -32,6 +32,6 @@ const BiPage: React.FC = () => {
       </div>
     </PageLayout>
   );
-};
+});
 
 export default BiPage;

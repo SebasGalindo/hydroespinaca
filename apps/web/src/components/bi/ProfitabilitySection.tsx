@@ -9,7 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import ProfitabilityResult from './ProfitabilityResult';
 import { CalculatorIcon, TrendingUpIcon } from '@/components/ui/icons/Icons';
 
-const ProfitabilitySection: React.FC = () => {
+const ProfitabilitySection = React.memo(function ProfitabilitySection() {
   const {
     productionRecords,
     fetchProductionRecords,
@@ -138,6 +138,6 @@ const ProfitabilitySection: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default ProfitabilitySection;

@@ -20,7 +20,7 @@ interface ChatBubbleWebProps {
  *
  * Contains NO business logic — use molecules/organisms above it.
  */
-export function ChatBubbleWeb({
+export const ChatBubbleWeb = React.memo(function ChatBubbleWeb({
     role,
     children,
     isStreaming = false,
@@ -55,4 +55,4 @@ export function ChatBubbleWeb({
             <div className={bubbleClass}>{children}</div>
         </div>
     );
-}
+});

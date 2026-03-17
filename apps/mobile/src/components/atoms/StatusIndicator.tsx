@@ -5,7 +5,6 @@ import { colors, semanticColors } from '@hydroespinaca/shared';
 export interface StatusIndicatorProps {
   status: 'online' | 'offline' | 'warning' | 'idle';
   size?: 'sm' | 'md' | 'lg';
-  pulse?: boolean;
   style?: ViewStyle;
   testID?: string;
   accessibilityLabel?: string;
@@ -31,7 +30,7 @@ const statusLabels = {
     idle: 'Inactivo',
 };
 
-export function StatusIndicator({
+export const StatusIndicator = React.memo(function StatusIndicator({
   status,
   size = 'md',
   style,
@@ -69,7 +68,7 @@ export function StatusIndicator({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   outer: {

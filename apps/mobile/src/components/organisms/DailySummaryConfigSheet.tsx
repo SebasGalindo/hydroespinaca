@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BottomSheetForm } from './BottomSheetForm';
@@ -7,7 +7,7 @@ import { Switch } from '../atoms/Switch';
 import { Checkbox } from '../atoms/Checkbox';
 import { Text } from '../atoms/Text';
 import { ChannelToggleRow } from '../molecules/ChannelToggleRow';
-import { spacing, semanticColors, colors } from '@hydroespinaca/shared';
+import { spacing, semanticColors } from '@hydroespinaca/shared';
 import type { DailySummaryConfig, NotificationChannel } from '@hydroespinaca/shared';
 
 export interface DailySummaryConfigSheetProps {
@@ -100,8 +100,11 @@ export function DailySummaryConfigSheet({
     }
   }, [enabled, hour, minute, channels, content, onSave, onClose]);
 
-  const timeDate = new Date();
-  timeDate.setHours(hour, minute, 0, 0);
+  const timeDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(hour, minute, 0, 0);
+    return d;
+  }, [hour, minute]);
 
   return (
     <BottomSheetForm

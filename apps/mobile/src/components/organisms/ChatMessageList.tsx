@@ -1,10 +1,13 @@
-import React, { useEffect, useRef } from 'react';
-import { FlatList, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { useChatStore, colors, spacing } from '@hydroespinaca/shared';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { FlatList, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useChatStore, colors, spacing, typography } from '@hydroespinaca/shared';
 import type { ChatMessage } from '@hydroespinaca/shared';
+import { Text } from '../atoms/Text';
 import { ChatMessageItem } from '../molecules/ChatMessageItem';
 import { ChatBubbleMobile } from '../atoms/ChatBubbleMobile';
 import { TypingIndicator } from '../atoms/TypingIndicator';
+
+const keyExtractor = (_: ChatMessage, index: number) => index.toString();
 
 /**
  * Organism — scrollable list of all messages in the active session.
@@ -13,7 +16,7 @@ import { TypingIndicator } from '../atoms/TypingIndicator';
  * followed by a streaming partial message and/or typing indicator.
  * Auto-scrolls to the latest content whenever messages or streamingText change.
  */
-export function ChatMessageList(): React.ReactElement {
+export const ChatMessageList = React.memo(function ChatMessageList(): React.ReactElement {
     const messages = useChatStore((s) => s.messages);
     const isStreaming = useChatStore((s) => s.isStreaming);
     const streamingText = useChatStore((s) => s.streamingText);
@@ -25,7 +28,6 @@ export function ChatMessageList(): React.ReactElement {
     // Auto-scroll when new content arrives
     useEffect(() => {
         if (messages.length > 0 || isStreaming) {
-            // Small delay ensures the list has re-rendered before scrolling
             const timer = setTimeout(() => {
                 listRef.current?.scrollToEnd({ animated: true });
             }, 100);
@@ -38,9 +40,11 @@ export function ChatMessageList(): React.ReactElement {
     if (!activeSessionId) {
         return (
             <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>💬</Text>
-                <Text style={styles.emptyTitle}>Asistente Inteligente</Text>
-                <Text style={styles.emptySubtitle}>
+                <Text variant="h1" style={styles.emptyIcon}>💬</Text>
+                <Text variant="body" weight="semibold" color={colors.gray[800]}>
+                    Asistente Inteligente
+                </Text>
+                <Text variant="caption" color={colors.gray[400]} style={styles.emptySubtitle}>
                     Selecciona o crea una conversación para comenzar.
                 </Text>
             </View>
@@ -64,7 +68,9 @@ export function ChatMessageList(): React.ReactElement {
             <View>
                 {streamingText ? (
                     <ChatBubbleMobile role="model" isStreaming={isStreaming}>
-                        <Text style={styles.streamingText}>{streamingText}</Text>
+                        <Text variant="body" color={colors.gray[800]} style={styles.streamingText}>
+                            {streamingText}
+                        </Text>
                     </ChatBubbleMobile>
                 ) : null}
                 <View style={styles.typingContainer}>
@@ -79,19 +85,24 @@ export function ChatMessageList(): React.ReactElement {
         if (isStreaming) return null;
         return (
             <View style={styles.emptyMessages}>
-                <Text style={styles.emptySubtitle}>
+                <Text variant="caption" color={colors.gray[400]} style={styles.emptySubtitle}>
                     Escribe tu primera pregunta para comenzar.
                 </Text>
             </View>
         );
     };
 
+    const renderItem = useCallback(
+        ({ item }: { item: ChatMessage }) => <ChatMessageItem message={item} />,
+        []
+    );
+
     return (
         <FlatList<ChatMessage>
             ref={listRef}
             data={messages}
-            keyExtractor={(_, index) => index.toString()}
-            renderItem={({ item }) => <ChatMessageItem message={item} />}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
             style={styles.container}
             contentContainerStyle={[
                 styles.content,
@@ -104,7 +115,7 @@ export function ChatMessageList(): React.ReactElement {
             keyboardShouldPersistTaps="handled"
         />
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -128,19 +139,12 @@ const styles = StyleSheet.create({
         gap: spacing.sm,
     },
     emptyIcon: {
-        fontSize: 40,
-    },
-    emptyTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.gray[800],
+        fontSize: typography.fontSize['4xl'],
     },
     emptySubtitle: {
-        fontSize: 13,
-        color: colors.gray[400],
         textAlign: 'center',
         maxWidth: 260,
-        lineHeight: 20,
+        lineHeight: typography.lineHeight.relaxed,
     },
     emptyMessages: {
         alignItems: 'center',
@@ -156,9 +160,7 @@ const styles = StyleSheet.create({
 
     // Streaming
     streamingText: {
-        fontSize: 15,
-        color: colors.gray[800],
-        lineHeight: 22,
+        lineHeight: typography.lineHeight.relaxed,
     },
     typingContainer: {
         paddingHorizontal: spacing.md,

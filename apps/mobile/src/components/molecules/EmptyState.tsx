@@ -15,7 +15,7 @@ export interface EmptyStateProps {
   testID?: string;
 }
 
-export function EmptyState({
+export const EmptyState = React.memo(function EmptyState({
   icon = 'file-text',
   title,
   description,
@@ -42,7 +42,7 @@ export function EmptyState({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

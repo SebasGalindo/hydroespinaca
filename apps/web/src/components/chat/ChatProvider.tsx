@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '@hydroespinaca/shared';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
 import { ChatToggleButton } from '@/components/chat/organisms/ChatToggleButton';
@@ -10,7 +10,7 @@ import { ChatToggleButton } from '@/components/chat/organisms/ChatToggleButton';
  * Mounted globally in the root layout so the chat is accessible from
  * every page. Only renders when the user is authenticated.
  */
-export function ChatProvider() {
+export const ChatProvider = React.memo(function ChatProvider() {
     const [isOpen, setIsOpen] = useState(false);
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -22,4 +22,4 @@ export function ChatProvider() {
             <ChatDrawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
         </>
     );
-}
+});

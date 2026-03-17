@@ -3,11 +3,10 @@ import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Badge } from '../atoms/Badge';
 import { WeatherIcon } from '../atoms/WeatherIcon';
-import { ProgressBar } from '../atoms/ProgressBar';
 import { Card } from './Card';
 import {
-  semanticColors, spacing, colors, typography,
-  type DailyForecast, ALERT_TYPE_ICONS,
+  semanticColors, spacing, colors,
+  type DailyForecast,
 } from '@hydroespinaca/shared';
 
 export interface ForecastDayCardProps {
@@ -38,7 +37,7 @@ function getUviColor(uvi: number): string {
   return colors.success[500];
 }
 
-export function ForecastDayCard({
+export const ForecastDayCard = React.memo(function ForecastDayCard({
   forecast,
   isToday = false,
   onPress,
@@ -99,7 +98,7 @@ export function ForecastDayCard({
       </View>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

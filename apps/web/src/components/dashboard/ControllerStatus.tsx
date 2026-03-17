@@ -12,7 +12,7 @@ interface ControllerStatusProps {
   internalRoutines: InternalRoutine[];
 }
 
-export default function ControllerStatus({
+const ControllerStatus = React.memo(function ControllerStatus({
   timeSinceUpdate,
   jobStatus,
   stats,
@@ -195,4 +195,6 @@ export default function ControllerStatus({
       </div>
     </section>
   );
-}
+});
+
+export default ControllerStatus;

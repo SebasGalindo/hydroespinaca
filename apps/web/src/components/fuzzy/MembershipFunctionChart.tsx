@@ -105,12 +105,12 @@ const evaluateMF = (x: number, fnType: MembershipFunctionType, params: number[])
 
 // ─── Component ───────────────────────────────────────────────
 
-const MembershipFunctionChart: React.FC<MembershipFunctionChartProps> = ({
+const MembershipFunctionChart = React.memo(function MembershipFunctionChart({
   variable,
   terms,
   height = '380px',
   showTitle = true,
-}) => {
+}: MembershipFunctionChartProps) {
   const chartData = useMemo(() => {
     if (terms.length === 0) return [];
 
@@ -203,6 +203,6 @@ const MembershipFunctionChart: React.FC<MembershipFunctionChartProps> = ({
       />
     </div>
   );
-};
+});
 
 export default MembershipFunctionChart;

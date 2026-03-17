@@ -5,7 +5,7 @@ import { AdminRoute } from '@/components/auth/AdminRoute';
 import PageLayout from '@/components/layout/PageLayout';
 import { SessionsTable } from '@/components/admin/SessionsTable';
 import { adminService, chatService } from '@hydroespinaca/shared';
-import Swal from 'sweetalert2';
+import { showSuccess, showError, showConfirm } from '@/lib/swal';
 import type { UserSessionsDto } from '@hydroespinaca/shared';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
@@ -57,55 +57,28 @@ export default function AdminDashboardPage() {
         }))
       );
 
-      await Swal.fire({
-        title: '¡Revocada!',
-        text: 'La sesión ha sido revocada exitosamente.',
-        icon: 'success',
-        confirmButtonColor: '#16a34a',
-        timer: 2000,
-        showConfirmButton: false
-      });
+      showSuccess({ title: '¡Revocada!', text: 'La sesión ha sido revocada exitosamente.' });
     } catch (err: any) {
-      await Swal.fire({
-        title: 'Error',
-        text: `Error al revocar sesión: ${err.message}`,
-        icon: 'error',
-        confirmButtonColor: '#16a34a'
-      });
+      showError({ title: 'Error', text: `Error al revocar sesión: ${err.message}` });
       throw err;
     }
   };
 
   const handleReindexKnowledge = async () => {
-    const confirm = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Re-indexar base de conocimientos?',
       text: 'Esto reconstruirá todos los embeddings vectoriales del chatbot RAG a partir de los sistemas fuzzy, variables, términos y reglas actuales. El proceso puede tardar unos minutos.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, re-indexar',
-      cancelButtonText: 'Cancelar'
+      confirmText: 'Sí, re-indexar',
     });
 
-    if (!confirm.isConfirmed) return;
+    if (!confirmed) return;
 
     setIsReindexing(true);
     try {
       const result = await chatService.reindexKnowledge();
-      await Swal.fire({
-        title: '¡Re-indexación completada!',
-        text: `Se indexaron ${result.totalChunksIndexed} chunks de conocimiento exitosamente.`,
-        icon: 'success',
-        confirmButtonColor: '#16a34a',
-      });
+      showSuccess({ title: '¡Re-indexación completada!', text: `Se indexaron ${result.totalChunksIndexed} chunks de conocimiento exitosamente.` });
     } catch (err: any) {
-      await Swal.fire({
-        title: 'Error',
-        text: `Error al re-indexar: ${err.message}`,
-        icon: 'error',
-        confirmButtonColor: '#16a34a'
-      });
+      showError({ title: 'Error', text: `Error al re-indexar: ${err.message}` });
     } finally {
       setIsReindexing(false);
     }

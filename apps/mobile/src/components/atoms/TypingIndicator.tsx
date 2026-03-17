@@ -13,7 +13,7 @@ interface TypingIndicatorProps {
  * Each dot fades in/out with a staggered delay to create a breathing effect.
  * Visible only when `visible` is true (i.e., streaming started but no text yet).
  */
-export function TypingIndicator({ visible }: TypingIndicatorProps): React.ReactElement | null {
+export const TypingIndicator = React.memo(function TypingIndicator({ visible }: TypingIndicatorProps): React.ReactElement | null {
     const dot1 = useRef(new Animated.Value(0.3)).current;
     const dot2 = useRef(new Animated.Value(0.3)).current;
     const dot3 = useRef(new Animated.Value(0.3)).current;
@@ -70,7 +70,7 @@ export function TypingIndicator({ visible }: TypingIndicatorProps): React.ReactE
             ))}
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

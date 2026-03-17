@@ -9,12 +9,12 @@ interface BadgeProps {
   className?: string;
 }
 
-const Badge: React.FC<BadgeProps> = ({
+const Badge = React.memo(function Badge({
   children,
   variant = 'default',
   size = 'md',
   className = ''
-}) => {
+}: BadgeProps) {
   const variantClasses = {
     default: 'bg-gray-100 text-gray-700',
     success: 'bg-green-100 text-green-800',
@@ -36,6 +36,6 @@ const Badge: React.FC<BadgeProps> = ({
       {children}
     </span>
   );
-};
+});
 
 export default Badge;

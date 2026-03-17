@@ -20,7 +20,7 @@ export interface ListItemProps {
   accessibilityLabel?: string;
 }
 
-export function ListItem({
+export const ListItem = React.memo(function ListItem({
   title,
   subtitle,
   leftIcon,
@@ -82,7 +82,7 @@ export function ListItem({
   }
 
   return <View testID={testID}>{content}</View>;
-}
+});
 
 const styles = StyleSheet.create({
   container: {

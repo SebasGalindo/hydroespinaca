@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows, spacing } from '@hydroespinaca/shared';
@@ -22,7 +22,7 @@ const sizeMap = {
   lg: { button: 64, icon: 32 },
 } as const;
 
-export function FloatingActionButton({
+export const FloatingActionButton = React.memo(function FloatingActionButton({
   icon = 'add',
   onPress,
   color = colors.white,
@@ -35,11 +35,11 @@ export function FloatingActionButton({
 }: FloatingActionButtonProps): React.ReactElement {
   const sizeStyle = sizeMap[size];
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (disabled) return;
     hapticLight();
     onPress?.();
-  };
+  }, [disabled, onPress]);
 
   return (
     <TouchableOpacity
@@ -65,7 +65,7 @@ export function FloatingActionButton({
       <Ionicons name={icon} size={sizeStyle.icon} color={color} />
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

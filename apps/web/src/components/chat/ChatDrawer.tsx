@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import { ChatSessionList } from './organisms/ChatSessionList';
 import { MessageList } from './organisms/MessageList';
@@ -21,7 +22,7 @@ interface ChatDrawerProps {
  * Slides in from the right via Tailwind translate classes when `isOpen` is true.
  * The parent (layout) controls open/close state through `ChatToggleButton`.
  */
-export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
+export const ChatDrawer = React.memo(function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     const { sendMessage } = useChatStream();
 
     // Load sessions when the drawer mounts
@@ -66,4 +67,4 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
             </div>
         </>
     );
-}
+});

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Button from '@/components/ui/Button';
-import Swal from 'sweetalert2';
+import { showSuccess, showError, showConfirm, showInput } from '@/lib/swal';
 import type { FuzzySystem, FuzzySystemExport } from '@hydroespinaca/shared';
 
 interface SystemActionButtonsProps {
@@ -15,7 +15,7 @@ interface SystemActionButtonsProps {
   disabled?: boolean;
 }
 
-const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
+const SystemActionButtons = React.memo(function SystemActionButtons({
   system,
   onActivate,
   onClone,
@@ -23,7 +23,7 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
   onExport,
   onEdit,
   disabled = false,
-}) => {
+}: SystemActionButtonsProps) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const isActive = system.status === 'ACTIVE';
@@ -31,62 +31,40 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
 
   const handleActivate = async () => {
     if (isActive) return;
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Activar esta rutina?',
       html: `Se activará <strong>${system.name}</strong> y se desactivarán las demás rutinas activas.`,
       icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, activar',
-      cancelButtonText: 'Cancelar',
+      confirmText: 'Sí, activar',
     });
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
 
     setLoadingAction('activate');
     try {
       await onActivate(system.id);
-      Swal.fire({
-        title: '¡Activada!',
-        text: `${system.name} es ahora la rutina activa.`,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: '¡Activada!', text: `${system.name} es ahora la rutina activa.` });
     } catch {
-      Swal.fire('Error', 'No se pudo activar la rutina.', 'error');
+      showError({ title: 'Error', text: 'No se pudo activar la rutina.' });
     } finally {
       setLoadingAction(null);
     }
   };
 
   const handleClone = async () => {
-    const { value: name } = await Swal.fire({
+    const name = await showInput({
       title: 'Duplicar rutina',
-      input: 'text',
-      inputLabel: 'Nombre para la copia',
-      inputValue: `Copia de ${system.name}`,
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Duplicar',
-      cancelButtonText: 'Cancelar',
-      inputValidator: (value) => (!value ? 'El nombre no puede estar vacío' : null),
+      label: 'Nombre para la copia',
+      initialValue: `Copia de ${system.name}`,
+      confirmText: 'Duplicar',
     });
     if (!name) return;
 
     setLoadingAction('clone');
     try {
       await onClone(system.id);
-      Swal.fire({
-        title: '¡Duplicada!',
-        text: `Se creó "${name}" como copia.`,
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: '¡Duplicada!', text: `Se creó "${name}" como copia.` });
     } catch {
-      Swal.fire('Error', 'No se pudo duplicar la rutina.', 'error');
+      showError({ title: 'Error', text: 'No se pudo duplicar la rutina.' });
     } finally {
       setLoadingAction(null);
     }
@@ -106,15 +84,9 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      Swal.fire({
-        title: '¡Exportado!',
-        text: 'El archivo JSON se descargó correctamente.',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: '¡Exportado!', text: 'El archivo JSON se descargó correctamente.' });
     } catch {
-      Swal.fire('Error', 'No se pudo exportar la rutina.', 'error');
+      showError({ title: 'Error', text: 'No se pudo exportar la rutina.' });
     } finally {
       setLoadingAction(null);
     }
@@ -122,30 +94,20 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
 
   const handleDelete = async () => {
     if (!canDelete) return;
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Eliminar esta rutina?',
       html: `Se eliminará <strong>${system.name}</strong> de forma permanente.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmText: 'Sí, eliminar',
+      danger: true,
     });
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
 
     setLoadingAction('delete');
     try {
       await onDelete(system.id);
-      Swal.fire({
-        title: '¡Eliminada!',
-        text: 'La rutina fue eliminada correctamente.',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: '¡Eliminada!', text: 'La rutina fue eliminada correctamente.' });
     } catch {
-      Swal.fire('Error', 'No se pudo eliminar la rutina.', 'error');
+      showError({ title: 'Error', text: 'No se pudo eliminar la rutina.' });
     } finally {
       setLoadingAction(null);
     }
@@ -215,6 +177,6 @@ const SystemActionButtons: React.FC<SystemActionButtonsProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default SystemActionButtons;

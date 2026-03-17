@@ -31,7 +31,7 @@ import type {
   GroupedPermissionResponseDto,
 } from '@hydroespinaca/shared';
 import { showToast } from '../../utils/toast';
-import { hapticSuccess, hapticError, hapticHeavy } from '../../utils/haptics';
+import { hapticError, hapticHeavy } from '../../utils/haptics';
 
 type Tab = 'users' | 'roles';
 
@@ -83,24 +83,24 @@ export function AdminAccessScreen(): React.ReactElement {
   }, [loadData]);
 
   // ── User handlers ──
-  const handleEditUser = (user: UserResponseDto) => {
+  const handleEditUser = useCallback((user: UserResponseDto) => {
     setEditingUser(user);
     setUserFormOpen(true);
-  };
+  }, []);
 
-  const handleDeleteUser = (user: UserResponseDto) => {
+  const handleDeleteUser = useCallback((user: UserResponseDto) => {
     setDeleteTarget({ type: 'user', id: user.id, name: user.username });
-  };
+  }, []);
 
   // ── Role handlers ──
-  const handleEditRole = (role: RoleResponseDto) => {
+  const handleEditRole = useCallback((role: RoleResponseDto) => {
     setEditingRole(role);
     setRoleFormOpen(true);
-  };
+  }, []);
 
-  const handleDeleteRole = (role: RoleResponseDto) => {
+  const handleDeleteRole = useCallback((role: RoleResponseDto) => {
     setDeleteTarget({ type: 'role', id: role.code, name: role.name });
-  };
+  }, []);
 
   // ── Confirm delete ──
   const confirmDelete = async () => {

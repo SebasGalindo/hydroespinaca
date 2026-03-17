@@ -317,9 +317,13 @@ services:
       - PUSH__Expo__ApiUrl=${EXPO_PUSH_API_URL}
       # WhatsApp Configuration
       - WHATSAPP__Enabled=${WHATSAPP_ENABLED}
+      - WHATSAPP__Provider=${WHATSAPP_PROVIDER}
       - WHATSAPP__Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
       - WHATSAPP__Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
       - WHATSAPP__Twilio__FromNumber=${TWILIO_WHATSAPP_FROM}
+      - WHATSAPP__MetaCloud__PhoneNumberId=${META_WA_PHONE_NUMBER_ID}
+      - WHATSAPP__MetaCloud__AccessToken=${META_WA_ACCESS_TOKEN}
+      - WHATSAPP__MetaCloud__BusinessAccountId=${META_WA_BUSINESS_ACCOUNT_ID}
       # Internal Service URLs (for DailySummary aggregator)
       - SERVICES__SensorServiceUrl=http://sensor-service:8080
       - SERVICES__ActuatorServiceUrl=http://actuator-service:8080

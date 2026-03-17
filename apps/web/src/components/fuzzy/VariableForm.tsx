@@ -39,14 +39,14 @@ const defaultForm = {
 
 // ─── Component ───────────────────────────────────────────────
 
-const VariableForm: React.FC<VariableFormProps> = ({
+const VariableForm = React.memo(function VariableForm({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
   systemId,
   variable = null,
-}) => {
+}: VariableFormProps) {
   const isEdit = !!variable;
 
   const [form, setForm] = useState(defaultForm);
@@ -267,6 +267,6 @@ const VariableForm: React.FC<VariableFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default VariableForm;

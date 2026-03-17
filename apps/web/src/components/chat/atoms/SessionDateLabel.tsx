@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 interface SessionDateLabelProps {
     /** ISO 8601 date string of the session's last update */
@@ -11,14 +11,14 @@ interface SessionDateLabelProps {
  * Converts an ISO date into a human-readable relative label:
  * "Hoy", "Ayer", "Esta semana", "Este mes", or the year.
  */
-export function SessionDateLabel({ date }: SessionDateLabelProps) {
+export const SessionDateLabel = React.memo(function SessionDateLabel({ date }: SessionDateLabelProps) {
     const label = useMemo(() => getRelativeLabel(date), [date]);
     return (
         <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-green-700/80 select-none">
             {label}
         </p>
     );
-}
+});
 
 // ──────────────────────────────────────
 //  Helpers

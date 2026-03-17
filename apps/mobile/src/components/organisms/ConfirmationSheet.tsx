@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { colors, spacing, borderRadius, semanticColors, typography } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
@@ -31,20 +31,40 @@ export function ConfirmationSheet({
   onCancel,
   testID,
 }: ConfirmationSheetProps): React.ReactElement | null {
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const dismissReasonRef = useRef<'confirm' | 'cancel'>('cancel');
 
   const snapPoints = useMemo(() => ['35%'], []);
 
+  useEffect(() => {
+    if (isOpen) {
+      dismissReasonRef.current = 'cancel';
+      bottomSheetRef.current?.present();
+    } else {
+      bottomSheetRef.current?.dismiss();
+    }
+  }, [isOpen]);
+
   const handleConfirm = useCallback(() => {
     if (destructive) hapticWarning();
-    bottomSheetRef.current?.close();
-    onConfirm();
-  }, [destructive, onConfirm]);
+    dismissReasonRef.current = 'confirm';
+    bottomSheetRef.current?.dismiss();
+  }, [destructive]);
 
   const handleCancel = useCallback(() => {
-    bottomSheetRef.current?.close();
-    onCancel();
-  }, [onCancel]);
+    dismissReasonRef.current = 'cancel';
+    bottomSheetRef.current?.dismiss();
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    const reason = dismissReasonRef.current;
+    dismissReasonRef.current = 'cancel';
+    if (reason === 'confirm') {
+      onConfirm();
+    } else {
+      onCancel();
+    }
+  }, [onConfirm, onCancel]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -59,14 +79,11 @@ export function ConfirmationSheet({
     []
   );
 
-  if (!isOpen) return null;
-
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
-      index={0}
       snapPoints={snapPoints}
-      onClose={onCancel}
+      onDismiss={handleDismiss}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
@@ -101,7 +118,7 @@ export function ConfirmationSheet({
           </Button>
         </View>
       </View>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

@@ -1,9 +1,14 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useChatStore } from '@hydroespinaca/shared';
-import { MarkdownMessage } from '../molecules/MarkdownMessage';
 import { StreamingMessage } from '../molecules/StreamingMessage';
+
+const MarkdownMessage = dynamic(
+  () => import('../molecules/MarkdownMessage').then(m => ({ default: m.MarkdownMessage })),
+  { ssr: false, loading: () => <div className="animate-pulse h-6 bg-gray-200 rounded my-1" /> }
+);
 
 /**
  * Organism — scrollable list of all messages in the active session.
@@ -12,7 +17,7 @@ import { StreamingMessage } from '../molecules/StreamingMessage';
  * followed by the live stream bubble (`StreamingMessage`) if active.
  * Auto-scrolls to the bottom whenever messages or streamingText change.
  */
-export function MessageList() {
+export const MessageList = React.memo(function MessageList() {
     const messages = useChatStore((s) => s.messages);
     const isStreaming = useChatStore((s) => s.isStreaming);
     const messagesLoading = useChatStore((s) => s.messagesLoading);
@@ -66,4 +71,4 @@ export function MessageList() {
             <div ref={bottomRef} />
         </div>
     );
-}
+});

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Badge } from '../atoms/Badge';
 import {
   semanticColors, spacing, colors, borderRadius,
-  ALERT_TYPE_LABELS, ALERT_TYPE_ICONS, ALERT_SEVERITY_COLORS,
+  ALERT_TYPE_LABELS, ALERT_TYPE_ICONS,
   type WeatherAlert,
 } from '@hydroespinaca/shared';
 
@@ -29,7 +29,7 @@ function isAlertRead(alert: WeatherAlert, userId: string): boolean {
   return alert.notifiedUsers?.some(u => u.userId === userId && u.isRead) ?? false;
 }
 
-export function WeatherAlertItem({
+export const WeatherAlertItem = React.memo(function WeatherAlertItem({
   alert,
   userId,
   onPress,
@@ -45,10 +45,13 @@ export function WeatherAlertItem({
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 
+  const handlePress = useCallback(() => onPress?.(alert), [onPress, alert]);
+  const handleMarkRead = useCallback(() => onMarkRead?.(alert.id), [onMarkRead, alert.id]);
+
   return (
     <TouchableOpacity
       style={[styles.container, { borderLeftColor: severityColor }, !read && styles.unread, style]}
-      onPress={() => onPress?.(alert)}
+      onPress={handlePress}
       activeOpacity={0.7}
       testID={testID}
     >
@@ -68,13 +71,13 @@ export function WeatherAlertItem({
         {alert.message}
       </Text>
       {!read && onMarkRead && (
-        <TouchableOpacity onPress={() => onMarkRead(alert.id)} style={styles.markReadBtn}>
+        <TouchableOpacity onPress={handleMarkRead} style={styles.markReadBtn}>
           <Text variant="caption" color={semanticColors.primary}>Marcar como leída</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -19,7 +19,7 @@ export interface SwitchProps {
   accessibilityLabel?: string;
 }
 
-export function Switch({
+export const Switch = React.memo(function Switch({
   value,
   onValueChange,
   label,
@@ -60,7 +60,7 @@ export function Switch({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

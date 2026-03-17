@@ -15,7 +15,7 @@ interface DateRangeFilterProps {
   children?: React.ReactNode;
 }
 
-const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
+const DateRangeFilter = React.memo(function DateRangeFilter({
   from,
   to,
   onFromChange,
@@ -24,7 +24,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   isLoading = false,
   className = '',
   children,
-}) => {
+}: DateRangeFilterProps) {
   const today = new Date().toISOString().split('T')[0];
 
   const handleQuickSelect = (days: number) => {
@@ -111,6 +111,6 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default DateRangeFilter;

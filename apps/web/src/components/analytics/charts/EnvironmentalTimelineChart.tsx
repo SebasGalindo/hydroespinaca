@@ -27,7 +27,7 @@ const getVariableColor = (variableName: string): string => {
   return '#6b7280';
 };
 
-export default function EnvironmentalTimelineChart({ variables }: EnvironmentalTimelineChartProps) {
+const EnvironmentalTimelineChart = React.memo(function EnvironmentalTimelineChart({ variables }: EnvironmentalTimelineChartProps) {
   // Initialize with all available variables
   const [selectedVariables, setSelectedVariables] = useState<string[]>(
     variables.map((v) => v.variableName)
@@ -136,4 +136,6 @@ export default function EnvironmentalTimelineChart({ variables }: EnvironmentalT
       />
     </div>
   );
-}
+});
+
+export default EnvironmentalTimelineChart;

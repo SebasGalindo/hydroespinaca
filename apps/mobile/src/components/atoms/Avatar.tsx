@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, typography } from '@hydroespinaca/shared';
 import { Text } from './Text';
@@ -35,7 +35,7 @@ const getInitials = (name?: string): string => {
   return (first + last).toUpperCase();
 };
 
-export function Avatar({
+export const Avatar = React.memo(function Avatar({
   name,
   size = 'md',
   style,
@@ -44,6 +44,11 @@ export function Avatar({
   const dimension = sizeMap[size];
   const initials = getInitials(name);
   const fontSize = fontSizeMap[size];
+
+  const textStyle = useMemo(
+    () => ({ fontSize, fontWeight: typography.fontWeight.semibold as any }),
+    [fontSize],
+  );
 
   return (
     <View
@@ -64,7 +69,7 @@ export function Avatar({
         <Text
           variant="body"
           color={colors.hidro[700]}
-          style={{ fontSize, fontWeight: typography.fontWeight.semibold as any }}
+          style={textStyle}
         >
           {initials}
         </Text>
@@ -73,7 +78,7 @@ export function Avatar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

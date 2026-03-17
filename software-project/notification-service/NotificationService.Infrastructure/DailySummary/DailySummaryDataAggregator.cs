@@ -197,7 +197,7 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
                 data.FuzzyEvaluation = new FuzzyEvaluationSummary
                 {
                     EvaluationCount = result.TotalCount,
-                    SystemName = evaluations.FirstOrDefault()?.SystemId,
+                    SystemName = await ResolveSystemName(client, evaluations.FirstOrDefault()?.SystemId, ct),
                     TopRules = ruleActivations
                 };
             }
@@ -212,6 +212,34 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
     }
 
     // ──────────────── Weather Service ────────────────
+
+    /// <summary>
+    /// Resolves a fuzzy system ID to its human-readable name via the fuzzy-service API.
+    /// Falls back to the raw ID if the lookup fails.
+    /// </summary>
+    private async Task<string?> ResolveSystemName(HttpClient client, string? systemId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(systemId)) return null;
+
+        try
+        {
+            var response = await client.GetAsync(
+                $"{_serviceUrls.FuzzyServiceUrl}/api/fuzzy-systems/{systemId}", ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var system = await response.Content.ReadFromJsonAsync<FuzzySystemItem>(_snakeCaseOptions, ct);
+                if (!string.IsNullOrEmpty(system?.Name))
+                    return system.Name;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not resolve fuzzy system name for {SystemId}", systemId);
+        }
+
+        return systemId; // Fallback to ID if name lookup fails
+    }
 
     private async Task FetchWeatherData(DailySummaryData data, CancellationToken ct)
     {
@@ -307,6 +335,12 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
     {
         public string? SystemId { get; set; }
         public List<RuleActivation>? ActivatedRules { get; set; }
+    }
+
+    private class FuzzySystemItem
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
     }
 
     private class RuleActivation

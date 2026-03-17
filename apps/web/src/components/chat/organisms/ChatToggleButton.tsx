@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import { ChatBubbleOvalLeftEllipsisIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -13,7 +14,7 @@ interface ChatToggleButtonProps {
  * Toggles the `ChatDrawer` open/closed.
  * Shows an "AI" badge and pulses gently to invite interaction.
  */
-export function ChatToggleButton({ isOpen, onToggle }: ChatToggleButtonProps) {
+export const ChatToggleButton = React.memo(function ChatToggleButton({ isOpen, onToggle }: ChatToggleButtonProps) {
     return (
         <button
             id="chat-toggle-fab"
@@ -44,4 +45,4 @@ export function ChatToggleButton({ isOpen, onToggle }: ChatToggleButtonProps) {
             )}
         </button>
     );
-}
+});

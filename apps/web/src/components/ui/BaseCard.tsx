@@ -8,13 +8,13 @@ interface BaseCardProps {
   onClick?: (e: React.MouseEvent) => void;
 }
 
-const BaseCard: React.FC<BaseCardProps> = ({
+const BaseCard = React.memo(function BaseCard({
   children,
   className = '',
   padding = 'md',
   hover = true,
   onClick
-}) => {
+}: BaseCardProps) {
   const getPaddingClass = () => {
     switch (padding) {
       case 'sm':
@@ -40,6 +40,6 @@ const BaseCard: React.FC<BaseCardProps> = ({
       {children}
     </article>
   );
-};
+});
 
 export default BaseCard;

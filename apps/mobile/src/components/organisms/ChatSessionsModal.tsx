@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
     View,
-    Text,
     FlatList,
     TouchableOpacity,
     Modal,
-    SafeAreaView,
     ActivityIndicator,
     StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useChatStore, colors, spacing, borderRadius } from '@hydroespinaca/shared';
+import { useChatStore, colors, spacing, borderRadius, typography } from '@hydroespinaca/shared';
 import type { ChatSession } from '@hydroespinaca/shared';
+import { Text } from '../atoms/Text';
 import { ChatSessionItemMobile } from '../molecules/ChatSessionItemMobile';
 
 interface ChatSessionsModalProps {
@@ -20,6 +20,8 @@ interface ChatSessionsModalProps {
     /** Called to dismiss the modal */
     onClose: () => void;
 }
+
+const keyExtractor = (s: ChatSession) => s.id;
 
 /**
  * Organism — full-screen modal listing all chat sessions.
@@ -31,7 +33,7 @@ interface ChatSessionsModalProps {
  *
  * Selecting or creating a session automatically closes the modal.
  */
-export function ChatSessionsModal({
+export const ChatSessionsModal = React.memo(function ChatSessionsModal({
     visible,
     onClose,
 }: ChatSessionsModalProps): React.ReactElement {
@@ -43,19 +45,28 @@ export function ChatSessionsModal({
     const deleteSession = useChatStore((s) => s.deleteSession);
     const createSessionLoading = useChatStore((s) => s.createSessionLoading);
 
-    const handleSelect = (id: string) => {
+    const handleSelect = useCallback((id: string) => {
         setActiveSession(id);
         onClose();
-    };
+    }, [setActiveSession, onClose]);
 
-    const handleNew = async () => {
+    const handleNew = useCallback(async () => {
         try {
             await createSession();
             onClose();
         } catch {
             // createSessionError is handled by the store
         }
-    };
+    }, [createSession, onClose]);
+
+    const renderItem = useCallback(({ item }: { item: ChatSession }) => (
+        <ChatSessionItemMobile
+            session={item}
+            isActive={item.id === activeSessionId}
+            onSelect={handleSelect}
+            onDelete={deleteSession}
+        />
+    ), [activeSessionId, handleSelect, deleteSession]);
 
     return (
         <Modal
@@ -77,7 +88,9 @@ export function ChatSessionsModal({
                         <Ionicons name="close" size={22} color={colors.gray[600]} />
                     </TouchableOpacity>
 
-                    <Text style={styles.headerTitle}>Conversaciones</Text>
+                    <Text variant="body" weight="semibold" color={colors.gray[900]} style={styles.headerTitle}>
+                        Conversaciones
+                    </Text>
 
                     {/* New session button */}
                     <TouchableOpacity
@@ -92,7 +105,9 @@ export function ChatSessionsModal({
                         ) : (
                             <>
                                 <Ionicons name="add" size={18} color={colors.hidro[600]} />
-                                <Text style={styles.newBtnText}>Nueva</Text>
+                                <Text variant="caption" weight="medium" color={colors.hidro[600]}>
+                                    Nueva
+                                </Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -102,7 +117,9 @@ export function ChatSessionsModal({
                 {sessionsLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={colors.hidro[600]} />
-                        <Text style={styles.loadingText}>Cargando conversaciones…</Text>
+                        <Text variant="caption" color={colors.gray[400]}>
+                            Cargando conversaciones…
+                        </Text>
                     </View>
                 ) : sessions.length === 0 ? (
                     <View style={styles.emptyContainer}>
@@ -111,23 +128,18 @@ export function ChatSessionsModal({
                             size={48}
                             color={colors.gray[300]}
                         />
-                        <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-                        <Text style={styles.emptySubtitle}>
+                        <Text variant="body" weight="semibold" color={colors.gray[700]}>
+                            Sin conversaciones
+                        </Text>
+                        <Text variant="caption" color={colors.gray[400]} style={styles.emptySubtitle}>
                             Toca "Nueva" para iniciar tu primera conversación con el asistente.
                         </Text>
                     </View>
                 ) : (
                     <FlatList<ChatSession>
                         data={sessions}
-                        keyExtractor={(s) => s.id}
-                        renderItem={({ item }) => (
-                            <ChatSessionItemMobile
-                                session={item}
-                                isActive={item.id === activeSessionId}
-                                onSelect={handleSelect}
-                                onDelete={deleteSession}
-                            />
-                        )}
+                        keyExtractor={keyExtractor}
+                        renderItem={renderItem}
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.listContent}
                     />
@@ -135,9 +147,7 @@ export function ChatSessionsModal({
             </SafeAreaView>
         </Modal>
     );
-}
-
-const BR = borderRadius as Record<string, number>;
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -157,28 +167,20 @@ const styles = StyleSheet.create({
         padding: spacing.xs,
     },
     headerTitle: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: colors.gray[900],
         flex: 1,
         textAlign: 'center',
     },
     newBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: spacing.sm + 2,
-        paddingVertical: spacing.xs + 2,
-        borderRadius: BR['lg'] ?? 10,
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.lg,
         backgroundColor: colors.hidro[50],
     },
     newBtnDisabled: {
         opacity: 0.5,
-    },
-    newBtnText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.hidro[600],
     },
     listContent: {
         paddingBottom: spacing.xl,
@@ -191,10 +193,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: spacing.md,
     },
-    loadingText: {
-        fontSize: 13,
-        color: colors.gray[400],
-    },
 
     // Empty
     emptyContainer: {
@@ -204,16 +202,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.xl,
         gap: spacing.sm,
     },
-    emptyTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.gray[700],
-    },
     emptySubtitle: {
-        fontSize: 13,
-        color: colors.gray[400],
         textAlign: 'center',
         maxWidth: 260,
-        lineHeight: 20,
+        lineHeight: typography.lineHeight.relaxed,
     },
 });

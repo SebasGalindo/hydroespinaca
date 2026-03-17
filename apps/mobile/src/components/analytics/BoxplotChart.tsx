@@ -3,8 +3,8 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { colors, spacing, borderRadius, semanticColors, typography } from '@hydroespinaca/shared';
 import type { EnvironmentalVariableAggregate, AggregateVariabilityPoint } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
-import { Select } from '../atoms/Select';
-import type { SelectOption } from '../atoms/Select';
+import { Select } from '../molecules/Select';
+import type { SelectOption } from '../molecules/Select';
 import { getVariableColor } from '../../utils/actuatorMapper';
 import type { ViewMode } from '../../utils/analyticsFilters';
 

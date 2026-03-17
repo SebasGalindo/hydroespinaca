@@ -12,7 +12,7 @@ interface PageHeaderProps {
   subtitleClassName?: string;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({
+const PageHeader = React.memo(function PageHeader({
   title,
   subtitle,
   children,
@@ -20,7 +20,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   className = '',
   titleClassName = '',
   subtitleClassName = ''
-}) => {
+}: PageHeaderProps) {
   const alignmentClasses = {
     left: 'text-left',
     center: 'text-center',
@@ -44,6 +44,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       )}
     </header>
   );
-};
+});
 
 export default PageHeader;

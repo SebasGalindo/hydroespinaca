@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useChatStore } from '@hydroespinaca/shared';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
 
@@ -16,7 +16,7 @@ interface ChatInputProps {
  * - Disabled while `isStreaming` is true in the store.
  * - Send button icon reflects disabled state.
  */
-export function ChatInput({ onSend }: ChatInputProps) {
+export const ChatInput = React.memo(function ChatInput({ onSend }: ChatInputProps) {
     const isStreaming = useChatStore((s) => s.isStreaming);
     const activeSessionId = useChatStore((s) => s.activeSessionId);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -94,4 +94,4 @@ export function ChatInput({ onSend }: ChatInputProps) {
             </button>
         </div>
     );
-}
+});

@@ -14,7 +14,7 @@ export interface ForecastCarouselProps {
   testID?: string;
 }
 
-export function ForecastCarousel({
+export const ForecastCarousel = React.memo(function ForecastCarousel({
   days,
   loading = false,
   error,
@@ -66,7 +66,7 @@ export function ForecastCarousel({
       ))}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scroll: {

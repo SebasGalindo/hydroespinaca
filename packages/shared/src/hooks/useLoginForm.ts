@@ -11,6 +11,8 @@ interface UseLoginFormReturn {
   isLoading: boolean;
   error: string | null;
   handleChange: (e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } }) => void;
+  /** Platform-agnostic field setter — use from React Native instead of handleChange */
+  handleFieldChange: (fieldName: keyof LoginFormState, value: string) => void;
   handleSubmit: (e: FormEvent | { preventDefault: () => void }) => Promise<void>;
   clearError: () => void;
 }
@@ -26,6 +28,10 @@ export const useLoginForm = (): UseLoginFormReturn => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } }) => {
     const { name, value } = e.target as { name: string; value: string };
     setFormState(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFieldChange = (fieldName: keyof LoginFormState, value: string) => {
+    setFormState(prev => ({ ...prev, [fieldName]: value }));
   };
   
   const handleSubmit = async (e: FormEvent | { preventDefault: () => void }) => {
@@ -44,6 +50,7 @@ export const useLoginForm = (): UseLoginFormReturn => {
     isLoading,
     error,
     handleChange,
+    handleFieldChange,
     handleSubmit,
     clearError,
   };

@@ -14,12 +14,12 @@ interface ConsumptionFormProps {
   isLoading?: boolean;
 }
 
-const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
+const ConsumptionForm = React.memo(function ConsumptionForm({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
-}) => {
+}: ConsumptionFormProps) {
   const [form, setForm] = useState({
     dateFrom: new Date().toISOString().split('T')[0] ?? '',
     dateTo: '',
@@ -150,6 +150,6 @@ const ConsumptionForm: React.FC<ConsumptionFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default ConsumptionForm;

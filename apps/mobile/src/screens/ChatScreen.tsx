@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    SafeAreaView,
     View,
-    Text,
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
     useChatStore,
@@ -15,12 +14,14 @@ import {
     colors,
     spacing,
     borderRadius,
+    typography,
 } from '@hydroespinaca/shared';
+import { Text } from '../components/atoms/Text';
 import { ChatMessageList } from '../components/organisms/ChatMessageList';
 import { ChatInputMobile } from '../components/molecules/ChatInputMobile';
 import { ChatSessionsModal } from '../components/organisms/ChatSessionsModal';
 
-const BR = borderRadius as Record<string, number>;
+
 
 /**
  * Full-screen dedicated chat screen for the mobile app.
@@ -52,8 +53,13 @@ export function ChatScreen(): React.ReactElement {
     }, []);
 
     // Derive active session title
-    const activeTitle =
-        sessions.find((s) => s.id === activeSessionId)?.title ?? 'Asistente IA';
+    const activeTitle = useMemo(() =>
+        sessions.find((s) => s.id === activeSessionId)?.title ?? 'Asistente IA',
+        [sessions, activeSessionId]
+    );
+
+    const openSessions = useCallback(() => setShowSessions(true), []);
+    const closeSessions = useCallback(() => setShowSessions(false), []);
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -67,7 +73,7 @@ export function ChatScreen(): React.ReactElement {
                     {/* Session title (tappable to open modal) */}
                     <TouchableOpacity
                         style={styles.headerTitleBtn}
-                        onPress={() => setShowSessions(true)}
+                        onPress={openSessions}
                         accessibilityLabel="Ver conversaciones"
                         accessibilityRole="button"
                     >
@@ -79,11 +85,11 @@ export function ChatScreen(): React.ReactElement {
                             />
                         </View>
                         <View style={styles.headerTextCol}>
-                            <Text style={styles.headerTitle} numberOfLines={1}>
+                            <Text variant="body" weight="semibold" color={colors.gray[900]} numberOfLines={1} style={styles.headerTitle}>
                                 {activeTitle}
                             </Text>
                             {activeSessionId && (
-                                <Text style={styles.headerSubtitle}>
+                                <Text variant="caption" color={colors.hidro[500]} style={styles.headerSubtitle}>
                                     {isStreaming ? 'Escribiendo…' : 'En línea'}
                                 </Text>
                             )}
@@ -114,7 +120,7 @@ export function ChatScreen(): React.ReactElement {
             {/* ── Sessions modal ──────────────────────────────────────────── */}
             <ChatSessionsModal
                 visible={showSessions}
-                onClose={() => setShowSessions(false)}
+                onClose={closeSessions}
             />
         </SafeAreaView>
     );
@@ -146,7 +152,7 @@ const styles = StyleSheet.create({
     headerIconBox: {
         width: 36,
         height: 36,
-        borderRadius: BR['lg'] ?? 10,
+        borderRadius: borderRadius.lg,
         backgroundColor: colors.hidro[50],
         alignItems: 'center',
         justifyContent: 'center',
@@ -156,13 +162,8 @@ const styles = StyleSheet.create({
         minWidth: 0,
     },
     headerTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.gray[900],
     },
     headerSubtitle: {
-        fontSize: 12,
-        color: colors.hidro[500],
         marginTop: 1,
     },
 });

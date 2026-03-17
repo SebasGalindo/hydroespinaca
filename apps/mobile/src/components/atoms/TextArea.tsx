@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import React, { useState, forwardRef, useMemo } from 'react';
 import { TextInput, View, StyleSheet, TextStyle, ViewStyle, TextInputProps } from 'react-native';
 import { semanticColors, typography, spacing, borderRadius, colors } from '@hydroespinaca/shared';
 
@@ -26,18 +26,18 @@ export const TextArea = forwardRef<TextInput, TextAreaProps>(({
 }, ref): React.ReactElement => {
   const [isFocused, setIsFocused] = useState(false);
 
-  const getBorderColor = () => {
+  const borderColor = useMemo(() => {
     if (error) return semanticColors.errorBorder;
     if (isFocused) return colors.hidro[500];
     return colors.gray[300];
-  };
+  }, [error, isFocused]);
 
   return (
     <View
       style={[
         styles.container,
         {
-          borderColor: getBorderColor(),
+          borderColor,
           opacity: disabled ? 0.5 : 1,
         },
         fullWidth && styles.fullWidth,

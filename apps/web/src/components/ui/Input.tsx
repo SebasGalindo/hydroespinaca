@@ -10,7 +10,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
 }
 
-const Input: React.FC<InputProps> = ({
+const Input = React.memo(function Input({
   label,
   error,
   fullWidth = true,
@@ -19,7 +19,7 @@ const Input: React.FC<InputProps> = ({
   inputClassName = '',
   icon,
   ...props
-}) => {
+}: InputProps) {
   // Base classes
   const containerClasses = `${fullWidth ? 'w-full' : ''} ${className}`;
   const labelClasses = `block text-sm font-medium text-gray-700 mb-1 ${labelClassName}`;
@@ -52,6 +52,6 @@ const Input: React.FC<InputProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default Input;

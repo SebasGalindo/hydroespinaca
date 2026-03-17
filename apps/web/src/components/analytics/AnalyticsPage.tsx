@@ -19,7 +19,7 @@ import {
   type EnvironmentalVariableAggregate,
 } from '@hydroespinaca/shared';
 import { mapActuatorAnalytics } from '@/lib/actuator-analytics-mapper';
-import Swal from 'sweetalert2';
+import { showError } from '@/lib/swal';
 
 // Cache interface
 interface DataCache {
@@ -30,7 +30,7 @@ interface DataCache {
   };
 }
 
-export default function AnalyticsPage() {
+const AnalyticsPage = React.memo(function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<AnalyticsLevel>('environmental');
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -261,12 +261,7 @@ export default function AnalyticsPage() {
       pdf.save(filename);
     } catch (error) {
       console.error('Error exporting:', error);
-      await Swal.fire({
-        title: 'Error al exportar',
-        text: 'Hubo un error al exportar. Por favor, intenta nuevamente.',
-        icon: 'error',
-        confirmButtonColor: '#16a34a'
-      });
+      await showError({ title: 'Error al exportar', text: 'Hubo un error al exportar. Por favor, intenta nuevamente.' });
     } finally {
       setIsExporting(false);
     }
@@ -325,4 +320,6 @@ export default function AnalyticsPage() {
       </div>
     </PageLayout>
   );
-}
+});
+
+export default AnalyticsPage;

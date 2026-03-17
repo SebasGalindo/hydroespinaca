@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, ViewStyle, ActivityIndicator } from 'react-native';
 import { semanticColors, spacing, borderRadius, typography } from '@hydroespinaca/shared';
 import { Text } from './Text';
@@ -39,7 +39,7 @@ const sizeStyles = {
   },
 } as const;
 
-export function Button({
+export const Button = React.memo(function Button({
   children,
   variant = 'primary',
   size = 'md',
@@ -54,8 +54,8 @@ export function Button({
   accessibilityLabel,
 }: ButtonProps): React.ReactElement {
   const sizeStyle = sizeStyles[size];
-  
-  const getButtonStyle = (): ViewStyle => {
+
+  const buttonStyle = useMemo((): ViewStyle => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
@@ -67,121 +67,86 @@ export function Button({
       opacity: disabled || loading ? 0.6 : 1,
       width: fullWidth ? '100%' : undefined,
     };
-    
+
     switch (variant) {
       case 'primary':
-        return {
-          ...baseStyle,
-          backgroundColor: semanticColors.primary,
-        };
+        return { ...baseStyle, backgroundColor: semanticColors.primary };
       case 'secondary':
-        return {
-          ...baseStyle,
-          backgroundColor: semanticColors.backgroundSecondary,
-        };
+        return { ...baseStyle, backgroundColor: semanticColors.backgroundSecondary };
       case 'outline':
-        return {
-          ...baseStyle,
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: semanticColors.border,
-        };
+        return { ...baseStyle, backgroundColor: 'transparent', borderWidth: 1, borderColor: semanticColors.border };
       case 'ghost':
-        return {
-          ...baseStyle,
-          backgroundColor: 'transparent',
-        };
+        return { ...baseStyle, backgroundColor: 'transparent' };
       case 'danger':
-        return {
-          ...baseStyle,
-          backgroundColor: semanticColors.errorBg,
-        };
+        return { ...baseStyle, backgroundColor: semanticColors.errorBg };
       default:
         return baseStyle;
     }
-  };
-  
-  const getTextColor = (): string => {
+  }, [variant, size, disabled, loading, fullWidth, sizeStyle]);
+
+  const textColor = useMemo((): string => {
     switch (variant) {
       case 'primary':
         return semanticColors.textInverse;
       case 'secondary':
-        return semanticColors.textPrimary;
       case 'outline':
+      case 'danger':
         return semanticColors.textPrimary;
       case 'ghost':
         return semanticColors.textSecondary;
-      case 'danger':
-        return semanticColors.textPrimary;
       default:
         return semanticColors.textPrimary;
     }
-  };
-  
-  const getLoadingColor = (): string => {
+  }, [variant]);
+
+  const loadingColor = useMemo((): string => {
     switch (variant) {
       case 'primary':
-        return semanticColors.textInverse;
       case 'danger':
         return semanticColors.textInverse;
       default:
         return semanticColors.textPrimary;
     }
-  };
-  
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <ActivityIndicator
-          size="small"
-          color={getLoadingColor()}
-          testID={`${testID}-loading`}
-        />
-      );
-    }
-    
+  }, [variant]);
+
+  const textStyle = useMemo(
+    () => ({
+      fontSize: sizeStyle.fontSize,
+      fontWeight: typography.fontWeight.medium as any,
+      color: textColor,
+      textAlign: 'center' as const,
+    }),
+    [sizeStyle.fontSize, textColor],
+  );
+
+  if (loading) {
     return (
-      <>
-        {leftIcon && (
-          <Text style={{ marginRight: spacing.xs }}>
-            {leftIcon}
-          </Text>
-        )}
-        
-        <Text
-          style={{
-            fontSize: sizeStyle.fontSize,
-            fontWeight: typography.fontWeight.medium as any,
-            color: getTextColor(),
-            textAlign: 'center',
-          }}
-        >
-          {children}
-        </Text>
-        
-        {rightIcon && (
-          <Text style={{ marginLeft: spacing.xs }}>
-            {rightIcon}
-          </Text>
-        )}
-      </>
+      <TouchableOpacity
+        style={[buttonStyle, style]}
+        disabled
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel || (typeof children === 'string' ? children : 'Button')}
+        accessibilityState={{ disabled: true, busy: true }}
+      >
+        <ActivityIndicator size="small" color={loadingColor} testID={`${testID}-loading`} />
+      </TouchableOpacity>
     );
-  };
-  
+  }
+
   return (
     <TouchableOpacity
-      style={[getButtonStyle(), style]}
+      style={[buttonStyle, style]}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={disabled}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || (typeof children === 'string' ? children : 'Button')}
-      accessibilityState={{ 
-        disabled: disabled || loading,
-        busy: loading
-      }}
+      accessibilityState={{ disabled, busy: false }}
     >
-      {renderContent()}
+      {leftIcon && <Text style={{ marginRight: spacing.xs }}>{leftIcon}</Text>}
+      <Text style={textStyle}>{children}</Text>
+      {rightIcon && <Text style={{ marginLeft: spacing.xs }}>{rightIcon}</Text>}
     </TouchableOpacity>
   );
-}
+});

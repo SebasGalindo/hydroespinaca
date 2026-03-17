@@ -22,7 +22,7 @@ const SEVERITY_DOT: Record<string, string> = {
   info: 'bg-gray-400',
 };
 
-export default function WeatherAlertWidget() {
+const WeatherAlertWidget = React.memo(function WeatherAlertWidget() {
   const user = useAuthStore((s) => s.user);
   const { alerts, unreadAlertCount, alertsLoading, fetchAlerts } = useWeatherStore();
 
@@ -99,4 +99,6 @@ export default function WeatherAlertWidget() {
       </div>
     </div>
   );
-}
+});
+
+export default WeatherAlertWidget;

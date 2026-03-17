@@ -11,13 +11,13 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
-const Modal: React.FC<ModalProps> = ({ 
+const Modal = React.memo(function Modal({ 
   isOpen, 
   onClose, 
   title, 
   children, 
   maxWidth = 'lg' 
-}) => {
+}: ModalProps) {
   // Block body scroll when modal is open
   useEffect(() => {
     if (!isOpen) return;
@@ -79,7 +79,7 @@ const Modal: React.FC<ModalProps> = ({
           className="flex-1 overflow-y-auto p-6"
           style={{
             scrollbarWidth: 'thin',
-            scrollbarColor: '#10b981 #d1fae5'
+            scrollbarColor: 'var(--color-hidro-success) var(--color-hidro-green-bg)'
           }}
         >
           <style jsx>{`
@@ -87,15 +87,15 @@ const Modal: React.FC<ModalProps> = ({
               width: 8px;
             }
             div::-webkit-scrollbar-track {
-              background: #d1fae5;
+              background: var(--color-hidro-green-bg);
               border-radius: 4px;
             }
             div::-webkit-scrollbar-thumb {
-              background: #10b981;
+              background: var(--color-hidro-success);
               border-radius: 4px;
             }
             div::-webkit-scrollbar-thumb:hover {
-              background: #059669;
+              background: var(--color-hidro-green-primary);
             }
           `}</style>
           {children}
@@ -103,6 +103,6 @@ const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default Modal;

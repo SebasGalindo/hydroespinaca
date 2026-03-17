@@ -22,7 +22,7 @@ export interface ChatBubbleMobileProps {
  *
  * Contains NO business logic — use ChatMessageItem / StreamingMessage above it.
  */
-export function ChatBubbleMobile({
+export const ChatBubbleMobile = React.memo(function ChatBubbleMobile({
     role,
     children,
     isStreaming = false,
@@ -54,14 +54,14 @@ export function ChatBubbleMobile({
             </View>
         </View>
     );
-}
+});
 
-const BORDER_RADIUS = (borderRadius as Record<string, number>)['xl'] ?? 20;
+const BORDER_RADIUS = borderRadius.xl;
 
 const styles = StyleSheet.create({
     wrapper: {
         flexDirection: 'row',
-        paddingVertical: 4,
+        paddingVertical: spacing.xs,
         paddingHorizontal: spacing.sm,
     },
     wrapperUser: {
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
 
     bubble: {
         maxWidth: '82%',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        paddingHorizontal: spacing.md + 2,
+        paddingVertical: spacing.sm + 2,
         borderRadius: BORDER_RADIUS,
     },
     bubbleUser: {

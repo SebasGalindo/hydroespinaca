@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Modal, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, spacing, borderRadius, semanticColors, typography } from '@hydroespinaca/shared';
+import { spacing, borderRadius, semanticColors, typography, colors } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';
 import { Icon } from '../atoms/Icon';
@@ -18,7 +18,7 @@ export interface ConfirmationDialogProps {
   testID?: string;
 }
 
-export function ConfirmationDialog({
+export const ConfirmationDialog = React.memo(function ConfirmationDialog({
   visible,
   title,
   message,
@@ -29,10 +29,10 @@ export function ConfirmationDialog({
   onCancel,
   testID,
 }: ConfirmationDialogProps): React.ReactElement {
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (destructive) hapticWarning();
     onConfirm();
-  };
+  }, [destructive, onConfirm]);
 
   return (
     <Modal
@@ -82,7 +82,7 @@ export function ConfirmationDialog({
       </TouchableOpacity>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   overlay: {

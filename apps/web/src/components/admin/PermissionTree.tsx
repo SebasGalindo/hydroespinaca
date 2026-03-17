@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { GroupedPermissionResponseDto, PermissionResponseDto } from '@hydroespinaca/shared';
+import { ChevronRightIcon } from '@/components/ui/icons/Icons';
 
 interface PermissionTreeProps {
   groupedPermissions: GroupedPermissionResponseDto[];
@@ -13,12 +14,12 @@ interface PermissionTreeProps {
 /**
  * PermissionTree - Interactive tree component for selecting permissions grouped by category
  */
-export const PermissionTree: React.FC<PermissionTreeProps> = ({
+export const PermissionTree = React.memo(function PermissionTree({
   groupedPermissions,
   selectedPermissionCodes,
   onChange,
   disabled = false
-}) => {
+}: PermissionTreeProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   // Expand all categories by default
@@ -101,14 +102,9 @@ export const PermissionTree: React.FC<PermissionTreeProps> = ({
                 onClick={() => toggleCategory(group.category)}
                 className="flex items-center flex-1 text-left"
               >
-                <svg
+                <ChevronRightIcon
                   className={`w-4 h-4 mr-2 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                />
                 <span className="font-semibold text-gray-700 capitalize">
                   {group.category}
                 </span>
@@ -180,4 +176,4 @@ export const PermissionTree: React.FC<PermissionTreeProps> = ({
       })}
     </div>
   );
-};
+});

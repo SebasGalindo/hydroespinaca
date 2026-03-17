@@ -40,13 +40,13 @@ const defaultForm = {
 
 // ─── Component ───────────────────────────────────────────────
 
-const SystemForm: React.FC<SystemFormProps> = ({
+const SystemForm = React.memo(function SystemForm({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
   system = null,
-}) => {
+}: SystemFormProps) {
   const isEdit = !!system;
 
   const [form, setForm] = useState(defaultForm);
@@ -201,6 +201,6 @@ const SystemForm: React.FC<SystemFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default SystemForm;

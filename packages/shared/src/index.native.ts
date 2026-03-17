@@ -34,6 +34,8 @@ export { useChatSSE } from './hooks/useChatSSE';
 
 // Export all utilities (including native storage)
 export * from './utils/formatters';
+export { formatRelativeDate, formatRelativeTime, formatDateTimestamp } from './utils/dateHelpers';
+export { isUserAdmin } from './utils/authHelpers';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { SessionStorage, secureStorage } from './utils/secureStorage.native';
 export { StorageUtils, StorageKeys } from './utils/storage';
@@ -42,6 +44,7 @@ export {
   getAlertConfig,
   calculateVariableStatus,
   calculateTrend,
+  requiresArtificialLight,
   VARIABLE_ALERT_CONFIG,
 } from './utils/variableAlerts';
 export type {

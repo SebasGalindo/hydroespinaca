@@ -17,7 +17,7 @@ export interface FormFieldProps {
   helperText?: string;
 }
 
-const FormField: React.FC<FormFieldProps> = ({
+const FormField = React.memo(function FormField({
   type,
   label,
   value,
@@ -32,7 +32,7 @@ const FormField: React.FC<FormFieldProps> = ({
   options = [],
   disabled = false,
   helperText
-}) => {
+}: FormFieldProps) {
   const baseInputClasses = `
     w-full px-4 py-2 border rounded-lg transition-colors
     focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent
@@ -95,6 +95,6 @@ const FormField: React.FC<FormFieldProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default FormField;

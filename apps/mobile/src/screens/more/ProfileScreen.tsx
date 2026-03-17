@@ -2,7 +2,7 @@
  * ProfileScreen — Perfil del usuario.
  * Avatar con icono de rol, datos de cuenta, botón logout.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -13,18 +13,17 @@ import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/molecules/Card';
 import { ConfirmationSheet } from '../../components/organisms/ConfirmationSheet';
 import { useAuth } from '../../context/AuthProvider';
-import { semanticColors, spacing, colors, borderRadius } from '@hydroespinaca/shared';
+import { semanticColors, spacing, colors, borderRadius, typography, isUserAdmin } from '@hydroespinaca/shared';
+import type { IconName } from '@hydroespinaca/shared';
 
 export function ProfileScreen(): React.ReactElement {
   const navigation = useNavigation();
   const { session, logout } = useAuth();
   const [logoutVisible, setLogoutVisible] = useState(false);
 
-  const isAdmin =
-    session?.role?.toLowerCase() === 'administrador' ||
-    session?.role?.toLowerCase() === 'admin';
+  const isAdmin = isUserAdmin(session);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     setLogoutVisible(false);
     if (__DEV__) console.log('[Profile] handleLogout — starting');
     try {
@@ -38,15 +37,15 @@ export function ProfileScreen(): React.ReactElement {
     while (nav.getParent()) nav = nav.getParent();
     if (__DEV__) console.log('[Profile] handleLogout — resetting to Login');
     nav.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
+  }, [logout, navigation]);
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
-  const infoRows: { label: string; value: string; icon: string }[] = [
+  const infoRows = useMemo((): { label: string; value: string; icon: IconName }[] => [
     { label: 'Nombre', value: session?.username ?? 'No disponible', icon: 'user' },
     { label: 'Email', value: session?.email ?? 'No disponible', icon: 'mail' },
     { label: 'Rol', value: session?.role ?? 'No disponible', icon: isAdmin ? 'lock' : 'user' },
-  ];
+  ], [session?.username, session?.email, session?.role, isAdmin]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -84,7 +83,7 @@ export function ProfileScreen(): React.ReactElement {
               {idx > 0 && <View style={styles.divider} />}
               <View style={styles.infoRow}>
                 <View style={styles.infoIconContainer}>
-                  <Icon name={row.icon as any} size={18} color={semanticColors.textTertiary} />
+                  <Icon name={row.icon} size={18} color={semanticColors.textTertiary} />
                 </View>
                 <View style={styles.infoTextContainer}>
                   <Text variant="caption" color={semanticColors.textTertiary}>
@@ -174,19 +173,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warning[500],
   },
   name: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
   },
   roleBadge: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.hidro[100],
-    borderRadius: 16,
+    borderRadius: borderRadius.xl,
   },
   roleBadgeAdmin: {
     backgroundColor: colors.warning[100],
   },
   roleText: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   // Info card
   infoRow: {
@@ -198,7 +197,7 @@ const styles = StyleSheet.create({
   infoIconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
@@ -227,7 +226,7 @@ const styles = StyleSheet.create({
     borderColor: colors.error[300],
   },
   logoutText: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   // Version
   version: {

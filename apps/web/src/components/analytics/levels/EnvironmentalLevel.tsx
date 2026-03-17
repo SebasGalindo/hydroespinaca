@@ -14,7 +14,7 @@ interface EnvironmentalLevelProps {
   error?: string | null;
 }
 
-export default function EnvironmentalLevel({
+const EnvironmentalLevel = React.memo(function EnvironmentalLevel({
   variables,
   viewMode,
   isLoading,
@@ -90,4 +90,6 @@ export default function EnvironmentalLevel({
       )}
     </div>
   );
-}
+});
+
+export default EnvironmentalLevel;

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { semanticColors, spacing, colors, typography } from '@hydroespinaca/shared';
+import { semanticColors, spacing, colors } from '@hydroespinaca/shared';
 import { LoginForm } from '../components/organisms/LoginForm';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';

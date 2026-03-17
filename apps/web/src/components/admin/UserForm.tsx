@@ -11,13 +11,13 @@ interface UserFormProps {
   isOpen: boolean;
 }
 
-export const UserForm: React.FC<UserFormProps> = ({
+export const UserForm = React.memo(function UserForm({
   user,
   roles,
   onSubmit,
   onCancel,
   isOpen
-}) => {
+}: UserFormProps) {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -269,4 +269,4 @@ export const UserForm: React.FC<UserFormProps> = ({
       </div>
     </div>
   );
-};
+});

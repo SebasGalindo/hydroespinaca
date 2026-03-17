@@ -1,7 +1,5 @@
 import React from 'react';
 import { Image, View, StyleSheet, ViewStyle } from 'react-native';
-import { Text } from './Text';
-import { semanticColors, spacing } from '@hydroespinaca/shared';
 
 export interface WeatherIconProps {
   /** OpenWeather icon code (e.g. "01d", "10n") */
@@ -13,7 +11,7 @@ export interface WeatherIconProps {
 
 const ICON_BASE_URL = 'https://openweathermap.org/img/wn';
 
-export function WeatherIcon({
+export const WeatherIcon = React.memo(function WeatherIcon({
   icon,
   size = 48,
   style,
@@ -31,7 +29,7 @@ export function WeatherIcon({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

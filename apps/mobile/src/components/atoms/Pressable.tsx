@@ -26,7 +26,7 @@ export interface PressableProps extends Omit<RNPressableProps, 'style'> {
   testID?: string;
 }
 
-export function Pressable({
+export const Pressable = React.memo(function Pressable({
   children,
   style,
   pressedStyle,
@@ -100,4 +100,4 @@ export function Pressable({
       {children}
     </RNPressable>
   );
-}
+});

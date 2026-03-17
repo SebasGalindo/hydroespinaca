@@ -15,7 +15,7 @@ interface ActuatorsLevelProps {
 
 type ViewMode = 'timeline' | 'duration' | 'proportion' | 'all';
 
-export default function ActuatorsLevel({ data, isLoading, error, isSingleDay = true }: ActuatorsLevelProps) {
+const ActuatorsLevel = React.memo(function ActuatorsLevel({ data, isLoading, error, isSingleDay = true }: ActuatorsLevelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [selectedActuators, setSelectedActuators] = useState<string[]>([]);
 
@@ -200,4 +200,6 @@ export default function ActuatorsLevel({ data, isLoading, error, isSingleDay = t
       )}
     </div>
   );
-}
+});
+
+export default ActuatorsLevel;

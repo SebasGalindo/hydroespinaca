@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet, ViewStyle, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, semanticColors, typography } from '@hydroespinaca/shared';
@@ -43,7 +43,7 @@ export function ScreenLayout({
     );
   }
 
-  const headerSection = (title || subtitle) ? (
+  const headerSection = useMemo(() => (title || subtitle) ? (
     <View style={styles.header}>
       {(title || headerRight) && (
         <View style={styles.headerRow}>
@@ -61,7 +61,7 @@ export function ScreenLayout({
         </Text>
       )}
     </View>
-  ) : null;
+  ) : null, [title, subtitle, headerRight]);
 
   if (!scrollable) {
     return (

@@ -30,7 +30,7 @@ import {
   type CreateFuzzyRuleRequest,
   type UpdateFuzzyRuleRequest,
 } from '@hydroespinaca/shared';
-import Swal from 'sweetalert2';
+import { showConfirm, showError, showSuccess } from '@/lib/swal';
 
 // ─── Tab definitions ─────────────────────────────────────────
 
@@ -57,7 +57,7 @@ interface RoutineDetailPageProps {
 
 // ─── Component ───────────────────────────────────────────────
 
-const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
+const RoutineDetailPage = React.memo(function RoutineDetailPage({ systemId }: RoutineDetailPageProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
 
@@ -142,9 +142,9 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   const handleEditSystem = useCallback(async (request: UpdateFuzzySystemRequest) => {
     try {
       await updateSystem(systemId, request as UpdateFuzzySystemRequest);
-      Swal.fire({ title: '¡Actualizado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Actualizado!' });
     } catch {
-      Swal.fire('Error', 'No se pudo actualizar el sistema.', 'error');
+      showError({ text: 'No se pudo actualizar el sistema.' });
     }
   }, [updateSystem, systemId]);
 
@@ -153,37 +153,34 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   const handleCreateVariable = useCallback(async (request: CreateFuzzyVariableRequest | UpdateFuzzyVariableRequest) => {
     try {
       await createVariable(request as CreateFuzzyVariableRequest);
-      Swal.fire({ title: '¡Variable creada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Variable creada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo crear la variable.', 'error');
+      showError({ text: 'No se pudo crear la variable.' });
     }
   }, [createVariable]);
 
   const handleUpdateVariable = useCallback(async (id: string, request: CreateFuzzyVariableRequest | UpdateFuzzyVariableRequest) => {
     try {
       await updateVariable(id, request as UpdateFuzzyVariableRequest);
-      Swal.fire({ title: '¡Variable actualizada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Variable actualizada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo actualizar la variable.', 'error');
+      showError({ text: 'No se pudo actualizar la variable.' });
     }
   }, [updateVariable]);
 
   const handleDeleteVariable = useCallback(async (id: string) => {
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Eliminar variable?',
-      html: 'Se eliminarán también todos los términos asociados.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      text: 'Se eliminarán también todos los términos asociados.',
+      confirmText: 'Sí, eliminar',
+      danger: true,
     });
-    if (!result.isConfirmed) return;
+    if (!confirmed) return;
     try {
       await deleteVariable(id);
-      Swal.fire({ title: '¡Eliminada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Eliminada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo eliminar la variable.', 'error');
+      showError({ text: 'No se pudo eliminar la variable.' });
     }
   }, [deleteVariable]);
 
@@ -192,36 +189,29 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   const handleCreateTerm = useCallback(async (request: CreateFuzzyTermRequest | UpdateFuzzyTermRequest) => {
     try {
       await createTerm(request as CreateFuzzyTermRequest);
-      Swal.fire({ title: '¡Término creado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Término creado!' });
     } catch {
-      Swal.fire('Error', 'No se pudo crear el término.', 'error');
+      showError({ text: 'No se pudo crear el término.' });
     }
   }, [createTerm]);
 
   const handleUpdateTerm = useCallback(async (id: string, request: CreateFuzzyTermRequest | UpdateFuzzyTermRequest) => {
     try {
       await updateTerm(id, request as UpdateFuzzyTermRequest);
-      Swal.fire({ title: '¡Término actualizado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Término actualizado!' });
     } catch {
-      Swal.fire('Error', 'No se pudo actualizar el término.', 'error');
+      showError({ text: 'No se pudo actualizar el término.' });
     }
   }, [updateTerm]);
 
   const handleDeleteTerm = useCallback(async (id: string) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar término?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-    });
-    if (!result.isConfirmed) return;
+    const confirmed = await showConfirm({ title: '¿Eliminar término?', confirmText: 'Sí, eliminar', danger: true });
+    if (!confirmed) return;
     try {
       await deleteTerm(id);
-      Swal.fire({ title: '¡Eliminado!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Eliminado!' });
     } catch {
-      Swal.fire('Error', 'No se pudo eliminar el término.', 'error');
+      showError({ text: 'No se pudo eliminar el término.' });
     }
   }, [deleteTerm]);
 
@@ -230,36 +220,29 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
   const handleCreateRule = useCallback(async (request: CreateFuzzyRuleRequest | UpdateFuzzyRuleRequest) => {
     try {
       await createRule(request as CreateFuzzyRuleRequest);
-      Swal.fire({ title: '¡Regla creada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Regla creada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo crear la regla.', 'error');
+      showError({ text: 'No se pudo crear la regla.' });
     }
   }, [createRule]);
 
   const handleUpdateRule = useCallback(async (id: string, request: CreateFuzzyRuleRequest | UpdateFuzzyRuleRequest) => {
     try {
       await updateRule(id, request as UpdateFuzzyRuleRequest);
-      Swal.fire({ title: '¡Regla actualizada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Regla actualizada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo actualizar la regla.', 'error');
+      showError({ text: 'No se pudo actualizar la regla.' });
     }
   }, [updateRule]);
 
   const handleDeleteRule = useCallback(async (id: string) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar regla?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-    });
-    if (!result.isConfirmed) return;
+    const confirmed = await showConfirm({ title: '¿Eliminar regla?', confirmText: 'Sí, eliminar', danger: true });
+    if (!confirmed) return;
     try {
       await deleteRule(id);
-      Swal.fire({ title: '¡Eliminada!', icon: 'success', timer: 1500, showConfirmButton: false });
+      showSuccess({ title: '¡Eliminada!' });
     } catch {
-      Swal.fire('Error', 'No se pudo eliminar la regla.', 'error');
+      showError({ text: 'No se pudo eliminar la regla.' });
     }
   }, [deleteRule]);
 
@@ -627,6 +610,6 @@ const RoutineDetailPage: React.FC<RoutineDetailPageProps> = ({ systemId }) => {
       </div>
     </PageLayout>
   );
-};
+});
 
 export default RoutineDetailPage;

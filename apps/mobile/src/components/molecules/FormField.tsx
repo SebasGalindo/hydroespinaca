@@ -13,7 +13,7 @@ export interface FormFieldProps {
   testID?: string;
 }
 
-export function FormField({
+export const FormField = React.memo(function FormField({
   label,
   error,
   helperText,
@@ -48,7 +48,7 @@ export function FormField({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

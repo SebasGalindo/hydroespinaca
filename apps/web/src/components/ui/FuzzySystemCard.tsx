@@ -15,7 +15,7 @@ export interface FuzzySystemCardProps {
   actionsDisabled?: boolean;
 }
 
-const FuzzySystemCard: React.FC<FuzzySystemCardProps> = ({
+const FuzzySystemCard = React.memo(function FuzzySystemCard({
   system,
   onClick,
   onActivate,
@@ -23,7 +23,7 @@ const FuzzySystemCard: React.FC<FuzzySystemCardProps> = ({
   onDelete,
   onExport,
   actionsDisabled = false,
-}) => {
+}: FuzzySystemCardProps) {
   // Debug: log system data to identify structure issues
   if (!system?.inputVariableIds || !system?.outputVariableIds || !system?.ruleIds) {
     console.warn('[FuzzySystemCard] Missing array properties:', {
@@ -145,7 +145,7 @@ const FuzzySystemCard: React.FC<FuzzySystemCardProps> = ({
       </div>
     </BaseCard>
   );
-};
+});
 
 // ─── Small inline action button ─────────────────────────────
 

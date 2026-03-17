@@ -67,8 +67,13 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
 
         // 3. Generar embedding de la pregunta (taskType = RETRIEVAL_QUERY)
         logger.LogDebug("[RAG] Paso 3/8: Generando embedding de la pregunta...");
+        var historyForContext = session.Messages.TakeLast(MaxHistoryMessages).ToList();
+        var textToVectorize = EnrichQueryWithContext(request.Message, historyForContext);
+        
+        logger.LogInformation("[RAG] Texto exacto enviado a vectorizar: '{Text}'", textToVectorize);
+        
         var queryEmbedding = await embeddingProvider.GenerateEmbeddingAsync(
-            request.Message, EmbeddingTaskType.RetrievalQuery, cancellationToken);
+            textToVectorize, EmbeddingTaskType.RetrievalQuery, cancellationToken);
         logger.LogDebug("[RAG] Embedding generado: {Dims} dimensiones", queryEmbedding.Length);
 
         // 4. Buscar contexto vectorial (reglas fuzzy similares)
@@ -132,17 +137,56 @@ namespace ChatbotService.Application.Features.Chat.Commands.SendMessage;
     {
         var fullResponse = new System.Text.StringBuilder();
         var tokenCount = 0;
+        string? errorMessage = null;
 
         logger.LogDebug("[STREAM] Iterando tokens del LLM para sesión={SessionId}...", sessionId);
 
-        await foreach (var token in llmProvider.GenerateStreamAsync(systemInstruction, history, userMessage, ct))
+        await using (var enumerator = llmProvider.GenerateStreamAsync(systemInstruction, history, userMessage, ct).GetAsyncEnumerator(ct))
         {
-            fullResponse.Append(token);
-            tokenCount++;
-            if (tokenCount <= 5)
-                logger.LogDebug("[STREAM] Token #{Num}: '{Token}'", tokenCount,
-                    token.Length > 50 ? token[..50] + "..." : token);
-            yield return token;
+            bool hasMore = true;
+            while (hasMore)
+            {
+                string? token = null;
+                try
+                {
+                    if (await enumerator.MoveNextAsync())
+                    {
+                        token = enumerator.Current;
+                    }
+                    else
+                    {
+                        hasMore = false;
+                    }
+                }
+                catch (Exception ex) when (ex.GetType().Name.Contains("ServerError") || ex.Message.Contains("high demand"))
+                {
+                    logger.LogWarning(ex, "[STREAM] Alta demanda en API para sesión={SessionId}", sessionId);
+                    errorMessage = "\n\n⚠️ **Aviso:** El servicio de Inteligencia Artificial está experimentando alta demanda en este momento. Por favor, intenta enviar tu pregunta nuevamente en unos minutos.";
+                    hasMore = false;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[STREAM] Error inesperado en API para sesión={SessionId}", sessionId);
+                    errorMessage = "\n\n⚠️ **Error:** Ocurrió un problema inesperado al comunicarse con el modelo de IA. Por favor, inténtalo de nuevo.";
+                    hasMore = false;
+                }
+
+                if (token != null)
+                {
+                    fullResponse.Append(token);
+                    tokenCount++;
+                    if (tokenCount <= 5)
+                        logger.LogDebug("[STREAM] Token #{Num}: '{Token}'", tokenCount,
+                            token.Length > 50 ? token[..50] + "..." : token);
+                    yield return token;
+                }
+            }
+        }
+
+        if (errorMessage != null)
+        {
+            fullResponse.Append(errorMessage);
+            yield return errorMessage;
         }
 
         logger.LogInformation("[STREAM] LLM streaming finalizado: sesión={SessionId}, tokens={Tokens}, respuesta={RespLen} chars",
@@ -225,5 +269,38 @@ DATOS EN TIEMPO REAL:
 
         var lines = chunks.Select((c, i) => $"[{i + 1}] ({c.SourceType}) {c.Content}");
         return string.Join("\n\n", lines);
+    }
+
+    private string EnrichQueryWithContext(string currentMessage, List<ChatMessage> history)
+    {
+        if (string.IsNullOrWhiteSpace(currentMessage)) return currentMessage;
+
+        // Buscar en los últimos 4 mensajes del historial (de más reciente a más antiguo)
+        var recentMessages = history.AsEnumerable().Reverse().Take(4);
+        foreach (var msg in recentMessages)
+        {
+            if (string.IsNullOrWhiteSpace(msg.Content)) continue;
+
+            // Busca patrones como: sistema "Control", sistema de Ventilacion, sistema Riego
+            var match = System.Text.RegularExpressions.Regex.Match(
+                msg.Content, 
+                @"sistema\s+(?:de\s+)?(?:""([^""]+)""|'([^']+)'|([A-Za-z0-9_]+))", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            if (match.Success)
+            {
+                var sysName = match.Groups[1].Success ? match.Groups[1].Value :
+                              match.Groups[2].Success ? match.Groups[2].Value :
+                              match.Groups[3].Value;
+                
+                // Evitamos duplicar si el usuario ya lo mencionó en su mensaje actual
+                if (!currentMessage.Contains(sysName, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogDebug("[RAG] Enriqueciendo consulta con contexto inferido: Sistema {SysName}", sysName);
+                    return $"[Contexto implícito del historial: Sistema {sysName}] {currentMessage}";
+                }
+            }
+        }
+        return currentMessage;
     }
 }

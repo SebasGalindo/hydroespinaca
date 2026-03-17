@@ -12,7 +12,7 @@ export interface DisconnectionBannerProps {
   testID?: string;
 }
 
-export function DisconnectionBanner({
+export const DisconnectionBanner = React.memo(function DisconnectionBanner({
   message = 'Sin conexión al servidor. Reintentando automáticamente...',
   onRetry,
   style,
@@ -44,7 +44,7 @@ export function DisconnectionBanner({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

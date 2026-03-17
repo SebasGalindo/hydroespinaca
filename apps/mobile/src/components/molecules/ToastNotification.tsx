@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
-import { colors, borderRadius, spacing, shadows, typography } from '@hydroespinaca/shared';
+import { colors, borderRadius, spacing, typography } from '@hydroespinaca/shared';
 import type { IconName } from '@hydroespinaca/shared';
 import { subscribeToast, hideToast } from '../../utils/toast';
 

@@ -28,7 +28,7 @@ const formatValue = (value: number): string => {
   return value.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
 
-export default function EnvironmentalSummaryCards({ variables }: EnvironmentalSummaryCardsProps) {
+const EnvironmentalSummaryCards = React.memo(function EnvironmentalSummaryCards({ variables }: EnvironmentalSummaryCardsProps) {
   if (variables.length === 0) {
     return (
       <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
@@ -99,4 +99,6 @@ export default function EnvironmentalSummaryCards({ variables }: EnvironmentalSu
       </div>
     </div>
   );
-}
+});
+
+export default EnvironmentalSummaryCards;

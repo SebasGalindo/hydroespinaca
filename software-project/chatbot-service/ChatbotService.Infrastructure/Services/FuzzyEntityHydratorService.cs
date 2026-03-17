@@ -76,6 +76,14 @@ public class FuzzyEntityHydratorService : IFuzzyEntityHydratorService
                 var sys = await GetHydratedSystemAsync(sysId, ct);
                 if (sys != null) sysName = sys.Name;
             }
+            else
+            {
+                var sysNameFromSearch = await FindSystemNameForVariableAsync(variableId, ct);
+                if (!string.IsNullOrEmpty(sysNameFromSearch))
+                {
+                    sysName = sysNameFromSearch;
+                }
+            }
 
             var terms = new List<HydratedFuzzyTerm>();
             if (variable.TryGetProperty("terms", out var termsArray) && termsArray.ValueKind == JsonValueKind.Array)
@@ -258,5 +266,45 @@ public class FuzzyEntityHydratorService : IFuzzyEntityHydratorService
             return await _fuzzyClient.GetEntityByIdAsync("fuzzy_term", termId, ct);
         });
         return tJson?.GetStringOrDefault("label", termId) ?? termId;
+    }
+
+    private async Task<string?> FindSystemNameForVariableAsync(string variableId, CancellationToken ct)
+    {
+        try
+        {
+            var systemsJson = await _fuzzyClient.GetAllEntitiesByTypeAsync("fuzzy_system", ct);
+            foreach (var sys in systemsJson)
+            {
+                var isInput = ContainsId(sys, "input_variable_ids", variableId);
+                var isOutput = ContainsId(sys, "output_variable_ids", variableId);
+                
+                if (isInput || isOutput)
+                {
+                    var sysId = sys.GetStringOrDefault("id", "");
+                    if (!string.IsNullOrEmpty(sysId))
+                    {
+                        var hydratedSys = await GetHydratedSystemAsync(sysId, ct);
+                        return hydratedSys?.Name ?? sys.GetStringOrDefault("name", "Sin nombre");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error al buscar el sistema para la variable {VariableId}", variableId);
+        }
+        return null;
+    }
+
+    private bool ContainsId(JsonElement sys, string propertyName, string targetId)
+    {
+        if (sys.TryGetProperty(propertyName, out var arr) && arr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in arr.EnumerateArray())
+            {
+                if (item.GetString() == targetId) return true;
+            }
+        }
+        return false;
     }
 }

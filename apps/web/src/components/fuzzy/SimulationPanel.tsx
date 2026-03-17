@@ -22,7 +22,7 @@ interface SimulationPanelProps {
   onClearSimulation: () => void;
 }
 
-const SimulationPanel: React.FC<SimulationPanelProps> = ({
+const SimulationPanel = React.memo(function SimulationPanel({
   systemId,
   systemName,
   inputVariables,
@@ -31,7 +31,7 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({
   isLoading,
   error,
   onClearSimulation,
-}) => {
+}: SimulationPanelProps) {
   const [inputValues, setInputValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     inputVariables.forEach((v) => {
@@ -218,6 +218,6 @@ const SimulationPanel: React.FC<SimulationPanelProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default SimulationPanel;

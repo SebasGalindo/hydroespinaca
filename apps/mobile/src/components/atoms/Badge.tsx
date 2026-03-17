@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
@@ -47,7 +47,7 @@ const sizeStyles = {
   },
 } as const;
 
-export function Badge({
+export const Badge = React.memo(function Badge({
   children,
   variant = 'default',
   size = 'sm',
@@ -56,6 +56,11 @@ export function Badge({
 }: BadgeProps): React.ReactElement {
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
+
+  const textStyle = useMemo(
+    () => ({ fontSize: sizeStyle.fontSize, fontWeight: typography.fontWeight.semibold as any }),
+    [sizeStyle.fontSize],
+  );
 
   return (
     <View
@@ -74,13 +79,13 @@ export function Badge({
       <Text
         variant="caption"
         color={variantStyle.textColor}
-        style={{ fontSize: sizeStyle.fontSize, fontWeight: typography.fontWeight.semibold as any }}
+        style={textStyle}
       >
         {children}
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

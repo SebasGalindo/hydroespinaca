@@ -19,7 +19,7 @@ interface ChatMessageItemProps {
  *
  * Dependency: `react-native-markdown-display` (add to apps/mobile/package.json)
  */
-export function ChatMessageItem({ message }: ChatMessageItemProps): React.ReactElement {
+export const ChatMessageItem = React.memo(function ChatMessageItem({ message }: ChatMessageItemProps): React.ReactElement {
     if (message.role === 'user') {
         return (
             <ChatBubbleMobile role="user">
@@ -42,7 +42,7 @@ export function ChatMessageItem({ message }: ChatMessageItemProps): React.ReactE
             <Markdown style={markdownStyles}>{message.content}</Markdown>
         </ChatBubbleMobile>
     );
-}
+});
 
 const styles = StyleSheet.create({
     userText: {

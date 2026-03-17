@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, spacing, borderRadius, shadows, semanticColors } from '@hydroespinaca/shared';
 
@@ -10,14 +10,14 @@ export interface CardProps {
   testID?: string;
 }
 
-export function Card({
+export const Card = React.memo(function Card({
   children,
   variant = 'elevated',
   padding = 'md',
   style,
   testID,
 }: CardProps): React.ReactElement {
-  const getVariantStyle = (): ViewStyle => {
+  const variantStyle = useMemo((): ViewStyle => {
     switch (variant) {
       case 'elevated':
         return {
@@ -38,13 +38,13 @@ export function Card({
           borderWidth: 0,
         };
     }
-  };
+  }, [variant]);
 
   return (
     <View
       style={[
         styles.base,
-        getVariantStyle(),
+        variantStyle,
         { padding: spacing[padding] },
         style,
       ]}
@@ -53,7 +53,7 @@ export function Card({
       {children}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   base: {

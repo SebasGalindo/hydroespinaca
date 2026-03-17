@@ -7,12 +7,12 @@ interface FormSectionProps {
   className?: string;
 }
 
-const FormSection: React.FC<FormSectionProps> = ({
+const FormSection = React.memo(function FormSection({
   title,
   subtitle,
   children,
   className = ''
-}) => {
+}: FormSectionProps) {
   return (
     <section className={`border border-gray-200 rounded-lg p-6 bg-white ${className}`}>
       <header className="mb-4">
@@ -30,6 +30,6 @@ const FormSection: React.FC<FormSectionProps> = ({
       </div>
     </section>
   );
-};
+});
 
 export default FormSection;

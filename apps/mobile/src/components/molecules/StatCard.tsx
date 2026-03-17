@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing, borderRadius, shadows, semanticColors, typography } from '@hydroespinaca/shared';
+import { colors, spacing, borderRadius, semanticColors, typography } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
 
@@ -15,7 +15,7 @@ export interface StatCardProps {
   testID?: string;
 }
 
-export function StatCard({
+export const StatCard = React.memo(function StatCard({
   label,
   value,
   icon,
@@ -25,21 +25,21 @@ export function StatCard({
   style,
   testID,
 }: StatCardProps): React.ReactElement {
-  const getTrendColor = () => {
+  const trendColor = useMemo(() => {
     switch (trend) {
       case 'up': return colors.hidro[600];
       case 'down': return colors.error[600];
       default: return colors.gray[500];
     }
-  };
+  }, [trend]);
 
-  const getTrendIcon = () => {
+  const trendIcon = useMemo(() => {
     switch (trend) {
       case 'up': return 'trending-up';
       case 'down': return 'trending-down';
       default: return 'minus';
     }
-  };
+  }, [trend]);
 
   return (
     <View style={[styles.container, style]} testID={testID}>
@@ -58,15 +58,15 @@ export function StatCard({
       </Text>
       {trend && trendValue && (
         <View style={styles.trendContainer}>
-          <Icon name={getTrendIcon() as any} size={14} color={getTrendColor()} />
-          <Text variant="caption" color={getTrendColor()}>
+          <Icon name={trendIcon as any} size={14} color={trendColor} />
+          <Text variant="caption" color={trendColor}>
             {trendValue}
           </Text>
         </View>
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

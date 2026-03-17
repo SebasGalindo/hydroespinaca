@@ -3,7 +3,7 @@
  * SearchBar + status filter chips + FlatList de FuzzySystemCard.
  * FAB para crear + importar JSON. Pull-to-refresh.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -40,7 +40,7 @@ import {
   useFuzzyStore,
   FUZZY_STATUS_LABELS,
 } from '@hydroespinaca/shared';
-import { getStatusColor, getStatusTextColor } from '../../utils/fuzzyHelpers';
+import { getStatusColor } from '../../utils/fuzzyHelpers';
 import { showToast } from '../../utils/toast';
 import { hapticSuccess, hapticError, hapticHeavy } from '../../utils/haptics';
 
@@ -80,13 +80,13 @@ export function FuzzyListScreen(): React.ReactElement {
     }, [fetchSystems]),
   );
 
-  const filteredSystems = systems.filter((s) => {
+  const filteredSystems = useMemo(() => systems.filter((s) => {
     if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
     if (search.trim()) {
       return s.name.toLowerCase().includes(search.trim().toLowerCase());
     }
     return true;
-  });
+  }), [systems, statusFilter, search]);
 
   const handleRefresh = () => {
     clearErrors();

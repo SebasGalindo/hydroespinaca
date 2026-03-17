@@ -13,7 +13,7 @@ import { ConfirmationSheet } from '../../components/organisms/ConfirmationSheet'
 import type { MoreStackParamList } from '../../navigation/types';
 import type { IconName } from '@hydroespinaca/shared';
 import { useAuth } from '../../context/AuthProvider';
-import { semanticColors, spacing, colors, borderRadius, typography } from '@hydroespinaca/shared';
+import { semanticColors, spacing, colors, borderRadius, typography, isUserAdmin } from '@hydroespinaca/shared';
 
 type MoreNavProp = NativeStackNavigationProp<MoreStackParamList, 'MoreMenu'>;
 
@@ -37,7 +37,7 @@ export function MoreMenuScreen(): React.ReactElement {
   const { session, logout } = useAuth();
   const [logoutVisible, setLogoutVisible] = useState(false);
 
-  const isAdmin = session?.role?.toLowerCase() === 'administrador' || session?.role?.toLowerCase() === 'admin';
+  const isAdmin = isUserAdmin(session);
 
   const sections: MenuSection[] = useMemo(() => {
     const result: MenuSection[] = [

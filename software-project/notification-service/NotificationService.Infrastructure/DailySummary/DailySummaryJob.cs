@@ -109,9 +109,12 @@ public class DailySummaryJob : IJob
             var additionalData = new Dictionary<string, string>
             {
                 ["template_key"] = "daily_summary",
-                ["date"] = data.Date.ToString("yyyy-MM-dd"),
+                ["date"] = data.Date.ToString("dd/MM/yyyy"),
                 ["html_body"] = fullEmailHtml
             };
+
+            // Inject individual values for Meta WhatsApp template variables
+            InjectDailySummaryDataValues(additionalData, data);
 
             await _dispatcher.DispatchAsync(
                 userId,
@@ -131,5 +134,62 @@ public class DailySummaryJob : IJob
             _logger.LogError(ex, "Failed to execute daily summary for user {UserId}", userId);
             // Don't rethrow — Quartz will retry automatically which could cause duplicate sends
         }
+    }
+
+    /// <summary>
+    /// Populates the data dictionary with individual sensor, actuator and fuzzy values
+    /// so they can be used as positional variables in Meta WhatsApp templates.
+    /// Twilio ignores these keys (it uses the pre-formatted plain text body).
+    /// </summary>
+    private static void InjectDailySummaryDataValues(Dictionary<string, string> data, DailySummaryData summary)
+    {
+        // ── Sensors ──
+        // Helper: find a sensor by variable code (case-insensitive partial match)
+        SensorVariableSummary? FindSensor(string code) =>
+            summary.SensorSummaries.FirstOrDefault(
+                s => s.VariableCode.Contains(code, StringComparison.OrdinalIgnoreCase));
+
+        void AddSensor(string prefix, string code, string format = "F1")
+        {
+            var s = FindSensor(code);
+            data[$"{prefix}_avg"] = s != null ? s.Avg.ToString(format) : "";
+            data[$"{prefix}_min"] = s != null ? s.Min.ToString(format) : "";
+            data[$"{prefix}_max"] = s != null ? s.Max.ToString(format) : "";
+        }
+
+        AddSensor("temp", "TEMP");
+        AddSensor("hum", "HUM", "F0");
+        AddSensor("lux", "LUX", "F0");
+        AddSensor("ph", "PH", "F1");
+        AddSensor("tank_temp", "TANK_TEMP", "F1");
+        AddSensor("water_level", "WATER_LEVEL", "F1");
+
+        // ── Actuators ──
+        // Map actuator codes to data keys
+        var actuatorMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Ventiladores"] = "act_ventiladores",
+            ["termoventilador"] = "act_termoventilador",
+            ["luz-amplio-espectro"] = "act_luz_amplio_espectro",
+            ["piedra-difusora"] = "act_piedra_difusora",
+            ["bomba-agua"] = "act_bomba_agua",
+            ["calefactor-agua"] = "act_calefactor_agua",
+            ["humidificador-ultrasonico"] = "act_humidificador"
+        };
+
+        // Initialize all actuators to "0"
+        foreach (var kvp in actuatorMap)
+            data[kvp.Value] = "0";
+
+        // Fill with actual values
+        foreach (var act in summary.ActuatorSummaries)
+        {
+            if (actuatorMap.TryGetValue(act.ActuatorCode, out var key))
+                data[key] = act.TotalDurationMinutes.ToString("F0");
+        }
+
+        // ── Fuzzy ──
+        data["fuzzy_system_name"] = summary.FuzzyEvaluation?.SystemName ?? "";
+        data["fuzzy_eval_count"] = (summary.FuzzyEvaluation?.EvaluationCount ?? 0).ToString();
     }
 }

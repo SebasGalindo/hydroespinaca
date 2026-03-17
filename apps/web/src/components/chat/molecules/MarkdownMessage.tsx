@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -18,7 +19,7 @@ interface MarkdownMessageProps {
  * Used for all finalised messages stored in the session history.
  * During streaming use `StreamingMessage` instead.
  */
-export function MarkdownMessage({ message }: MarkdownMessageProps) {
+export const MarkdownMessage = React.memo(function MarkdownMessage({ message }: MarkdownMessageProps) {
     if (message.role === 'user') {
         return (
             <ChatBubbleWeb role="user">
@@ -89,4 +90,4 @@ export function MarkdownMessage({ message }: MarkdownMessageProps) {
             </div>
         </ChatBubbleWeb>
     );
-}
+});

@@ -1,33 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ShieldIcon,
   SproutIcon,
-  ChartIcon,
-  TrendingUpIcon,
-  BrainIcon,
-  SettingsIcon,
   ChevronRightIcon,
-  BoltIcon,
-  ListIcon,
   PlantIcon,
   PowerIcon,
-  CalculatorIcon,
-  CloudSunIcon,
-  BellIcon
+  XIcon,
 } from '@/components/ui/icons/Icons';
 import { useAuthStore } from '@hydroespinaca/shared';
-
-interface NavigationItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<any>;
-  children?: NavigationItem[];
-  status?: string;
-}
+import { getNavigationItems, type NavigationItem } from './navigation-config';
 
 interface SideNavigationProps {
   isExpanded: boolean;
@@ -36,12 +21,12 @@ interface SideNavigationProps {
   setMobileMoreOpen: (isOpen: boolean) => void;
 }
 
-const SideNavigation: React.FC<SideNavigationProps> = ({
+const SideNavigation = React.memo(function SideNavigation({
   isExpanded,
   onToggleExpand,
   isMobileMoreOpen,
   setMobileMoreOpen
-}) => {
+}: SideNavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
   // Suscribirse específicamente a `user` para forzar re-render cuando cambie
@@ -56,30 +41,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userMenuPosition, setUserMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  const navigationItems: NavigationItem[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: ChartIcon },
-    { href: '/analytics', label: 'Análisis de datos', icon: TrendingUpIcon },
-    { href: '/consumo', label: 'Consumo y Costos', icon: CalculatorIcon },
-    { href: '/rutinas', label: 'Rutinas Fuzzy', icon: BrainIcon },
-    { href: '/clima', label: 'Clima y Alertas', icon: CloudSunIcon },
-    { href: '/notificaciones', label: 'Notificaciones', icon: BellIcon },
-  ];
-
-  // Admin menu items (only for Administrador role)
-  const adminMenuItems: NavigationItem[] = user?.role === 'Administrador' ? [
-    {
-      href: '/admin',
-      label: 'Administración',
-      icon: ShieldIcon,
-      children: [
-        { href: '/admin/access', label: 'Gestión de Acceso', icon: SettingsIcon },
-        { href: '/admin/dashboard', label: 'Dashboard Admin', icon: ChartIcon },
-      ]
-    },
-  ] : [];
-
-  // Combine navigation items
-  const allNavigationItems = [...navigationItems, ...adminMenuItems];
+  const allNavigationItems = useMemo(() => getNavigationItems(user?.role), [user?.role]);
 
   const toggleGroup = (label: string) => {
     setExpandedGroups(prev =>
@@ -487,9 +449,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
                     aria-label="Cerrar menú de navegación"
                     title="Cerrar menú"
                   >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XIcon className="w-6 h-6" />
                   </button>
                 </div>
               </div>
@@ -658,6 +618,6 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
       </div>
     </>
   );
-};
+});
 
 export default SideNavigation;

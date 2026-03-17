@@ -44,6 +44,7 @@ public static class ServiceCollectionInfrastructureExtensions
         services.Configure<ExpoPushSettings>(configuration.GetSection("Push:Expo"));
         services.Configure<WhatsAppSettings>(configuration.GetSection("WhatsApp"));
         services.Configure<TwilioSettings>(configuration.GetSection("WhatsApp:Twilio"));
+        services.Configure<MetaCloudSettings>(configuration.GetSection("WhatsApp:MetaCloud"));
 
     // Service URL options (for DailySummaryDataAggregator)
         services.Configure<ServiceUrlSettings>(configuration.GetSection("Services"));
@@ -76,6 +77,10 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddHttpClient("TwilioWhatsApp")
             .AddPolicyHandler(retryPolicy);
 
+    // HttpClient para Meta Cloud WhatsApp
+        services.AddHttpClient("MetaCloudWhatsApp")
+            .AddPolicyHandler(retryPolicy);
+
     // HttpClient para DailySummary aggregation
         services.AddHttpClient("DailySummary")
             .AddPolicyHandler(retryPolicy);
@@ -97,7 +102,13 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddSingleton<INotificationChannel, EmailChannelAdapter>();
         services.AddSingleton<INotificationChannel, ExpoPushSender>();
         services.AddSingleton<INotificationChannel, WebPushSender>();
-        services.AddSingleton<INotificationChannel, TwilioWhatsAppSender>();
+
+    // WhatsApp sender: conditionally register Twilio or MetaCloud based on config
+        var whatsAppProvider = configuration.GetValue<string>("WhatsApp:Provider")?.Trim();
+        if (string.Equals(whatsAppProvider, "MetaCloud", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<INotificationChannel, MetaCloudWhatsAppSender>();
+        else
+            services.AddSingleton<INotificationChannel, TwilioWhatsAppSender>();
 
     // Multi-channel dispatcher
         services.AddSingleton<INotificationDispatcher, CompositeNotificationDispatcher>();

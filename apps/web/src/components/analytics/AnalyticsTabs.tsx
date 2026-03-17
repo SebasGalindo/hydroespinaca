@@ -28,7 +28,7 @@ interface AnalyticsTabsProps {
   onTabChange: (tab: AnalyticsLevel) => void;
 }
 
-export default function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {
+const AnalyticsTabs = React.memo(function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsProps) {
   return (
     <div className="mb-6">
       <div className="border-b border-gray-200">
@@ -60,4 +60,6 @@ export default function AnalyticsTabs({ activeTab, onTabChange }: AnalyticsTabsP
       </div>
     </div>
   );
-}
+});
+
+export default AnalyticsTabs;

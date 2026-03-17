@@ -18,7 +18,7 @@ interface ProfitabilityResultProps {
   data: ProfitabilityResponse;
 }
 
-const ProfitabilityResult: React.FC<ProfitabilityResultProps> = ({ data }) => {
+const ProfitabilityResult = React.memo(function ProfitabilityResult({ data }: ProfitabilityResultProps) {
   const isProfit = data.netBenefit >= 0;
 
   return (
@@ -222,6 +222,6 @@ const ProfitabilityResult: React.FC<ProfitabilityResultProps> = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
 export default ProfitabilityResult;

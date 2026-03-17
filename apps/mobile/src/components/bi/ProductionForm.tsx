@@ -8,7 +8,7 @@ import {
 } from '@hydroespinaca/shared';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { Select } from '../atoms/Select';
+import { Select } from '../molecules/Select';
 import { TextArea } from '../atoms/TextArea';
 import { FormField } from '../molecules/FormField';
 import { BottomSheetForm } from '../organisms/BottomSheetForm';

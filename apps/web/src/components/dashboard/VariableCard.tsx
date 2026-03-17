@@ -30,7 +30,7 @@ interface VariableCardProps {
   showArtificialLightAlert?: boolean;
 }
 
-const VariableCard: React.FC<VariableCardProps> = ({
+const VariableCard = React.memo(function VariableCard({
   title,
   value,
   optimal,
@@ -41,7 +41,7 @@ const VariableCard: React.FC<VariableCardProps> = ({
   trend,
   artificialLightActive = false,
   showArtificialLightAlert = false
-}) => {
+}: VariableCardProps) {
   const getStatusColor = () => {
     switch (status) {
       case 'optimal':
@@ -175,6 +175,6 @@ const VariableCard: React.FC<VariableCardProps> = ({
       )}
     </article>
   );
-};
+});
 
 export default VariableCard;

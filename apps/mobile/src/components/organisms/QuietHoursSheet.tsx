@@ -5,8 +5,18 @@ import { BottomSheetForm } from './BottomSheetForm';
 import { Button } from '../atoms/Button';
 import { Switch } from '../atoms/Switch';
 import { Text } from '../atoms/Text';
-import { spacing, semanticColors, colors } from '@hydroespinaca/shared';
+import { spacing, semanticColors } from '@hydroespinaca/shared';
 import type { QuietHoursConfig } from '@hydroespinaca/shared';
+
+function makeDate(h: number): Date {
+  const d = new Date();
+  d.setHours(h, 0, 0, 0);
+  return d;
+}
+
+function formatHour(h: number): string {
+  return `${h.toString().padStart(2, '0')}:00`;
+}
 
 export interface QuietHoursSheetProps {
   isOpen: boolean;
@@ -66,13 +76,7 @@ export function QuietHoursSheet({
     }
   }, [enabled, startHour, endHour, onSave, onClose]);
 
-  const makeDate = (h: number) => {
-    const d = new Date();
-    d.setHours(h, 0, 0, 0);
-    return d;
-  };
 
-  const formatHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
     <BottomSheetForm

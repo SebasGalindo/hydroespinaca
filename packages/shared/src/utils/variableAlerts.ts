@@ -7,6 +7,7 @@ export type TrendDirection = 'up' | 'down' | 'stable';
 export interface VariableAlertConfig {
   name: string;
   alertDirection: AlertDirection;
+  requiresArtificialLight?: boolean;
 }
 
 /**
@@ -17,9 +18,9 @@ export interface VariableAlertConfig {
  * - none: No genera alertas (solo informativo)
  */
 export const VARIABLE_ALERT_CONFIG: VariableAlertConfig[] = [
-  { name: 'luminosidad', alertDirection: 'below' },
-  { name: 'luz', alertDirection: 'below' },
-  { name: 'lux', alertDirection: 'below' },
+  { name: 'luminosidad', alertDirection: 'below', requiresArtificialLight: true },
+  { name: 'luz', alertDirection: 'below', requiresArtificialLight: true },
+  { name: 'lux', alertDirection: 'below', requiresArtificialLight: true },
   { name: 'temperatura', alertDirection: 'both' },
   { name: 'humedad', alertDirection: 'both' },
   { name: 'ph', alertDirection: 'both' },
@@ -115,4 +116,12 @@ export function calculateTrend(
   }
 
   return currentValue > previousValue ? 'up' : 'down';
+}
+
+/**
+ * Verifica si una variable requiere luz artificial basándose en su nombre
+ */
+export function requiresArtificialLight(variableName: string): boolean {
+  const config = getAlertConfig(variableName);
+  return config.requiresArtificialLight || false;
 }

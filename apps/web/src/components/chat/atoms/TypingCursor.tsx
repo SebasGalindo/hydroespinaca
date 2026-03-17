@@ -1,10 +1,11 @@
+import React from 'react';
 /**
  * Atom — animated blinking cursor `|` shown while the LLM is streaming.
  *
  * Rendered inline so it appears right after the last token in
  * `StreamingMessage`. Disappears once `visible` becomes false.
  */
-export function TypingCursor({ visible }: { visible: boolean }) {
+export const TypingCursor = React.memo(function TypingCursor({ visible }: { visible: boolean }) {
     if (!visible) return null;
     return (
         <span
@@ -12,4 +13,4 @@ export function TypingCursor({ visible }: { visible: boolean }) {
             aria-hidden="true"
         />
     );
-}
+});

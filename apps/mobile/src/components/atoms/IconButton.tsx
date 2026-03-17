@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, ViewStyle } from 'react-native';
 import { semanticColors, spacing, borderRadius, IconName } from '@hydroespinaca/shared';
 import { Icon } from './Icon';
@@ -35,7 +35,7 @@ const sizeStyles = {
   },
 } as const;
 
-export function IconButton({
+export const IconButton = React.memo(function IconButton({
   icon,
   size = 'md',
   variant = 'default',
@@ -49,8 +49,8 @@ export function IconButton({
   accessibilityLabel,
 }: IconButtonProps): React.ReactElement {
   const sizeStyle = sizeStyles[size];
-  
-  const getButtonStyle = (): ViewStyle => {
+
+  const buttonStyle = useMemo((): ViewStyle => {
     const baseStyle: ViewStyle = {
       width: sizeStyle.buttonSize,
       height: sizeStyle.buttonSize,
@@ -59,73 +59,48 @@ export function IconButton({
       justifyContent: 'center',
       opacity: disabled ? 0.6 : 1,
     };
-    
+
     switch (variant) {
       case 'primary':
-        return {
-          ...baseStyle,
-          backgroundColor: backgroundColor || semanticColors.primary,
-        };
+        return { ...baseStyle, backgroundColor: backgroundColor || semanticColors.primary };
       case 'secondary':
-        return {
-          ...baseStyle,
-          backgroundColor: backgroundColor || semanticColors.backgroundSecondary,
-        };
+        return { ...baseStyle, backgroundColor: backgroundColor || semanticColors.backgroundSecondary };
       case 'outline':
-        return {
-          ...baseStyle,
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: semanticColors.border,
-        };
+        return { ...baseStyle, backgroundColor: 'transparent', borderWidth: 1, borderColor: semanticColors.border };
       case 'ghost':
-        return {
-          ...baseStyle,
-          backgroundColor: 'transparent',
-        };
+        return { ...baseStyle, backgroundColor: 'transparent' };
       default:
-        return {
-          ...baseStyle,
-          backgroundColor: backgroundColor || semanticColors.backgroundMuted,
-        };
+        return { ...baseStyle, backgroundColor: backgroundColor || semanticColors.backgroundMuted };
     }
-  };
-  
-  const getIconColor = (): string => {
+  }, [variant, sizeStyle, disabled, backgroundColor]);
+
+  const iconColor = useMemo((): string => {
     if (color) return color;
-    
     switch (variant) {
       case 'primary':
         return semanticColors.backgroundPrimary;
-      case 'secondary':
-        return semanticColors.textPrimary;
-      case 'outline':
-        return semanticColors.textPrimary;
       case 'ghost':
         return semanticColors.textSecondary;
       default:
         return semanticColors.textPrimary;
     }
-  };
-  
+  }, [color, variant]);
+
   return (
     <TouchableOpacity
-      style={[getButtonStyle(), style]}
+      style={[buttonStyle, style]}
       onPress={onPress}
       disabled={disabled || loading}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || `${icon} button`}
-      accessibilityState={{ 
-        disabled: disabled || loading,
-        busy: loading
-      }}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       <Icon
         name={loading ? 'refresh' : icon}
         size={sizeStyle.iconSize}
-        color={getIconColor()}
+        color={iconColor}
       />
     </TouchableOpacity>
   );
-}
+});

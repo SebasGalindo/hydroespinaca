@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet, ViewStyle, TextInput } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Switch } from '../atoms/Switch';
-import { ListItem } from './ListItem';
 import {
   semanticColors, spacing, colors,
   ALERT_TYPE_LABELS, ALERT_TYPE_ICONS,
@@ -17,7 +16,7 @@ export interface AlertThresholdRowProps {
   testID?: string;
 }
 
-export function AlertThresholdRow({
+export const AlertThresholdRow = React.memo(function AlertThresholdRow({
   threshold,
   onToggle,
   onValueChange,
@@ -26,6 +25,19 @@ export function AlertThresholdRow({
 }: AlertThresholdRowProps): React.ReactElement {
   const label = ALERT_TYPE_LABELS[threshold.type] ?? threshold.type;
   const icon = ALERT_TYPE_ICONS[threshold.type] ?? '⚠️';
+
+  const handleToggle = useCallback(
+    (val: boolean) => onToggle(threshold.type, val),
+    [onToggle, threshold.type],
+  );
+
+  const handleValueChange = useCallback(
+    (text: string) => {
+      const num = parseFloat(text);
+      if (!isNaN(num)) onValueChange?.(threshold.type, num);
+    },
+    [onValueChange, threshold.type],
+  );
 
   return (
     <View style={[styles.container, style]} testID={testID}>
@@ -44,7 +56,7 @@ export function AlertThresholdRow({
         </View>
         <Switch
           value={threshold.enabled}
-          onValueChange={(val) => onToggle(threshold.type, val)}
+          onValueChange={handleToggle}
           testID={`${testID}-switch`}
         />
       </View>
@@ -53,10 +65,7 @@ export function AlertThresholdRow({
           <Text variant="caption" color={semanticColors.textSecondary}>Umbral:</Text>
           <TextInput
             value={String(threshold.thresholdValue)}
-            onChangeText={(text) => {
-              const num = parseFloat(text);
-              if (!isNaN(num)) onValueChange(threshold.type, num);
-            }}
+            onChangeText={handleValueChange}
             keyboardType="numeric"
             style={styles.input}
             testID={`${testID}-input`}
@@ -70,7 +79,7 @@ export function AlertThresholdRow({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -102,7 +111,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gray[300],
     borderRadius: 6,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     width: 80,
     fontSize: 14,
   },

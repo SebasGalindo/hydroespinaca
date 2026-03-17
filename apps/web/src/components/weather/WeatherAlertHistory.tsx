@@ -15,7 +15,7 @@ const SEVERITY_STYLES: Record<AlertSeverity, string> = {
   critical: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const WeatherAlertHistory: React.FC<WeatherAlertHistoryProps> = ({ fuzzySystemId }) => {
+const WeatherAlertHistory = React.memo(function WeatherAlertHistory({ fuzzySystemId }: WeatherAlertHistoryProps) {
   const user = useAuthStore(s => s.user);
   const { alerts, alertsLoading, alertsError, fetchAlerts, markAlertRead } = useWeatherStore();
   const [filterType, setFilterType] = useState<string>('');
@@ -129,6 +129,6 @@ const WeatherAlertHistory: React.FC<WeatherAlertHistoryProps> = ({ fuzzySystemId
       )}
     </div>
   );
-};
+});
 
 export default WeatherAlertHistory;

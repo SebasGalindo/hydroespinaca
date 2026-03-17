@@ -20,7 +20,7 @@ interface TableProps {
   mobileCardRender?: (item: unknown) => React.ReactNode;
 }
 
-const Table: React.FC<TableProps> = ({
+const Table = React.memo(function Table({
   columns,
   data,
   className = '',
@@ -29,7 +29,7 @@ const Table: React.FC<TableProps> = ({
   emptyMessage = 'No hay datos disponibles',
   responsive = true,
   mobileCardRender
-}) => {
+}: TableProps) {
   if (data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -109,6 +109,6 @@ const Table: React.FC<TableProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default Table;

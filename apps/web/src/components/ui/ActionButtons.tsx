@@ -13,7 +13,7 @@ interface ActionButtonsProps {
   className?: string;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({
+const ActionButtons = React.memo(function ActionButtons({
   onPrimary,
   onSecondary,
   primaryText = 'Guardar',
@@ -23,7 +23,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   secondaryIcon = 'cancel',
   layout = 'horizontal',
   className = ''
-}) => {
+}: ActionButtonsProps) {
   const getPrimaryIcon = () => {
     // All cases return the same icon, so we can simplify
     return <SaveIcon size={16} />;
@@ -72,6 +72,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       </button>
     </div>
   );
-};
+});
 
 export default ActionButtons;

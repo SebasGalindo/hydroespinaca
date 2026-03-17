@@ -10,7 +10,7 @@ import {
 } from '@hydroespinaca/shared';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { Select } from '../atoms/Select';
+import { Select } from '../molecules/Select';
 import { FormField } from '../molecules/FormField';
 import { BottomSheetForm } from '../organisms/BottomSheetForm';
 import { CURRENCY_OPTIONS, getTodayISO, toNoonUTC } from '../../utils/biHelpers';

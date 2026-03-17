@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { TouchableOpacity, View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, spacing, semanticColors, borderRadius } from '@hydroespinaca/shared';
 import { Text } from './Text';
 import { Icon } from './Icon';
+
+const ICON_SIZE = 14;
 
 export interface CheckboxProps {
   checked: boolean;
@@ -15,7 +17,7 @@ export interface CheckboxProps {
   accessibilityLabel?: string;
 }
 
-export function Checkbox({
+export const Checkbox = React.memo(function Checkbox({
   checked,
   onToggle,
   label,
@@ -25,21 +27,25 @@ export function Checkbox({
   testID,
   accessibilityLabel,
 }: CheckboxProps): React.ReactElement {
-  const getBorderColor = () => {
+  const borderColor = useMemo(() => {
     if (error) return semanticColors.errorBorder;
     if (checked) return colors.hidro[600];
     return colors.gray[300];
-  };
+  }, [error, checked]);
 
-  const getBackgroundColor = () => {
+  const backgroundColor = useMemo(() => {
     if (checked) return colors.hidro[600];
     return colors.white;
-  };
+  }, [checked]);
+
+  const handlePress = useCallback(() => {
+    if (!disabled) onToggle?.(!checked);
+  }, [disabled, onToggle, checked]);
 
   return (
     <TouchableOpacity
       style={[styles.container, style]}
-      onPress={() => !disabled && onToggle?.(!checked)}
+      onPress={handlePress}
       disabled={disabled}
       activeOpacity={0.7}
       testID={testID}
@@ -51,14 +57,14 @@ export function Checkbox({
         style={[
           styles.box,
           {
-            borderColor: getBorderColor(),
-            backgroundColor: getBackgroundColor(),
+            borderColor,
+            backgroundColor,
             opacity: disabled ? 0.5 : 1,
           },
         ]}
       >
         {checked && (
-          <Icon name="check" size={14} color={colors.white} />
+          <Icon name="check" size={ICON_SIZE} color={colors.white} />
         )}
       </View>
       {label && (
@@ -72,7 +78,7 @@ export function Checkbox({
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

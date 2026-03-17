@@ -10,13 +10,13 @@ interface PageContainerProps {
   background?: 'white' | 'gray' | 'green' | 'gradient';
 }
 
-const PageContainer: React.FC<PageContainerProps> = ({
+const PageContainer = React.memo(function PageContainer({
   children,
   className = '',
   maxWidth = '7xl',
   padding = 'md',
   background = 'gradient'
-}) => {
+}: PageContainerProps) {
   const maxWidthClasses = {
     sm: 'max-w-sm',
     md: 'max-w-md',
@@ -52,6 +52,6 @@ const PageContainer: React.FC<PageContainerProps> = ({
       </main>
     </div>
   );
-};
+});
 
 export default PageContainer;

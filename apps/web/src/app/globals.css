@@ -1,7 +1,5 @@
 /* All @import rules must be at the very top of the file */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Icons&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Consolas:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -33,30 +31,12 @@
 
 /* Now, other rules like @layer and style definitions can follow */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
   .font-inter {
     font-family: 'Inter', sans-serif;
   }
   
-  .font-material {
-    font-family: 'Material Icons', sans-serif;
-  }
-  
-  .font-consolas {
-    font-family: 'Consolas', monospace;
-  }
-  
   .hidro-gradient {
     background: linear-gradient(135deg, var(--color-hidro-green-bg) 0%, var(--color-hidro-green-bg-light) 100%);
-  }
-  
-  /* Clases para reemplazar estilos inline */
-  .chart-container {
-    width: 100%;
-    height: 100%;
   }
   
   .modal-overlay {

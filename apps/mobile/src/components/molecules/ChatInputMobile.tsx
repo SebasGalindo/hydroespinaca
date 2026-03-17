@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
     View,
     TextInput,
@@ -28,7 +28,7 @@ interface ChatInputMobileProps {
  * - Completely controlled — state managed internally; parent receives
  *   the trimmed message via `onSend` callback.
  */
-export function ChatInputMobile({
+export const ChatInputMobile = React.memo(function ChatInputMobile({
     onSend,
     disabled = false,
     placeholder,
@@ -36,12 +36,12 @@ export function ChatInputMobile({
     const [text, setText] = useState('');
     const inputRef = useRef<TextInput>(null);
 
-    const handleSend = () => {
+    const handleSend = useCallback(() => {
         const trimmed = text.trim();
         if (!trimmed || disabled) return;
         onSend(trimmed);
         setText('');
-    };
+    }, [text, disabled, onSend]);
 
     const canSend = text.trim().length > 0 && !disabled;
 
@@ -86,7 +86,7 @@ export function ChatInputMobile({
             </TouchableOpacity>
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
         minHeight: 44,
         maxHeight: 120,
         backgroundColor: colors.gray[50],
-        borderRadius: (borderRadius as Record<string, number>)['2xl'] ?? 22,
+        borderRadius: borderRadius['2xl'],
         borderWidth: 1,
         borderColor: colors.gray[200],
         paddingHorizontal: spacing.md,

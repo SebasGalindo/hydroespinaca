@@ -13,13 +13,13 @@ interface EmptyStateProps {
   className?: string;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({
+const EmptyState = React.memo(function EmptyState({
   icon,
   title,
   description,
   action,
   className = '',
-}) => {
+}: EmptyStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center py-12 px-4 text-center ${className}`}>
       {icon && (
@@ -45,6 +45,6 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default EmptyState;

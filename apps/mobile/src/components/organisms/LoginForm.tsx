@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, ViewStyle } from 'react-native';
 import { semanticColors, spacing, borderRadius, typography, useLoginForm, colors } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Heading } from '../atoms/Heading';
@@ -10,7 +10,7 @@ import { Pressable } from '../atoms/Pressable';
 
 export interface LoginFormProps {
   onLoginSuccess?: (email: string, password: string) => void;
-  style?: any;
+  style?: ViewStyle;
   testID?: string;
 }
 
@@ -22,23 +22,26 @@ export function LoginForm({
   const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = useCallback(async () => {
     try {
       await handleSubmit({ preventDefault: () => {} });
-      // Only navigate on actual success (login throws on failure)
       onLoginSuccess?.(formState.email, formState.password);
-    } catch (err) {
+    } catch {
       // Error is already set in authStore state and displayed in the form
     }
-  };
+  }, [handleSubmit, onLoginSuccess, formState.email, formState.password]);
 
-  const handleEmailChange = (text: string) => {
+  const handleEmailChange = useCallback((text: string) => {
     handleChange({ target: { name: 'email', value: text } });
-  };
+  }, [handleChange]);
 
-  const handlePasswordChange = (text: string) => {
+  const handlePasswordChange = useCallback((text: string) => {
     handleChange({ target: { name: 'password', value: text } });
-  };
+  }, [handleChange]);
+
+  const toggleShowPassword = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
   return (
     <ScrollView
@@ -162,7 +165,7 @@ export function LoginForm({
                 }
                 rightIcon={
                   <Pressable 
-                    onPress={() => setShowPassword(!showPassword)}
+                    onPress={toggleShowPassword}
                     style={styles.passwordToggle}
                     accessibilityLabel={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >

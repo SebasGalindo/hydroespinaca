@@ -10,7 +10,7 @@ interface ConsumptionSummaryProps {
   summary: BiSummary;
 }
 
-const ConsumptionSummary: React.FC<ConsumptionSummaryProps> = ({ summary }) => {
+const ConsumptionSummary = React.memo(function ConsumptionSummary({ summary }: ConsumptionSummaryProps) {
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-700 mb-3 font-inter">
@@ -53,6 +53,6 @@ const ConsumptionSummary: React.FC<ConsumptionSummaryProps> = ({ summary }) => {
       </div>
     </div>
   );
-};
+});
 
 export default ConsumptionSummary;

@@ -11,7 +11,7 @@ export interface DividerProps {
   testID?: string;
 }
 
-export function Divider({
+export const Divider = React.memo(function Divider({
   orientation = 'horizontal',
   color = colors.gray[200],
   thickness = StyleSheet.hairlineWidth,
@@ -36,4 +36,4 @@ export function Divider({
       accessibilityRole="none"
     />
   );
-}
+});

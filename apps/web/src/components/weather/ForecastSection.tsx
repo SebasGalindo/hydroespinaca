@@ -16,7 +16,7 @@ const WEATHER_EMOJI: Record<string, string> = {
   Tornado: '🌪️', Squall: '💨',
 };
 
-const ForecastSection: React.FC<ForecastSectionProps> = ({ daily, isLoading, error }) => {
+const ForecastSection = React.memo(function ForecastSection({ daily, isLoading, error }: ForecastSectionProps) {
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota' });
@@ -83,6 +83,6 @@ const ForecastSection: React.FC<ForecastSectionProps> = ({ daily, isLoading, err
       })}
     </div>
   );
-};
+});
 
 export default ForecastSection;

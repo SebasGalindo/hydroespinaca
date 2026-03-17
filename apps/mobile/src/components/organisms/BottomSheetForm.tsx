@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { colors, spacing, semanticColors, borderRadius, typography } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
@@ -15,7 +15,9 @@ export interface BottomSheetFormProps {
   testID?: string;
 }
 
-export function BottomSheetForm({
+const CLOSE_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
+
+export const BottomSheetForm = React.memo(function BottomSheetForm({
   title,
   isOpen,
   onClose,
@@ -23,16 +25,28 @@ export function BottomSheetForm({
   snapPoints: customSnapPoints,
   testID,
 }: BottomSheetFormProps): React.ReactElement | null {
-  const bottomSheetRef = useRef<BottomSheet>(null);
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
 
   const snapPoints = useMemo(
     () => customSnapPoints || ['60%', '90%'],
     [customSnapPoints]
   );
 
+  useEffect(() => {
+    if (isOpen) {
+      bottomSheetRef.current?.present();
+    } else {
+      bottomSheetRef.current?.dismiss();
+    }
+  }, [isOpen]);
+
   const handleClose = useCallback(() => {
     Keyboard.dismiss();
-    bottomSheetRef.current?.close();
+    bottomSheetRef.current?.dismiss();
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    Keyboard.dismiss();
     onClose();
   }, [onClose]);
 
@@ -49,14 +63,11 @@ export function BottomSheetForm({
     []
   );
 
-  if (!isOpen) return null;
-
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
-      index={0}
       snapPoints={snapPoints}
-      onClose={handleClose}
+      onDismiss={handleDismiss}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
@@ -71,7 +82,7 @@ export function BottomSheetForm({
         </Text>
         <TouchableOpacity
           onPress={handleClose}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={CLOSE_HIT_SLOP}
           accessibilityLabel="Cerrar formulario"
           accessibilityRole="button"
         >
@@ -84,9 +95,9 @@ export function BottomSheetForm({
       >
         {children}
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   background: {

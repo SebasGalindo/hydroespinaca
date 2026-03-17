@@ -5,7 +5,7 @@ import { Button } from '../atoms/Button';
 import { Switch } from '../atoms/Switch';
 import { Text } from '../atoms/Text';
 import { AlertThresholdRow } from '../molecules/AlertThresholdRow';
-import { spacing, semanticColors, colors } from '@hydroespinaca/shared';
+import { spacing, semanticColors } from '@hydroespinaca/shared';
 import type { WeatherAlertConfig, AlertThreshold, AlertType } from '@hydroespinaca/shared';
 
 export interface AlertConfigSheetProps {

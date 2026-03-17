@@ -41,7 +41,7 @@ const emptyConsequent: RuleConsequent = { variableId: '', terms: [], aggregation
 
 // ─── Component ───────────────────────────────────────────────
 
-const RuleForm: React.FC<RuleFormProps> = ({
+const RuleForm = React.memo(function RuleForm({
   isOpen,
   onClose,
   onSubmit,
@@ -50,7 +50,7 @@ const RuleForm: React.FC<RuleFormProps> = ({
   variables,
   terms,
   rule = null,
-}) => {
+}: RuleFormProps) {
   const isEdit = !!rule;
 
   const [name, setName] = useState('');
@@ -473,6 +473,6 @@ const RuleForm: React.FC<RuleFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default RuleForm;

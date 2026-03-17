@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import ForecastSection from '@/components/weather/ForecastSection';
 import AlertConfigSection from '@/components/weather/AlertConfigSection';
@@ -78,12 +78,12 @@ export default function ClimaPage() {
     loadSystems();
   }, []);
 
-  const handleSystemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleSystemChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setSelectedSystemId(id);
     const sys = fuzzySystems.find(s => s.id === id);
     setSelectedSystemName(sys?.name || '');
-  };
+  }, [fuzzySystems]);
 
   return (
     <PageLayout

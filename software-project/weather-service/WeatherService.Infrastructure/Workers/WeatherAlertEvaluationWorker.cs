@@ -480,6 +480,15 @@ public class WeatherAlertEvaluationWorker : BackgroundService
             data["alertId"] = newAlerts[0].Id;
             data["alertType"] = newAlerts[0].AlertType;
             data["severity"] = newAlerts[0].Severity;
+            data["recommendation"] = newAlerts[0].Recommendation;
+            data["forecastDate"] = newAlerts[0].ForecastDatetime.ToString("dd/MM/yyyy");
+        }
+        else
+        {
+            // For grouped alerts: pick highest severity, earliest forecast date
+            var hasCritical = newAlerts.Any(a => a.Severity == "critical");
+            data["severity"] = hasCritical ? "critical" : "warning";
+            data["forecastDate"] = newAlerts.Min(a => a.ForecastDatetime).ToString("dd/MM/yyyy");
         }
 
         foreach (var subscriber in subscribers)

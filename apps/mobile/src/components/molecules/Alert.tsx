@@ -44,7 +44,7 @@ const alertConfig = {
   },
 } as const;
 
-export function Alert({
+export const Alert = React.memo(function Alert({
   type,
   title,
   message,
@@ -90,7 +90,7 @@ export function Alert({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

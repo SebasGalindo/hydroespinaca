@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import {
   setAuthCallbacks,
@@ -192,6 +193,13 @@ export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerPr
           return;
         }
 
+        // Skip push registration in Expo Go — remote notifications are not
+        // supported since SDK 53. A development build is required.
+        if (Constants.appOwnership === 'expo') {
+          if (__DEV__) console.info('[MobileAuthInitializer] Skipping push registration (Expo Go does not support remote notifications)');
+          return;
+        }
+
         // Check/request permission
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -206,8 +214,11 @@ export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerPr
           return;
         }
 
-        // Get Expo push token
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        // Get Expo push token — pass projectId explicitly for dev builds
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          ...(projectId && { projectId }),
+        });
         const token = tokenData.data;
 
         if (__DEV__) console.info('[MobileAuthInitializer] Push token:', token);

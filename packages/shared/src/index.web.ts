@@ -33,12 +33,15 @@ export { ProtectedRoute } from './hooks/ProtectedRoute';
 
 // Export web-compatible utilities (excludes native storage)
 export * from './utils/formatters';
+export { formatRelativeDate, formatRelativeTime, formatDateTimestamp } from './utils/dateHelpers';
+export { isUserAdmin } from './utils/authHelpers';
 export { getApiUrl, detectPlatform, isDevelopmentMode } from './utils/apiConfig';
 export { setAuthCallbacks, authFetch } from './utils/authFetch';
 export {
   getAlertConfig,
   calculateVariableStatus,
   calculateTrend,
+  requiresArtificialLight,
   VARIABLE_ALERT_CONFIG,
 } from './utils/variableAlerts';
 export type {

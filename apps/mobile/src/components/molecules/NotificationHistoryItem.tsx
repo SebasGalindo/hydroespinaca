@@ -6,6 +6,7 @@ import type { BadgeProps } from '../atoms/Badge';
 import {
   colors, spacing, semanticColors,
   CHANNEL_LABELS, CHANNEL_ICONS,
+  formatDateTimestamp,
   type NotificationLogEntry, type NotificationChannel,
 } from '@hydroespinaca/shared';
 
@@ -23,17 +24,7 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeProps['variant']
   queued: { label: 'En cola', variant: 'info' },
 };
 
-function formatDate(iso?: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  const day = d.getDate().toString().padStart(2, '0');
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const hours = d.getHours().toString().padStart(2, '0');
-  const mins = d.getMinutes().toString().padStart(2, '0');
-  return `${day}/${month} ${hours}:${mins}`;
-}
-
-export function NotificationHistoryItem({
+export const NotificationHistoryItem = React.memo(function NotificationHistoryItem({
   entry,
   style,
   testID,
@@ -71,7 +62,7 @@ export function NotificationHistoryItem({
             {channelLabel}
           </Text>
           <Text variant="caption" color={semanticColors.textTertiary}>
-            {formatDate(entry.sentAt ?? entry.createdAt)}
+            {formatDateTimestamp(entry.sentAt ?? entry.createdAt)}
           </Text>
         </View>
 
@@ -83,7 +74,7 @@ export function NotificationHistoryItem({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

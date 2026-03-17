@@ -11,7 +11,7 @@ import DateRangeFilter from '@/components/ui/DateRangeFilter';
 import ConsumptionForm from './ConsumptionForm';
 import ConsumptionSummary from './ConsumptionSummary';
 import { PlusIcon, TrashIcon, DatabaseIcon } from '@/components/ui/icons/Icons';
-import Swal from 'sweetalert2';
+import { showConfirm, showError, showSuccess } from '@/lib/swal';
 
 const typeVariantMap: Record<ConsumptionType, 'warning' | 'info' | 'success'> = {
   1: 'warning',
@@ -19,7 +19,7 @@ const typeVariantMap: Record<ConsumptionType, 'warning' | 'info' | 'success'> = 
   3: 'success',
 };
 
-const ConsumptionSection: React.FC = () => {
+const ConsumptionSection = React.memo(function ConsumptionSection() {
   const {
     consumptionEntries,
     consumptionSummary,
@@ -60,44 +60,23 @@ const ConsumptionSection: React.FC = () => {
   const handleCreate = async (request: Parameters<typeof createConsumptionEntry>[0]) => {
     try {
       await createConsumptionEntry(request);
-      Swal.fire({
-        icon: 'success',
-        title: 'Consumo registrado',
-        text: 'El registro de consumo ha sido creado exitosamente.',
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      showSuccess({ title: 'Consumo registrado', text: 'El registro de consumo ha sido creado exitosamente.' });
       if (loaded) loadData();
     } catch {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar el consumo.' });
+      showError({ text: 'No se pudo registrar el consumo.' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar registro?',
-      text: 'Esta acción no se puede deshacer.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-    });
+    const confirmed = await showConfirm({ title: '¿Eliminar registro?', text: 'Esta acción no se puede deshacer.', confirmText: 'Sí, eliminar', danger: true });
 
-    if (result.isConfirmed) {
+    if (confirmed) {
       try {
         await deleteConsumptionEntry(id);
-        Swal.fire({
-          icon: 'success',
-          title: 'Eliminado',
-          text: 'El registro ha sido eliminado.',
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccess({ title: 'Eliminado', text: 'El registro ha sido eliminado.' });
         if (loaded) loadData();
       } catch {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el registro.' });
+        showError({ text: 'No se pudo eliminar el registro.' });
       }
     }
   };
@@ -252,6 +231,6 @@ const ConsumptionSection: React.FC = () => {
       />
     </div>
   );
-};
+});
 
 export default ConsumptionSection;

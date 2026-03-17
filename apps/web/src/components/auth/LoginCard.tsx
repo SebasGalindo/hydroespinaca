@@ -7,7 +7,7 @@ interface LoginCardProps {
   className?: string;
 }
 
-const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
+const LoginCard = React.memo(function LoginCard({ className }: LoginCardProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
@@ -177,6 +177,6 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
       </form>
     </div>
   );
-};
+});
 
 export default LoginCard;

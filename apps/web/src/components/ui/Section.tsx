@@ -13,7 +13,7 @@ interface SectionProps {
   id?: string;
 }
 
-const Section: React.FC<SectionProps> = ({
+const Section = React.memo(function Section({
   title,
   subtitle,
   children,
@@ -22,7 +22,7 @@ const Section: React.FC<SectionProps> = ({
   subtitleClassName = '',
   spacing = 'md',
   id
-}) => {
+}: SectionProps) {
   const spacingClasses = {
     sm: 'mb-4',
     md: 'mb-8',
@@ -50,6 +50,6 @@ const Section: React.FC<SectionProps> = ({
       {children}
     </section>
   );
-};
+});
 
 export default Section;

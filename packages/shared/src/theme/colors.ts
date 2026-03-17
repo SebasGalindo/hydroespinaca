@@ -225,9 +225,13 @@ export const chartColors = {
   indigo: '#6366f1',
   lime: '#84cc16',
   rose: '#f43f5e',
+  sky: '#0ea5e9',
+  purple: '#a855f7',
+  green500: '#22c55e',
+  yellow: '#eab308',
 } as const;
 
-// Ordered palette array for indexed access
+// Ordered palette array for indexed access (16 entries)
 export const chartColorPalette = [
   chartColors.blue,
   chartColors.red,
@@ -241,6 +245,10 @@ export const chartColorPalette = [
   chartColors.indigo,
   chartColors.lime,
   chartColors.rose,
+  chartColors.sky,
+  chartColors.purple,
+  chartColors.green500,
+  chartColors.yellow,
 ] as const;
 
 // Export types for TypeScript

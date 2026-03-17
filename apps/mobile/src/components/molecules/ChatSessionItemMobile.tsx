@@ -1,9 +1,17 @@
-import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import React, { useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import ReanimatedSwipeable, {
+    type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, {
+    useAnimatedStyle,
+    interpolate,
+    Extrapolation,
+    type SharedValue,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { ChatSession } from '@hydroespinaca/shared';
-import { colors, spacing, borderRadius } from '@hydroespinaca/shared';
+import { colors, spacing, borderRadius, formatRelativeTime } from '@hydroespinaca/shared';
 
 interface ChatSessionItemMobileProps {
     session: ChatSession;
@@ -13,52 +21,70 @@ interface ChatSessionItemMobileProps {
 }
 
 /**
+ * Small component so we can call useAnimatedStyle with the SharedValue param.
+ */
+function DeleteActionIcon({ translation }: { translation: SharedValue<number> }) {
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [
+            {
+                scale: interpolate(
+                    translation.value,
+                    [-80, 0],
+                    [1, 0],
+                    Extrapolation.CLAMP,
+                ),
+            },
+        ],
+    }));
+
+    return (
+        <Animated.View style={animatedStyle}>
+            <Ionicons name="trash-outline" size={20} color={colors.white} />
+        </Animated.View>
+    );
+}
+
+/**
  * Molecule — a single session row for the mobile session modal.
  *
  * Swipe left to reveal the "Eliminar" action.
  * Tapping the row selects the session.
  */
-export function ChatSessionItemMobile({
+export const ChatSessionItemMobile = React.memo(function ChatSessionItemMobile({
     session,
     isActive,
     onSelect,
     onDelete,
 }: ChatSessionItemMobileProps): React.ReactElement {
-    const swipeRef = useRef<Swipeable>(null);
+    const swipeRef = useRef<SwipeableMethods>(null);
 
-    const handleDelete = () => {
+    const handleDelete = useCallback(() => {
         swipeRef.current?.close();
         onDelete(session.id);
-    };
+    }, [onDelete, session.id]);
 
-    const renderRightActions = (
-        _progress: Animated.AnimatedInterpolation<number>,
-        dragX: Animated.AnimatedInterpolation<number>
+    const handleSelect = useCallback(() => onSelect(session.id), [onSelect, session.id]);
+
+    const renderRightActions = useCallback((
+        _progress: SharedValue<number>,
+        translation: SharedValue<number>,
     ) => {
-        const scale = dragX.interpolate({
-            inputRange: [-80, 0],
-            outputRange: [1, 0],
-            extrapolate: 'clamp',
-        });
-
         return (
             <TouchableOpacity
                 style={styles.deleteAction}
                 onPress={handleDelete}
                 accessibilityLabel={`Eliminar conversación: ${session.title}`}
             >
-                <Animated.View style={{ transform: [{ scale }] }}>
-                    <Ionicons name="trash-outline" size={20} color={colors.white} />
-                </Animated.View>
+                <DeleteActionIcon translation={translation} />
                 <Text style={styles.deleteText}>Eliminar</Text>
             </TouchableOpacity>
         );
-    };
+    }, [handleDelete, session.title]);
 
-    const dateLabel = formatRelative(session.updatedAt);
+    const dateLabel = formatRelativeTime(session.updatedAt);
 
     return (
-        <Swipeable
+        <ReanimatedSwipeable
             ref={swipeRef}
             renderRightActions={renderRightActions}
             rightThreshold={40}
@@ -66,7 +92,7 @@ export function ChatSessionItemMobile({
         >
             <TouchableOpacity
                 style={[styles.row, isActive && styles.activeRow]}
-                onPress={() => onSelect(session.id)}
+                onPress={handleSelect}
                 accessibilityRole="button"
                 accessibilityLabel={`Conversación: ${session.title}`}
                 accessibilityState={{ selected: isActive }}
@@ -98,22 +124,9 @@ export function ChatSessionItemMobile({
                     color={isActive ? colors.hidro[400] : colors.gray[300]}
                 />
             </TouchableOpacity>
-        </Swipeable>
+        </ReanimatedSwipeable>
     );
-}
-
-function formatRelative(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'Ahora';
-    if (mins < 60) return `${mins} min`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs} h`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days} d`;
-    if (days < 30) return `${Math.floor(days / 7)} sem`;
-    return `${Math.floor(days / 30)} mes`;
-}
+});
 
 const styles = StyleSheet.create({
     row: {
@@ -132,7 +145,7 @@ const styles = StyleSheet.create({
     iconContainer: {
         width: 36,
         height: 36,
-        borderRadius: (borderRadius as Record<string, number>)['lg'] ?? 10,
+        borderRadius: borderRadius.lg,
         backgroundColor: colors.gray[100],
         alignItems: 'center',
         justifyContent: 'center',

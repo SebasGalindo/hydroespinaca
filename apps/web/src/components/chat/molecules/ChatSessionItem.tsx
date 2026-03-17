@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { ChatSession } from '@hydroespinaca/shared';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -17,7 +17,7 @@ interface ChatSessionItemProps {
  * Shows the session title (truncated) and a relative timestamp.
  * A delete button appears on hover via Tailwind group utilities.
  */
-export function ChatSessionItem({
+export const ChatSessionItem = React.memo(function ChatSessionItem({
     session,
     isActive,
     onSelect,
@@ -84,7 +84,7 @@ export function ChatSessionItem({
             </button>
         </div>
     );
-}
+});
 
 // ──────────────────────────────────────
 //  Helpers

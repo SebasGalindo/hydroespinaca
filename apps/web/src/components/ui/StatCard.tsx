@@ -34,7 +34,7 @@ const trendColors = {
   neutral: 'text-gray-500',
 };
 
-const StatCard: React.FC<StatCardProps> = ({
+const StatCard = React.memo(function StatCard({
   label,
   value,
   unit,
@@ -43,7 +43,7 @@ const StatCard: React.FC<StatCardProps> = ({
   trendLabel,
   variant = 'default',
   className = '',
-}) => {
+}: StatCardProps) {
   const styles = variantStyles[variant];
 
   return (
@@ -75,6 +75,6 @@ const StatCard: React.FC<StatCardProps> = ({
       </div>
     </BaseCard>
   );
-};
+});
 
 export default StatCard;

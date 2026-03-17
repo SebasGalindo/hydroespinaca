@@ -6,9 +6,6 @@ export interface IconProps {
   name: IconName;
   size?: number;
   color?: string;
-  stroke?: string;
-  strokeWidth?: number;
-  fill?: string;
   style?: any;
   testID?: string;
 }
@@ -111,7 +108,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   'upload': 'cloud-upload-outline',
 };
 
-export function Icon({
+export const Icon = React.memo(function Icon({
   name,
   size = 24,
   color = colors.black,
@@ -129,4 +126,4 @@ export function Icon({
       testID={testID}
     />
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useChatStore } from '@hydroespinaca/shared';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { ChatSessionItem } from '../molecules/ChatSessionItem';
@@ -14,7 +14,7 @@ import type { ChatSession } from '@hydroespinaca/shared';
  * and renders a `SessionDateLabel` before each new group.
  * Contains a "Nueva conversación" button at the top.
  */
-export function ChatSessionList() {
+export const ChatSessionList = React.memo(function ChatSessionList() {
     const sessions = useChatStore((s) => s.sessions);
     const activeSessionId = useChatStore((s) => s.activeSessionId);
     const sessionsLoading = useChatStore((s) => s.sessionsLoading);
@@ -79,7 +79,7 @@ export function ChatSessionList() {
             </div>
         </aside>
     );
-}
+});
 
 // ──────────────────────────────────────
 //  Helpers

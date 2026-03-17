@@ -28,13 +28,13 @@ const getInitialForm = (editData?: CostConfigVersion | null) => ({
     : '',
 });
 
-const CostConfigForm: React.FC<CostConfigFormProps> = ({
+const CostConfigForm = React.memo(function CostConfigForm({
   isOpen,
   onClose,
   onSubmit,
   isLoading = false,
   editData = null,
-}) => {
+}: CostConfigFormProps) {
   const [form, setForm] = useState(getInitialForm(editData));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -180,6 +180,6 @@ const CostConfigForm: React.FC<CostConfigFormProps> = ({
       </div>
     </Modal>
   );
-};
+});
 
 export default CostConfigForm;

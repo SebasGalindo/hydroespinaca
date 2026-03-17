@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Input } from '../atoms/Input';
 import { Button } from '../atoms/Button';
-import { Select } from '../atoms/Select';
+import { Select } from '../molecules/Select';
 import { Text } from '../atoms/Text';
 import { Alert } from '../molecules/Alert';
 import { BottomSheetForm } from '../organisms/BottomSheetForm';
