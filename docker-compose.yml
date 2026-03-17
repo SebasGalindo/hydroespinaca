@@ -59,6 +59,7 @@ services:
   certbot-renew:
     image: certbot/dns-cloudflare
     container_name: certbot-renew
+    restart: always
     volumes:
       - certbot_certs:/etc/letsencrypt
       - ./deploy-artifacts/scripts:/scripts:ro
@@ -66,6 +67,7 @@ services:
       - /srv/mqtt/certs:/srv/mqtt/certs
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+    entrypoint: ""
     command: sh -c "while :; do sleep 12h & wait \$\$!; certbot renew --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --dns-cloudflare-propagation-seconds 60 --quiet --deploy-hook '/scripts/certbot-hooks.sh deploy'; done"
     networks:
       - espinaca-net
