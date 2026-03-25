@@ -11,7 +11,7 @@ interface ActuatorTimelineChartProps {
   data: ActuatorActivity[];
 }
 
-export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartProps) {
+const ActuatorTimelineChart = React.memo(function ActuatorTimelineChart({ data }: ActuatorTimelineChartProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -93,4 +93,6 @@ export default function ActuatorTimelineChart({ data }: ActuatorTimelineChartPro
       </div>
     </div>
   );
-}
+});
+
+export default ActuatorTimelineChart;

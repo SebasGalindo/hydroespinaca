@@ -2,6 +2,9 @@
 
 namespace ActuatorService.Domain.Interfaces;
 
+/// <summary>
+/// Persistence contract for actuator entities.
+/// </summary>
 public interface IActuatorRepository
 {
     Task<Actuator?> GetByIdAsync(string id);

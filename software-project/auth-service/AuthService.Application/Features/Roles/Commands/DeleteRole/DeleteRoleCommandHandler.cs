@@ -5,6 +5,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Roles.Commands.DeleteRole;
 
+/// <summary>
+/// Handler that removes a role. Throws if the role still has assigned users.
+/// </summary>
 public class DeleteRoleCommandHandler : IRequestHandler<DeleteRoleCommand, bool>
 {
     private readonly IRoleRepository _roleRepository;

@@ -8,4 +8,5 @@ public class CreateActuatorDto
     public string PhysicalId { get; set; } = default!;
     public string Pin { get; set; } = default!;
     public string Location { get; set; } = default!;
+    public decimal PowerConsumptionWatts { get; set; }
 }

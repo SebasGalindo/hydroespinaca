@@ -1,325 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import VariableCard from '@/components/dashboard/VariableCard';
 import ControllerStatus from '@/components/dashboard/ControllerStatus';
 import WeatherCard from '@/components/dashboard/WeatherCard';
+import WeatherAlertWidget from '@/components/dashboard/WeatherAlertWidget';
 import PageLayout from '@/components/layout/PageLayout';
 import { AlertTriangleIcon } from '@/components/ui/icons/Icons';
 import {
-  systemStatusService,
   formatNumericValue,
   calculateVariableStatus,
   calculateTrend,
   getAlertConfig,
-  useAuthStore,
 } from '@hydroespinaca/shared';
-import type { SystemStatusResponse, ReadingItem, WeatherSummary } from '@hydroespinaca/shared';
-import { useRouter } from 'next/navigation';
-import { IconType } from '@hydroespinaca/shared/types/common';
+import { useSystemDashboard, formatColombiaDateTime, getIconType } from '@/hooks/useSystemDashboard';
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const routerRef = useRef(router);
-  const { logout } = useAuthStore();
-  const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
-  const [previousReadings, setPreviousReadings] = useState<ReadingItem[]>([]);
-  const [lastUpdateTimestamp, setLastUpdateTimestamp] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isPollingPaused, setIsPollingPaused] = useState(false);
-  const [hasReadingsData, setHasReadingsData] = useState(true);
-  const [shouldStartPolling, setShouldStartPolling] = useState(false);
-
-  // Estado para el clima
-  const [weather, setWeather] = useState<WeatherSummary | null>(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherError, setWeatherError] = useState<string | null>(null);
-
-  // Mantener routerRef actualizado
-  useEffect(() => {
-    routerRef.current = router;
-  }, [router]);
-
-  const fetchSystemStatus = useCallback(async (): Promise<string | null> => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await systemStatusService.getSystemStatus();
-
-      // Verificar si el backend devolvió readings vacías
-      const hasValidReadings = data.readings.readings &&
-                               data.readings.readings.length > 0 &&
-                               data.readings.timestamp;
-
-      if (!hasValidReadings) {
-        setHasReadingsData(false);
-
-        // Pero aún así actualizar los otros datos que sí vienen (jobStatus, stats, internalRoutines, weather)
-        setSystemStatus(data);
-
-        // Actualizar clima desde la respuesta consolidada del BFF
-        if (data.weather) {
-          setWeather(data.weather);
-          setWeatherError(null);
-        }
-
-        // Retornar null para indicar que no hay lecturas nuevas
-        return null;
-      }
-
-      // Si llegamos aquí, tenemos datos válidos de readings
-      setHasReadingsData(true);
-
-      // Almacenar lecturas anteriores para calcular tendencias
-      if (systemStatus?.readings.readings) {
-        setPreviousReadings(systemStatus.readings.readings);
-      }
-
-      setSystemStatus(data);
-      setLastUpdateTimestamp(data.readings.timestamp);
-
-      // Actualizar clima desde la respuesta consolidada del BFF
-      if (data.weather) {
-        setWeather(data.weather);
-        setWeatherError(null);
-      }
-
-      return data.readings.timestamp;
-    } catch (err: any) {
-      console.error('Error fetching system status:', err);
-      setError(err.message || 'Error al cargar los datos del sistema');
-
-      // Si es error 401, cerrar sesión y redirigir a login
-      if (err.response?.status === 401 || err.message?.includes('Unauthorized')) {
-        await logout();
-        routerRef.current.push('/login');
-      }
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [systemStatus, logout]);
-
-  // Cargar datos iniciales (incluye clima desde el BFF)
-  useEffect(() => {
-    fetchSystemStatus().then(() => {
-      // Activar el polling después del fetch inicial
-      setShouldStartPolling(true);
-    });
-  }, []);
-
-  // Función para reiniciar el polling
-  const handleRetryPolling = useCallback(() => {
-    // Resetear contadores
-    consecutiveEmptyResponsesRef.current = 0;
-    consecutiveUnchangedRef.current = 0;
-    followUpStartTimeRef.current = null;
-    setIsPollingPaused(false);
-    setError(null);
-    setHasReadingsData(true); // Resetear estado de readings
-
-    // Forzar refetch inmediato y reactivar polling
-    fetchSystemStatus().then(() => {
-      setShouldStartPolling(true);
-    });
-  }, [fetchSystemStatus]);
-
-  // Auto-refresh dinámico basado en timestamp + 2 minutos
-  // El clima se actualiza automáticamente con cada fetch del BFF
-
-  const lastTimestampRef = useRef<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const followUpStartTimeRef = useRef<number | null>(null);
-  const consecutiveEmptyResponsesRef = useRef<number>(0);
-  const consecutiveUnchangedRef = useRef<number>(0);
-
-  useEffect(() => {
-    // No iniciar hasta que se complete el fetch inicial
-    if (!shouldStartPolling) return;
-
-    const READING_INTERVAL_MS = 2 * 60 * 1000; // 2 minutos desde la LECTURA
-    const BUFFER_MS = 20 * 1000; // +20 segundos de margen
-    const FOLLOW_UP_INTERVAL_MS = 30 * 1000; // 30 segundos (base) - más espaciado
-    const MAX_FOLLOW_UP_MS = 90 * 1000; // 90 segundos máximo en modo seguimiento (más restrictivo)
-    const MAX_CONSECUTIVE_EMPTY = 3; // Máximo de respuestas vacías consecutivas (más restrictivo)
-    const MAX_CONSECUTIVE_UNCHANGED = 3; // Máximo de timestamps sin cambios (más restrictivo)
-    const MAX_BACKOFF_MS = 2 * 60 * 1000; // 2 minutos máximo de backoff
-
-    const calculateNextFetchDelay = (readingTimestamp: string): number => {
-      const readingTime = new Date(readingTimestamp).getTime();
-      const nextReadingTime = readingTime + READING_INTERVAL_MS;
-      const now = Date.now();
-      const timeUntilNextReading = nextReadingTime - now;
-
-      if (timeUntilNextReading <= 0) {
-        return 0;
-      }
-
-      return timeUntilNextReading + BUFFER_MS;
-    };
-
-    // Backoff exponencial con límite máximo
-    const calculateBackoffDelay = (retryCount: number): number => {
-      const baseDelay = FOLLOW_UP_INTERVAL_MS;
-      const exponentialDelay = baseDelay * Math.pow(2, Math.min(retryCount, 5));
-      return Math.min(exponentialDelay, MAX_BACKOFF_MS);
-    };
-
-    const scheduleNext = (timestamp: string | null, isFollowUp: boolean = false) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      // Verificar si se alcanzó el límite de respuestas vacías
-      if (consecutiveEmptyResponsesRef.current >= MAX_CONSECUTIVE_EMPTY) {
-        setError('Sistema desconectado: No se detectan lecturas de sensores. Las peticiones automáticas se han detenido.');
-        setIsPollingPaused(true);
-        return;
-      }
-
-      // Verificar si se alcanzó el límite de timestamps sin cambios
-      if (consecutiveUnchangedRef.current >= MAX_CONSECUTIVE_UNCHANGED) {
-        setError('No se detectan nuevas lecturas de sensores. Las peticiones automáticas se han detenido.');
-        setIsPollingPaused(true);
-        return;
-      }
-
-      // Calcular delay con backoff exponencial si estamos en modo follow-up
-      let delay: number;
-      if (isFollowUp) {
-        delay = calculateBackoffDelay(consecutiveUnchangedRef.current);
-      } else {
-        // Si hay timestamp, calcular próximo fetch basado en él
-        // Si no hay timestamp, usar intervalo de seguimiento
-        delay = timestamp ? calculateNextFetchDelay(timestamp) : FOLLOW_UP_INTERVAL_MS;
-      }
-
-      timeoutRef.current = setTimeout(async () => {
-        const oldTimestamp = lastTimestampRef.current;
-        const newTimestamp = await fetchSystemStatus();
-
-        // Caso 1: Error en la petición (newTimestamp es null - no hay readings)
-        if (!newTimestamp) {
-          consecutiveEmptyResponsesRef.current++;
-          consecutiveUnchangedRef.current++;
-
-          if (consecutiveEmptyResponsesRef.current < MAX_CONSECUTIVE_EMPTY) {
-            // Continuar intentando con backoff
-            scheduleNext(oldTimestamp || lastUpdateTimestamp, true);
-          }
-          return;
-        }
-
-        // Caso 2: Se recibieron datos - resetear contador de respuestas vacías
-        consecutiveEmptyResponsesRef.current = 0;
-
-        const timestampsChanged = oldTimestamp !== newTimestamp;
-
-        // Caso 3: Timestamp cambió - hay nuevos datos
-        if (timestampsChanged) {
-          consecutiveUnchangedRef.current = 0;
-          followUpStartTimeRef.current = null;
-          lastTimestampRef.current = newTimestamp;
-          scheduleNext(newTimestamp, false);
-        }
-        // Caso 4: Timestamp no cambió - no hay nuevos datos
-        else {
-          consecutiveUnchangedRef.current++;
-
-          if (!followUpStartTimeRef.current) {
-            followUpStartTimeRef.current = Date.now();
-          }
-
-          const elapsed = Date.now() - followUpStartTimeRef.current;
-
-          // Modo seguimiento por 2 minutos
-          if (elapsed < MAX_FOLLOW_UP_MS && consecutiveUnchangedRef.current < MAX_CONSECUTIVE_UNCHANGED) {
-            scheduleNext(newTimestamp, true);
-          }
-          // Después de 2 minutos, volver al ciclo normal
-          else if (consecutiveUnchangedRef.current < MAX_CONSECUTIVE_UNCHANGED) {
-            followUpStartTimeRef.current = null;
-            scheduleNext(newTimestamp, false);
-          }
-        }
-      }, delay);
-    };
-
-    // Iniciar polling con el timestamp actual o null si no hay
-    const currentTimestamp = lastUpdateTimestamp || lastTimestampRef.current;
-    lastTimestampRef.current = currentTimestamp;
-    scheduleNext(currentTimestamp, false);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [shouldStartPolling, lastUpdateTimestamp, fetchSystemStatus]);
-
-
-
-
-  const formatColombiaDateTime = (isoString: string): string => {
-    // Convertir ISO string a fecha GMT-5 (Colombia)
-    const date = new Date(isoString);
-
-    // Opciones de formato para Colombia
-    const options: Intl.DateTimeFormatOptions = {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'America/Bogota'
-    };
-
-    const formatter = new Intl.DateTimeFormat('es-CO', options);
-    return formatter.format(date);
-  };
-
-  /**
-   * Verifica si la luz artificial (amplio espectro) está activa
-   */
-  const isArtificialLightActive = (): boolean => {
-    if (!systemStatus?.jobStatus.queue) return false;
-
-    // Buscar comandos relacionados con luz en la cola
-    return systemStatus.jobStatus.queue.some(job =>
-      job.commandId.toLowerCase().includes('luz') ||
-      job.commandId.toLowerCase().includes('light') ||
-      job.commandId.toLowerCase().includes('amplio-espectro')
-    );
-  };
-
-  /**
-   * Obtiene el valor anterior de una variable para calcular tendencia
-   */
-  const getPreviousValue = (variableName: string): number | null => {
-    const previous = previousReadings.find(
-      r => r.name.toLowerCase() === variableName.toLowerCase()
-    );
-    return previous?.value || null;
-  };
-
-
-
-  // Mapeo de tipos de iconos según el nombre de la variable
-  const getIconType = (name: string): IconType => {
-    const lowerName = name.toLowerCase();
-
-    if (lowerName.includes('temperatura') && lowerName.includes('agua')) return 'water';
-    if (lowerName.includes('temperatura')) return 'temperature';
-    if (lowerName.includes('humedad')) return 'humidity';
-    if (lowerName.includes('luz') || lowerName.includes('luminosidad')) return 'sun';
-    if (lowerName.includes('conductividad') || lowerName.includes('ec')) return 'electric';
-    if (lowerName.includes('nivel')) return 'ruler';
-    if (lowerName.includes('ph')) return 'ph';
-
-    return 'temperature'; // default seguro
-  };
+  const {
+    systemStatus,
+    lastUpdateTimestamp,
+    isLoading,
+    error,
+    isPollingPaused,
+    hasReadingsData,
+    weather,
+    weatherLoading,
+    weatherError,
+    handleRetryPolling,
+    isArtificialLightActive,
+    getPreviousValue,
+  } = useSystemDashboard();
 
   if (isLoading && !systemStatus) {
     return (
@@ -394,11 +104,18 @@ export default function DashboardPage() {
         <h2 id="weather-heading" className="text-xl font-bold text-green-800 mb-4 font-inter">
           Condiciones Climáticas
         </h2>
-        <WeatherCard
-          weather={weather}
-          isLoading={weatherLoading}
-          error={weatherError}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <WeatherCard
+              weather={weather}
+              isLoading={weatherLoading}
+              error={weatherError}
+            />
+          </div>
+          <div className="lg:col-span-1">
+            <WeatherAlertWidget />
+          </div>
+        </div>
       </section>
 
       {/* Indicador global de última actualización */}
@@ -463,7 +180,7 @@ export default function DashboardPage() {
               const status = calculateVariableStatus(reading, alertConfig);
               const previousValue = getPreviousValue(reading.name);
               const trend = calculateTrend(reading.value, previousValue);
-              const lightActive = isArtificialLightActive();
+              const lightActive = isArtificialLightActive;
 
               return (
                 <VariableCard

@@ -3,6 +3,10 @@ using HydroEspinaca.Shared.DTOs.Esp32;
 
 namespace SensorService.Application.Validators.Esp32Node;
 
+/// <summary>
+/// Validador de FluentValidation para la creación de nodos ESP32.
+/// Valida que el nombre y la ubicación sean proporcionados y no excedan la longitud máxima.
+/// </summary>
 public class Esp32NodeCreateValidator : AbstractValidator<Esp32NodeCreateDto>
 {
     public Esp32NodeCreateValidator()

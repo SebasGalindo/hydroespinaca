@@ -5,8 +5,16 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace SensorService.Infrastructure.Persistence.Mappers;
 
+/// <summary>
+/// Mapper que convierte entre la entidad de dominio <see cref="Sensor"/> y el documento MongoDB <see cref="SensorDocument"/>.
+/// </summary>
 public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
 {
+    /// <summary>
+    /// Convierte un documento MongoDB de sensor a su entidad de dominio correspondiente.
+    /// </summary>
+    /// <param name="doc">El documento MongoDB de sensor.</param>
+    /// <returns>La entidad de dominio <see cref="Sensor"/>.</returns>
     public Sensor ToEntity(SensorDocument doc)
     {
         var Sensor = new Sensor
@@ -25,6 +33,11 @@ public class SensorMapper : IEntityMapper<Sensor, SensorDocument>
         return Sensor;
     }
 
+    /// <summary>
+    /// Convierte una entidad de dominio de sensor a su documento MongoDB correspondiente.
+    /// </summary>
+    /// <param name="entity">La entidad de dominio <see cref="Sensor"/>.</param>
+    /// <returns>El documento MongoDB <see cref="SensorDocument"/>.</returns>
     public SensorDocument ToDocument(Sensor entity)
     {
         var document = new SensorDocument

@@ -12,7 +12,7 @@ interface ActuatorProportionChartProps {
   data: ActuatorActivity[];
 }
 
-export default function ActuatorProportionChart({ data }: ActuatorProportionChartProps) {
+const ActuatorProportionChart = React.memo(function ActuatorProportionChart({ data }: ActuatorProportionChartProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -79,4 +79,6 @@ export default function ActuatorProportionChart({ data }: ActuatorProportionChar
       </div>
     </div>
   );
-}
+});
+
+export default ActuatorProportionChart;

@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace BffService.Infrastructure.Cache;
 
+/// <summary>
+/// In-memory session repository using ConcurrentDictionary for storing user sessions.
+/// </summary>
 public class InMemorySessionRepository : ISessionRepository
 {
     private readonly IMemoryCache _cache;

@@ -13,6 +13,9 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service that sends notifications when ESP32 nodes go offline.
+/// </summary>
 public class Esp32OfflineNotificationService : IEsp32OfflineNotificationService
 {
     private readonly HttpClient _httpClient;

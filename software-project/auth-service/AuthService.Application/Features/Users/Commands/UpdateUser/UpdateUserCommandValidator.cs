@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Users.Commands.UpdateUser;
 
+/// <summary>
+/// Validator for user update input.
+/// </summary>
 public class UpdateUserCommandValidator : BaseValidator<UpdateUserCommand>
 {
     public UpdateUserCommandValidator()

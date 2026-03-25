@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ActuatorService.Api.Services;
 
+/// <summary>
+/// Maps domain and application exceptions to appropriate HTTP status codes and error responses.
+/// </summary>
 public class ActuatorServiceExceptionMapper : IExceptionToProblemDetailsMapper
 {
     private readonly ProblemDetailsFactory _sharedMapper;

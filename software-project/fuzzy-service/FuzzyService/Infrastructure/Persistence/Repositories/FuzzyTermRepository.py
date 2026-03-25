@@ -106,6 +106,16 @@ class FuzzyTermRepository(IFuzzyTermRepository):
         assert created is not None
         return created
 
+    async def create_many(self, terms: List[FuzzyTerm]) -> List[FuzzyTerm]:
+        """Bulk-insert terms. Skips _assert_variable_exists for speed (used by clone/import)."""
+        if not terms:
+            return []
+        docs = [self._entity_to_doc(t) for t in terms]
+        result = await self._coll.insert_many(docs, ordered=True)
+        entities = [self._doc_to_entity(d) for d in docs]
+        _logger.info("Bulk-created %d FuzzyTerm(s)", len(result.inserted_ids))
+        return entities
+
     async def get_by_id(self, term_id: FuzzyTermId) -> Optional[FuzzyTerm]:
         key = self._to_object_id(term_id)
         doc = await self._coll.find_one({"_id": key})

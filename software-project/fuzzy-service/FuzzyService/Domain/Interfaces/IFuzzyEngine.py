@@ -62,7 +62,8 @@ class IFuzzyEngine(ABC):
         variables: List[FuzzyVariable],
         terms: List[FuzzyTerm],
         rules: List[FuzzyRule],
-        sensor_readings: Dict[str, float]
+        sensor_readings: Dict[str, float],
+        is_simulation: bool = False
     ) -> Dict[str, Any]:
         """Realiza una evaluación fuzzy completa del sistema.
         
@@ -77,6 +78,8 @@ class IFuzzyEngine(ABC):
             terms: Términos fuzzy de todas las variables
             rules: Reglas del sistema
             sensor_readings: Lecturas de sensores {sensor_id: value}
+            is_simulation: Si es True, se omite la validación de estado
+                operacional del sistema (permite simular sistemas inactivos)
             
         Returns:
             Diccionario con resultados completos de la evaluación

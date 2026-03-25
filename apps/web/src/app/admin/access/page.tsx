@@ -8,7 +8,7 @@ import { RolesTable } from '@/components/admin/RolesTable';
 import { UserForm } from '@/components/admin/UserForm';
 import { RoleForm } from '@/components/admin/RoleForm';
 import { adminService, useAuthStore } from '@hydroespinaca/shared';
-import Swal from 'sweetalert2';
+import { showWarning, showConfirm, showSuccess, showError } from '@/lib/swal';
 import type {
   UserResponseDto,
   UserCreateDto,
@@ -77,39 +77,24 @@ export default function AdminAccessPage() {
     // Additional check to prevent accidental self-deletion (defense in depth)
     const currentUser = useAuthStore.getState().user;
     if (currentUser?.id === user.id) {
-      await Swal.fire({
-        title: 'Acción no permitida',
-        text: 'No puedes eliminar tu propia cuenta de usuario',
-        icon: 'warning',
-        confirmButtonColor: '#16a34a'
-      });
+      showWarning({ title: 'Acción no permitida', text: 'No puedes eliminar tu propia cuenta de usuario' });
       return;
     }
 
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Estás seguro?',
       text: `Se eliminará al usuario "${user.username}"`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
+      confirmText: 'Sí, eliminar',
     });
 
-    if (!result.isConfirmed) {
+    if (!confirmed) {
       return;
     }
 
     try {
       await adminService.deleteUser(user.id);
       setUsers(users.filter(u => u.id !== user.id));
-      await Swal.fire({
-        title: '¡Eliminado!',
-        text: 'El usuario ha sido eliminado exitosamente.',
-        icon: 'success',
-        confirmButtonColor: '#16a34a'
-      });
+      showSuccess({ title: '¡Eliminado!', text: 'El usuario ha sido eliminado exitosamente.' });
     } catch (err: any) {
       // Extract the error message from the ApiError
       let errorMessage = 'Error desconocido al eliminar usuario';
@@ -134,12 +119,7 @@ export default function AdminAccessPage() {
         errorMessage = 'No puedes eliminar tu propia cuenta de usuario';
       }
 
-      await Swal.fire({
-        title: 'No se pudo eliminar',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonColor: '#16a34a'
-      });
+      showError({ title: 'No se pudo eliminar', text: errorMessage });
     }
   };
 
@@ -170,37 +150,22 @@ export default function AdminAccessPage() {
   };
 
   const handleDeleteRole = async (role: RoleResponseDto) => {
-    const result = await Swal.fire({
+    const confirmed = await showConfirm({
       title: '¿Estás seguro?',
       text: `Se eliminará el rol "${role.name}"`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#16a34a',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
+      confirmText: 'Sí, eliminar',
     });
 
-    if (!result.isConfirmed) {
+    if (!confirmed) {
       return;
     }
 
     try {
       await adminService.deleteRole(role.code);
       setRoles(roles.filter(r => r.id !== role.id));
-      await Swal.fire({
-        title: '¡Eliminado!',
-        text: 'El rol ha sido eliminado exitosamente.',
-        icon: 'success',
-        confirmButtonColor: '#16a34a'
-      });
+      showSuccess({ title: '¡Eliminado!', text: 'El rol ha sido eliminado exitosamente.' });
     } catch (err: any) {
-      await Swal.fire({
-        title: 'Error',
-        text: `Error al eliminar rol: ${err.message}`,
-        icon: 'error',
-        confirmButtonColor: '#16a34a'
-      });
+      showError({ title: 'Error', text: `Error al eliminar rol: ${err.message}` });
     }
   };
 

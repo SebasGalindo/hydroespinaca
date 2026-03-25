@@ -1,5 +1,8 @@
 namespace ActuatorService.Application.DTOs;
 
+/// <summary>
+/// DTO containing statistical summary of routine command executions for an actuator.
+/// </summary>
 public record RoutineExecutionStats
 {
     public int ActiveCount { get; init; }

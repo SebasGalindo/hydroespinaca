@@ -9,6 +9,11 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la gestión CRUD de sensores del sistema hidropónico.
+/// Orquesta la lógica de negocio para crear, consultar, actualizar y eliminar sensores IoT,
+/// incluyendo validaciones de datos, verificación de existencia de ESP32 y variables asociadas.
+/// </summary>
 public class SensorApplicationService : ISensorService
 {
     private readonly ISensorRepository _repo;
@@ -32,12 +37,21 @@ public class SensorApplicationService : ISensorService
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Obtiene todos los sensores registrados en el sistema.
+    /// </summary>
+    /// <returns>Lista de DTOs de todos los sensores.</returns>
     public async Task<List<SensorDto>> GetAllAsync()
     {
         var sensors = await _repo.GetAllAsync();
         return sensors.Select(SensorMapper.ToDto).ToList();
     }
 
+    /// <summary>
+    /// Obtiene un sensor por su identificador único.
+    /// </summary>
+    /// <param name="id">Identificador del sensor (ObjectId de 24 caracteres).</param>
+    /// <returns>DTO del sensor encontrado.</returns>
     public async Task<SensorDto?> GetByIdAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))
@@ -50,6 +64,12 @@ public class SensorApplicationService : ISensorService
         return SensorMapper.ToDto(sensor);
     }
 
+    /// <summary>
+    /// Crea un nuevo sensor en el sistema.
+    /// Valida los datos de entrada, verifica la existencia del ESP32 asociado y que las variables existan.
+    /// </summary>
+    /// <param name="dto">DTO con los datos de creación del sensor.</param>
+    /// <returns>DTO del sensor creado.</returns>
     public async Task<SensorDto> CreateAsync(SensorCreateDto dto)
     {
         var validation = await _createValidator.ValidateAsync(dto);
@@ -70,6 +90,12 @@ public class SensorApplicationService : ISensorService
     }
 
 
+    /// <summary>
+    /// Actualiza los datos de un sensor existente.
+    /// Valida el formato del ID, los datos de entrada, la existencia del sensor, del ESP32 y de las variables.
+    /// </summary>
+    /// <param name="id">Identificador del sensor (ObjectId de 24 caracteres).</param>
+    /// <param name="dto">DTO con los nuevos datos del sensor.</param>
     public async Task UpdateAsync(string id, SensorUpdateDto dto)
     {
         if (!ObjectId.TryParse(id, out _))
@@ -96,6 +122,11 @@ public class SensorApplicationService : ISensorService
         await _repo.UpdateAsync(existing);
     }
 
+    /// <summary>
+    /// Elimina un sensor del sistema.
+    /// Valida el formato del ID y la existencia del sensor antes de eliminarlo.
+    /// </summary>
+    /// <param name="id">Identificador del sensor (ObjectId de 24 caracteres).</param>
     public async Task DeleteAsync(string id)
     {
         if (!ObjectId.TryParse(id, out _))

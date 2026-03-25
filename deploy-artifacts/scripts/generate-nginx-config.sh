@@ -56,6 +56,9 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
     else
         echo "[INFO] Full production mode: complete nginx config"
         
+        # Content Security Policy for Production
+        export CSP_HEADER="add_header Content-Security-Policy \"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hydroespinaca.online https://*.cloudflare.com https://cdn.jsdelivr.net; connect-src 'self' https://api.hydroespinaca.online wss://hydroespinaca.online wss://mqtt.hydroespinaca.online https://*.cloudflare.com; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\" always;"
+        
         # DNS Resolver for Docker (allows nginx to start even if backends not ready)
         export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s ipv6=off;"
 
@@ -98,10 +101,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
 
-                # Timeouts
+                # Timeouts (300s for heavy operations like fuzzy clone/import)
                 proxy_connect_timeout 60s;
-                proxy_send_timeout 60s;
-                proxy_read_timeout 60s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
             }
 
             # Next.js frontend - proxy to Next.js server
@@ -262,10 +265,10 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection \"upgrade\";
             
-            # Timeouts
+            # Timeouts (300s for heavy operations like fuzzy clone/import)
             proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
         }
         
         # Deny all other requests to API domain
@@ -324,6 +327,9 @@ if [ "$USE_TLS" = "true" ] && [ "$ENVIRONMENT" = "Production" ]; then
 else
     echo "[INFO] Configuring for Development (HTTP only)"
 
+    # Content Security Policy for Development (allows localhost)
+    export CSP_HEADER="add_header Content-Security-Policy \"default-src 'self' http://localhost http://localhost:3000; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost http://localhost:3000 http://localhost/api ws://localhost:3000; img-src 'self' data: https: http: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\" always;"
+
     # DNS Resolver for Docker (allows nginx to start even if backends not ready)
     export NGINX_RESOLVER="resolver 127.0.0.11 valid=10s ipv6=off;"
 
@@ -359,10 +365,10 @@ else
                 proxy_set_header Upgrade \$http_upgrade;
                 proxy_set_header Connection \"upgrade\";
 
-                # Timeouts
+                # Timeouts (300s for heavy operations like fuzzy clone/import)
                 proxy_connect_timeout 60s;
-                proxy_send_timeout 60s;
-                proxy_read_timeout 60s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
             }
 
             # Next.js frontend - proxy to Next.js server
@@ -395,7 +401,7 @@ else
 fi
 
 # Generate the final nginx.conf
-envsubst '${DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN} ${FRONTEND_DOMAIN} ${NGINX_RESOLVER} ${NGINX_UPSTREAMS} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
+envsubst '${DOMAIN} ${API_DOMAIN} ${MQTT_DOMAIN} ${FRONTEND_DOMAIN} ${CSP_HEADER} ${NGINX_RESOLVER} ${NGINX_UPSTREAMS} ${NGINX_HTTP_CONFIG} ${NGINX_REDIRECT_CONFIG} ${NGINX_HTTPS_SERVER}' \
     < /etc/nginx/templates/nginx.conf.tpl > /etc/nginx/nginx.conf
 
 echo "[INFO] Nginx configuration generated successfully"

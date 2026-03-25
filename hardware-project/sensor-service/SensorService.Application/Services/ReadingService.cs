@@ -9,6 +9,11 @@ using SensorService.Domain.Exceptions;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la consulta de lecturas de sensores hidropónicos.
+/// Proporciona acceso a las lecturas filtradas por sensor, variable y rango temporal
+/// con validaciones de formato, coherencia de fechas y existencia de entidades.
+/// </summary>
 public class ReadingService : IReadingService
 {
     private readonly IReadingRepository _repo;
@@ -26,6 +31,15 @@ public class ReadingService : IReadingService
         _variableRepo = variableRepo;
     }
 
+    /// <summary>
+    /// Obtiene las lecturas de un sensor y variable específicos dentro de un rango de fechas.
+    /// Valida el formato del ID, la coherencia de fechas y la existencia del sensor y variable.
+    /// </summary>
+    /// <param name="sensorId">Identificador del sensor (ObjectId de 24 caracteres).</param>
+    /// <param name="variableId">Identificador de la variable ambiental.</param>
+    /// <param name="from">Fecha de inicio del rango.</param>
+    /// <param name="to">Fecha de fin del rango.</param>
+    /// <returns>Lista de lecturas que coinciden con los criterios.</returns>
     public async Task<List<ReadingDto>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
     {
         if (!ObjectId.TryParse(sensorId, out _))

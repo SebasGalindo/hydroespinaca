@@ -1,5 +1,5 @@
-import React from 'react';
-import { Text as RNText, TextStyle, View, ViewStyle } from 'react-native';
+import React, { useMemo } from 'react';
+import { Text as RNText, TextStyle, View, ViewStyle, StyleSheet } from 'react-native';
 import { semanticColors, typography, spacing } from '@hydroespinaca/shared';
 
 export interface LabelProps {
@@ -21,7 +21,7 @@ const labelStyles = {
   lg: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.medium as any },
 } as const;
 
-export function Label({
+export const Label = React.memo(function Label({
   children,
   required = false,
   disabled = false,
@@ -34,22 +34,25 @@ export function Label({
   testID,
 }: LabelProps): React.ReactElement {
   const sizeStyle = labelStyles[size];
-  
-  const getColor = () => {
+
+  const resolvedColor = useMemo(() => {
     if (color) return color;
     if (error) return semanticColors.errorText;
     if (disabled) return semanticColors.textMuted;
     return semanticColors.textSecondary;
-  };
-  
-  const computedStyle: TextStyle = {
-    ...sizeStyle,
-    color: getColor(),
-    marginBottom: spacing.xs,
-  };
+  }, [color, error, disabled]);
+
+  const computedStyle = useMemo<TextStyle>(
+    () => ({
+      ...sizeStyle,
+      color: resolvedColor,
+      marginBottom: spacing.xs,
+    }),
+    [sizeStyle, resolvedColor],
+  );
 
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center' }, containerStyle]}>
+    <View style={[labelContainerStyles.row, containerStyle]}>
       <RNText
         style={[computedStyle, style]}
         onPress={onPress}
@@ -58,11 +61,22 @@ export function Label({
       >
         {children}
         {required && (
-          <RNText style={{ color: semanticColors.errorText, marginLeft: 2 }}>
+          <RNText style={labelContainerStyles.asterisk}>
             {' *'}
           </RNText>
         )}
       </RNText>
     </View>
   );
-}
+});
+
+const labelContainerStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  asterisk: {
+    color: semanticColors.errorText,
+    marginLeft: 2,
+  },
+});

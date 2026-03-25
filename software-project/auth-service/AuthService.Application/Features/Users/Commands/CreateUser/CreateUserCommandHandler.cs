@@ -7,6 +7,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Users.Commands.CreateUser;
 
+/// <summary>
+/// Handler that hashes the password, creates the user entity, and assigns roles.
+/// </summary>
 public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserResponseDto>
 {
     private readonly IUserRepository _userRepository;

@@ -9,50 +9,31 @@ interface WeatherCardProps {
   error?: string | null;
 }
 
-const WeatherCard: React.FC<WeatherCardProps> = ({ weather, isLoading = false, error = null }) => {
-  /**
-   * Obtiene el emoji del clima según el código de icono de OpenWeather
-   */
-  const getWeatherEmoji = (icon: string): string => {
-    const iconMap: { [key: string]: string } = {
-      '01d': '☀️', // clear sky day
-      '01n': '🌙', // clear sky night
-      '02d': '🌤️', // few clouds day
-      '02n': '☁️', // few clouds night
-      '03d': '☁️', // scattered clouds
-      '03n': '☁️',
-      '04d': '☁️', // broken clouds
-      '04n': '☁️',
-      '09d': '🌧️', // shower rain
-      '09n': '🌧️',
-      '10d': '🌦️', // rain day
-      '10n': '🌧️', // rain night
-      '11d': '⛈️', // thunderstorm
-      '11n': '⛈️',
-      '13d': '❄️', // snow
-      '13n': '❄️',
-      '50d': '🌫️', // mist
-      '50n': '🌫️',
-    };
+/** OpenWeather icon code → emoji mapping */
+const WEATHER_ICON_EMOJI: Record<string, string> = {
+  '01d': '☀️', '01n': '🌙', '02d': '🌤️', '02n': '☁️',
+  '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️',
+  '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
+  '11d': '⛈️', '11n': '⛈️', '13d': '❄️', '13n': '❄️',
+  '50d': '🌫️', '50n': '🌫️',
+};
 
-    return iconMap[icon] || '🌤️';
-  };
+const getWeatherEmoji = (icon: string): string => WEATHER_ICON_EMOJI[icon] || '🌤️';
 
-  /**
-   * Formatea hora desde ISO string a formato legible
-   */
-  const formatTime = (isoString: string): string => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString('es-CO', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch {
-      return 'N/A';
-    }
-  };
+const formatTime = (isoString: string): string => {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return 'N/A';
+  }
+};
+
+const WeatherCard = React.memo(function WeatherCard({ weather, isLoading = false, error = null }: WeatherCardProps) {
 
   if (error) {
     return (
@@ -177,6 +158,6 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ weather, isLoading = false, e
       </footer>
     </article>
   );
-};
+});
 
 export default WeatherCard;

@@ -1,5 +1,5 @@
 using HydroEspinaca.Shared.Abstractions;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 
 namespace NotificationService.Domain.Persistence.Documents;
 

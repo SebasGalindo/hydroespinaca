@@ -5,6 +5,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// Documento MongoDB que representa un sensor físico del sistema hidropónico.
+/// Contiene la configuración del sensor, su ubicación, el ESP32 asociado y las variables que mide.
+/// </summary>
 public class SensorDocument : IIdentifiableMutable
 {
     [BsonId]

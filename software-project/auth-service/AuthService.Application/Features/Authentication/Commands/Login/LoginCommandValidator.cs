@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
+/// <summary>
+/// Validator ensuring email and password are provided for login.
+/// </summary>
 public class LoginCommandValidator : BaseValidator<LoginCommand>
 {
     public LoginCommandValidator()

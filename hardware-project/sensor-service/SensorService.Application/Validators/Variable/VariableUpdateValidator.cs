@@ -5,6 +5,11 @@ using HydroEspinaca.Shared.Enums;
 
 namespace SensorService.Application.Validators.Variable;
 
+/// <summary>
+/// Validador de FluentValidation para la actualización de variables ambientales.
+/// Valida código, nombre, unidad, descripción, rangos físicos y óptimos,
+/// tipo de variable y tipo de regulación.
+/// </summary>
 public class VariableUpdateValidator : AbstractValidator<VariableUpdateDto>
 {
     public VariableUpdateValidator()
@@ -64,6 +69,12 @@ public class VariableUpdateValidator : AbstractValidator<VariableUpdateDto>
           .When(x => !string.IsNullOrEmpty(x.RegulationType));
     }
 
+    /// <summary>
+    /// Valida que el tipo de regulación sea 'Manual' o 'Automatic'.
+    /// Permite valores nulos o vacíos ya que el tipo de regulación es opcional.
+    /// </summary>
+    /// <param name="regulationType">Tipo de regulación a validar.</param>
+    /// <returns>True si el valor es válido o está vacío.</returns>
     private static bool BeValidRegulationType(string? regulationType)
     {
         if (string.IsNullOrEmpty(regulationType))

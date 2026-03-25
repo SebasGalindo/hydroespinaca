@@ -8,6 +8,9 @@ using BffService.Infrastructure.Http;
 
 namespace BffService.Infrastructure;
 
+/// <summary>
+/// Extension methods for registering BFF infrastructure dependencies (HTTP clients, session store, auth service).
+/// </summary>
 public static class ServiceCollectionInfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -27,7 +30,19 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddHttpClient<IAuthServiceClient, AuthServiceClient>();
         services.AddHttpClient<IProxyService, ProxyService>();
         services.AddHttpClient<IWeatherService, WeatherService>();
-        services.AddHttpClient<IFuzzyServiceClient, FuzzyServiceClient>();
+        services.AddHttpClient<IFuzzyServiceClient, FuzzyServiceClient>(client =>
+        {
+            // Clone/import operations can be slow (deep copy of variables + terms + rules)
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
+        services.AddHttpClient<IBiServiceClient, BiServiceClient>();
+        services.AddHttpClient<IWeatherServiceClient, WeatherServiceClient>();
+        services.AddHttpClient<INotificationServiceClient, NotificationServiceClient>();
+        services.AddHttpClient<IChatbotServiceClient, ChatbotServiceClient>(client =>
+        {
+            // SSE streaming can be long-lived; extend timeout to match Gemini generation
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
 
         return services;
     }

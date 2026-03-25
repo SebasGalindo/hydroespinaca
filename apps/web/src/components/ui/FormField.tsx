@@ -10,13 +10,14 @@ export interface FormFieldProps {
   error?: string;
   min?: string;
   max?: string;
+  maxLength?: number;
   step?: string;
   options?: { value: string; label: string }[];
   disabled?: boolean;
   helperText?: string;
 }
 
-const FormField: React.FC<FormFieldProps> = ({
+const FormField = React.memo(function FormField({
   type,
   label,
   value,
@@ -26,11 +27,12 @@ const FormField: React.FC<FormFieldProps> = ({
   error,
   min,
   max,
+  maxLength,
   step,
   options = [],
   disabled = false,
   helperText
-}) => {
+}: FormFieldProps) {
   const baseInputClasses = `
     w-full px-4 py-2 border rounded-lg transition-colors
     focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent
@@ -67,6 +69,7 @@ const FormField: React.FC<FormFieldProps> = ({
         required={required}
         min={min}
         max={max}
+        maxLength={maxLength}
         step={step}
         disabled={disabled}
         className={baseInputClasses}
@@ -92,6 +95,6 @@ const FormField: React.FC<FormFieldProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default FormField;

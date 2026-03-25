@@ -7,8 +7,18 @@ using SensorService.Application.UseCases.ProcessReadingBatch;
 
 namespace SensorService.Application;
 
+/// <summary>
+/// Extensiones para la configuración de inyección de dependencias de la capa de aplicación.
+/// Registra todos los servicios de aplicación y casos de uso del servicio de sensores.
+/// </summary>
 public static class ServiceCollectionApplicationExtensions
 {
+    /// <summary>
+    /// Registra todos los servicios de aplicación y casos de uso en el contenedor de inyección de dependencias.
+    /// Incluye servicios para sensores, lecturas, alertas, variables, agregados, nodos ESP32 y alertas críticas.
+    /// </summary>
+    /// <param name="services">Colección de servicios del contenedor DI.</param>
+    /// <returns>La colección de servicios para encadenamiento fluido.</returns>
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         // Application Services

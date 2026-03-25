@@ -11,6 +11,11 @@ using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para la gestión de datos agregados de sensores hidropónicos.
+/// Proporciona consultas de agregados por sensor/variable y análisis ambientales con resumen,
+/// tendencia y variabilidad para diferentes vistas temporales (horaria, diaria, semanal, mensual).
+/// </summary>
 public class AggregateService : IAggregateService
 {
     private readonly IAggregateRepository _repo;
@@ -28,6 +33,15 @@ public class AggregateService : IAggregateService
         _variableRepo = variableRepo;
     }
 
+    /// <summary>
+    /// Obtiene los datos agregados para un sensor y variable específicos dentro de un rango de fechas.
+    /// Valida el formato del ID, la coherencia de fechas y la existencia del sensor y variable.
+    /// </summary>
+    /// <param name="sensorId">Identificador del sensor (ObjectId de 24 caracteres).</param>
+    /// <param name="variableId">Identificador de la variable ambiental.</param>
+    /// <param name="from">Fecha de inicio del rango.</param>
+    /// <param name="to">Fecha de fin del rango.</param>
+    /// <returns>Lista de datos agregados.</returns>
     public async Task<List<AggregateDto>> GetBySensorAndVariableAsync(string sensorId, string variableId, DateTime from, DateTime to)
     {
         if (!ObjectId.TryParse(sensorId, out _))
@@ -48,6 +62,13 @@ public class AggregateService : IAggregateService
         return results.Select(AggregateMapper.ToDto).ToList();
     }
 
+    /// <summary>
+    /// Obtiene los agregados ambientales con resumen estadístico, tendencia temporal y variabilidad.
+    /// Soporta vistas horaria, diaria, semanal y mensual con validación de rangos máximos por tipo de vista.
+    /// La variabilidad (boxplot) solo está disponible en vista diaria.
+    /// </summary>
+    /// <param name="request">Solicitud con rango de fechas y tipo de vista.</param>
+    /// <returns>Respuesta con las variables ambientales agregadas.</returns>
     public async Task<EnvironmentalAggregatesResponse> GetEnvironmentalAggregatesAsync(EnvironmentalAnalyticsRequest request)
     {
         var startDate = request.StartDate;
@@ -177,6 +198,12 @@ public class AggregateService : IAggregateService
         };
     }
 
+    /// <summary>
+    /// Calcula la variabilidad diaria para gráficos boxplot agrupando datos horarios por día.
+    /// Incluye cuartiles Q1, mediana y Q3 para cada día.
+    /// </summary>
+    /// <param name="aggregates">Lista de agregados horarios a procesar.</param>
+    /// <returns>Lista de puntos de variabilidad con estadísticas de boxplot por día.</returns>
     private List<AggregateVariabilityPoint> CalculateDailyVariability(List<Aggregate> aggregates)
     {
         // Group by day to calculate boxplot statistics
@@ -216,6 +243,13 @@ public class AggregateService : IAggregateService
         return variability;
     }
 
+    /// <summary>
+    /// Calcula el percentil especificado de una lista de valores previamente ordenados.
+    /// Utiliza interpolación lineal entre valores adyacentes para mayor precisión.
+    /// </summary>
+    /// <param name="sortedValues">Lista de valores ordenados de menor a mayor.</param>
+    /// <param name="percentile">Percentil deseado (0-100).</param>
+    /// <returns>Valor del percentil calculado.</returns>
     private double CalculatePercentile(List<double> sortedValues, int percentile)
     {
         if (sortedValues.Count == 0)
@@ -237,8 +271,11 @@ public class AggregateService : IAggregateService
     }
 
     /// <summary>
-    /// Rounds a double value to the specified number of decimal places
+    /// Redondea un valor double al número especificado de decimales.
     /// </summary>
+    /// <param name="value">Valor a redondear.</param>
+    /// <param name="decimals">Cantidad de decimales.</param>
+    /// <returns>Valor redondeado.</returns>
     private double RoundToDecimals(double value, int decimals)
     {
         return Math.Round(value, decimals);

@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Users.Commands.DeleteUser;
 
+/// <summary>
+/// Validator ensuring a valid user ID is provided for deletion.
+/// </summary>
 public class DeleteUserCommandValidator : BaseValidator<DeleteUserCommand>
 {
     public DeleteUserCommandValidator()

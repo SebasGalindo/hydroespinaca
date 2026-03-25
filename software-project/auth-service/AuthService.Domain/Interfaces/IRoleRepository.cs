@@ -2,6 +2,9 @@ using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
 
+/// <summary>
+/// Persistence contract for role entities.
+/// </summary>
 public interface IRoleRepository
 {
     Task<Role?> FindByIdAsync(string id);

@@ -4,6 +4,9 @@ using AuthService.Infrastructure.Persistence.Schemas;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
+/// <summary>
+/// Mapper for converting between ClientApp domain entities and MongoDB documents.
+/// </summary>
 public class ClientAppMapper : IEntityMapper<ClientApp, ClientAppDocument>
 {
     public ClientAppDocument ToDocument(ClientApp entity)

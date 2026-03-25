@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Roles.Commands.CreateRole;
 
+/// <summary>
+/// Validator for role creation input.
+/// </summary>
 public class CreateRoleCommandValidator : BaseValidator<CreateRoleCommand>
 {
     public CreateRoleCommandValidator()

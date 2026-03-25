@@ -3,6 +3,9 @@ using HydroEspinaca.Shared.Abstractions;
 using MongoDB.Bson;
 
 namespace AuthService.Domain.Entities;
+/// <summary>
+/// Represents a system user with authentication credentials and assigned roles.
+/// </summary>
 public class User : IIdentifiableMutable
 {
     public string Id { get; private set; }

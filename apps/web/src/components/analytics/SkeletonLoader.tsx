@@ -1,4 +1,5 @@
-export function ChartSkeleton() {
+import React from 'react';
+export const ChartSkeleton = React.memo(function ChartSkeleton() {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-pulse">
       <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
@@ -6,7 +7,7 @@ export function ChartSkeleton() {
       <div className="mt-4 h-12 bg-gray-100 rounded"></div>
     </div>
   );
-}
+});
 
 export function LevelSkeleton() {
   return (

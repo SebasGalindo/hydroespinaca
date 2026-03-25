@@ -4,6 +4,10 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Domain.Services;
 
+/// <summary>
+/// Servicio de dominio encargado de resolver (cerrar) alertas activas de sensores
+/// cuando los valores vuelven al rango óptimo.
+/// </summary>
 public class AlertResolutionService : IAlertResolutionService
 {
     private readonly ISensorAlertRepository _sensorAlertRepository;
@@ -20,6 +24,13 @@ public class AlertResolutionService : IAlertResolutionService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Verifica si la lectura actual está dentro del rango óptimo y, de ser así,
+    /// resuelve la alerta activa correspondiente marcándola como reconocida.
+    /// </summary>
+    /// <param name="reading">Lectura actual del sensor.</param>
+    /// <param name="variable">Variable con los rangos óptimos.</param>
+    /// <param name="timestamp">Momento de la resolución.</param>
     public async Task ResolveOutOfRangeAlertsAsync(Reading reading, Variable variable, DateTime timestamp)
     {
         // Check if reading is now within optimal range

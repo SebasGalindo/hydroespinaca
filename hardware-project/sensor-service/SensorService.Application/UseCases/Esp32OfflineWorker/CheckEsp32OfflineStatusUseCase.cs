@@ -6,6 +6,12 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Application.UseCases.Esp32OfflineWorker;
 
+/// <summary>
+/// Caso de uso para verificar periódicamente el estado de conectividad de todos los ESP32.
+/// Ejecutado por un worker en segundo plano, detecta dispositivos desconectados,
+/// crea alertas de desconexión, envía notificaciones por correo electrónico
+/// y resuelve alertas de dispositivos que vuelven a estar en línea.
+/// </summary>
 public class CheckEsp32OfflineStatusUseCase : ICheckEsp32OfflineStatusUseCase
 {
     private readonly IEsp32StatusService _esp32StatusService;
@@ -25,6 +31,14 @@ public class CheckEsp32OfflineStatusUseCase : ICheckEsp32OfflineStatusUseCase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Verifica el estado de todos los ESP32 registrados contra el umbral de inactividad.
+    /// Para dispositivos offline: crea/actualiza alertas y envía notificaciones por email.
+    /// Para dispositivos online: resuelve alertas activas existentes.
+    /// </summary>
+    /// <param name="threshold">Umbral de tiempo para considerar un ESP32 como desconectado.</param>
+    /// <param name="currentTime">Tiempo de referencia (opcional, usa UTC por defecto).</param>
+    /// <returns>Resultado con conteos de ESP32 verificados, desconectados y alertas creadas.</returns>
     public async Task<CheckEsp32StatusResult> ExecuteAsync(
      OfflineThreshold threshold,
      DateTime? currentTime = null)

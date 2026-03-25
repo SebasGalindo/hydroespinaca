@@ -4,6 +4,9 @@ using AuthService.Infrastructure.Persistence.Schemas;
 using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace AuthService.Infrastructure.Persistence.Mappers;
+/// <summary>
+/// Mapper for converting between User domain entities and MongoDB documents.
+/// </summary>
 public class UserMapper : IEntityMapper<User, UserDocument>
 {
     public User ToEntity(UserDocument doc)

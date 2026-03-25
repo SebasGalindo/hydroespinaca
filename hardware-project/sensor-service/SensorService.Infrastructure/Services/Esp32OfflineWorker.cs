@@ -6,6 +6,9 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Background worker that periodically checks for ESP32 nodes that have not reported status within the configured offline threshold.
+/// </summary>
 public class Esp32OfflineWorker : BackgroundService
 {
     private readonly ILogger<Esp32OfflineWorker> _logger;

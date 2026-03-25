@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Icon } from '../atoms/Icon';
-import { semanticColors, spacing, borderRadius, colors } from '@hydroespinaca/shared';
+import { semanticColors, spacing, borderRadius, colors, typography } from '@hydroespinaca/shared';
 import type { IconType, IconName } from '@hydroespinaca/shared';
 
 export type TrendDirection = 'up' | 'down' | 'stable';
@@ -18,6 +18,8 @@ interface VariableCardProps {
   trend?: TrendDirection;
   artificialLightActive?: boolean;
   showArtificialLightAlert?: boolean;
+  /** Delay index for staggered animation (0-based) */
+  animationIndex?: number;
 }
 
 export function VariableCard({
@@ -30,20 +32,41 @@ export function VariableCard({
   trend,
   artificialLightActive = false,
   showArtificialLightAlert = false,
+  animationIndex = 0,
 }: VariableCardProps): React.ReactElement {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    const delay = animationIndex * 80;
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 350,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 350,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateAnim, animationIndex]);
 
   const getStatusColor = () => {
     switch (status) {
       case 'optimal':
-        return '#16a34a'; // green-600
+        return semanticColors.success;
       case 'warning':
-        return '#f59e0b'; // yellow-600
+        return semanticColors.warning;
       case 'error':
-        return '#ef4444'; // red-600
+        return colors.error[500];
       case 'manual':
-        return '#3b82f6'; // blue-600
+        return semanticColors.info;
       default:
-        return '#6b7280'; // gray-600
+        return semanticColors.textTertiary;
     }
   };
 
@@ -90,7 +113,7 @@ export function VariableCard({
     return (
       <Text
         variant="caption"
-        color={trend === 'up' ? '#16a34a' : '#ef4444'}
+        color={trend === 'up' ? semanticColors.success : colors.error[500]}
         style={styles.trendText}
       >
         {trend === 'up' ? '↑' : '↓'}
@@ -99,7 +122,13 @@ export function VariableCard({
   };
 
   return (
-    <View style={[styles.container, { borderLeftWidth: 4, borderLeftColor: getStatusColor() }]}>
+    <Animated.View
+      style={[
+        styles.container,
+        { borderLeftWidth: 4, borderLeftColor: getStatusColor() },
+        { opacity: fadeAnim, transform: [{ translateY: translateAnim }] },
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text variant="caption" color={semanticColors.textSecondary} style={styles.title}>
@@ -142,7 +171,7 @@ export function VariableCard({
           {subtitle}
         </Text>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -151,7 +180,7 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.background,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: {
       width: 0,
       height: 1,
@@ -169,7 +198,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
   },
   iconContainer: {
     flexDirection: 'row',
@@ -183,11 +212,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   value: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
   },
   trendText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
   },
   optimal: {
     marginBottom: spacing.xs,
@@ -202,6 +231,6 @@ const styles = StyleSheet.create({
     borderTopColor: semanticColors.borderLight,
   },
   lightAlertText: {
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
   },
 });

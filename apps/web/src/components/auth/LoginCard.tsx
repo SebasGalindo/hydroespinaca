@@ -7,7 +7,7 @@ interface LoginCardProps {
   className?: string;
 }
 
-const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
+const LoginCard = React.memo(function LoginCard({ className }: LoginCardProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
@@ -21,7 +21,11 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
   // Wrapper para handleSubmit que marca que hubo un intento de login
   const handleLoginSubmit = async (e: React.FormEvent) => {
     loginAttemptedRef.current = true;
-    await handleSubmit(e);
+    try {
+      await handleSubmit(e);
+    } catch {
+      // Error is already set in authStore state and displayed via the `error` variable
+    }
   };
 
   // Detectar login exitoso NUEVO (solo tras submit del usuario)
@@ -173,6 +177,6 @@ const LoginCard: React.FC<LoginCardProps> = ({ className }) => {
       </form>
     </div>
   );
-};
+});
 
 export default LoginCard;

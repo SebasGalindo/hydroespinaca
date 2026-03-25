@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Users.Commands.CreateUser;
 
+/// <summary>
+/// Validator for user creation input (email format, password strength, etc.).
+/// </summary>
 public class CreateUserCommandValidator : BaseValidator<CreateUserCommand>
 {
     public CreateUserCommandValidator()

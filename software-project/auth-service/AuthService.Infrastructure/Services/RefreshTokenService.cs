@@ -3,6 +3,9 @@ using AuthService.Domain.Interfaces;
 using AuthService.Domain.ValueObjects;
 
 namespace AuthService.Infrastructure.Services;
+/// <summary>
+/// Infrastructure service for generating, validating, and rotating refresh tokens.
+/// </summary>
 public class RefreshTokenService : IRefreshTokenService
 {
     private readonly IRefreshTokenRepository _refreshRepo;

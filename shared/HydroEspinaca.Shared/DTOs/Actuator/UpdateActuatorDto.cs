@@ -6,4 +6,5 @@ public class UpdateActuatorDto
     public string Pin { get; set; } = default!;
     public string Location { get; set; } = default!;
     public string Status { get; set; } = default!;
+    public decimal PowerConsumptionWatts { get; set; }
 }

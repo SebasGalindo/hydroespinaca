@@ -7,6 +7,12 @@ using System.Text;
 using System.Text.Json;
 
 namespace SensorService.Application.UseCases.ProcessReadingBatch;
+
+/// <summary>
+/// Handler de mensajes MQTT para lecturas de sensores.
+/// Deserializa el payload JSON del tópico de lecturas y delega el procesamiento
+/// al caso de uso ProcessReadingBatchUseCase.
+/// </summary>
 public class MqttMessageHandler : IMqttMessageHandler
 {
     private readonly IProcessReadingBatchUseCase _useCase;
@@ -18,6 +24,13 @@ public class MqttMessageHandler : IMqttMessageHandler
         _logger = logger;
     }
 
+    /// <summary>
+    /// Procesa un mensaje MQTT de lecturas de sensores.
+    /// Deserializa el payload JSON, valida el DTO y ejecuta el caso de uso de procesamiento.
+    /// </summary>
+    /// <param name="topic">Tópico MQTT (debe terminar en "/readings").</param>
+    /// <param name="payload">Contenido del mensaje en bytes.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
     public async Task HandleAsync(string topic, byte[] payload, CancellationToken cancellationToken)
     {
         if (!topic.EndsWith("/readings")) return;

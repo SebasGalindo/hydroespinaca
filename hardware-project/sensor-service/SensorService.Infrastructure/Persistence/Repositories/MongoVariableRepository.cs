@@ -8,6 +8,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for environmental variables.
+/// </summary>
 public class MongoVariableRepository : IVariableRepository
 {
     private readonly BaseMongoRepository<Variable, VariableDocument> _baseRepo;

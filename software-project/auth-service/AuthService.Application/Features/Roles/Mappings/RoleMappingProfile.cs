@@ -4,6 +4,9 @@ using AutoMapper;
 
 namespace AuthService.Application.Features.Roles.Mappings;
 
+/// <summary>
+/// AutoMapper profile for mapping between Role domain entities and DTOs.
+/// </summary>
 public class RoleMappingProfile : Profile
 {
     public RoleMappingProfile()

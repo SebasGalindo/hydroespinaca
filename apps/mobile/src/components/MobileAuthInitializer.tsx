@@ -1,17 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import type { NavigationContainerRef } from '@react-navigation/native';
-import { setAuthCallbacks, setAuthStoreRedirectCallback, useAuthStore } from '@hydroespinaca/shared';
+import {
+  setAuthCallbacks,
+  setAuthStoreRedirectCallback,
+  useAuthStore,
+  useNotificationStore,
+} from '@hydroespinaca/shared';
+import type { RootStackParamList } from '../navigation/types';
 
 // Configuración del refresco de sesión
 // IMPORTANTE: Access token expira en 2 minutos, verificamos cada 90 segundos para detectar expiración antes
 const SESSION_REFRESH_INTERVAL = 90 * 1000; // 90 segundos (1.5 minutos)
 const MIN_TIME_BETWEEN_CHECKS = 30 * 1000; // 30 segundos (throttle)
-
-type RootStackParamList = {
-  Login: undefined;
-  Dashboard: undefined;
-};
 
 interface MobileAuthInitializerProps {
   navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
@@ -157,6 +161,132 @@ export function MobileAuthInitializer({ navigationRef }: MobileAuthInitializerPr
       }
     };
   }, [isAuthenticated]);
+
+  // ──── Push Notification Configuration ────
+  // Configure how notifications are handled when the app is in the foreground
+  useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }, []);
+
+  // Register for push notifications when authenticated
+  const registerPush = useNotificationStore(s => s.registerPush);
+  const userId = useAuthStore(s => s.user?.id);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+
+    let cancelled = false;
+
+    const register = async () => {
+      try {
+        // Only real devices can receive push notifications
+        if (!Device.isDevice) {
+          if (__DEV__) console.info('[MobileAuthInitializer] Skipping push registration (not a device)');
+          return;
+        }
+
+        // Skip push registration in Expo Go — remote notifications are not
+        // supported since SDK 53. A development build is required.
+        if (Constants.appOwnership === 'expo') {
+          if (__DEV__) console.info('[MobileAuthInitializer] Skipping push registration (Expo Go does not support remote notifications)');
+          return;
+        }
+
+        // Check/request permission
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          if (__DEV__) console.info('[MobileAuthInitializer] Push permission denied');
+          return;
+        }
+
+        // Get Expo push token — pass projectId explicitly for dev builds
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          ...(projectId && { projectId }),
+        });
+        const token = tokenData.data;
+
+        if (__DEV__) console.info('[MobileAuthInitializer] Push token:', token);
+
+        if (!cancelled) {
+          await registerPush({
+            userId,
+            platform: Platform.OS,
+            token,
+            deviceName: Device.deviceName ?? undefined,
+          });
+          if (__DEV__) console.info('[MobileAuthInitializer] Push token registered');
+        }
+      } catch (err) {
+        if (__DEV__) console.error('[MobileAuthInitializer] Push registration error:', err);
+      }
+    };
+
+    register();
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, userId]);
+
+  // Handle notification received while app is foregrounded
+  useEffect(() => {
+    const receivedSub = Notifications.addNotificationReceivedListener(notification => {
+      if (__DEV__) {
+        console.info('[MobileAuthInitializer] Notification received:', notification.request.content.title);
+      }
+    });
+
+    // Handle notification response (user tapped notification)
+    const responseSub = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (__DEV__) {
+        console.info('[MobileAuthInitializer] Notification tapped, data:', data);
+      }
+
+      // Navigate based on notification data
+      if (data?.screen && navigationRef.current) {
+        try {
+          // Deep link to specific screen if provided
+          const screen = data.screen as string;
+          if (screen === 'WeatherAlertDetail' && data.alertId) {
+            navigationRef.current.navigate('MainTabs' as any, {
+              screen: 'WeatherTab',
+              params: {
+                screen: 'WeatherAlertDetail',
+                params: { alertId: data.alertId },
+              },
+            });
+          } else if (screen === 'NotificationHistory') {
+            navigationRef.current.navigate('MainTabs' as any, {
+              screen: 'MoreTab',
+              params: { screen: 'NotificationHistory' },
+            });
+          }
+        } catch (err) {
+          if (__DEV__) console.error('[MobileAuthInitializer] Notification navigation error:', err);
+        }
+      }
+    });
+
+    return () => {
+      receivedSub.remove();
+      responseSub.remove();
+    };
+  }, [navigationRef]);
 
   return null; // Este componente no renderiza nada
 }

@@ -6,6 +6,9 @@ using HydroEspinaca.Shared.Errors;
 
 namespace SensorService.Api.Extensions;
 
+/// <summary>
+/// Extension methods for registering web-layer services (CORS, JSON serialization, Swagger).
+/// </summary>
 public static class ServiceCollectionWebExtensions
 {
     public static IServiceCollection AddSensorServiceApi(

@@ -6,11 +6,7 @@ import { LoginForm } from '../components/organisms/LoginForm';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthProvider';
-
-type RootStackParamList = {
-  Login: undefined;
-  Dashboard: undefined;
-};
+import type { RootStackParamList } from '../navigation/types';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -21,13 +17,13 @@ export function LoginScreen(): React.ReactElement {
   // Redirect to dashboard only if authenticated with a valid session
   useEffect(() => {
     if (isAuthenticated && !isLoading && session) {
-      navigation.replace('Dashboard');
+      navigation.replace('MainTabs');
     }
   }, [isAuthenticated, isLoading, session, navigation]);
 
   const handleLoginSuccess = () => {
     // Navigate directly after successful login
-    navigation.replace('Dashboard');
+    navigation.replace('MainTabs');
   };
 
   return (
@@ -61,7 +57,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: semanticColors.overlayMedium,
     pointerEvents: 'none',
   },
   content: {

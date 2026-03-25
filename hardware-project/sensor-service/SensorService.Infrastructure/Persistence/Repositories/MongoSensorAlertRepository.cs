@@ -7,6 +7,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for sensor threshold alerts.
+/// </summary>
 public class MongoSensorAlertRepository : ISensorAlertRepository
 {
     private readonly BaseMongoRepository<SensorAlert, SensorAlertDocument> _baseRepo;

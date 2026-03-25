@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text as RNText, TextStyle, StyleSheet } from 'react-native';
 import { semanticColors, typography } from '@hydroespinaca/shared';
 
@@ -27,7 +27,7 @@ export interface TextProps {
   testID?: string;
 }
 
-export function Text({
+export const Text = React.memo(function Text({
   children,
   variant = 'body',
   size,
@@ -42,23 +42,27 @@ export function Text({
 }: TextProps): React.ReactElement {
   const textStyle = textStyles[variant];
 
-  // Determine the effective font size that will be applied
-  const variantFontSize = (textStyle as any)?.fontSize ?? typography.fontSize.base;
-  const effectiveFontSize = size ? typography.fontSize[size] : variantFontSize;
-  
-  const computedStyle: TextStyle = {
-    ...textStyle,
-    color,
-    textAlign: align,
-    ...(size && { fontSize: typography.fontSize[size] }),
-    ...(weight && { fontWeight: (typography.fontWeight as any)[weight] || (weight as any) }),
-  };
+  const computedStyle = useMemo<TextStyle>(() => {
+    // Determine the effective font size that will be applied
+    const variantFontSize = (textStyle as any)?.fontSize ?? typography.fontSize.base;
+    const effectiveFontSize = size ? typography.fontSize[size] : variantFontSize;
 
-  // Normalize lineHeight tokens: convert ratio (e.g., 1.5) to RN pixels using effective font size
-  const lh = (textStyle as any)?.lineHeight;
-  if (typeof lh === 'number' && lh > 0 && lh < 10) {
-    computedStyle.lineHeight = Math.round(effectiveFontSize * lh);
-  }
+    const result: TextStyle = {
+      ...textStyle,
+      color,
+      textAlign: align,
+      ...(size && { fontSize: typography.fontSize[size] }),
+      ...(weight && { fontWeight: (typography.fontWeight as any)[weight] || (weight as any) }),
+    };
+
+    // Normalize lineHeight tokens: convert ratio (e.g., 1.5) to RN pixels using effective font size
+    const lh = (textStyle as any)?.lineHeight;
+    if (typeof lh === 'number' && lh > 0 && lh < 10) {
+      result.lineHeight = Math.round(effectiveFontSize * lh);
+    }
+
+    return result;
+  }, [textStyle, color, align, size, weight]);
 
   return (
     <RNText
@@ -71,4 +75,4 @@ export function Text({
       {children}
     </RNText>
   );
-}
+});

@@ -7,6 +7,9 @@ using MongoDB.Driver;
 
 namespace AuthService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for role entities.
+/// </summary>
 public class MongoRoleRepository : IRoleRepository
 {
     private readonly BaseMongoRepository<Role, RoleDocument> _baseRepo;

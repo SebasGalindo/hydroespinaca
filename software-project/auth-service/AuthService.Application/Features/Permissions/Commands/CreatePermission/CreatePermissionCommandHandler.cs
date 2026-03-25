@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Commands.CreatePermission;
 
+/// <summary>
+/// Handler that persists a new permission entity.
+/// </summary>
 public class CreatePermissionCommandHandler : IRequestHandler<CreatePermissionCommand, PermissionResponseDto>
 {
     private readonly IPermissionRepository _permissionRepository;

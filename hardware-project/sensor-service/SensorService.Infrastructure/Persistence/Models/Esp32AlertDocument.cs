@@ -5,6 +5,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// Documento MongoDB que representa una alerta generada por un dispositivo ESP32.
+/// Registra desconexiones y otros eventos críticos del hardware IoT.
+/// </summary>
 public class Esp32AlertDocument : IIdentifiableMutable
 {
     [BsonId]

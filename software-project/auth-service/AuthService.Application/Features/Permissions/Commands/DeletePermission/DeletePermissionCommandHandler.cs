@@ -4,6 +4,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Commands.DeletePermission;
 
+/// <summary>
+/// Handler that removes a permission from the system.
+/// </summary>
 public class DeletePermissionCommandHandler : IRequestHandler<DeletePermissionCommand, bool>
 {
     private readonly IPermissionRepository _permissionRepository;

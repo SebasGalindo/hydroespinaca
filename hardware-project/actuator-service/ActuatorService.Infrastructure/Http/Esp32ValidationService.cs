@@ -4,6 +4,9 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace ActuatorService.Infrastructure.Http;
+/// <summary>
+/// HTTP client service that validates ESP32 node existence by calling the sensor service API.
+/// </summary>
 public class Esp32ValidationService : IEsp32ValidationService
 {
     private readonly HttpClient _httpClient;

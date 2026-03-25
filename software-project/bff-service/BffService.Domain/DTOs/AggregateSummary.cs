@@ -1,5 +1,8 @@
 namespace BffService.Domain.DTOs;
 
+/// <summary>
+/// DTO containing statistical summary of aggregated sensor readings (min, max, avg, etc.).
+/// </summary>
 public class AggregateSummary
 {
     public double Min { get; set; }

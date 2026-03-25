@@ -13,6 +13,9 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service that sends critical alert notifications via the notification service when sensor readings exceed critical thresholds.
+/// </summary>
 public class CriticalAlertNotificationService : ICriticalAlertNotificationService
 {
     private readonly HttpClient _httpClient;

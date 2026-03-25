@@ -12,13 +12,13 @@ interface RoleFormProps {
   isOpen: boolean;
 }
 
-export const RoleForm: React.FC<RoleFormProps> = ({
+export const RoleForm = React.memo(function RoleForm({
   role,
   groupedPermissions,
   onSubmit,
   onCancel,
   isOpen
-}) => {
+}: RoleFormProps) {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -255,4 +255,4 @@ export const RoleForm: React.FC<RoleFormProps> = ({
       </div>
     </div>
   );
-};
+});

@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, PrivateAttr, field_validator, ConfigDict
 from medyator import Command
 
-from FuzzyService.Application.Features.FuzzyRules.DTOs.FuzzyRuleDto import FuzzyRuleDto, ConditionDto
+from FuzzyService.Application.Features.FuzzyRules.DTOs.FuzzyRuleDto import FuzzyRuleDto, ConditionDto, RuleConsequentDto
 
 
 class CreateFuzzyRuleCommand(BaseModel, Command):
@@ -36,9 +36,10 @@ class CreateFuzzyRuleCommand(BaseModel, Command):
         default_factory=list,
         description="Lista de conectores lógicos (AND, OR)"
     )
-    consequent: Optional[str] = Field(
-        None,
-        description="ID de la rutina consecuente"
+    consequents: List[RuleConsequentDto] = Field(
+        ...,
+        min_length=1,
+        description="Lista de consecuentes Mamdani (mínimo 1)"
     )
     
     _result: Optional[FuzzyRuleDto] = PrivateAttr(default=None)
@@ -101,10 +102,10 @@ class CreateFuzzyRuleCommand(BaseModel, Command):
         
         return v
 
-    @field_validator('consequent')
+    @field_validator('consequents')
     @classmethod
-    def validate_consequent(cls, v: Optional[str]) -> Optional[str]:
-        """Valida que el consequent sea un ObjectId válido si se proporciona."""
-        if v is not None and (not v or len(v) != 24):
-            raise ValueError('consequent debe ser un ObjectId válido de 24 caracteres')
+    def validate_consequents(cls, v: List[RuleConsequentDto]) -> List[RuleConsequentDto]:
+        """Valida que haya al menos un consecuente Mamdani."""
+        if not v:
+            raise ValueError('Debe haber al menos un consecuente')
         return v

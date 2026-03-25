@@ -1,4 +1,7 @@
 ﻿namespace AuthService.Domain.ValueObjects;
+/// <summary>
+/// Value object encapsulating a BCrypt-hashed password.
+/// </summary>
 public sealed class HashedPassword
 {
     public string Value { get; }

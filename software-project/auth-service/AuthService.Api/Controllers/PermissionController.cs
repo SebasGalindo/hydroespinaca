@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Api.Controllers;
 
+/// <summary>
+/// API controller for CRUD operations on authorization permissions.
+/// </summary>
 [ApiController]
 [Route("api/permissions")]
 public class PermissionController : ControllerBase

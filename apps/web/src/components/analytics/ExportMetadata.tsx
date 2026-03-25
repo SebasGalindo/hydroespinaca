@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnalyticsLevel } from './AnalyticsTabs';
 
 interface ExportMetadataProps {
@@ -9,7 +9,7 @@ interface ExportMetadataProps {
   dateTo: string;
 }
 
-export default function ExportMetadata({ level, dateFrom, dateTo }: ExportMetadataProps) {
+const ExportMetadata = React.memo(function ExportMetadata({ level, dateFrom, dateTo }: ExportMetadataProps) {
   const [exportDate, setExportDate] = useState<string>('');
 
   // Only set the date on client side to avoid hydration mismatch
@@ -39,4 +39,6 @@ export default function ExportMetadata({ level, dateFrom, dateTo }: ExportMetada
       )}
     </div>
   );
-}
+});
+
+export default ExportMetadata;

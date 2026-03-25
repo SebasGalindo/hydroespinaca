@@ -11,6 +11,9 @@ using System.Text.Json;
 
 namespace BffService.Application.Services;
 
+/// <summary>
+/// Application service that orchestrates data retrieval from multiple backend services for dashboard analytics.
+/// </summary>
 public class AnalyticsService : IAnalyticsService
 {
     private readonly IProxyService _proxyService;

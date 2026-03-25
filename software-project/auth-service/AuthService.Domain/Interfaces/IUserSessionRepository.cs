@@ -2,6 +2,9 @@ using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
 
+/// <summary>
+/// Persistence contract for user session entities.
+/// </summary>
 public interface IUserSessionRepository
 {
     Task<UserSession?> FindBySessionIdAsync(string sessionId);

@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace AuthService.Application.Features.Authentication.Commands.Login;
 
+/// <summary>
+/// Handler that validates user credentials, creates a session, and issues access and refresh tokens.
+/// </summary>
 public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
 {
     private readonly IUserRepository _userRepository;

@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import React, { useState, forwardRef, useMemo } from 'react';
 import { TextInput, View, TextStyle, ViewStyle, TextInputProps } from 'react-native';
 import { semanticColors, typography, spacing, borderRadius } from '@hydroespinaca/shared';
 
@@ -50,7 +50,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
   
   const sizeStyle = sizeStyles[size];
   
-  const getContainerStyle = (): ViewStyle => {
+  const containerStyleComputed = useMemo((): ViewStyle => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
@@ -98,9 +98,9 @@ export const Input = forwardRef<TextInput, InputProps>(({
           : semanticColors.border,
       borderRadius: 0,
     };
-  };
+  }, [variant, error, isFocused, disabled, fullWidth]);
   
-  const getTextStyle = (): TextStyle => ({
+  const textStyleComputed = useMemo((): TextStyle => ({
     flex: 1,
     minHeight: sizeStyle.minHeight,
     paddingHorizontal: leftIcon || rightIcon ? spacing.xs : sizeStyle.paddingHorizontal,
@@ -108,10 +108,10 @@ export const Input = forwardRef<TextInput, InputProps>(({
     fontSize: sizeStyle.fontSize,
     fontFamily: typography.fontFamily.primary,
     color: disabled ? semanticColors.textMuted : semanticColors.textPrimary,
-  });
+  }), [sizeStyle, leftIcon, rightIcon, disabled]);
 
   return (
-    <View style={[getContainerStyle(), containerStyle]} testID={testID}>
+    <View style={[containerStyleComputed, containerStyle]} testID={testID}>
       {leftIcon && (
         <View style={{ paddingLeft: sizeStyle.paddingHorizontal }} pointerEvents="none">
           {leftIcon}
@@ -120,7 +120,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
 
       <TextInput
         ref={ref}
-        style={[getTextStyle(), style]}
+        style={[textStyleComputed, style]}
         placeholderTextColor={semanticColors.textPlaceholder}
         editable={!disabled}
         onFocus={(e) => {

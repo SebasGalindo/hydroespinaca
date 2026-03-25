@@ -107,16 +107,20 @@ public class M2MTokenService : IDisposable
                 ClientSecret = _options.ClientSecret
             };
 
+            var tokenUrl = _options.GetTokenUrl();
+            _logger.LogDebug("[M2M] Requesting token from {Url} for client {ClientId}",
+                tokenUrl, _options.ClientId);
+
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync(_options.GetTokenUrl(), content, cancellationToken);
+            var response = await _httpClient.PostAsync(tokenUrl, content, cancellationToken);
             
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("M2M token request failed with status {StatusCode}: {Error}", 
-                    response.StatusCode, errorContent);
+                _logger.LogError("[M2M] Token request failed with status {StatusCode} for client {ClientId}: {Error}", 
+                    response.StatusCode, _options.ClientId, errorContent);
                 
                 throw new InvalidOperationException($"M2M token request failed: {response.StatusCode}");
             }
@@ -132,16 +136,19 @@ public class M2MTokenService : IDisposable
                 throw new InvalidOperationException("Invalid token response received");
             }
 
+            _logger.LogDebug("[M2M] Token obtained successfully for client {ClientId}", _options.ClientId);
             return tokenResult;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Network error requesting M2M token from {Url}", _options.GetTokenUrl());
+            _logger.LogError(ex, "[M2M] Network error requesting token from {Url} for client {ClientId}",
+                _options.GetTokenUrl(), _options.ClientId);
             throw new InvalidOperationException("Failed to request M2M token due to network error", ex);
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialize M2M token response");
+            _logger.LogError(ex, "[M2M] Failed to deserialize token response for client {ClientId}",
+                _options.ClientId);
             throw new InvalidOperationException("Failed to deserialize M2M token response", ex);
         }
     }

@@ -1,6 +1,5 @@
-// Admin API Service for users, roles, and permissions management
-import { getApiUrl } from '../utils/apiConfig';
-import { useAuthStore } from '../store/authStore';
+// Admin API Service — extends BaseApiService for DRY request handling
+import { BaseApiService, ApiServiceError } from './BaseApiService';
 import type {
   UserCreateDto,
   UserUpdateDto,
@@ -15,101 +14,12 @@ import type {
   UserSessionsDto,
 } from '../types/admin';
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+// Re-export ApiServiceError as ApiError for backward compatibility within this file
+export { ApiServiceError as ApiError } from './BaseApiService';
 
-export class AdminApiService {
-  private baseUrl: string;
+// ==================== Service Class ====================
 
-  constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || getApiUrl();
-  }
-
-  /**
-   * Internal request method with cookie-based authentication
-   */
-  private async request<T>(
-    url: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const fullUrl = `${this.baseUrl}${url}`;
-
-    const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    const response = await fetch(fullUrl, {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-      credentials: 'include', // Include cookies for session
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `Request failed with status ${response.status}`;
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AdminApiService] Error response:', {
-          status: response.status,
-          errorText,
-          url: fullUrl
-        });
-      }
-
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || errorMessage;
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AdminApiService] Parsed error JSON:', errorJson);
-          console.log('[AdminApiService] Final error message:', errorMessage);
-        }
-      } catch (parseError) {
-        errorMessage = errorText || errorMessage;
-
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[AdminApiService] Failed to parse error JSON:', parseError);
-          console.log('[AdminApiService] Using raw error text:', errorText);
-        }
-      }
-
-      // Handle 401 Unauthorized - session is invalid/expired/revoked
-      if (response.status === 401) {
-        // Only trigger logout if we're not already logging out
-        const { isLoggingOut, logout } = useAuthStore.getState();
-
-        if (!isLoggingOut) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[AdminApiService] Received 401, triggering logout:', errorMessage);
-          }
-
-          // Execute logout asynchronously - don't wait for it
-          // This will clear the session and redirect to login
-          logout().catch((logoutError) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.error('[AdminApiService] Logout failed after 401:', logoutError);
-            }
-          });
-        }
-      }
-
-      throw new ApiError(response.status, errorMessage);
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    return response.json() as Promise<T>;
-  }
+export class AdminApiService extends BaseApiService {
 
   // ==================== USER MANAGEMENT ====================
 
@@ -124,21 +34,19 @@ export class AdminApiService {
   async createUser(user: UserCreateDto): Promise<UserResponseDto> {
     return this.request<UserResponseDto>('/users', {
       method: 'POST',
-      body: JSON.stringify(user),
+      body: user,
     });
   }
 
   async updateUser(id: string, user: UserUpdateDto): Promise<UserResponseDto> {
     return this.request<UserResponseDto>(`/users/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(user),
+      body: user,
     });
   }
 
   async deleteUser(id: string): Promise<void> {
-    return this.request<void>(`/users/${id}`, {
-      method: 'DELETE',
-    });
+    return this.deleteRequest(`/users/${id}`);
   }
 
   // ==================== ROLE MANAGEMENT ====================
@@ -154,21 +62,19 @@ export class AdminApiService {
   async createRole(role: CreateRoleRequestDto): Promise<RoleResponseDto> {
     return this.request<RoleResponseDto>('/roles', {
       method: 'POST',
-      body: JSON.stringify(role),
+      body: role,
     });
   }
 
   async updateRole(code: string, role: UpdateRoleRequestDto): Promise<RoleResponseDto> {
     return this.request<RoleResponseDto>(`/roles/${code}`, {
       method: 'PUT',
-      body: JSON.stringify(role),
+      body: role,
     });
   }
 
   async deleteRole(code: string): Promise<void> {
-    return this.request<void>(`/roles/${code}`, {
-      method: 'DELETE',
-    });
+    return this.deleteRequest(`/roles/${code}`);
   }
 
   // ==================== PERMISSION MANAGEMENT ====================
@@ -188,21 +94,19 @@ export class AdminApiService {
   async createPermission(permission: CreatePermissionRequestDto): Promise<PermissionResponseDto> {
     return this.request<PermissionResponseDto>('/permissions', {
       method: 'POST',
-      body: JSON.stringify(permission),
+      body: permission,
     });
   }
 
   async updatePermission(code: string, permission: UpdatePermissionRequestDto): Promise<PermissionResponseDto> {
     return this.request<PermissionResponseDto>(`/permissions/${code}`, {
       method: 'PUT',
-      body: JSON.stringify(permission),
+      body: permission,
     });
   }
 
   async deletePermission(code: string): Promise<void> {
-    return this.request<void>(`/permissions/${code}`, {
-      method: 'DELETE',
-    });
+    return this.deleteRequest(`/permissions/${code}`);
   }
 
   // ==================== SESSION MANAGEMENT ====================
@@ -212,9 +116,7 @@ export class AdminApiService {
   }
 
   async revokeSession(sessionId: string): Promise<void> {
-    return this.request<void>(`/sessions/${sessionId}`, {
-      method: 'DELETE',
-    });
+    return this.deleteRequest(`/sessions/${sessionId}`);
   }
 }
 

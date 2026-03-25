@@ -1,5 +1,8 @@
 namespace BffService.Domain.ValueObjects;
 
+/// <summary>
+/// Value object holding access token, refresh token, and expiration metadata for a user session.
+/// </summary>
 public record TokenInfo(
     string AccessToken,
     string RefreshToken,

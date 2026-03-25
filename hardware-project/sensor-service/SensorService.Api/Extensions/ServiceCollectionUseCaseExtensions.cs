@@ -10,6 +10,9 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Api.Extensions;
 
+/// <summary>
+/// Extension methods for registering use case implementations in the DI container.
+/// </summary>
 public static class ServiceCollectionUseCaseExtensions
 {
     public static IServiceCollection AddUseCases(this IServiceCollection services)

@@ -3,6 +3,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Users.Commands.DeleteUser;
 
+/// <summary>
+/// Handler that removes a user and their associated sessions/tokens.
+/// </summary>
 public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand>
 {
     private readonly IUserRepository _userRepository;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text as RNText, TextStyle } from 'react-native';
 import { semanticColors, typography } from '@hydroespinaca/shared';
 
@@ -23,7 +23,7 @@ const headingStyles = {
   6: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.medium as any },
 } as const;
 
-export function Heading({
+export const Heading = React.memo(function Heading({
   children,
   level = 1,
   color = semanticColors.textPrimary,
@@ -35,13 +35,16 @@ export function Heading({
   testID,
 }: HeadingProps): React.ReactElement {
   const headingStyle = headingStyles[level];
-  
-  const computedStyle: TextStyle = {
-    ...headingStyle,
-    color,
-    textAlign: align,
-    marginBottom: typography.lineHeight.tight,
-  };
+
+  const computedStyle = useMemo<TextStyle>(
+    () => ({
+      ...headingStyle,
+      color,
+      textAlign: align,
+      marginBottom: typography.lineHeight.tight,
+    }),
+    [headingStyle, color, align],
+  );
 
   return (
     <RNText
@@ -55,4 +58,4 @@ export function Heading({
       {children}
     </RNText>
   );
-}
+});

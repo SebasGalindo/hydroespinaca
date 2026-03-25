@@ -3,6 +3,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace ActuatorService.Infrastructure.Persistence.Models;
+/// <summary>
+/// MongoDB document schema for actuator device records.
+/// </summary>
 public class ActuatorDocument : IIdentifiableMutable
 {
     [BsonId]
@@ -16,6 +19,9 @@ public class ActuatorDocument : IIdentifiableMutable
     public string Pin { get; set; } = default!;
     public string Location { get; set; } = default!;
     public string Status { get; set; } = default!;
+    [BsonElement("power_consumption_watts")]
+    [BsonRepresentation(BsonType.Double)]
+    public decimal PowerConsumptionWatts { get; set; }
     public DateTime CreatedAt { get; set; }
     public void SetId(string id) => Id = id;
 }

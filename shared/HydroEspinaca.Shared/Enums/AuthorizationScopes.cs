@@ -97,6 +97,19 @@ public static class AuthorizationScopes
     public const string FuzzyEvaluationRead = "fuzzy:evaluation:read";
     public const string FuzzyEvaluationCreate = "fuzzy:evaluation:create";
 
+    // Weather scopes
+    public const string WeatherRead = "weather:read";
+    public const string WeatherWrite = "weather:write";
+
+    // BI scopes
+    public const string BiRead = "bi:read";
+    public const string BiWrite = "bi:write";
+
+    // Chatbot scopes
+    public const string ChatRead = "chat:read";
+    public const string ChatWrite = "chat:write";
+    public const string RagManage = "rag:manage";
+
     // System-level scopes
     public const string SystemAdmin = "system:admin";
     public const string SystemHealth = "system:health";
@@ -170,6 +183,30 @@ public static class AuthorizationScopes
         SystemHealth, SystemMonitor
     };
 
+    /// <summary>
+    /// Gets all weather-related scopes
+    /// </summary>
+    public static readonly string[] WeatherScopes =
+    {
+        WeatherRead, WeatherWrite
+    };
+
+    /// <summary>
+    /// Gets all BI scopes
+    /// </summary>
+    public static readonly string[] BiScopes =
+    {
+        BiRead, BiWrite
+    };
+
+
+    /// <summary>
+    /// Gets all chatbot scopes
+    /// </summary>
+    public static readonly string[] ChatbotScopes =
+    {
+        ChatRead, ChatWrite, RagManage
+    };
 
     /// <summary>
     /// Gets all system-level scopes
@@ -209,6 +246,15 @@ public static class AuthorizationScopes
         FuzzySystemRead, FuzzySystemCreate, FuzzySystemUpdate, FuzzySystemDelete,
         FuzzyVariableRead, FuzzyVariableCreate, FuzzyVariableUpdate, FuzzyVariableDelete,
         FuzzyEvaluationRead, FuzzyEvaluationCreate,
+
+        // Weather
+        WeatherRead, WeatherWrite,
+
+        // BI
+        BiRead, BiWrite,
+
+        // Chatbot
+        ChatRead, ChatWrite, RagManage,
         
         // System
         SystemAdmin, SystemHealth, SystemMonitor

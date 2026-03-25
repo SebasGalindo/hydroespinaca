@@ -4,6 +4,9 @@ using AuthService.Domain.Interfaces;
 
 namespace AuthService.Infrastructure.Services;
 
+/// <summary>
+/// Infrastructure service implementing user authentication with JWT token generation using RSA-signed tokens.
+/// </summary>
 public class AuthenticationService : IAuthenticationService
 {
     private readonly IUserRepository _userRepo;

@@ -4,6 +4,9 @@ using System.Text.Json;
 
 namespace AuthService.Infrastructure.Security
 {
+    /// <summary>
+    /// File-system based RSA key store for JWT signing and validation. Loads or generates RSA key pairs from disk.
+    /// </summary>
     public class FileKeyStore : IKeyStore
     {
         private readonly string _keysDirectory;

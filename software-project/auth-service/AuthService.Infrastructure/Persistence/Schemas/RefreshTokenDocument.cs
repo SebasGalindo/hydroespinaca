@@ -1,6 +1,9 @@
 ﻿using HydroEspinaca.Shared.Abstractions;
 
 namespace AuthService.Infrastructure.Persistence.Schemas;
+/// <summary>
+/// MongoDB document schema for refresh token records.
+/// </summary>
 public class RefreshTokenDocument : IIdentifiableMutable
 {
     public string Id { get; set; } = default!;

@@ -11,6 +11,9 @@ using HydroEspinaca.Shared.DTOs.Analytics;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for sensor data aggregates.
+/// </summary>
 public class MongoAggregateRepository : IAggregateRepository
 {
     private readonly BaseMongoRepository<Aggregate, AggregateDocument> _baseRepo;

@@ -1,31 +1,31 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NotificationService.Application.DTOs;
-using NotificationService.Application.Interfaces;
+using NotificationService.Application.Features.Email.Commands.SendEmail;
 using HydroEspinaca.Shared.Extensions;
 using HydroEspinaca.Shared.DTOs.Notifications;
+using MediatR;
 
 namespace NotificationService.Api.Controllers;
 
-// Controller principal para notificaciones.
-// Flujo detallado:
-// Paso 1: Llega el request POST /api/notifications/email con JWT + (opcional) Idempotency-Key.
-// Paso 2: El DTO se valida por FluentValidation (registrado en Web/Application).
-// Paso 3: Se delega al caso de uso (SendEmailUseCase) con la posible Idempotency-Key del header.
-// Paso 4: El caso de uso maneja idempotencia, sanitiza, renderiza y encola el email.
-// Paso 5: El endpoint responde 202 Accepted (queued) o 200 (si algún día es síncrono).
+/// <summary>
+/// Controller responsible for handling notification-related endpoints, 
+/// such as sending email notifications.
+/// </summary>
 [ApiController]
 [Route("api/notifications")]
-
 public class NotificationController : ControllerBase
 {
-    private readonly IEmailNotificationService _emailService;
+    private readonly IMediator _mediator;
 
-    public NotificationController(IEmailNotificationService emailService) => _emailService = emailService;
+    public NotificationController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>
     /// Sends an email notification. Requires notification:send scope.
     /// </summary>
+    /// <param name="dto">The details of the email to be sent, including recipient, subject, and body.</param>
+    /// <param name="idemKey">An optional idempotency key to prevent duplicate sends.</param>
+    /// <param name="ct">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A response indicating the status of the email operation, such as "queued" or "sent".</returns>
     [HttpPost("email")]
     [Authorize(Policy = PolicyNames.NotificationSend)]
     public async Task<ActionResult<SendEmailResponseDto>> SendEmail(
@@ -33,14 +33,11 @@ public class NotificationController : ControllerBase
         [FromHeader(Name = "Idempotency-Key")] string? idemKey,
         CancellationToken ct)
     {
-        // Paso 1: La clave de idempotencia se obtiene automáticamente del header vía model binding.
-        // Si no llega, el UseCase generará un hash del payload.
-        // Paso 2-4: Ejecutar el caso de uso
-    var result = await _emailService.SendAsync(dto, idemKey, ct);
-        // Paso 5: Responder según estado
+        var command = new SendEmailCommand(dto, idemKey);
+        var result = await _mediator.Send(command, ct);
+
         if (string.Equals(result.Status, "queued", StringComparison.OrdinalIgnoreCase))
             return Accepted(result);
         return Ok(result);
     }
-
 }

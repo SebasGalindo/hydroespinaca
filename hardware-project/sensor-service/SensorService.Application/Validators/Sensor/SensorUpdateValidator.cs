@@ -6,6 +6,11 @@ using SensorService.Domain.Interfaces;
 
 namespace SensorService.Application.Validators.Sensor;
 
+/// <summary>
+/// Validador de FluentValidation para la actualización de sensores.
+/// Valida identificador físico, ubicación, ESP32 asociado,
+/// frecuencia de muestreo, variables asignadas y estado del sensor.
+/// </summary>
 public class SensorUpdateValidator : AbstractValidator<SensorUpdateDto>
 {
     public SensorUpdateValidator(

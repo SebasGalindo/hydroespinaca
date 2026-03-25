@@ -4,6 +4,9 @@ using AutoMapper;
 
 namespace AuthService.Application.Mappers;
 
+/// <summary>
+/// AutoMapper profile for refresh token entity mappings.
+/// </summary>
 public class RefreshMappingProfile : Profile
 {
     public RefreshMappingProfile()

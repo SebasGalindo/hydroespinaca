@@ -10,6 +10,9 @@ using System.Text.RegularExpressions;
 
 namespace SensorService.Infrastructure.Services;
 
+/// <summary>
+/// MQTT background worker that subscribes to ESP32 status topics and processes heartbeat/status messages.
+/// </summary>
 public class Esp32StatusMqttWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;

@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Abstractions;
 using MongoDB.Bson;
 
 namespace AuthService.Domain.Entities;
+/// <summary>
+/// Represents a registered client application (machine-to-machine) with its own credentials for service-to-service authentication.
+/// </summary>
 public class ClientApp : IIdentifiableMutable
 {
     public string Id { get; private set; } = ObjectId.GenerateNewId().ToString();

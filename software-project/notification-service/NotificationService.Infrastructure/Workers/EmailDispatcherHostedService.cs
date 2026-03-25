@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NotificationService.Domain.Interfaces;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 
 namespace NotificationService.Infrastructure.Workers;
 

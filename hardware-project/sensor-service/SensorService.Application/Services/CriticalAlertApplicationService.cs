@@ -6,6 +6,11 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Application.Services;
 
+/// <summary>
+/// Servicio de aplicación para el procesamiento de alertas críticas del sistema hidropónico.
+/// Orquesta la evaluación de lecturas críticas de variables de regulación manual (pH, EC, nivel de agua)
+/// y coordina el envío de notificaciones cuando se detectan valores fuera de rango crítico.
+/// </summary>
 public class CriticalAlertApplicationService : ICriticalAlertApplicationService
 {
     private readonly ICriticalReadingEvaluationService _evaluationService;
@@ -25,6 +30,14 @@ public class CriticalAlertApplicationService : ICriticalAlertApplicationService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Procesa las alertas críticas para un lote de lecturas de un ESP32.
+    /// Flujo: obtiene sensores del ESP32 → evalúa lecturas críticas → verifica si debe enviar alerta → notifica.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del ESP32 que envió las lecturas.</param>
+    /// <param name="timestamp">Marca de tiempo del lote.</param>
+    /// <param name="readings">Lecturas a evaluar.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
     public async Task ProcessCriticalAlertsAsync(string esp32Id, DateTime timestamp, IEnumerable<Reading> readings, CancellationToken cancellationToken = default)
     {
         try

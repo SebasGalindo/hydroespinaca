@@ -20,7 +20,7 @@ interface TableProps {
   mobileCardRender?: (item: unknown) => React.ReactNode;
 }
 
-const Table: React.FC<TableProps> = ({
+const Table = React.memo(function Table({
   columns,
   data,
   className = '',
@@ -29,7 +29,7 @@ const Table: React.FC<TableProps> = ({
   emptyMessage = 'No hay datos disponibles',
   responsive = true,
   mobileCardRender
-}) => {
+}: TableProps) {
   if (data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -41,7 +41,7 @@ const Table: React.FC<TableProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden ${className}`}>
       {/* Vista de tabla para pantallas grandes */}
-      <div className={`${responsive ? 'hidden md:block' : ''} overflow-x-auto`}>
+      <div className={`${responsive ? 'hidden md:block' : ''} overflow-x-auto scrollbar-thin`}>
         <table className="min-w-full divide-y-2 divide-gray-200 bg-white text-sm">
           <thead className={headerClassName}>
             <tr>
@@ -61,7 +61,11 @@ const Table: React.FC<TableProps> = ({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className="whitespace-nowrap px-6 py-4 font-medium text-gray-700"
+                    className={`px-6 py-4 font-medium text-gray-700 ${
+                      column.key === 'note'
+                        ? 'whitespace-normal max-w-[200px] break-words line-clamp-3'
+                        : 'whitespace-nowrap'
+                    }`}
                   >
                     {column.render ? column.render((row as Record<string, unknown>)[column.key], row) : String((row as Record<string, unknown>)[column.key] || '')}
                   </td>
@@ -105,6 +109,6 @@ const Table: React.FC<TableProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default Table;

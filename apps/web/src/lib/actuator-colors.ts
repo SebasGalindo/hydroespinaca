@@ -1,26 +1,8 @@
 /**
- * Utility for generating dynamic colors for actuators
+ * Utility for generating dynamic colors for actuators.
+ * Uses the shared chart color palette for consistency.
  */
-
-// Extended color palette for actuators
-const COLOR_PALETTE = [
-  '#3b82f6', // blue
-  '#ef4444', // red
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#06b6d4', // cyan
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#6366f1', // indigo
-  '#84cc16', // lime
-  '#f43f5e', // rose
-  '#0ea5e9', // sky
-  '#a855f7', // purple
-  '#22c55e', // green-500
-  '#eab308', // yellow
-];
+import { chartColorPalette } from '@hydroespinaca/shared';
 
 /**
  * Generates a deterministic color for an actuator based on its ID
@@ -37,8 +19,8 @@ export function getActuatorColor(actuatorId: string): string {
   }
 
   // Use absolute value and modulo to get index
-  const index = Math.abs(hash) % COLOR_PALETTE.length;
-  return COLOR_PALETTE[index]!;
+  const index = Math.abs(hash) % chartColorPalette.length;
+  return chartColorPalette[index]!;
 }
 
 /**

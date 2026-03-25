@@ -9,6 +9,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for ESP32 microcontroller nodes.
+/// </summary>
 public class MongoEsp32NodeRepository : IEsp32NodeRepository
 {
     private readonly BaseMongoRepository<Esp32Node, Esp32NodeDocument> _baseRepo;

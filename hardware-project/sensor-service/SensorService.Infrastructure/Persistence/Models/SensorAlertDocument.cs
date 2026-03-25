@@ -4,6 +4,11 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
+
+/// <summary>
+/// Documento MongoDB que representa una alerta de sensor cuando una variable hidropónica
+/// se encuentra fuera de su rango óptimo. Incluye seguimiento de notificaciones por correo.
+/// </summary>
 public class SensorAlertDocument : IIdentifiableMutable
 {
     [BsonId]

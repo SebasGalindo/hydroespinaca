@@ -1,5 +1,10 @@
 // Global type definitions for Next.js web app
 declare global {
+  // React Native __DEV__ global (always undefined in web, but needed for
+  // cross-platform shared package sources compiled via tsconfig paths)
+  // eslint-disable-next-line no-var
+  var __DEV__: boolean | undefined;
+
   namespace NodeJS {
     interface ProcessEnv {
       NEXT_RUNTIME?: 'nodejs' | 'edge';
@@ -26,4 +31,4 @@ declare global {
   }
 }
 
-export {};
+export { };

@@ -8,6 +8,12 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Application.UseCases;
 
+/// <summary>
+/// Caso de uso para procesar la agregación periódica de lecturas de sensores.
+/// Ejecutado por un worker en segundo plano, calcula estadísticas (promedio, mínimo, máximo)
+/// para cada combinación de sensor activo y variable dentro de una ventana de tiempo,
+/// y elimina lecturas antiguas que ya no son necesarias.
+/// </summary>
 public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
 {
     private readonly ISensorRepository _sensorRepository;
@@ -30,6 +36,13 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Procesa la agregación de lecturas para todos los sensores activos.
+    /// Calcula la ventana de agregación, itera sobre cada sensor y variable,
+    /// crea agregados y limpia lecturas antiguas.
+    /// </summary>
+    /// <param name="referenceTime">Tiempo de referencia para la ventana de agregación.</param>
+    /// <returns>Resultado con conteos de agregados procesados, omitidos y lecturas eliminadas.</returns>
     public async Task<ProcessAggregatesResult> ExecuteAsync(DateTime referenceTime)
     {
         var window = TimeWindow.CreateAggregationWindow(referenceTime);
@@ -68,6 +81,14 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         return new ProcessAggregatesResult(processedAggregates, skippedAggregates, deletedReadings);
     }
 
+    /// <summary>
+    /// Procesa la agregación para una combinación específica de sensor y variable.
+    /// Verifica si ya existe un agregado, obtiene lecturas de la ventana y crea el agregado.
+    /// </summary>
+    /// <param name="sensorCode">Código del sensor.</param>
+    /// <param name="variableId">Identificador de la variable.</param>
+    /// <param name="window">Ventana de tiempo para la agregación.</param>
+    /// <returns>Resultado indicando si el agregado fue procesado o omitido.</returns>
     private async Task<SensorVariableProcessResult> ProcessSensorVariableAsync(
         string sensorCode,
         string variableId,
@@ -108,6 +129,10 @@ public class ProcessAggregatesUseCase : IProcessAggregatesUseCase
         return new SensorVariableProcessResult(true);
     }
 
+    /// <summary>
+    /// Elimina lecturas antiguas que superan el período de retención configurado.
+    /// </summary>
+    /// <returns>Cantidad de lecturas eliminadas.</returns>
     private async Task<int> CleanupOldReadingsAsync()
     {
         var cutoffTime = DateTime.UtcNow.AddHours(-AggregationConstants.ReadingRetentionHours);

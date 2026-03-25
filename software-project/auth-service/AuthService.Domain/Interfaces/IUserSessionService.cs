@@ -2,6 +2,9 @@ using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
 
+/// <summary>
+/// Contract for managing user sessions including creation, validation, and revocation.
+/// </summary>
 public interface IUserSessionService
 {
     Task<UserSession> CreateSessionAsync(

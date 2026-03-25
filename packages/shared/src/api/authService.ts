@@ -1,25 +1,28 @@
 // Authentication API Service
-import { getApiUrl } from '../utils/apiConfig';
+// NOTE: AuthApiService does NOT extend BaseApiService because it has
+// a fundamentally different request pattern:
+//  - Platform-aware (web/mobile) with different credentials modes
+//  - Mobile session headers (X-Session-Id, X-CSRF-Token)
+//  - Returns ApiResponse<T> wrapper instead of raw T
+// These requirements make it unsuitable for the shared base class.
+import { getApiUrl, isDevelopmentMode } from '../utils/apiConfig';
 import { SessionStorage } from '../utils'; // Import from index to use platform-specific version
 import { authFetch } from '../utils/authFetch';
+import { ApiServiceError } from './BaseApiService';
 import type {
   LoginRequest,
   MobileLoginResponse,
   UserSession,
 } from '../types/auth';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   status: number;
 }
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+export const ApiError = ApiServiceError;
+export type ApiError = ApiServiceError;
 
 export class AuthApiService {
   private baseUrl: string;
@@ -39,6 +42,10 @@ export class AuthApiService {
     platform: 'web' | 'mobile' = 'web'
   ): Promise<ApiResponse<T>> {
     const fullUrl = `${this.baseUrl}${url}`;
+
+    if (isDevelopmentMode()) {
+      console.log(`[AuthService.request] ${options.method || 'GET'} ${fullUrl} (platform=${platform})`);
+    }
 
     const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -75,7 +82,7 @@ export class AuthApiService {
 
       if (!response.ok) {
         // authFetch already handled 401, so this handles other errors
-        throw new ApiError(response.status, data?.message || `HTTP ${response.status}`);
+        throw new ApiServiceError(response.status, data?.message || `HTTP ${response.status}`);
       }
 
       return {
@@ -83,11 +90,11 @@ export class AuthApiService {
         status: response.status,
       };
     } catch (error) {
-      if (error instanceof ApiError) {
+      if (error instanceof ApiServiceError) {
         throw error;
       }
 
-      throw new ApiError(0, error instanceof Error ? error.message : 'Network error');
+      throw new ApiServiceError(0, error instanceof Error ? error.message : 'Network error');
     }
   }
 
@@ -95,6 +102,7 @@ export class AuthApiService {
    * Web login - uses HttpOnly cookies set by the server
    */
   async loginWeb(credentials: LoginRequest): Promise<void> {
+    if (isDevelopmentMode()) console.log('[AuthService] loginWeb called');
     await this.request('/auth/login/web', {
       method: 'POST',
       body: JSON.stringify(credentials),

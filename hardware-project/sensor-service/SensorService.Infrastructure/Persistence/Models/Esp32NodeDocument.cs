@@ -5,6 +5,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// Documento MongoDB que representa un nodo ESP32 del sistema hidropónico IoT.
+/// Almacena información del dispositivo como nombre, ubicación, estado y métricas de salud.
+/// </summary>
 public class Esp32NodeDocument : IIdentifiableMutable
 {
     [BsonId]

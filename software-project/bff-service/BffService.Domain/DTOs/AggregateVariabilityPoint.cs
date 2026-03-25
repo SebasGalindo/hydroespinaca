@@ -1,5 +1,8 @@
 namespace BffService.Domain.DTOs;
 
+/// <summary>
+/// DTO representing a variability measurement point for sensor data analysis.
+/// </summary>
 public class AggregateVariabilityPoint
 {
     public DateTime Timestamp { get; set; }

@@ -40,12 +40,7 @@ class CreateFuzzyRuleHandler(CommandHandler[CreateFuzzyRuleCommand]):
             if not variable:
                 raise EntityNotFoundError(f"Variable difusa con ID {var_id_str} no encontrada")
 
-        # 3. Crear la entidad FuzzyRule (sin consecuente - debe agregarse con UpdateRuleConsequentCommand)
-        # NOTA: Las reglas ahora deben tener consecuentes directos (RuleConsequent) en lugar de
-        # apuntar a rutinas. El campo 'consequent' fue eliminado del modelo.
-        # Para backward compatibility temporal, creamos una regla vacía que luego debe
-        # actualizarse con consecuentes directos usando UpdateRuleConsequentHandler.
-
+        # 3. Construir condiciones
         conditions = [
             {
                 "variableId": FuzzyVariableId(condition.variable_id),
@@ -57,36 +52,26 @@ class CreateFuzzyRuleHandler(CommandHandler[CreateFuzzyRuleCommand]):
 
         connectors = [RuleConnector(connector) for connector in request.connectors]
 
-        # Si el request tiene 'consequent' (legacy), lanzar error indicando usar nuevo modelo
-        if hasattr(request, 'consequent') and request.consequent:
-            raise BusinessRuleViolationError(
-                "El campo 'consequent' (rutina) ya no está soportado. "
-                "Use 'consequents' (array de RuleConsequent) en su lugar."
-            )
-
-        # Crear regla con consecuentes directos si se proporcionan
+        # 4. Construir consecuentes Mamdani
         from FuzzyService.Domain.Entities.rule_consequent import RuleConsequent
         from FuzzyService.Domain.ValueObjects.DomainId import FuzzyTermId
 
-        consequents = []
-        if hasattr(request, 'consequents') and request.consequents:
-            for cons_dto in request.consequents:
-                consequent = RuleConsequent(
-                    variable_id=FuzzyVariableId(cons_dto['variable_id']),
-                    terms=[FuzzyTermId(t) for t in cons_dto['terms']],
-                    aggregation_method=cons_dto.get('aggregation_method', 'max')
-                )
-                consequents.append(consequent)
+        consequents = [
+            RuleConsequent(
+                variable_id=FuzzyVariableId(cons_dto.variable_id),
+                terms=[FuzzyTermId(t) for t in cons_dto.terms],
+                aggregation_method=cons_dto.aggregation_method
+            )
+            for cons_dto in request.consequents
+        ]
 
-        # Por ahora, si no hay consecuentes, crear lista vacía (fallará validación de FuzzyRule)
-        # Esto forzará al usuario a proporcionar consecuentes válidos
         rule = FuzzyRule(
             name=request.name,
             system_id=system_id,
             description=request.description,
             conditions=conditions,
             connectors=connectors,
-            consequents=consequents if consequents else [],
+            consequents=consequents,
             created_at=datetime.now(timezone.utc)
         )
         

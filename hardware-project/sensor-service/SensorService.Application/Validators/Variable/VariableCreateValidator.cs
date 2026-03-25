@@ -3,6 +3,11 @@ using HydroEspinaca.Shared.DTOs.Variables;
 
 namespace SensorService.Application.Validators.Variable;
 
+/// <summary>
+/// Validador de FluentValidation para la creación de variables ambientales.
+/// Valida código (formato mayúsculas), nombre, unidad, descripción,
+/// rangos físicos y óptimos, tipo de variable y tipo de regulación.
+/// </summary>
 public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
 {
 
@@ -63,6 +68,12 @@ public class VariableCreateValidator : AbstractValidator<VariableCreateDto>
           .When(x => !string.IsNullOrEmpty(x.RegulationType));
     }
 
+    /// <summary>
+    /// Valida que el tipo de regulación sea 'Manual' o 'Automatic'.
+    /// Permite valores nulos o vacíos ya que el tipo de regulación es opcional.
+    /// </summary>
+    /// <param name="regulationType">Tipo de regulación a validar.</param>
+    /// <returns>True si el valor es válido o está vacío.</returns>
     private static bool BeValidRegulationType(string? regulationType)
     {
         if (string.IsNullOrEmpty(regulationType))

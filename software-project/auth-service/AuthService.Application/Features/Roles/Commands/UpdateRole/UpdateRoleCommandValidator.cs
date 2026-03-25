@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Roles.Commands.UpdateRole;
 
+/// <summary>
+/// Validator for role update input.
+/// </summary>
 public class UpdateRoleCommandValidator : BaseValidator<UpdateRoleCommand>
 {
     public UpdateRoleCommandValidator()

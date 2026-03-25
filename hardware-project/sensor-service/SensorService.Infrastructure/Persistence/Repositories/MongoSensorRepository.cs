@@ -8,6 +8,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for sensor definitions.
+/// </summary>
 public class MongoSensorRepository : ISensorRepository
 {
     private readonly BaseMongoRepository<Sensor, SensorDocument> _baseRepo;

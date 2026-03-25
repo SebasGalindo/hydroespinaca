@@ -6,6 +6,9 @@ using MediatR;
 
 namespace AuthService.Application.Features.Permissions.Queries.GetGroupedPermissions;
 
+/// <summary>
+/// Handler that retrieves and groups permissions by service area.
+/// </summary>
 public class GetGroupedPermissionsQueryHandler : IRequestHandler<GetGroupedPermissionsQuery, List<GroupedPermissionResponseDto>>
 {
     private readonly IPermissionRepository _permissionRepository;

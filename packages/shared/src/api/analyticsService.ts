@@ -1,6 +1,5 @@
-// Analytics API Service
-import { getApiUrl } from '../utils/apiConfig';
-import { authFetch } from '../utils/authFetch';
+// Analytics API Service — extends BaseApiService for DRY request handling
+import { BaseApiService, ApiServiceError } from './BaseApiService';
 
 // ==================== Request Types ====================
 
@@ -78,134 +77,65 @@ export interface ActuatorAnalyticsResponse {
   activeTimeProportion: ActuatorActiveTimeProportionItem[];
 }
 
-// ==================== Error Types ====================
+// ==================== Error Alias (backward-compatible) ====================
 
-export class AnalyticsApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public code?: string
-  ) {
-    super(message);
-    this.name = 'AnalyticsApiError';
-  }
-}
+/** @deprecated Use `ApiServiceError` instead — kept for backward compatibility */
+export const AnalyticsApiError = ApiServiceError;
+export type AnalyticsApiError = ApiServiceError;
 
 // ==================== Service Class ====================
 
-export class AnalyticsApiService {
-  private baseUrl: string;
-
-  constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || getApiUrl();
-  }
+export class AnalyticsApiService extends BaseApiService {
 
   /**
    * Get environmental aggregates data
-   * @param request Request parameters (startDate, endDate, view)
-   * @returns Environmental aggregate response
-   * @throws AnalyticsApiError if request fails
    */
   async getEnvironmentalAggregates(
     request: EnvironmentalAnalyticsRequest
   ): Promise<EnvironmentalAggregateResponse> {
-    const url = `${this.baseUrl}/analytics/environmental`;
+    const data = await this.request<EnvironmentalAggregateResponse>('/analytics/environmental', {
+      method: 'POST',
+      body: request,
+    });
 
-    try {
-      const response = await authFetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-        credentials: 'include', // Include cookies for web authentication
-      });
-
-      const isJson = response.headers.get('content-type')?.includes('application/json');
-      const data: any = isJson ? await response.json() : null;
-
-      if (!response.ok) {
-        const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;
-        const errorCode = data?.code;
-        throw new AnalyticsApiError(response.status, errorMessage, errorCode);
-      }
-
-      // Validate response structure
-      if (!data || !Array.isArray(data.variables)) {
-        throw new AnalyticsApiError(
-          500,
-          'Invalid response structure from server',
-          'INVALID_RESPONSE'
-        );
-      }
-
-      return data as EnvironmentalAggregateResponse;
-    } catch (error) {
-      if (error instanceof AnalyticsApiError) {
-        throw error;
-      }
-
-      // Network or other errors
-      throw new AnalyticsApiError(
-        0,
-        error instanceof Error ? error.message : 'Network error',
-        'NETWORK_ERROR'
+    // Validate response structure
+    if (!data || !Array.isArray(data.variables)) {
+      throw new ApiServiceError(
+        500,
+        'Invalid response structure from server',
+        'INVALID_RESPONSE'
       );
     }
+
+    return data;
   }
 
   /**
    * Get actuator analytics data
-   * @param request Request parameters (startDate, endDate, view)
-   * @returns Actuator analytics response
-   * @throws AnalyticsApiError if request fails
    */
   async getActuatorAnalytics(
     request: ActuatorAnalyticsRequest
   ): Promise<ActuatorAnalyticsResponse> {
-    const url = `${this.baseUrl}/analytics/actuators`;
+    const data = await this.request<ActuatorAnalyticsResponse>('/analytics/actuators', {
+      method: 'POST',
+      body: request,
+    });
 
-    try {
-      const response = await authFetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-        credentials: 'include', // Include cookies for web authentication
-      });
-
-      const isJson = response.headers.get('content-type')?.includes('application/json');
-      const data: any = isJson ? await response.json() : null;
-
-      if (!response.ok) {
-        const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;
-        const errorCode = data?.code;
-        throw new AnalyticsApiError(response.status, errorMessage, errorCode);
-      }
-
-      // Validate response structure
-      if (!data || !Array.isArray(data.timeline) || !Array.isArray(data.totalDurationByActuator) || !Array.isArray(data.activeTimeProportion)) {
-        throw new AnalyticsApiError(
-          500,
-          'Invalid response structure from server',
-          'INVALID_RESPONSE'
-        );
-      }
-
-      return data as ActuatorAnalyticsResponse;
-    } catch (error) {
-      if (error instanceof AnalyticsApiError) {
-        throw error;
-      }
-
-      // Network or other errors
-      throw new AnalyticsApiError(
-        0,
-        error instanceof Error ? error.message : 'Network error',
-        'NETWORK_ERROR'
+    // Validate response structure
+    if (
+      !data ||
+      !Array.isArray(data.timeline) ||
+      !Array.isArray(data.totalDurationByActuator) ||
+      !Array.isArray(data.activeTimeProportion)
+    ) {
+      throw new ApiServiceError(
+        500,
+        'Invalid response structure from server',
+        'INVALID_RESPONSE'
       );
     }
+
+    return data;
   }
 }
 

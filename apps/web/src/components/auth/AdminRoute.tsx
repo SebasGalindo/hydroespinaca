@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@hydroespinaca/shared';
 
@@ -13,10 +13,10 @@ interface AdminRouteProps {
  * AdminRoute - Wrapper component to protect admin-only routes
  * Redirects non-admin users to dashboard or specified fallback path
  */
-export const AdminRoute: React.FC<AdminRouteProps> = ({
+export const AdminRoute = React.memo(function AdminRoute({
   children,
   fallbackPath = '/dashboard'
-}) => {
+}: AdminRouteProps) {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuthStore();
 
@@ -77,4 +77,4 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
   }
 
   return <>{children}</>;
-};
+});

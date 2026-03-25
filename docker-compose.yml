@@ -99,6 +99,15 @@ services:
       - DOMAIN=${DOMAIN}
       - MQTT_SUBDOMAIN=${MQTT_SUBDOMAIN:-mqtt}
       - COMPOSE_PROFILE=${COMPOSE_PROFILE:-development}
+      # MQTT users for pwfile autogeneration in development
+      - SENSOR_MQTT_USER=${SENSOR_MQTT_USER}
+      - SENSOR_MQTT_PASS=${SENSOR_MQTT_PASS}
+      - ACTUATOR_MQTT_USER=${ACTUATOR_MQTT_USER}
+      - ACTUATOR_MQTT_PASS=${ACTUATOR_MQTT_PASS}
+      - FUZZY_MQTT_USER=${FUZZY_MQTT_USER}
+      - FUZZY_MQTT_PASS=${FUZZY_MQTT_PASS}
+      - ESP32_MQTT_USER=${ESP32_MQTT_USER}
+      - ESP32_MQTT_PASS=${ESP32_MQTT_PASS}
     healthcheck:
       test: ["CMD", "sh", "-c", "echo 'health check' | timeout 5 nc localhost 1883 || exit 1"]
       interval: 10s
@@ -222,10 +231,16 @@ services:
     container_name: bff-service
     expose:
       - "8080"
+    ports:
+      - "8081:8080"
     depends_on:
       - auth-service
       - sensor-service
       - actuator-service
+      - bi-service
+      - fuzzy-service
+      - weather-service
+      - chatbot-service
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -247,10 +262,13 @@ services:
       - Services__SensorService__Url=${SENSOR_SERVICE_URL}
       - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
       - Services__AuthService__Url=${AUTH_SERVICE_URL}
+      - Services__BiService__Url=${BI_SERVICE_URL}
+      - Services__FuzzyService__Url=${FUZZY_SERVICE_URL}
+      - Services__WeatherService__Url=http://weather-service:8080
+      - Services__ChatbotService__Url=http://chatbot-service:8080
       - Cookies__Secure=${BFF_COOKIE_SECURE}
       - Cookies__SameSite=${BFF_COOKIE_SAMESITE}
       - Cookies__Domain=${BFF_COOKIE_DOMAIN}
-      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
       - VIRTUAL_HOST=api.hydroespinaca.online
     networks:
@@ -294,7 +312,90 @@ services:
       - EMAIL__Smtp__UseStartTls=${SMTP_USE_STARTTLS}
       - EMAIL__Smtp__Username=${SMTP_USERNAME}
       - EMAIL__Smtp__Password=${SMTP_PASSWORD}
+      # Push Notification Configuration
+      - PUSH__WebPush__VapidSubject=${VAPID_SUBJECT}
+      - PUSH__WebPush__VapidPublicKey=${VAPID_PUBLIC_KEY}
+      - PUSH__WebPush__VapidPrivateKey=${VAPID_PRIVATE_KEY}
+      - PUSH__Expo__ApiUrl=${EXPO_PUSH_API_URL}
+      # WhatsApp Configuration
+      - WHATSAPP__Enabled=${WHATSAPP_ENABLED}
+      - WHATSAPP__Provider=${WHATSAPP_PROVIDER}
+      - WHATSAPP__Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
+      - WHATSAPP__Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
+      - WHATSAPP__Twilio__FromNumber=${TWILIO_WHATSAPP_FROM}
+      - WHATSAPP__MetaCloud__PhoneNumberId=${META_WA_PHONE_NUMBER_ID}
+      - WHATSAPP__MetaCloud__AccessToken=${META_WA_ACCESS_TOKEN}
+      - WHATSAPP__MetaCloud__BusinessAccountId=${META_WA_BUSINESS_ACCOUNT_ID}
+      # Internal Service URLs (for DailySummary aggregator)
+      - SERVICES__SensorServiceUrl=http://sensor-service:8080
+      - SERVICES__ActuatorServiceUrl=http://actuator-service:8080
+      - SERVICES__FuzzyServiceUrl=http://fuzzy-service:8080
+      - SERVICES__WeatherServiceUrl=http://weather-service:8080
       # ASP.NET Environment
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
+
+  weather-service:
+    build:
+      context: .
+      dockerfile: software-project/weather-service/Dockerfile
+    container_name: weather-service
+    expose:
+      - "8080"
+    ports:
+      - "5030:8080"
+    depends_on:
+      - auth-service
+    environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - ExternalApis__OpenWeather__BaseUrl=https://api.openweathermap.org/data/3.0
+      - ExternalApis__OpenWeather__ApiKey=${OPENWEATHER_API_KEY}
+      - ExternalApis__OpenWeather__Latitude=4.7002001
+      - ExternalApis__OpenWeather__Longitude=-74.2385058
+      - Weather__ForecastCacheMinutes=3
+      - Weather__AlertEvaluationIntervalMinutes=3
+      - Weather__AlertDeduplicationHours=6
+      - Services__NotificationService__Url=http://notification-service:8080
+      - M2M__ClientId=${WEATHER_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${WEATHER_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+    networks:
+      - espinaca-net
+    profiles:
+      - production
+      - development
+
+  bi-service:
+    build:
+      context: .
+      dockerfile: software-project/bi-service/Dockerfile
+    container_name: bi-service
+    expose:
+      - "8080"
+    ports:
+      - "5020:8080"
+    depends_on:
+      - auth-service
+    environment:
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - M2M__ClientId=${BI_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${BI_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
       - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
     networks:
       - espinaca-net
@@ -342,6 +443,41 @@ services:
     networks:
       - espinaca-net
     profiles:
+      - development
+
+  chatbot-service:
+    build:
+      context: .
+      dockerfile: software-project/chatbot-service/Dockerfile
+    container_name: chatbot-service
+    expose:
+      - "8080"
+    ports:
+      - "5040:8080"
+    depends_on:
+      - auth-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ENVIRONMENT}
+      - MONGO__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MONGO__Database=${MONGO_DATABASE}
+      - Gemini__ApiKey=${GEMINI_API_KEY}
+      - Gemini__TextModel=${GEMINI_TEXT_MODEL:-gemini-3-flash-preview}
+      - Gemini__EmbeddingModel=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      - Gemini__EmbeddingDimensions=${GEMINI_EMBEDDING_DIMENSIONS}
+      - Rag__MaxTokensPerResponse=${RAG_MAX_TOKENS_PER_RESPONSE}
+      - Rag__Temperature=${RAG_TEMPERATURE}
+      - Rag__TopKRetrieval=${RAG_TOP_K_RETRIEVAL}
+      - Rag__LiveContextDefaultHours=${RAG_LIVE_CONTEXT_DEFAULT_HOURS}
+      - JWT__Issuer=${Jwt_Issuer}
+      - JWT__Audience=${Jwt_Audience}
+      - M2M__ClientId=${CHATBOT_SERVICE_CLIENT_ID}
+      - M2M__ClientSecret=${CHATBOT_SERVICE_CLIENT_SECRET}
+      - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
+      - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
+      - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+    networks:
+      - espinaca-net
+    profiles:
       - production
       - development
 
@@ -369,6 +505,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
       - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -399,6 +536,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
       - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
     volumes:
       # Bind mount: source code from host with live reload
       - .:/workspace:cached

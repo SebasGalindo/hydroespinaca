@@ -5,6 +5,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace SensorService.Infrastructure.Persistence.Models;
 
+/// <summary>
+/// Documento MongoDB que representa una variable ambiental o de cultivo hidropónico.
+/// Define los rangos físicos y óptimos, la unidad de medida y el tipo de regulación.
+/// </summary>
 public class VariableDocument : IIdentifiableMutable
 {
     [BsonId]

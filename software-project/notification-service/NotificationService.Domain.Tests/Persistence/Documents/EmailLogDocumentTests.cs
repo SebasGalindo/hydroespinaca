@@ -1,5 +1,5 @@
 using FluentAssertions;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 using NotificationService.Domain.Persistence.Documents;
 
 namespace NotificationService.Domain.Tests.Persistence.Documents;

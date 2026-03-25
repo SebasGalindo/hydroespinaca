@@ -5,6 +5,11 @@ using SensorService.Domain.ValueObjects;
 
 namespace SensorService.Domain.Services;
 
+/// <summary>
+/// Servicio de dominio que evalúa las lecturas críticas de variables de regulación manual
+/// (pH, EC, nivel de agua) y recopila lecturas contextuales de variables automáticas
+/// (temperatura, humedad, luminosidad) para generar datos consolidados de alertas críticas.
+/// </summary>
 public class CriticalReadingEvaluationService : ICriticalReadingEvaluationService
 {
     private readonly IVariableRepository _variableRepository;
@@ -14,6 +19,16 @@ public class CriticalReadingEvaluationService : ICriticalReadingEvaluationServic
         _variableRepository = variableRepository;
     }
 
+    /// <summary>
+    /// Evalúa las lecturas recibidas de un ESP32 contra las variables de regulación manual,
+    /// determinando cuáles están fuera de rango y recopilando lecturas contextuales de variables automáticas.
+    /// </summary>
+    /// <param name="esp32Id">Identificador del nodo ESP32 origen.</param>
+    /// <param name="timestamp">Momento de la evaluación.</param>
+    /// <param name="readings">Lecturas recibidas del ESP32.</param>
+    /// <param name="sensors">Sensores registrados en el sistema.</param>
+    /// <param name="cancellationToken">Token de cancelación.</param>
+    /// <returns>Datos consolidados con lecturas críticas manuales y lecturas contextuales automáticas.</returns>
     public async Task<CriticalAlertData> EvaluateCriticalReadingsAsync(string esp32Id, DateTime timestamp, IEnumerable<Reading> readings, IEnumerable<Sensor> sensors, CancellationToken cancellationToken = default)
     {
         var criticalReadings = new List<CriticalReadingAlert>();

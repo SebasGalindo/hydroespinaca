@@ -33,7 +33,7 @@ interface FiltersBarProps {
   currentFilters?: FilterState; // Filtros actualmente aplicados
 }
 
-export default function FiltersBar({
+const FiltersBar = React.memo(function FiltersBar({
   onApplyFilters,
   onExport,
   isLoading,
@@ -287,4 +287,6 @@ export default function FiltersBar({
       </div>
     </div>
   );
-}
+});
+
+export default FiltersBar;

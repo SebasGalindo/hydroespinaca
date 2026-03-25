@@ -16,6 +16,8 @@ export const typography = {
 
   // Font sizes (in pixels for React Native)
   fontSize: {
+    micro: 9,  // Chart tooltips, tiny labels
+    xxs: 10,   // Small chart labels, badges
     xs: 12,   // 0.75rem equivalent
     sm: 14,   // 0.875rem equivalent
     base: 16,  // Base font size

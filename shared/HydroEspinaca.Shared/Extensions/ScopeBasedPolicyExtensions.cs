@@ -180,6 +180,14 @@ public static class PolicyNames
     public const string SystemAdmin = nameof(AuthorizationScopes.SystemAdmin);
     public const string SystemHealth = nameof(AuthorizationScopes.SystemHealth);
     public const string SystemMonitor = nameof(AuthorizationScopes.SystemMonitor);
+    
+    // Weather policies
+    public const string WeatherRead = nameof(AuthorizationScopes.WeatherRead);
+    public const string WeatherWrite = nameof(AuthorizationScopes.WeatherWrite);
+
+    // BI policies
+    public const string BiRead = nameof(AuthorizationScopes.BiRead);
+    public const string BiWrite = nameof(AuthorizationScopes.BiWrite);
 
     /// <summary>
     /// Grouped policies for convenience (multiple scopes)

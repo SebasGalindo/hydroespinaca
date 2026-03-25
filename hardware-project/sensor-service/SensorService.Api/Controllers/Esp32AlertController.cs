@@ -6,6 +6,9 @@ using SensorService.Application.Interfaces;
 
 namespace SensorService.Api.Controllers;
 
+/// <summary>
+/// API controller for managing ESP32 node offline alerts.
+/// </summary>
 [ApiController]
 [Route("api/esp32-alerts")]
 public class Esp32AlertController : ControllerBase

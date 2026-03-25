@@ -4,6 +4,9 @@ using AutoMapper;
 
 namespace AuthService.Application.Features.Users.Mappings;
 
+/// <summary>
+/// AutoMapper profile for mapping between User domain entities and DTOs.
+/// </summary>
 public class UserMappingProfile : Profile
 {
     public UserMappingProfile()

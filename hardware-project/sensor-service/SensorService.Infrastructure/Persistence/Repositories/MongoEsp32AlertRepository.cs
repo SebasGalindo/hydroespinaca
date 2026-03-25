@@ -7,6 +7,9 @@ using SensorService.Infrastructure.Persistence.Models;
 
 namespace SensorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for ESP32 node offline alerts.
+/// </summary>
 public class MongoEsp32AlertRepository : IEsp32AlertRepository
 {
     private readonly BaseMongoRepository<Esp32Alert, Esp32AlertDocument> _baseRepo;

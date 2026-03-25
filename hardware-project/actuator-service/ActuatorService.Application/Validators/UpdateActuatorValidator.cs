@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.DTOs.Actuator;
 
 namespace ActuatorService.Application.Validators;
 
+/// <summary>
+/// FluentValidation validator for actuator update input.
+/// </summary>
 public class UpdateActuatorValidator : AbstractValidator<UpdateActuatorDto>
 {
     public UpdateActuatorValidator()
@@ -30,5 +33,9 @@ public class UpdateActuatorValidator : AbstractValidator<UpdateActuatorDto>
         RuleFor(x => x.Status)
             .NotEmpty()
             .WithMessage("El estado del actuador es obligatorio.");
+
+        RuleFor(x => x.PowerConsumptionWatts)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("El consumo de potencia en watts debe ser mayor o igual a 0.");
     }
 }

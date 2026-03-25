@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using NotificationService.Application.UseCases;
 using NotificationService.Domain.Entities;
 using NotificationService.Domain.Interfaces;
-using NotificationService.Domain.Models;
 
 namespace NotificationService.Application.Tests.UseCases;
 

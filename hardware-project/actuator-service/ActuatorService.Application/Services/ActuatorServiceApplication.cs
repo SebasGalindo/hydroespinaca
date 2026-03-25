@@ -11,6 +11,9 @@ using MongoDB.Bson;
 
 namespace ActuatorService.Application.Services;
 
+/// <summary>
+/// Application service implementing actuator CRUD operations, validation, and analytics aggregation.
+/// </summary>
 public class ActuatorServiceApplication : IActuatorService
 {
     private readonly IActuatorRepository _repo;

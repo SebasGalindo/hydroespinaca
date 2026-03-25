@@ -50,6 +50,11 @@ interface Storage {
 }
 
 // ============================================
+// React Native __DEV__ global
+// ============================================
+declare const __DEV__: boolean;
+
+// ============================================
 // Node.js Process Environment
 // ============================================
 declare namespace NodeJS {

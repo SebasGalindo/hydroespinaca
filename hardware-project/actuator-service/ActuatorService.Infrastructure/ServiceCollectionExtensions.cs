@@ -16,6 +16,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ActuatorService.Infrastructure;
 
+/// <summary>
+/// Extension methods for registering Actuator Service infrastructure dependencies (MongoDB, MQTT, HTTP clients).
+/// </summary>
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)

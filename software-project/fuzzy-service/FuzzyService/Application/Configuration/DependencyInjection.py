@@ -50,9 +50,29 @@ def configure_application_di() -> None:
         UpdateFuzzySystemStatusCommand,
         UpdateFuzzySystemStatusHandler,
     )
+    from FuzzyService.Application.Features.FuzzySystems.Commands.ActivateFuzzySystem import (
+        ActivateFuzzySystemCommand,
+        ActivateFuzzySystemHandler,
+    )
+    from FuzzyService.Application.Features.FuzzySystems.Commands.CloneFuzzySystem import (
+        CloneFuzzySystemCommand,
+        CloneFuzzySystemHandler,
+    )
+    from FuzzyService.Application.Features.FuzzySystems.Commands.ImportFuzzySystem import (
+        ImportFuzzySystemCommand,
+        ImportFuzzySystemHandler,
+    )
     from FuzzyService.Application.Features.FuzzySystems.Queries.GetFuzzySystemById import (
         GetFuzzySystemByIdQuery,
         GetFuzzySystemByIdHandler,
+    )
+    from FuzzyService.Application.Features.FuzzySystems.Queries.ExportFuzzySystem import (
+        ExportFuzzySystemQuery,
+        ExportFuzzySystemHandler,
+    )
+    from FuzzyService.Application.Features.FuzzySystems.Queries.SimulateFuzzySystem import (
+        SimulateFuzzySystemQuery,
+        SimulateFuzzySystemHandler,
     )
 
     # FuzzyVariables - registrar comandos/queries y handlers
@@ -98,6 +118,11 @@ def configure_application_di() -> None:
     di[GetAllFuzzySystemsQuery] = GetAllFuzzySystemsHandler()
     di[GetFuzzySystemByIdQuery] = GetFuzzySystemByIdHandler()
     di[UpdateFuzzySystemStatusCommand] = UpdateFuzzySystemStatusHandler()
+    di[ActivateFuzzySystemCommand] = ActivateFuzzySystemHandler()
+    di[CloneFuzzySystemCommand] = CloneFuzzySystemHandler()
+    di[ImportFuzzySystemCommand] = ImportFuzzySystemHandler()
+    di[ExportFuzzySystemQuery] = ExportFuzzySystemHandler()
+    di[SimulateFuzzySystemQuery] = SimulateFuzzySystemHandler()
 
     # Bind de FuzzyVariables
     di[CreateFuzzyVariableCommand] = CreateFuzzyVariableHandler()

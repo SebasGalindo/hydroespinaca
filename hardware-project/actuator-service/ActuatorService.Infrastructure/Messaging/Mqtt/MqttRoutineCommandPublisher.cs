@@ -7,6 +7,9 @@ using System.Text.Json;
 
 namespace ActuatorService.Infrastructure.Messaging.Mqtt;
 
+/// <summary>
+/// MQTT publisher that sends actuator control commands to ESP32 nodes via the MQTT broker.
+/// </summary>
 public class MqttRoutineCommandPublisher : IRoutineCommandPublisher
 {
     private readonly IMqttClientService _mqttClient;

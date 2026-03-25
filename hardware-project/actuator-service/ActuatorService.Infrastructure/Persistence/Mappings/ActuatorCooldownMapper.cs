@@ -4,6 +4,9 @@ using HydroEspinaca.Shared.Mongo.Interfaces;
 
 namespace ActuatorService.Infrastructure.Persistence.Mappings;
 
+/// <summary>
+/// Mapper for converting between actuator cooldown domain objects and MongoDB documents.
+/// </summary>
 public class ActuatorCooldownMapper : IEntityMapper<ActuatorCooldown, ActuatorCooldownDocument>
 {
     public ActuatorCooldownDocument ToDocument(ActuatorCooldown entity)

@@ -185,36 +185,100 @@ echo ""
 echo -e "${BOLD}${GREEN}━━━ HARDWARE SERVICES ━━━${NC}"
 
 run_dotnet_tests \
-    "Sensor Service" \
+    "Sensor Service - Domain" \
+    "./hardware-project/sensor-service" \
+    "SensorService.Domain.Tests/SensorService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Sensor Service - Application" \
     "./hardware-project/sensor-service" \
     "SensorService.Application.Tests/SensorService.Application.Tests.csproj"
 
 run_dotnet_tests \
-    "Actuator Service" \
+    "Actuator Service - Domain" \
+    "./hardware-project/actuator-service" \
+    "ActuatorService.Domain.Tests/ActuatorService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Actuator Service - Application" \
     "./hardware-project/actuator-service" \
     "ActuatorService.Application.Tests/ActuatorService.Application.Tests.csproj"
 
 # Software Services
 echo -e "\n${BOLD}${GREEN}━━━ SOFTWARE SERVICES ━━━${NC}"
 
+# auth-service
 run_dotnet_tests \
-    "Auth Service" \
+    "Auth Service - Domain" \
+    "./software-project/auth-service" \
+    "AuthService.Domain.Tests/AuthService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Auth Service - Application" \
     "./software-project/auth-service" \
     "AuthService.Application.Tests/AuthService.Application.Tests.csproj"
 
+#bff-service
 run_dotnet_tests \
-    "BFF Service" \
+    "BFF Service - Domain" \
+    "./software-project/bff-service" \
+    "BffService.Domain.Tests/BffService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "BFF Service - Application" \
     "./software-project/bff-service" \
     "BffService.Application.Tests/BffService.Application.Tests.csproj"
 
+# fuzzy-service
 run_python_tests \
     "Fuzzy Service" \
     "./software-project/fuzzy-service"
 
+# notification-service
 run_dotnet_tests \
-    "Notification Service" \
+    "Notification Service - Domain" \
+    "./software-project/notification-service" \
+    "NotificationService.Domain.Tests/NotificationService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Notification Service - Application" \
     "./software-project/notification-service" \
     "NotificationService.Application.Tests/NotificationService.Application.Tests.csproj"
+
+#chatbot-service
+run_dotnet_tests \
+    "Chatbot Service - Domain" \
+    "./software-project/chatbot-service" \
+    "ChatbotService.Domain.Tests/ChatbotService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Chatbot Service - Application" \
+    "./software-project/chatbot-service" \
+    "ChatbotService.Application.Tests/ChatbotService.Application.Tests.csproj"
+
+# weather-service
+run_dotnet_tests \
+    "Weather Service - Domain" \
+    "./software-project/weather-service" \
+    "WeatherService.Domain.Tests/WeatherService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "Weather Service - Application" \
+    "./software-project/weather-service" \
+    "WeatherService.Application.Tests/WeatherService.Application.Tests.csproj"
+
+# bi-service
+run_dotnet_tests \
+    "BI Service - Domain" \
+    "./software-project/bi-service" \
+    "BiService.Domain.Tests/BiService.Domain.Tests.csproj"
+
+run_dotnet_tests \
+    "BI Service - Application" \
+    "./software-project/bi-service" \
+    "BiService.Application.Tests/BiService.Application.Tests.csproj"
+
+
 
 # Reporte consolidado final
 echo ""

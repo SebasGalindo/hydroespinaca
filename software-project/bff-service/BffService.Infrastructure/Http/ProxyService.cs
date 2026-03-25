@@ -9,6 +9,9 @@ using System.Text.Json;
 
 namespace BffService.Infrastructure.Http;
 
+/// <summary>
+/// HTTP proxy service that forwards requests to backend microservices, injecting the user's access token.
+/// </summary>
 public class ProxyService : IProxyService
 {
     private readonly HttpClient _httpClient;

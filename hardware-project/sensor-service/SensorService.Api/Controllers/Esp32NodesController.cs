@@ -8,6 +8,9 @@ using SensorService.Application.Services;
 
 namespace SensorService.API.Controllers;
 
+/// <summary>
+/// API controller for managing ESP32 microcontroller node registrations and status.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class Esp32NodesController : ControllerBase

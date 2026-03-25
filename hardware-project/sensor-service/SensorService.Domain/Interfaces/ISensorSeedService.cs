@@ -1,10 +1,13 @@
 namespace SensorService.Domain.Interfaces;
 
+/// <summary>
+/// Servicio de inicialización de datos para los sensores del sistema hidropónico.
+/// </summary>
 public interface ISensorSeedService
 {
     /// <summary>
-    /// Seeds default sensors to the database if they don't exist
+    /// Inserta los sensores predeterminados en la base de datos si no existen.
     /// </summary>
-    /// <returns>Number of sensors seeded</returns>
+    /// <returns>Cantidad de sensores insertados.</returns>
     Task<int> SeedDefaultSensorsAsync();
 }

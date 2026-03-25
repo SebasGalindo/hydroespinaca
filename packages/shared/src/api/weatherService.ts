@@ -1,45 +1,66 @@
-import type { WeatherSummary } from '../types/weather';
-import { getApiUrl } from '../utils/apiConfig';
-import { authFetch } from '../utils/authFetch';
+// Weather API Service — extends BaseApiService for DRY request handling
+import { BaseApiService } from './BaseApiService';
+import type { WeatherSummary, ForecastResponse, DailyForecast, WeatherAlertConfig, UpdateAlertConfigRequest, SeedAlertConfigRequest, WeatherAlert, AlertFilterParams } from '../types/weather';
 
 /**
- * Servicio para obtener información meteorológica del BFF
- * El BFF se encarga de comunicarse con OpenWeather API v2.5 y cachear los datos
+ * Servicio para obtener información meteorológica del BFF.
+ * Proxy a weather-service (One Call API 3.0) vía BFF.
  */
-export class WeatherService {
-  private baseUrl: string;
+export class WeatherService extends BaseApiService {
 
-  constructor() {
-    // Use centralized API URL configuration
-    this.baseUrl = getApiUrl();
+  /** Clima actual (backward-compatible v2.5) */
+  async getWeather(): Promise<WeatherSummary> {
+    return this.request<WeatherSummary>('/weather');
   }
 
-  /**
-   * Obtiene el clima actual de Mosquera, Cundinamarca
-   * Los datos vienen del BFF que implementa cache y se actualiza cada hora
-   * Uses authFetch for automatic 401 handling and redirect
-   */
-  async getWeather(): Promise<WeatherSummary> {
-    try {
-      const response = await authFetch(`${this.baseUrl}/weather`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  /** Pronóstico completo: current + hourly (48h) + daily (8d) + gov alerts */
+  async getForecast(): Promise<ForecastResponse> {
+    return this.request<ForecastResponse>('/weather/forecast');
+  }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch weather data: ${response.statusText}`);
-      }
+  /** Solo pronóstico diario (8 días) */
+  async getDailyForecast(): Promise<DailyForecast[]> {
+    return this.request<DailyForecast[]>('/weather/forecast/daily');
+  }
 
-      return response.json() as Promise<WeatherSummary>;
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching weather data from BFF:', error);
-      }
-      throw error;
-    }
+  /** Configuración de alertas para un fuzzy system */
+  async getAlertConfig(fuzzySystemId: string): Promise<WeatherAlertConfig | null> {
+    return this.request<WeatherAlertConfig | null>(`/weather/alerts/config/${fuzzySystemId}`, { nullOn404: true });
+  }
+
+  /** Actualizar umbrales de alerta */
+  async updateAlertConfig(fuzzySystemId: string, config: UpdateAlertConfigRequest): Promise<void> {
+    await this.request<void>(`/weather/alerts/config/${fuzzySystemId}`, {
+      method: 'PUT',
+      body: config,
+    });
+  }
+
+  /** Inicializar config por defecto para un sistema fuzzy */
+  async seedAlertConfig(fuzzySystemId: string, req: SeedAlertConfigRequest): Promise<WeatherAlertConfig> {
+    return this.request<WeatherAlertConfig>(`/weather/alerts/config/${fuzzySystemId}/seed`, {
+      method: 'POST',
+      body: req,
+    });
+  }
+
+  /** Obtener alertas generadas (filtrable) */
+  async getAlerts(params?: AlertFilterParams): Promise<WeatherAlert[]> {
+    const qs = new URLSearchParams();
+    if (params?.fuzzySystemId) qs.set('fuzzySystemId', params.fuzzySystemId);
+    if (params?.userId) qs.set('userId', params.userId);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.unreadOnly) qs.set('unreadOnly', 'true');
+    const query = qs.toString();
+    return this.request<WeatherAlert[]>(`/weather/alerts${query ? `?${query}` : ''}`);
+  }
+
+  /** Marcar alerta como leída */
+  async markAlertRead(alertId: string, userId: string): Promise<void> {
+    await this.request<void>(`/weather/alerts/${alertId}/read?userId=${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+    });
   }
 }
 

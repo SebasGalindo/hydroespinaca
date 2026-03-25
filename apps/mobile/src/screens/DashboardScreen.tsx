@@ -1,57 +1,27 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text } from '../components/atoms/Text';
 import { Button } from '../components/atoms/Button';
 import { Icon } from '../components/atoms/Icon';
 import { Spinner } from '../components/atoms/Spinner';
-import { VariableCard, WeatherCard, ControllerStatus } from '../components/dashboard';
-import type { TrendDirection, VariableStatus } from '../components/dashboard';
-import { useAuth } from '../context/AuthProvider';
+import { WeatherSection } from '../components/dashboard/WeatherSection';
+import { VariablesGrid } from '../components/dashboard/VariablesGrid';
+import { ControllerSection } from '../components/dashboard/ControllerSection';
+import { LastUpdateBanner } from '../components/dashboard/LastUpdateBanner';
+import { DisconnectionBanner } from '../components/molecules/DisconnectionBanner';
 import {
   semanticColors,
   spacing,
   colors,
-  borderRadius,
+  typography,
   systemStatusService,
-  formatNumericValue,
-  calculateVariableStatus as sharedCalculateVariableStatus,
-  calculateTrend as sharedCalculateTrend,
-  getAlertConfig as sharedGetAlertConfig,
   type SystemStatusResponse,
   type ReadingItem,
   type WeatherSummary,
-  type IconType,
-  type VariableStatus as SharedVariableStatus,
-  type TrendDirection as SharedTrendDirection,
 } from '@hydroespinaca/shared';
 
-type RootStackParamList = {
-  Login: undefined;
-  Dashboard: undefined;
-};
-
-type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
-
-const getIconType = (name: string): IconType => {
-  const lowerName = name.toLowerCase();
-
-  if (lowerName.includes('temperatura') && lowerName.includes('agua')) return 'water';
-  if (lowerName.includes('temperatura')) return 'temperature';
-  if (lowerName.includes('humedad')) return 'humidity';
-  if (lowerName.includes('luz') || lowerName.includes('luminosidad')) return 'sun';
-  if (lowerName.includes('conductividad') || lowerName.includes('ec')) return 'electric';
-  if (lowerName.includes('nivel')) return 'ruler';
-  if (lowerName.includes('ph')) return 'ph';
-
-  return 'temperature';
-};
-
 export function DashboardScreen(): React.ReactElement {
-  const navigation = useNavigation<DashboardScreenNavigationProp>();
-  const { logout } = useAuth();
 
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [previousReadings, setPreviousReadings] = useState<ReadingItem[]>([]);
@@ -261,21 +231,7 @@ export function DashboardScreen(): React.ReactElement {
     };
   }, [shouldStartPolling, lastUpdateTimestamp, fetchSystemStatus]);
 
-  const formatColombiaDateTime = (isoString: string): string => {
-    const date = new Date(isoString);
-    const options: Intl.DateTimeFormatOptions = {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'America/Bogota',
-    };
-    return new Intl.DateTimeFormat('es-CO', options).format(date);
-  };
-
-  const isArtificialLightActive = (): boolean => {
+  const isArtificialLightActive = useMemo((): boolean => {
     if (!systemStatus?.jobStatus.queue) return false;
 
     return systemStatus.jobStatus.queue.some(job =>
@@ -283,14 +239,7 @@ export function DashboardScreen(): React.ReactElement {
       job.commandId.toLowerCase().includes('light') ||
       job.commandId.toLowerCase().includes('amplio-espectro')
     );
-  };
-
-  const getPreviousValue = (variableName: string): number | null => {
-    const previous = previousReadings.find(
-      r => r.name.toLowerCase() === variableName.toLowerCase()
-    );
-    return previous?.value || null;
-  };
+  }, [systemStatus?.jobStatus.queue]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -301,11 +250,6 @@ export function DashboardScreen(): React.ReactElement {
       fetchSystemStatus();
     }
   }, [isPollingPaused, handleRetryPolling, fetchSystemStatus]);
-
-  const handleLogout = async () => {
-    await logout();
-    navigation.replace('Login');
-  };
 
   if (isLoading && !systemStatus) {
     return (
@@ -354,121 +298,53 @@ export function DashboardScreen(): React.ReactElement {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text variant="h1" color={semanticColors.primary} style={styles.title}>
-              Información General Del Cultivo
-            </Text>
-            <Button
-              onPress={handleLogout}
-              variant="outline"
-              size="sm"
-              leftIcon={<Icon name="log-out" size={16} color={semanticColors.primary} />}
-            >
-              Salir
-            </Button>
-          </View>
+          <Text variant="h1" color={semanticColors.primary} style={styles.title}>
+            Información General Del Cultivo
+          </Text>
           <Text variant="body" color={semanticColors.textSecondary} style={styles.subtitle}>
             Monitoreo de las variables y estado actual del sistema hidropónico
           </Text>
         </View>
 
-        {/* Banner de advertencia si el polling está pausado */}
+        {/* Disconnection Banner */}
         {isPollingPaused && error && hasReadingsData && (
-          <View style={styles.warningBanner}>
-            <View style={styles.warningContent}>
-              <Icon name="alert-triangle" size={20} color="#ea580c" />
-              <View style={styles.warningTextContainer}>
-                <Text variant="label" color="#9a3412" style={styles.warningTitle}>
-                  Actualizaciones automáticas pausadas
-                </Text>
-                <Text variant="caption" color="#c2410c" style={styles.warningMessage}>
-                  {error}
-                </Text>
-                <Button
-                  onPress={handleRetryPolling}
-                  variant="primary"
-                  size="sm"
-                  style={styles.warningButton}
-                  leftIcon={<Icon name="refresh" size={16} color="#FFFFFF" />}
-                >
-                  Reintentar ahora
-                </Button>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Weather Section */}
-        <View style={styles.section}>
-          <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
-            Condiciones Climáticas
-          </Text>
-          <WeatherCard
-            weather={weather}
-            isLoading={weatherLoading}
-            error={weatherError}
-          />
-        </View>
-
-        {/* Last Update Info - Solo mostrar si hay datos válidos */}
-        {lastUpdateTimestamp && hasReadingsData && (
-          <View style={styles.updateInfo}>
-            <Text style={styles.updateEmoji}>🔄</Text>
-            <View style={styles.updateTextContainer}>
-              <Text variant="caption" color="#15803d" style={styles.updateText}>
-                Última actualización: {formatColombiaDateTime(lastUpdateTimestamp)}
-              </Text>
-              <Text variant="caption" color="#15803d" style={styles.updateSubtext}>
-                Actualiza cada 2 minutos
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Variables Section - Solo mostrar si hay datos válidos */}
-        {hasReadingsData && systemStatus?.readings.readings && systemStatus.readings.readings.length > 0 && (
-          <View style={styles.section}>
-            <Text variant="h2" color={semanticColors.primary} style={styles.sectionTitle}>
-              Variables del Sistema
-            </Text>
-            <View style={styles.variablesGrid}>
-              {systemStatus.readings.readings.map((reading) => {
-                const alertConfig = sharedGetAlertConfig(reading.name);
-                const status = sharedCalculateVariableStatus(reading, alertConfig);
-                const previousValue = getPreviousValue(reading.name);
-                const trend = sharedCalculateTrend(reading.value, previousValue);
-                const lightActive = isArtificialLightActive();
-
-                return (
-                  <View key={reading.name} style={styles.variableCardWrapper}>
-                    <VariableCard
-                      title={reading.name}
-                      value={`${formatNumericValue(reading.value)} ${reading.unit}`}
-                      optimal={`Óptima: ${formatNumericValue(reading.optimalMin)} – ${formatNumericValue(reading.optimalMax)} ${reading.unit}`}
-                      iconType={getIconType(reading.name)}
-                      status={status}
-                      trend={trend}
-                      artificialLightActive={lightActive}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Controller Status Section - Solo mostrar si hay datos válidos */}
-        {systemStatus && lastUpdateTimestamp && hasReadingsData && (
-          <View style={styles.section}>
-            <ControllerStatus
-              timeSinceUpdate={Math.floor(
-                (new Date().getTime() - new Date(lastUpdateTimestamp).getTime()) / 1000
-              )}
-              jobStatus={systemStatus.jobStatus}
-              stats={systemStatus.stats}
-              internalRoutines={systemStatus.internalRoutines}
+          <View style={styles.bannerContainer}>
+            <DisconnectionBanner
+              message={error}
+              onRetry={handleRetryPolling}
             />
           </View>
+        )}
+
+        {/* Weather */}
+        <WeatherSection
+          weather={weather}
+          isLoading={weatherLoading}
+          error={weatherError}
+        />
+
+        {/* Last Update */}
+        {lastUpdateTimestamp && hasReadingsData && (
+          <LastUpdateBanner timestamp={lastUpdateTimestamp} />
+        )}
+
+        {/* Variables */}
+        {hasReadingsData && systemStatus?.readings.readings && systemStatus.readings.readings.length > 0 && (
+          <VariablesGrid
+            readings={systemStatus.readings.readings}
+            previousReadings={previousReadings}
+            isArtificialLightActive={isArtificialLightActive}
+          />
+        )}
+
+        {/* Controller */}
+        {systemStatus && lastUpdateTimestamp && hasReadingsData && (
+          <ControllerSection
+            lastUpdateTimestamp={lastUpdateTimestamp}
+            jobStatus={systemStatus.jobStatus}
+            stats={systemStatus.stats}
+            internalRoutines={systemStatus.internalRoutines}
+          />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -503,7 +379,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     marginTop: spacing.md,
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
   },
   errorMessage: {
     marginTop: spacing.sm,
@@ -520,93 +396,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: colors.hidro[50],
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
   title: {
-    flex: 1,
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.sm,
   },
   subtitle: {
     lineHeight: 20,
   },
-  section: {
+  bannerContainer: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontWeight: 'bold',
-    marginBottom: spacing.md,
-  },
-  updateInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: '#dcfce7',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#86efac',
-  },
-  updateEmoji: {
-    fontSize: 20,
-    flexShrink: 0,
-  },
-  updateTextContainer: {
-    flex: 1,
-    flexShrink: 1,
-  },
-  updateText: {
-    fontWeight: '500',
-    fontSize: 12,
-    lineHeight: 16,
-    flexWrap: 'wrap',
-  },
-  updateSubtext: {
-    marginTop: 2,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  variablesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  variableCardWrapper: {
-    width: '48%',
-  },
-  warningBanner: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: '#fff7ed',
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    padding: spacing.md,
-  },
-  warningContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  warningTextContainer: {
-    flex: 1,
-  },
-  warningTitle: {
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  warningMessage: {
-    lineHeight: 16,
-    marginBottom: spacing.md,
-  },
-  warningButton: {
-    alignSelf: 'flex-start',
   },
 });

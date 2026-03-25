@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace AuthService.Application.Features.Authentication.Commands.RefreshToken;
 
+/// <summary>
+/// Handler that validates the refresh token, rotates it, and issues a new access token.
+/// </summary>
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResultDto>
 {
     private readonly IUserRepository _userRepository;

@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Authentication.Commands.ClientCredentials;
 
+/// <summary>
+/// Validator ensuring client_id and client_secret are provided.
+/// </summary>
 public class ClientCredentialsCommandValidator : BaseValidator<ClientCredentialsCommand>
 {
     public ClientCredentialsCommandValidator()

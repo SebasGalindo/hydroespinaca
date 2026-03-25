@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Spinner } from '../atoms/Spinner';
-import { semanticColors, spacing, borderRadius } from '@hydroespinaca/shared';
+import { semanticColors, spacing, borderRadius, colors, typography } from '@hydroespinaca/shared';
 import type { WeatherSummary } from '@hydroespinaca/shared';
 
 interface WeatherCardProps {
@@ -100,8 +100,8 @@ export function WeatherCard({
         <Text variant="h1" color={semanticColors.textPrimary} style={styles.mainTemp}>
           {weather.temperature.toFixed(1)}°C
         </Text>
-        <Text variant="body" color={semanticColors.textSecondary} style={styles.feelsLike}>
-          Sensación térmica: {weather.feelsLike.toFixed(1)}°C
+        <Text variant="caption" color={semanticColors.textSecondary} style={styles.feelsLike}>
+          Sensación: {weather.feelsLike.toFixed(1)}°C
         </Text>
       </View>
 
@@ -158,25 +158,25 @@ export function WeatherCard({
 
       {/* Sunrise/Sunset */}
       <View style={styles.sunTimesContainer}>
-        <View style={styles.sunTimeCard}>
+        <View style={[styles.sunTimeCard, styles.sunriseCard]}>
           <Text style={styles.sunTimeEmoji}>🌅</Text>
           <View>
-            <Text variant="caption" color="#d97706" style={styles.sunTimeLabel}>
+            <Text variant="caption" color={colors.warning[600]} style={styles.sunTimeLabel}>
               Amanecer
             </Text>
-            <Text variant="body" color="#b45309" style={styles.sunTimeValue}>
+            <Text variant="body" color={colors.warning[700]} style={styles.sunTimeValue}>
               {formatTime(weather.sunrise)}
             </Text>
           </View>
         </View>
 
-        <View style={styles.sunTimeCard}>
+        <View style={[styles.sunTimeCard, styles.sunsetCard]}>
           <Text style={styles.sunTimeEmoji}>🌇</Text>
           <View>
-            <Text variant="caption" color="#6366f1" style={styles.sunTimeLabel}>
+            <Text variant="caption" color={colors.info[600]} style={styles.sunTimeLabel}>
               Atardecer
             </Text>
-            <Text variant="body" color="#4338ca" style={styles.sunTimeValue}>
+            <Text variant="body" color={colors.info[700]} style={styles.sunTimeValue}>
               {formatTime(weather.sunset)}
             </Text>
           </View>
@@ -195,15 +195,15 @@ export function WeatherCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: colors.info[50],
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: colors.info[200],
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    backgroundColor: colors.error[50],
+    borderColor: colors.error[200],
   },
   errorContent: {
     paddingVertical: spacing.md,
@@ -229,22 +229,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
     marginBottom: spacing.xs,
   },
   description: {
     textTransform: 'capitalize',
   },
   mainEmoji: {
-    fontSize: 48,
+    fontSize: typography.fontSize['5xl'],
   },
   mainTempContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   mainTemp: {
-    fontSize: 48,
-    fontWeight: 'bold',
+    fontSize: 40,
+    fontWeight: typography.fontWeight.bold,
   },
   feelsLike: {
     marginTop: spacing.xs,
@@ -261,15 +263,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: semanticColors.overlayWhite,
     padding: spacing.sm,
     borderRadius: borderRadius.md,
   },
   metricEmoji: {
-    fontSize: 24,
+    fontSize: typography.fontSize['2xl'],
   },
   metricValue: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   sunTimesContainer: {
     flexDirection: 'row',
@@ -281,23 +283,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: '#fef3c7',
-    padding: spacing.md,
+    padding: spacing.sm,
     borderRadius: borderRadius.md,
+  },
+  sunriseCard: {
+    backgroundColor: colors.warning[50],
+  },
+  sunsetCard: {
+    backgroundColor: colors.info[100],
   },
   sunTimeEmoji: {
     fontSize: 28,
   },
   sunTimeLabel: {
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
   },
   sunTimeValue: {
-    fontWeight: 'bold',
+    fontWeight: typography.fontWeight.bold,
   },
   footer: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#bae6fd',
+    borderTopColor: colors.info[200],
     alignItems: 'center',
   },
 });

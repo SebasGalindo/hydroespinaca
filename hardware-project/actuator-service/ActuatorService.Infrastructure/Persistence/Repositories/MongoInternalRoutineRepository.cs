@@ -7,6 +7,9 @@ using MongoDB.Driver;
 
 namespace ActuatorService.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// MongoDB repository implementation for internal routine records.
+/// </summary>
 public class MongoInternalRoutineRepository : IInternalRoutineRepository
 {
     private readonly BaseMongoRepository<InternalRoutine, InternalRoutineDocument> _baseRepo;

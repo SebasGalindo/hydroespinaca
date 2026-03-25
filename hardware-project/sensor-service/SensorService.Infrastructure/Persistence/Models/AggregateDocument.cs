@@ -5,6 +5,10 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace SensorService.Infrastructure.Persistence.Models;
 
 
+/// <summary>
+/// Documento MongoDB que representa un agregado estadístico de lecturas de sensores hidropónicos.
+/// Almacena valores promedio, mínimo y máximo para una ventana de tiempo determinada.
+/// </summary>
 public class AggregateDocument : IIdentifiableMutable
 {
     [BsonId]

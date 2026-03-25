@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Permissions.Queries.GetPermission;
 
+/// <summary>
+/// Validator ensuring a valid permission ID is provided.
+/// </summary>
 public class GetPermissionQueryValidator : BaseValidator<GetPermissionQuery>
 {
     public GetPermissionQueryValidator()

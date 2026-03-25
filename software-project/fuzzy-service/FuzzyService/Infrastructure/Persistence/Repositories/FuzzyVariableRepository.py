@@ -5,13 +5,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
-from pymongo.errors import DuplicateKeyError
 
 from FuzzyService.Domain.Entities.fuzzy_variable import FuzzyVariable
 from FuzzyService.Domain.Interfaces.IFuzzyVariableRepository import IFuzzyVariableRepository
 from FuzzyService.Domain.ValueObjects.DomainId import FuzzyVariableId, FuzzySystemId, FuzzyTermId
 from FuzzyService.Domain.Enums.EntityStatus import FuzzyVariableType
-from FuzzyService.Domain.Errors.DomainErrors import DuplicateEntityError, EntityNotFoundError, ValidationError
+from FuzzyService.Domain.Errors.DomainErrors import EntityNotFoundError, ValidationError
 from FuzzyService.Infrastructure.Configuration.DatabaseConfiguration import get_collection
 from FuzzyService.Infrastructure.Constants.RepositoryConstants import ERROR_SYSTEM_NOT_FOUND
 
@@ -30,8 +29,15 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
     # ---------------------------- Indexes ----------------------------
     async def ensure_indexes(self) -> None:
         try:
-            # Unique variable name (global). If later system-scoped uniqueness is needed, change to compound index
-            await self._coll.create_index([("name", 1)], unique=True, name="uq_fuzzy_variable_name")
+            # Drop the old global unique index on name (variables are per-system, names can repeat)
+            try:
+                await self._coll.drop_index("uq_fuzzy_variable_name")
+                _logger.info("Dropped legacy unique index 'uq_fuzzy_variable_name'.")
+            except Exception:
+                pass  # Index may not exist yet
+
+            # Non-unique index on name for search performance
+            await self._coll.create_index([("name", 1)], name="ix_variable_name")
             await self._coll.create_index([("variable_type", 1)], name="ix_variable_type")
             await self._coll.create_index([("reference_code", 1)], name="ix_reference_code")
             await self._coll.create_index([("created_at", -1)], name="ix_created_at_desc")
@@ -142,17 +148,38 @@ class FuzzyVariableRepository(IFuzzyVariableRepository):
             _logger.warning("Invalid variable_type on create: %s", vtype_value)
             raise ValidationError(f"variable_type inválido: {vtype_value}")
         doc = self._entity_to_doc(fuzzy_variable)
-        try:
-            _logger.debug("Inserting FuzzyVariable doc: %s", {k: doc[k] for k in doc if k != "_id"})
-            res = await self._coll.insert_one(doc)
-        except DuplicateKeyError:
-            _logger.warning("Duplicate variable name on create: %s", fuzzy_variable.name)
-            raise DuplicateEntityError(f"Ya existe una variable con el nombre '{fuzzy_variable.name}'")
+        _logger.debug("Inserting FuzzyVariable doc: %s", {k: doc[k] for k in doc if k != "_id"})
+        res = await self._coll.insert_one(doc)
         db_id = res.inserted_id if getattr(res, "inserted_id", None) else doc["_id"]
         _logger.info("FuzzyVariable created with id=%s", str(db_id))
         created = await self.get_by_id(self._to_domain_var_id(db_id))
         assert created is not None
         return created
+
+    async def create_many(self, variables: List[FuzzyVariable]) -> List[FuzzyVariable]:
+        """Bulk-insert variables. Skips per-entity validation for speed (used by clone/import)."""
+        if not variables:
+            return []
+        docs = [self._entity_to_doc(v) for v in variables]
+        result = await self._coll.insert_many(docs, ordered=True)
+        entities = [self._doc_to_entity(d) for d in docs]
+        _logger.info("Bulk-created %d FuzzyVariable(s)", len(result.inserted_ids))
+        return entities
+
+    async def update_many_terms(self, updates: List[tuple]) -> None:
+        """Bulk-update terms arrays. Each item is (variable_id, [term_ids])."""
+        if not updates:
+            return
+        from pymongo import UpdateOne
+        ops = [
+            UpdateOne(
+                {"_id": self._to_object_id(var_id)},
+                {"$set": {"terms": [str(t) for t in term_ids], "updated_at": datetime.now(timezone.utc)}},
+            )
+            for var_id, term_ids in updates
+        ]
+        res = await self._coll.bulk_write(ops, ordered=False)
+        _logger.info("Bulk-updated terms on %d variable(s)", res.modified_count)
 
     async def get_by_id(self, variable_id: FuzzyVariableId) -> Optional[FuzzyVariable]:
         key = self._to_object_id(variable_id)

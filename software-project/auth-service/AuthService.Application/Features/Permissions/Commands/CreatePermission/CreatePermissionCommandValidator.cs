@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Permissions.Commands.CreatePermission;
 
+/// <summary>
+/// Validator for permission creation input.
+/// </summary>
 public class CreatePermissionCommandValidator : BaseValidator<CreatePermissionCommand>
 {
     public CreatePermissionCommandValidator()

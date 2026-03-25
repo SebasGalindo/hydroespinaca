@@ -14,7 +14,7 @@ class UpdateFuzzyTermCommand(BaseModel, Command):
 
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
-    id: str = Field(..., min_length=1, description="Id del término a actualizar")
+    id: Optional[str] = Field(default=None, description="Id del término a actualizar (set from path)")
     label: Optional[str] = Field(default=None, min_length=1, max_length=30)
     membership_function: Optional[MembershipFunctionDto] = Field(default=None)
 
@@ -22,8 +22,10 @@ class UpdateFuzzyTermCommand(BaseModel, Command):
 
     @field_validator("id")
     @classmethod
-    def _validate_id(cls, v: str) -> str:
-        v = (v or "").strip()
+    def _validate_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
         if not v:
             raise ValueError("id es requerido")
         return v

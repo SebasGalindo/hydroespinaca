@@ -6,6 +6,9 @@ using HydroEspinaca.Shared.Mongo;
 using MongoDB.Driver;
 
 namespace AuthService.Infrastructure.Persistence.Repositories;
+/// <summary>
+/// MongoDB repository implementation for refresh token entities.
+/// </summary>
 public class MongoRefreshTokenRepository : IRefreshTokenRepository
 {
     private readonly BaseMongoRepository<RefreshToken, RefreshTokenDocument> _baseRepo;

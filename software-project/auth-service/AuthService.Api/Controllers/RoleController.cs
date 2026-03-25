@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Api.Controllers;
 
+/// <summary>
+/// API controller for CRUD operations on authorization roles.
+/// </summary>
 [ApiController]
 [Route("api/roles")]
 public class RoleController : ControllerBase

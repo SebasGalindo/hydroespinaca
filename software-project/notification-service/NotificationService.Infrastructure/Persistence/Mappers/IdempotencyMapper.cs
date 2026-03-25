@@ -1,5 +1,5 @@
 using HydroEspinaca.Shared.Mongo.Interfaces;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 using NotificationService.Domain.Persistence.Documents;
 
 namespace NotificationService.Infrastructure.Persistence.Mappers;

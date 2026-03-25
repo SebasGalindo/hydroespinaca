@@ -1,7 +1,7 @@
 using HydroEspinaca.Shared.Mongo;
 using MongoDB.Driver;
 using NotificationService.Domain.Interfaces;
-using NotificationService.Domain.Models;
+using NotificationService.Domain.Entities;
 using NotificationService.Domain.Persistence.Documents;
 using NotificationService.Infrastructure.Persistence.Mappers;
 

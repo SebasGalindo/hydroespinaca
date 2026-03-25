@@ -2,6 +2,9 @@ using AuthService.Domain.Entities;
 
 namespace AuthService.Domain.Interfaces;
 
+/// <summary>
+/// Persistence contract for permission entities.
+/// </summary>
 public interface IPermissionRepository
 {
     Task<Permission?> FindByIdAsync(string id);

@@ -123,6 +123,16 @@ class FuzzyRuleRepository(IFuzzyRuleRepository):
         _logger.info("FuzzyRule created: id=%s", str(created.id))
         return created
 
+    async def create_many(self, rules: List[FuzzyRule]) -> List[FuzzyRule]:
+        """Bulk-insert rules. Skips per-entity validation for speed (used by clone/import)."""
+        if not rules:
+            return []
+        docs = [self._entity_to_doc(r) for r in rules]
+        result = await self._coll.insert_many(docs, ordered=True)
+        entities = [self._doc_to_entity(d) for d in docs]
+        _logger.info("Bulk-created %d FuzzyRule(s)", len(result.inserted_ids))
+        return entities
+
     async def get_by_id(self, rule_id: FuzzyRuleId) -> Optional[FuzzyRule]:
         key = self._to_object_id(rule_id)
         doc = await self._coll.find_one({"_id": key})

@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace AuthService.Application.Features.Users.Queries.GetUser;
 
+/// <summary>
+/// Validator ensuring a valid user ID is provided.
+/// </summary>
 public class GetUserQueryValidator : BaseValidator<GetUserQuery>
 {
     public GetUserQueryValidator()
