@@ -605,4 +605,5 @@ volumes:
 
 networks:
   espinaca-net:
+    external: true
     name: hydroespinaca
