@@ -443,6 +443,7 @@ services:
     networks:
       - espinaca-net
     profiles:
+      - production
       - development
 
   chatbot-service:
@@ -604,5 +605,4 @@ volumes:
 
 networks:
   espinaca-net:
-    external: true
     name: hydroespinaca

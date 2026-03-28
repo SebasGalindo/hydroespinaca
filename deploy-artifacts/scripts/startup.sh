@@ -30,6 +30,20 @@ info() {
     echo -e "${BLUE}[$(date)] INFO: $1${NC}"
 }
 
+# Ensure required Docker network exists before compose startup
+ensure_docker_network() {
+    local network_name="${COMPOSE_NETWORK_NAME:-hydroespinaca}"
+
+    if docker network inspect "$network_name" >/dev/null 2>&1; then
+        info "Docker network '$network_name' already exists"
+        return 0
+    fi
+
+    warn "Docker network '$network_name' not found. Creating it..."
+    docker network create "$network_name" >/dev/null
+    log "✓ Docker network '$network_name' created"
+}
+
 # =================================================
 # FRONTEND BUILD FUNCTION
 # Development: Build shared on host (required for bind mounts)
@@ -184,6 +198,9 @@ start_development() {
     log "- Nginx configuration: HTTP proxy mode"
     log "- Frontend: Next.js server with HMR (Hot Module Replacement)"
 
+    # Ensure compose network exists for services
+    ensure_docker_network
+
     # ===== STEP 1: Build Shared Dependencies =====
     build_shared_dependencies
 
@@ -234,6 +251,9 @@ start_production() {
     log "- Nginx configuration: HTTPS with SSL termination and reverse proxy"
     log "- Automatic certificate renewal with hooks"
     log "- Frontend: Next.js production server"
+
+    # Ensure compose network exists for services
+    ensure_docker_network
 
     # ===== STEP 1: Build Shared Dependencies =====
     build_shared_dependencies
