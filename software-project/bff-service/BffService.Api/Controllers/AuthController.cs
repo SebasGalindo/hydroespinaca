@@ -7,6 +7,7 @@ using HydroEspinaca.Shared.Constants;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using BffService.Application.DTOs;
+using System.Text.Json;
 
 namespace BffService.Api.Controllers;
 
@@ -65,7 +66,8 @@ public class AuthController : ControllerBase
             request.SessionId,
             ipAddress,
             userAgent,
-            request.CsrfToken
+            request.CsrfToken,
+            request.AcceptTerms
         );
 
         var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
@@ -118,7 +120,8 @@ public class AuthController : ControllerBase
             request.SessionId,
             ipAddress,
             userAgent,
-            request.CsrfToken
+            request.CsrfToken,
+            request.AcceptTerms
         );
 
         var result = await _sessionService.LoginAsync(enrichedRequest, cancellationToken);
@@ -264,7 +267,8 @@ public class AuthController : ControllerBase
                 session.SessionId,
                 session.Username ?? "Usuario",
                 session.Email ?? "",
-                formattedRole
+                formattedRole,
+                session.HasAcceptedTerms
             ));
         }
         catch (Exception ex)
@@ -318,6 +322,42 @@ public class AuthController : ControllerBase
             "user" => "Usuario",
             _ => cleanRole
         };
+    }
+
+    [HttpPost("accept-terms")]
+    public async Task<ActionResult> AcceptTerms(CancellationToken cancellationToken)
+    {
+        var session = await _sessionTokenService.GetSessionWithValidTokensAsync(
+            GetSessionIdFromRequest() ?? string.Empty, cancellationToken);
+
+        if (string.IsNullOrEmpty(session.UserId))
+            return Unauthorized(new { message = "No user in session" });
+
+        await _sessionService.AcceptTermsAsync(session.UserId, session.AccessToken, cancellationToken);
+
+        // Update session in cache to reflect acceptance
+        session.SetUserInfo(
+            session.UserId,
+            session.Username ?? string.Empty,
+            session.Email ?? string.Empty,
+            session.UserRole ?? string.Empty,
+            session.Scopes,
+            true);
+        await _sessionService.UpdateSessionAsync(session, cancellationToken);
+
+        return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("terms")]
+    public IActionResult GetTerms()
+    {
+        var contentPath = Path.Combine(AppContext.BaseDirectory, "Content", "terms.json");
+        if (!System.IO.File.Exists(contentPath))
+            return NotFound(new { message = "Terms file not found" });
+
+        var json = System.IO.File.ReadAllText(contentPath);
+        return Content(json, "application/json");
     }
 
     [HttpGet("session/{sessionId}")]

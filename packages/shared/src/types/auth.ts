@@ -2,6 +2,7 @@
 export interface LoginRequest {
   Email: string;
   Password: string;
+  AcceptTerms?: boolean;
 }
 
 export interface MobileLoginResponse {
@@ -20,6 +21,18 @@ export interface UserSession {
   username: string;
   email: string;
   role: string;
+  hasAcceptedTerms: boolean;
+}
+
+export interface TermsSection {
+  title: string;
+  content: string;
+}
+
+export interface TermsContent {
+  title: string;
+  lastUpdated: string;
+  sections: TermsSection[];
 }
 
 export interface Session {
@@ -28,6 +41,7 @@ export interface Session {
   username: string;
   email: string;
   role: string;
+  hasAcceptedTerms: boolean;
 }
 
 export interface AuthState {

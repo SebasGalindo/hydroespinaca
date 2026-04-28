@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList, TextInput, Switch } from 'react-native';
 import {
   colors,
   spacing,
@@ -20,6 +20,8 @@ import { formatCurrency, formatDateShort, getDaysBetween } from '../../utils/biH
 
 export function ProfitabilitySection(): React.ReactElement {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [initialInvestmentCost, setInitialInvestmentCost] = useState<string>('');
+  const [includeAutoEnergy, setIncludeAutoEnergy] = useState(true);
 
   const {
     productionRecords,
@@ -39,8 +41,13 @@ export function ProfitabilitySection(): React.ReactElement {
 
   const handleCalculate = useCallback(async () => {
     if (!selectedId) return;
-    await calculateProfitability({ productionRecordId: selectedId });
-  }, [selectedId, calculateProfitability]);
+    const parsed = initialInvestmentCost.trim() !== '' ? parseFloat(initialInvestmentCost.replace(',', '.')) : undefined;
+    await calculateProfitability({
+      productionRecordId: selectedId,
+      initialInvestmentCost: parsed !== undefined && !isNaN(parsed) ? parsed : undefined,
+      includeAutomaticEnergyCalculation: includeAutoEnergy,
+    });
+  }, [selectedId, initialInvestmentCost, calculateProfitability]);
 
   if (productionLoading && productionRecords.length === 0) {
     return (
@@ -82,6 +89,42 @@ export function ProfitabilitySection(): React.ReactElement {
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+
+      {/* Optional initial investment input */}
+      <View style={styles.investmentInputWrapper}>
+        <Text variant="caption" color={semanticColors.textSecondary} style={styles.inputLabel}>
+          Inversión inicial (opcional)
+        </Text>
+        <TextInput
+          style={styles.investmentInput}
+          value={initialInvestmentCost}
+          onChangeText={setInitialInvestmentCost}
+          placeholder="Ej: 850000 (COP)"
+          placeholderTextColor={colors.gray[400]}
+          keyboardType="numeric"
+        />
+        <Text variant="caption" color={semanticColors.textTertiary}>
+          Hardware, infraestructura e instalación. Permite calcular el ROI real del ciclo.
+        </Text>
+      </View>
+
+      {/* Auto energy switch */}
+      <View style={styles.switchRow}>
+        <View style={styles.switchTextContainer}>
+          <Text variant="label" color={semanticColors.textPrimary}>
+            Consumo automático de actuadores
+          </Text>
+          <Text variant="caption" color={semanticColors.textTertiary}>
+            Desactívalo si ya registraste ese consumo manualmente
+          </Text>
+        </View>
+        <Switch
+          value={includeAutoEnergy}
+          onValueChange={setIncludeAutoEnergy}
+          trackColor={{ false: colors.gray[300], true: colors.hidro[400] }}
+          thumbColor={includeAutoEnergy ? colors.hidro[600] : colors.gray[50]}
+        />
+      </View>
 
       {/* Calculate button */}
       <Button
@@ -218,5 +261,32 @@ const styles = StyleSheet.create({
   },
   calcButton: {
     marginTop: spacing.sm,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  switchTextContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  investmentInputWrapper: {
+    gap: spacing.xs,
+  },
+  inputLabel: {
+    fontWeight: typography.fontWeight.semibold,
+  },
+  investmentInput: {
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    color: colors.gray[900],
+    backgroundColor: colors.white,
+    fontFamily: typography.fontFamily.regular,
   },
 });

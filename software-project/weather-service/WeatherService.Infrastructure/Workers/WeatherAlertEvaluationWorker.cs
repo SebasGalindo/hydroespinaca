@@ -20,15 +20,18 @@ public class WeatherAlertEvaluationWorker : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<WeatherAlertEvaluationWorker> _logger;
     private readonly WeatherSettings _weatherSettings;
+    private readonly IAlertDeliveryLogRepository _deliveryLogRepo;
 
     public WeatherAlertEvaluationWorker(
         IServiceProvider serviceProvider,
         IOptions<WeatherSettings> weatherSettings,
+        IAlertDeliveryLogRepository deliveryLogRepo,
         ILogger<WeatherAlertEvaluationWorker> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _weatherSettings = weatherSettings.Value;
+        _deliveryLogRepo = deliveryLogRepo;
     }
 
     /// <summary>
@@ -181,8 +184,9 @@ public class WeatherAlertEvaluationWorker : BackgroundService
 
         if (enabledThresholds.Count == 0) return 0;
 
-        // Evaluate daily forecast (8 days)
-        foreach (var daily in forecast.Daily)
+        // Evaluate daily forecast limited by MaxForecastDays
+        var daysToEvaluate = forecast.Daily.Take(config.MaxForecastDays);
+        foreach (var daily in daysToEvaluate)
         {
             foreach (var threshold in enabledThresholds)
             {
@@ -246,7 +250,7 @@ public class WeatherAlertEvaluationWorker : BackgroundService
         // Notify subscribers with all grouped alerts
         if (newAlerts.Count > 0)
         {
-            await NotifySubscribersGroupedAsync(newAlerts, config.FuzzySystemId, alertRepo, notificationClient, ct);
+            await NotifySubscribersGroupedAsync(newAlerts, config, alertRepo, notificationClient, _deliveryLogRepo, ct);
         }
 
         return newAlerts.Count;
@@ -430,15 +434,16 @@ public class WeatherAlertEvaluationWorker : BackgroundService
     /// <returns></returns>
     private static async Task NotifySubscribersGroupedAsync(
         List<WeatherAlert> newAlerts,
-        string fuzzySystemId,
+        WeatherAlertConfig config,
         IWeatherAlertRepository alertRepo,
         INotificationServiceClient notificationClient,
+        IAlertDeliveryLogRepository deliveryLogRepo,
         CancellationToken ct)
     {
         if (newAlerts.Count == 0) return;
 
         // Get subscribers for the fuzzy system from the notification service
-        var subscribers = await notificationClient.GetSubscribersForFuzzySystemAsync(fuzzySystemId, ct);
+        var subscribers = await notificationClient.GetSubscribersForFuzzySystemAsync(config.FuzzySystemId, ct);
         if (subscribers.Count == 0) return;
 
         // Build a grouped message
@@ -471,7 +476,7 @@ public class WeatherAlertEvaluationWorker : BackgroundService
         // Data dictionary for navigation
         var data = new Dictionary<string, string>
         {
-            ["fuzzySystemId"] = fuzzySystemId,
+            ["fuzzySystemId"] = config.FuzzySystemId,
             ["isGrouped"] = newAlerts.Count > 1 ? "true" : "false",
             ["alertCount"] = newAlerts.Count.ToString()
         };
@@ -493,6 +498,31 @@ public class WeatherAlertEvaluationWorker : BackgroundService
 
         foreach (var subscriber in subscribers)
         {
+            // Per-user deduplication: skip alerts already delivered to this user
+            List<WeatherAlert> alertsToSend;
+            if (!config.AllowDuplicateAlerts)
+            {
+                alertsToSend = new List<WeatherAlert>();
+                foreach (var alert in newAlerts)
+                {
+                    var alreadySent = await deliveryLogRepo.ExistsAsync(
+                        config.FuzzySystemId,
+                        alert.AlertType,
+                        alert.ForecastDatetime.Date,
+                        subscriber.UserId,
+                        ct);
+
+                    if (!alreadySent)
+                        alertsToSend.Add(alert);
+                }
+
+                if (alertsToSend.Count == 0) continue;
+            }
+            else
+            {
+                alertsToSend = newAlerts;
+            }
+
             // Send single grouped notification to the subscriber
             await notificationClient.SendAlertNotificationAsync(
                 subscriber.UserId,
@@ -503,7 +533,7 @@ public class WeatherAlertEvaluationWorker : BackgroundService
                 ct);
 
             // Record that this user has been notified for ALL these alerts
-            foreach (var alert in newAlerts)
+            foreach (var alert in alertsToSend)
             {
                 await alertRepo.AddNotifiedUserAsync(alert.Id, new NotifiedUser
                 {
@@ -512,6 +542,18 @@ public class WeatherAlertEvaluationWorker : BackgroundService
                     SentAt = DateTime.UtcNow,
                     IsRead = false
                 }, ct);
+
+                if (!config.AllowDuplicateAlerts)
+                {
+                    await deliveryLogRepo.InsertAsync(new AlertDeliveryLog
+                    {
+                        FuzzySystemId = config.FuzzySystemId,
+                        AlertType = alert.AlertType,
+                        ForecastDate = alert.ForecastDatetime.Date,
+                        UserId = subscriber.UserId,
+                        SentAt = DateTime.UtcNow,
+                    }, ct);
+                }
             }
         }
     }

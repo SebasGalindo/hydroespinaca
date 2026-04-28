@@ -187,4 +187,59 @@ public interface IFuzzyServiceClient
     /// </summary>
     Task DeleteRuleAsync(
         string accessToken, string id, CancellationToken cancellationToken = default);
+
+    // ──────────────────────────────────────────────
+    //  Fuzzy Evaluations (RF-F07: history / recent / stats)
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Lists persisted fuzzy evaluations with optional filters and pagination.
+    /// </summary>
+    Task<FuzzyEvaluationsListResponseDto> GetEvaluationsAsync(
+        string accessToken,
+        string? systemId,
+        DateTime? startDate,
+        DateTime? endDate,
+        int page,
+        int pageSize,
+        string sortBy,
+        string sortOrder,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists evaluations performed in the last <paramref name="hours"/> hours
+    /// (24 by default, capped at 168 = 7 days by the backend).
+    /// </summary>
+    Task<FuzzyEvaluationsListResponseDto> GetRecentEvaluationsAsync(
+        string accessToken,
+        int hours,
+        string? systemId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns aggregate statistics (totals per system, per day, daily average)
+    /// over a window of <paramref name="days"/> days.
+    /// </summary>
+    Task<FuzzyEvaluationStatsDto> GetEvaluationStatsAsync(
+        string accessToken,
+        string? systemId,
+        int days,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists evaluations for a specific system, with optional date range.
+    /// Uses the fuzzy-service /system/{id} endpoint which correctly applies
+    /// date filters together with the system filter.
+    /// </summary>
+    Task<FuzzyEvaluationsListResponseDto> GetEvaluationsBySystemAsync(
+        string accessToken,
+        string systemId,
+        DateTime? startDate,
+        DateTime? endDate,
+        int page,
+        int pageSize,
+        string sortOrder,
+        CancellationToken cancellationToken = default);
 }

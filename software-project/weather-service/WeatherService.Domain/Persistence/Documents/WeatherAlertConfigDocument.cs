@@ -25,6 +25,12 @@ public class WeatherAlertConfigDocument : IIdentifiableMutable
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;
 
+    [BsonElement("max_forecast_days")]
+    public int MaxForecastDays { get; set; } = 8;
+
+    [BsonElement("allow_duplicate_alerts")]
+    public bool AllowDuplicateAlerts { get; set; } = true;
+
     [BsonElement("created_by")]
     public string CreatedBy { get; set; } = string.Empty;
 

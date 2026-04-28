@@ -15,7 +15,10 @@ public interface IAuthService
         string? csrfToken = null,
         string? ipAddress = null,
         string? userAgent = null,
+        bool acceptTerms = false,
         CancellationToken cancellationToken = default);
+
+    Task AcceptTermsAsync(string userId, string accessToken, CancellationToken cancellationToken = default);
 
     Task<TokenInfo> RefreshTokenAsync(
         string refreshToken,

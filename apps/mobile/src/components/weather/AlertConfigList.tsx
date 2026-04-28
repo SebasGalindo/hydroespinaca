@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '../atoms/Text';
 import { Button } from '../atoms/Button';
@@ -72,6 +72,15 @@ export function AlertConfigList({
         </Text>
       )}
 
+      <View style={styles.metaRow}>
+        <Text variant="caption" color={semanticColors.textSecondary}>
+          Días de pronóstico: {config.maxForecastDays ?? 8}
+        </Text>
+        <Text variant="caption" color={semanticColors.textSecondary}>
+          Alertas repetidas: {(config.allowDuplicateAlerts ?? true) ? 'Permitidas' : 'Bloqueadas'}
+        </Text>
+      </View>
+
       {enabledAlerts.length === 0 ? (
         <Text variant="body" color={semanticColors.textSecondary} style={styles.empty}>
           No hay umbrales habilitados.
@@ -117,6 +126,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   inactive: {
+    marginBottom: spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
     marginBottom: spacing.sm,
   },
   readonlyRow: {

@@ -32,7 +32,8 @@ public class ProfitabilityController : ControllerBase
     {
         var query = new CalculateProfitabilityQuery(
             request.ProductionRecordId,
-            request.ActuatorDurations);
+            request.ActuatorDurations,
+            request.InitialInvestmentCost);
 
         var result = await _sender.Send(query, cancellationToken);
         return Ok(result);

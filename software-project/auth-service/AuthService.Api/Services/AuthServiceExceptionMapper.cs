@@ -24,6 +24,11 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
         // Handle auth-service specific exceptions
         return exception switch
         {
+            TermsNotAcceptedException ex => CreateProblemDetails(
+                "Terms Not Accepted", ex.Message, 403,
+                "terms_not_accepted",
+                requestPath, isDevelopment),
+
             InvalidClientCredentialsException ex => CreateProblemDetails(
                 "Unauthorized", ex.Message, 401,
                 "https://tools.ietf.org/html/rfc9110#section-15.5.2",
@@ -63,7 +68,8 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
 
     public bool CanHandle(Exception exception)
     {
-        return exception is InvalidClientCredentialsException or
+        return exception is TermsNotAcceptedException or
+               InvalidClientCredentialsException or
                TokenExpiredException or
                InvalidRefreshTokenException or
                InvalidCredentialsException or
@@ -77,6 +83,7 @@ public class AuthServiceExceptionMapper : IExceptionToProblemDetailsMapper
     {
         return exception switch
         {
+            TermsNotAcceptedException => 403,
             InvalidClientCredentialsException => 401,
             TokenExpiredException => 401,
             InvalidRefreshTokenException => 401,

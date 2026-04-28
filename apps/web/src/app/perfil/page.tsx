@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { useAuthStore } from '@hydroespinaca/shared';
 import { ShieldIcon, SproutIcon } from '@/components/ui/icons/Icons';
+import { TermsModal } from '@/components/auth/TermsModal';
 
 export default function PerfilPage() {
   const { user } = useAuthStore();
+  const [showTerms, setShowTerms] = useState(false);
 
   return (
     <PageLayout
@@ -39,10 +41,22 @@ export default function PerfilPage() {
                   {user?.email || 'correo@ejemplo.com'}
                 </p>
               </div>
+              <div>
+                <button
+                  onClick={() => setShowTerms(true)}
+                  className="text-sm text-green-600 hover:underline font-medium"
+                >
+                  Tratamiento de datos personales
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {showTerms && (
+        <TermsModal readOnly onClose={() => setShowTerms(false)} />
+      )}
     </PageLayout>
   );
 }

@@ -212,6 +212,8 @@ export interface WeatherAlertConfig {
   fuzzySystemName: string;
   alerts: AlertThreshold[];
   isActive: boolean;
+  maxForecastDays: number;
+  allowDuplicateAlerts: boolean;
   createdBy: string;
   updatedBy: string;
   createdAt: string;
@@ -222,6 +224,8 @@ export interface UpdateAlertConfigRequest {
   userId: string;
   isActive: boolean;
   alerts: AlertThreshold[];
+  maxForecastDays?: number;
+  allowDuplicateAlerts?: boolean;
 }
 
 export interface SeedAlertConfigRequest {

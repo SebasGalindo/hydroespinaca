@@ -26,6 +26,8 @@ public class WeatherAlertConfigMapper : IEntityMapper<WeatherAlertConfig, Weathe
             Recommendation = a.Recommendation
         }).ToList(),
         IsActive = d.IsActive,
+        MaxForecastDays = d.MaxForecastDays,
+        AllowDuplicateAlerts = d.AllowDuplicateAlerts,
         CreatedBy = d.CreatedBy,
         UpdatedBy = d.UpdatedBy,
         CreatedAt = d.CreatedAt,
@@ -49,6 +51,8 @@ public class WeatherAlertConfigMapper : IEntityMapper<WeatherAlertConfig, Weathe
             Recommendation = a.Recommendation
         }).ToList(),
         IsActive = e.IsActive,
+        MaxForecastDays = e.MaxForecastDays,
+        AllowDuplicateAlerts = e.AllowDuplicateAlerts,
         CreatedBy = e.CreatedBy,
         UpdatedBy = e.UpdatedBy,
         CreatedAt = e.CreatedAt,

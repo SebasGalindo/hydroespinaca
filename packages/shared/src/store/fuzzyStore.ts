@@ -19,6 +19,10 @@ import type {
   SimulateFuzzySystemRequest,
   SimulateFuzzySystemResponse,
   FuzzySystemExport,
+  FuzzyEvaluation,
+  FuzzyEvaluationsListResponse,
+  FuzzyEvaluationStats,
+  FuzzyEvaluationListParams,
 } from '../types/fuzzy';
 
 // ==================== State Interface ====================
@@ -52,6 +56,21 @@ interface FuzzyState {
   // CRUD operation state
   crudLoading: boolean;
   crudError: string | null;
+
+  // Evaluation history (RF-F07)
+  evaluations: FuzzyEvaluation[];
+  evaluationsTotalCount: number;
+  evaluationsPage: number;
+  evaluationsPageSize: number;
+  evaluationsTotalPages: number;
+  evaluationsHasNext: boolean;
+  evaluationsHasPrevious: boolean;
+  evaluationsLoading: boolean;
+  evaluationsError: string | null;
+
+  evaluationStats: FuzzyEvaluationStats | null;
+  evaluationStatsLoading: boolean;
+  evaluationStatsError: string | null;
 }
 
 // ==================== Actions Interface ====================
@@ -97,6 +116,12 @@ interface FuzzyActions {
   simulateSystem: (id: string, request: SimulateFuzzySystemRequest) => Promise<void>;
   clearSimulation: () => void;
 
+  // Evaluation history (RF-F07)
+  fetchEvaluations: (params?: FuzzyEvaluationListParams) => Promise<void>;
+  fetchRecentEvaluations: (hours?: number, systemId?: string, page?: number, pageSize?: number) => Promise<void>;
+  fetchEvaluationStats: (systemId?: string, days?: number) => Promise<void>;
+  clearEvaluations: () => void;
+
   // Utility
   clearErrors: () => void;
   resetFuzzyStore: () => void;
@@ -127,6 +152,20 @@ const initialState: FuzzyState = {
 
   crudLoading: false,
   crudError: null,
+
+  evaluations: [],
+  evaluationsTotalCount: 0,
+  evaluationsPage: 1,
+  evaluationsPageSize: 20,
+  evaluationsTotalPages: 0,
+  evaluationsHasNext: false,
+  evaluationsHasPrevious: false,
+  evaluationsLoading: false,
+  evaluationsError: null,
+
+  evaluationStats: null,
+  evaluationStatsLoading: false,
+  evaluationStatsError: null,
 };
 
 // ==================== Store ====================
@@ -550,6 +589,94 @@ export const useFuzzyStore = create<FuzzyState & FuzzyActions>()((set, get) => (
   },
 
   // ────────────────────────────────────────
+  //  Evaluation History (RF-F07)
+  // ────────────────────────────────────────
+
+  fetchEvaluations: async (params?: FuzzyEvaluationListParams) => {
+    set({ evaluationsLoading: true, evaluationsError: null });
+    try {
+      // When filtering by system + date range, use the system-specific endpoint
+      // which correctly applies both filters together (the generic endpoint
+      // ignores date filters when systemId is present).
+      const useSystemEndpoint =
+        params?.systemId && (params.startDate || params.endDate);
+
+      const data: FuzzyEvaluationsListResponse = useSystemEndpoint
+        ? await fuzzyService.getEvaluationsBySystem(params!.systemId!, {
+            startDate: params!.startDate,
+            endDate: params!.endDate,
+            page: params!.page,
+            pageSize: params!.pageSize,
+            sortOrder: params!.sortOrder,
+          })
+        : await fuzzyService.getEvaluations(params);
+
+      set({
+        evaluations: data.evaluations,
+        evaluationsTotalCount: data.totalCount,
+        evaluationsPage: data.page,
+        evaluationsPageSize: data.pageSize,
+        evaluationsTotalPages: data.totalPages,
+        evaluationsHasNext: data.hasNext,
+        evaluationsHasPrevious: data.hasPrevious,
+        evaluationsLoading: false,
+      });
+    } catch (error) {
+      set({ evaluationsError: extractErrorMessage(error), evaluationsLoading: false });
+    }
+  },
+
+  fetchRecentEvaluations: async (
+    hours: number = 24,
+    systemId?: string,
+    page: number = 1,
+    pageSize: number = 20,
+  ) => {
+    set({ evaluationsLoading: true, evaluationsError: null });
+    try {
+      const data: FuzzyEvaluationsListResponse = await fuzzyService.getRecentEvaluations(
+        hours, systemId, page, pageSize,
+      );
+      set({
+        evaluations: data.evaluations,
+        evaluationsTotalCount: data.totalCount,
+        evaluationsPage: data.page,
+        evaluationsPageSize: data.pageSize,
+        evaluationsTotalPages: data.totalPages,
+        evaluationsHasNext: data.hasNext,
+        evaluationsHasPrevious: data.hasPrevious,
+        evaluationsLoading: false,
+      });
+    } catch (error) {
+      set({ evaluationsError: extractErrorMessage(error), evaluationsLoading: false });
+    }
+  },
+
+  fetchEvaluationStats: async (systemId?: string, days: number = 7) => {
+    set({ evaluationStatsLoading: true, evaluationStatsError: null });
+    try {
+      const data = await fuzzyService.getEvaluationStats(systemId, days);
+      set({ evaluationStats: data, evaluationStatsLoading: false });
+    } catch (error) {
+      set({ evaluationStatsError: extractErrorMessage(error), evaluationStatsLoading: false });
+    }
+  },
+
+  clearEvaluations: () => {
+    set({
+      evaluations: [],
+      evaluationsTotalCount: 0,
+      evaluationsPage: 1,
+      evaluationsTotalPages: 0,
+      evaluationsHasNext: false,
+      evaluationsHasPrevious: false,
+      evaluationsError: null,
+      evaluationStats: null,
+      evaluationStatsError: null,
+    });
+  },
+
+  // ────────────────────────────────────────
   //  Utility
   // ────────────────────────────────────────
 
@@ -561,6 +688,8 @@ export const useFuzzyStore = create<FuzzyState & FuzzyActions>()((set, get) => (
       exportImportError: null,
       operationError: null,
       crudError: null,
+      evaluationsError: null,
+      evaluationStatsError: null,
     });
   },
 

@@ -6,6 +6,7 @@ using Polly.Extensions.Http;
 using WeatherService.Domain.Interfaces;
 using WeatherService.Infrastructure.Clients;
 using WeatherService.Infrastructure.Persistence;
+using WeatherService.Infrastructure.Workers;
 
 namespace WeatherService.Infrastructure;
 
@@ -24,6 +25,7 @@ public static class ServiceCollectionInfrastructureExtensions
         services.AddSingleton<IWeatherAlertConfigRepository, MongoWeatherAlertConfigRepository>();
         services.AddSingleton<IWeatherAlertRepository, MongoWeatherAlertRepository>();
         services.AddSingleton<IForecastCacheRepository, MongoForecastCacheRepository>();
+        services.AddSingleton<IAlertDeliveryLogRepository, MongoAlertDeliveryLogRepository>();
 
         // HttpClient for OpenWeather API
         services.AddHttpClient<IOpenWeatherClient, OpenWeatherClient>();

@@ -24,7 +24,11 @@ interface ProfitabilityResultProps {
 }
 
 export function ProfitabilityResult({ result }: ProfitabilityResultProps): React.ReactElement {
-  const { production, expenses, revenue, netBenefit, profitMarginPercent, currency } = result;
+  const {
+    production, expenses, revenue, netBenefit,
+    profitMarginPercent, roiPercent, costPerKiloProduced,
+    waterFootprintLitersPerKg, currency,
+  } = result;
   const isProfit = netBenefit >= 0;
 
   return (
@@ -57,8 +61,43 @@ export function ProfitabilityResult({ result }: ProfitabilityResultProps): React
               color={isProfit ? colors.hidro[600] : colors.error[600]}
             >
               {isProfit ? 'Ganancia neta' : 'Pérdida neta'} · Margen {profitMarginPercent.toFixed(1)}%
+              {roiPercent !== undefined && roiPercent !== null
+                ? `  ·  ROI ${roiPercent.toFixed(1)}%`
+                : ''}
             </Text>
           </View>
+        </View>
+
+        {/* Explanatory captions */}
+        <View style={styles.captionBlock}>
+          <Text variant="caption" color={semanticColors.textTertiary}>
+            <Text variant="caption" color={semanticColors.textSecondary} style={styles.boldText}>Resultado Neto: </Text>
+            {isProfit
+              ? 'Positivo — tus ingresos superaron los gastos. El ciclo fue rentable.'
+              : 'Negativo — los gastos superaron los ingresos. Revisa costos o ajusta el precio de venta.'}
+          </Text>
+          <Text variant="caption" color={semanticColors.textTertiary} style={styles.captionLine}>
+            <Text variant="caption" color={semanticColors.textSecondary} style={styles.boldText}>Margen ({profitMarginPercent.toFixed(1)}%): </Text>
+            {'De cada peso ingresado, ese porcentaje es ganancia neta. '}
+            {profitMarginPercent >= 20
+              ? 'Bueno — superior al 20%, considerado saludable en hidropónicos.'
+              : profitMarginPercent >= 5
+              ? 'Moderado — entre 5% y 20%. Busca reducir costos operacionales.'
+              : 'Bajo — inferior al 5%. Revisa precios, consumo y desperdicios.'}
+          </Text>
+          {roiPercent !== undefined && roiPercent !== null && (
+            <Text variant="caption" color={semanticColors.textTertiary} style={styles.captionLine}>
+              <Text variant="caption" color={semanticColors.textSecondary} style={styles.boldText}>ROI ({roiPercent.toFixed(1)}%): </Text>
+              {`Retorno sobre la inversión — por cada $100 invertidos recuperas $${(100 + roiPercent).toFixed(0)}. `}
+              {roiPercent >= 30
+                ? 'Excelente — supera el 30%, muy rentable para el período.'
+                : roiPercent >= 10
+                ? 'Aceptable — entre 10% y 30%. Hay margen de mejora.'
+                : roiPercent >= 0
+                ? 'Bajo — recuperas la inversión pero con poco margen.'
+                : 'Negativo — aún no recuperas la inversión inicial en este ciclo.'}
+            </Text>
+          )}
         </View>
       </Card>
 
@@ -83,6 +122,48 @@ export function ProfitabilityResult({ result }: ProfitabilityResultProps): React
           />
         </View>
       </Card>
+
+      {/* Key DSS indicators */}
+      <View style={styles.kpiColumn}>
+        <View style={[styles.kpiCard, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
+          <View style={styles.kpiHeader}>
+            <Text variant="caption" color={semanticColors.textSecondary}>Costo por kg producido</Text>
+            <Text variant="label" color="#1d4ed8" style={styles.boldText}>
+              {formatCurrency(costPerKiloProduced, currency)}/kg
+            </Text>
+          </View>
+          <View style={styles.kpiDivider} />
+          <Text variant="caption" color={semanticColors.textTertiary}>
+            <Text variant="caption" color={semanticColors.textSecondary} style={styles.boldText}>¿Qué indica? </Text>
+            {'Lo que te cuesta producir cada kilogramo. Debe ser menor al precio de venta para ser rentable. '}
+            {costPerKiloProduced <= production.pricePerKilo * 0.8
+              ? '✅ Eficiente — costo significativamente por debajo del precio de venta.'
+              : costPerKiloProduced <= production.pricePerKilo
+              ? '⚠️ Ajustado — costo cercano al precio de venta. Margen estrecho.'
+              : '🔴 Crítico — costo supera el precio de venta. Opera a pérdida por kg.'}
+          </Text>
+        </View>
+        {waterFootprintLitersPerKg !== undefined && waterFootprintLitersPerKg !== null && (
+          <View style={[styles.kpiCard, { backgroundColor: '#ecfeff', borderColor: '#a5f3fc' }]}>
+            <View style={styles.kpiHeader}>
+              <Text variant="caption" color={semanticColors.textSecondary}>Huella hídrica aprox.</Text>
+              <Text variant="label" color="#0e7490" style={styles.boldText}>
+                {waterFootprintLitersPerKg.toFixed(1)} L/kg
+              </Text>
+            </View>
+            <View style={styles.kpiDivider} />
+            <Text variant="caption" color={semanticColors.textTertiary}>
+              <Text variant="caption" color={semanticColors.textSecondary} style={styles.boldText}>¿Qué indica? </Text>
+              {'Litros de agua usados por kg producido. Menor = más eficiente. '}
+              {waterFootprintLitersPerKg <= 4
+                ? '✅ Excelente — inferior a 4 L/kg. Hidropónico muy eficiente (vs. ~250 L/kg en tierra).'
+                : waterFootprintLitersPerKg <= 8
+                ? '⚠️ Aceptable — entre 4 y 8 L/kg. Revisa fugas o recirculación.'
+                : '🔴 Alto — superior a 8 L/kg. Optimiza el sistema de riego o recirculación.'}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Revenue */}
       <StatCard
@@ -275,6 +356,37 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     flex: 1,
     textAlign: 'right',
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  kpiColumn: {
+    gap: spacing.sm,
+  },
+  kpiCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  kpiHeader: {
+    gap: 2,
+  },
+  kpiDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    marginVertical: 2,
+  },
+  captionBlock: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    gap: spacing.xs,
+  },
+  captionLine: {
+    marginTop: 2,
   },
   expensesGrid: {
     gap: spacing.sm,

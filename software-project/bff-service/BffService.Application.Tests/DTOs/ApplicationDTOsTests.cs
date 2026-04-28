@@ -71,7 +71,7 @@ public class UserSessionDtoTests
         var dto = new UserSessionDto("user123", "session456", "testuser", "test@example.com", "Admin");
 
         // Act
-        var (userId, sessionId, username, email, role) = dto;
+        var (userId, sessionId, username, email, role, hasAcceptedTerms) = dto;
 
         // Assert
         userId.Should().Be("user123");
@@ -79,6 +79,7 @@ public class UserSessionDtoTests
         username.Should().Be("testuser");
         email.Should().Be("test@example.com");
         role.Should().Be("Admin");
+        hasAcceptedTerms.Should().BeFalse();
     }
 }
 

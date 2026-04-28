@@ -137,6 +137,96 @@ public class CalculateProfitabilityQueryHandlerTests
         result.ProfitMarginPercent.Should().Be(0m);
     }
 
+    [Fact]
+    public async Task Handle_WithInitialInvestment_ShouldCalculateRoiPercent()
+    {
+        // Revenue = 10 * 10000 = 100000, Expenses = 20000, Net = 80000
+        // ROI = 80000 / (50000 + 20000) = 80000 / 70000 ≈ 114.29%
+        var production = MakeProduction("p-1", 10m, 10000m);
+        _productionRepo.Setup(r => r.GetByIdAsync("p-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(production);
+        _sender.Setup(s => s.Send(It.IsAny<CalculateOperationalCostQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationalCostResponse { TotalOperationalCost = 20000m, TotalEstimatedKwh = 5m, Actuators = new() });
+        _consumptionRepo.Setup(r => r.GetByRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ManualConsumptionEntry>());
+
+        var query = new CalculateProfitabilityQuery("p-1", new(), InitialInvestmentCost: 50000m);
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        result.RoiPercent.Should().NotBeNull();
+        result.RoiPercent!.Value.Should().BeApproximately(114.29m, 0.01m);
+    }
+
+    [Fact]
+    public async Task Handle_WithoutInitialInvestment_ShouldReturnNullRoi()
+    {
+        var production = MakeProduction("p-1", 10m, 10000m);
+        _productionRepo.Setup(r => r.GetByIdAsync("p-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(production);
+        _sender.Setup(s => s.Send(It.IsAny<CalculateOperationalCostQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationalCostResponse { TotalOperationalCost = 5000m, TotalEstimatedKwh = 1m, Actuators = new() });
+        _consumptionRepo.Setup(r => r.GetByRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ManualConsumptionEntry>());
+
+        var result = await _handler.Handle(new CalculateProfitabilityQuery("p-1", new()), CancellationToken.None);
+
+        result.RoiPercent.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldCalculateCostPerKiloProduced()
+    {
+        // Expenses = 30000, Kilos = 10 → CostPerKg = 3000
+        var production = MakeProduction("p-1", 10m, 10000m);
+        _productionRepo.Setup(r => r.GetByIdAsync("p-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(production);
+        _sender.Setup(s => s.Send(It.IsAny<CalculateOperationalCostQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationalCostResponse { TotalOperationalCost = 30000m, TotalEstimatedKwh = 5m, Actuators = new() });
+        _consumptionRepo.Setup(r => r.GetByRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ManualConsumptionEntry>());
+
+        var result = await _handler.Handle(new CalculateProfitabilityQuery("p-1", new()), CancellationToken.None);
+
+        result.CostPerKiloProduced.Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task Handle_WithWaterConsumption_ShouldCalculateWaterFootprint()
+    {
+        // Water = 200 L, Kilos = 10 → Footprint = 20 L/kg
+        var production = MakeProduction("p-1", 10m, 10000m);
+        _productionRepo.Setup(r => r.GetByIdAsync("p-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(production);
+        _sender.Setup(s => s.Send(It.IsAny<CalculateOperationalCostQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationalCostResponse { TotalOperationalCost = 5000m, TotalEstimatedKwh = 1m, Actuators = new() });
+        _consumptionRepo.Setup(r => r.GetByRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ManualConsumptionEntry>
+            {
+                MakeConsumption(ConsumptionType.WaterLiters, 200m, 500m)
+            });
+
+        var result = await _handler.Handle(new CalculateProfitabilityQuery("p-1", new()), CancellationToken.None);
+
+        result.WaterFootprintLitersPerKg.Should().NotBeNull();
+        result.WaterFootprintLitersPerKg!.Value.Should().Be(20m);
+    }
+
+    [Fact]
+    public async Task Handle_WithoutWaterConsumption_ShouldReturnNullWaterFootprint()
+    {
+        var production = MakeProduction("p-1", 10m, 10000m);
+        _productionRepo.Setup(r => r.GetByIdAsync("p-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(production);
+        _sender.Setup(s => s.Send(It.IsAny<CalculateOperationalCostQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationalCostResponse { TotalOperationalCost = 5000m, TotalEstimatedKwh = 1m, Actuators = new() });
+        _consumptionRepo.Setup(r => r.GetByRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ManualConsumptionEntry>());
+
+        var result = await _handler.Handle(new CalculateProfitabilityQuery("p-1", new()), CancellationToken.None);
+
+        result.WaterFootprintLitersPerKg.Should().BeNull();
+    }
+
     private static ProductionRecord MakeProduction(string id, decimal kilos, decimal pricePerKilo)
     {
         var record = new ProductionRecord

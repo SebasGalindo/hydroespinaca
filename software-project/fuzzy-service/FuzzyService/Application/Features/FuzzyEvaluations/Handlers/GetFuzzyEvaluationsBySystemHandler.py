@@ -24,22 +24,22 @@ class GetFuzzyEvaluationsBySystemHandler:
         # Crear ID de dominio
         system_id = FuzzySystemId(query.system_id)
         
-        # Obtener evaluaciones del sistema
-        if query.start_date and query.end_date:
-            # Si hay filtros de fecha, usar filter_evaluations
-            filters = {
-                'system_id': query.system_id,
-                'start_date': query.start_date,
-                'end_date': query.end_date
-            }
+        # Obtener evaluaciones del sistema. Aplicamos el filtro por fecha si
+        # cualquiera de los dos extremos está presente — antes se requerían
+        # ambos y el filtro nunca se activaba cuando el cliente solo enviaba
+        # `start_date`.
+        if query.start_date or query.end_date:
+            filters: dict = {'system_id': query.system_id}
+            if query.start_date:
+                filters['start_date'] = query.start_date
+            if query.end_date:
+                filters['end_date'] = query.end_date
             evaluations = await evaluation_repo.filter_evaluations(
                 filters=filters,
                 skip=query.skip,
                 limit=query.limit
             )
-            # Para el conteo, obtener todos los filtrados
-            all_filtered = await evaluation_repo.filter_evaluations(filters=filters, skip=0, limit=10000)
-            total_count = len(all_filtered)
+            total_count = await evaluation_repo.count_filtered_evaluations(filters)
         else:
             # Sin filtros de fecha, usar get_by_system_id
             evaluations = await evaluation_repo.get_by_system_id(

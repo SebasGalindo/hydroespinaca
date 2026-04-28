@@ -14,6 +14,7 @@ public class Session
     public string? Email { get; private set; }
     public string? UserRole { get; private set; }
     public List<string> Scopes { get; private set; }
+    public bool HasAcceptedTerms { get; private set; }
 
     private Session(string sessionId, string csrfToken)
     {
@@ -36,13 +37,14 @@ public class Session
         RefreshTokenExpiresAt = refreshTokenExpiresAt;
     }
 
-    public void SetUserInfo(string userId, string username, string email, string userRole, List<string> scopes)
+    public void SetUserInfo(string userId, string username, string email, string userRole, List<string> scopes, bool hasAcceptedTerms = false)
     {
         UserId = userId;
         Username = username;
         Email = email;
         UserRole = userRole;
         Scopes = scopes ?? new List<string>();
+        HasAcceptedTerms = hasAcceptedTerms;
     }
 
     public void UpdateAccessToken(string accessToken, DateTime expiresAt)

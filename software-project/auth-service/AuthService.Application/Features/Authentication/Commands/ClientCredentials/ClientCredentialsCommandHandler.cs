@@ -49,7 +49,8 @@ public class ClientCredentialsCommandHandler : IRequestHandler<ClientCredentials
             HydroEspinaca.Shared.Constants.SystemRoles.Client,
             clientApp.Code,
             TokenType.MachineToMachine,
-            scopes);  // ✅ Pass actual scopes from database
+            scopes,
+            false);  // M2M tokens don't require user terms acceptance
 
         return new TokenResultDto(
             tokens.AccessToken,

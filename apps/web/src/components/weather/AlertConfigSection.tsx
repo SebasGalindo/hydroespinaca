@@ -18,6 +18,8 @@ const AlertConfigSection = React.memo(function AlertConfigSection({ fuzzySystemI
   } = useWeatherStore();
 
   const [editingAlerts, setEditingAlerts] = useState<AlertThreshold[]>([]);
+  const [maxForecastDays, setMaxForecastDays] = useState(8);
+  const [allowDuplicateAlerts, setAllowDuplicateAlerts] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -30,6 +32,8 @@ const AlertConfigSection = React.memo(function AlertConfigSection({ fuzzySystemI
   useEffect(() => {
     if (alertConfig?.alerts) {
       setEditingAlerts(alertConfig.alerts);
+      setMaxForecastDays(alertConfig.maxForecastDays ?? 8);
+      setAllowDuplicateAlerts(alertConfig.allowDuplicateAlerts ?? true);
       setIsDirty(false);
     }
   }, [alertConfig]);
@@ -67,6 +71,8 @@ const AlertConfigSection = React.memo(function AlertConfigSection({ fuzzySystemI
         userId: user.id,
         isActive: alertConfig.isActive,
         alerts: editingAlerts,
+        maxForecastDays,
+        allowDuplicateAlerts,
       };
       await updateAlertConfig(fuzzySystemId, req);
       setIsDirty(false);
@@ -137,6 +143,49 @@ const AlertConfigSection = React.memo(function AlertConfigSection({ fuzzySystemI
             {saving ? 'Guardando...' : '💾 Guardar Cambios'}
           </button>
         )}
+      </div>
+
+      {/* General preferences */}
+      <div className="p-4 border-b border-gray-100 bg-gray-50 space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Días de pronóstico a revisar</p>
+            <p className="text-xs text-gray-400">Máximo de días del pronóstico que se evalúan (1–8)</p>
+          </div>
+          <input
+            type="number"
+            min={1}
+            max={8}
+            value={maxForecastDays}
+            onChange={(e) => {
+              const v = Math.max(1, Math.min(8, parseInt(e.target.value) || 1));
+              setMaxForecastDays(v);
+              setIsDirty(true);
+            }}
+            className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-center"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Permitir alertas repetidas del mismo día</p>
+            <p className="text-xs text-gray-400">Desactívalo para evitar notificaciones duplicadas</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allowDuplicateAlerts}
+            onClick={() => { setAllowDuplicateAlerts(!allowDuplicateAlerts); setIsDirty(true); }}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              allowDuplicateAlerts ? 'bg-green-600' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                allowDuplicateAlerts ? 'translate-x-4' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="divide-y divide-gray-100">

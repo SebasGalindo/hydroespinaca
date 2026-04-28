@@ -442,3 +442,90 @@ export interface FuzzySystemExport {
   terms: Record<string, unknown>[];
   rules: Record<string, unknown>[];
 }
+
+// ==================== Evaluation History (RF-F07) ====================
+
+/**
+ * Crisp input value provided to the fuzzy engine during a persisted evaluation.
+ */
+export interface FuzzyEvaluationInput {
+  sensorId: string;
+  value: number;
+}
+
+/**
+ * Output emitted by a single rule activation in a persisted evaluation.
+ */
+export interface FuzzyEvaluationOutputValue {
+  referenceCode: string;
+  power: string | null;
+  dutyCycle: number | null;
+  duration: number;
+}
+
+/**
+ * One activated rule from a persisted evaluation.
+ */
+export interface FuzzyEvaluationRuleActivation {
+  ruleId: string;
+  firingStrength: number;
+  outputValues: FuzzyEvaluationOutputValue[];
+}
+
+/**
+ * A persisted fuzzy evaluation record.
+ */
+export interface FuzzyEvaluation {
+  id: string | null;
+  systemId: string;
+  timestamp: string | null;
+  inputs: FuzzyEvaluationInput[];
+  activatedRules: FuzzyEvaluationRuleActivation[];
+}
+
+/**
+ * Paginated response from the evaluations list / recent endpoints.
+ */
+export interface FuzzyEvaluationsListResponse {
+  evaluations: FuzzyEvaluation[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+/**
+ * Date range descriptor returned by the stats endpoint.
+ */
+export interface FuzzyEvaluationDateRange {
+  startDate: string;
+  endDate: string;
+  days: number;
+}
+
+/**
+ * Aggregate statistics over a window of fuzzy evaluations.
+ * `systemsStats` maps systemId → count, `dailyStats` maps "YYYY-MM-DD" → count.
+ */
+export interface FuzzyEvaluationStats {
+  totalEvaluations: number;
+  dateRange: FuzzyEvaluationDateRange;
+  systemsStats: Record<string, number>;
+  dailyStats: Record<string, number>;
+  avgEvaluationsPerDay: number;
+}
+
+/**
+ * Filters supported by the evaluations history endpoint.
+ */
+export interface FuzzyEvaluationListParams {
+  systemId?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: 'timestamp' | 'system_id' | 'id';
+  sortOrder?: 'asc' | 'desc';
+}

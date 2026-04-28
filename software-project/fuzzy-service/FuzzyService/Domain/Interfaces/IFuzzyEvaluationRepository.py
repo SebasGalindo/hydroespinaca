@@ -140,6 +140,28 @@ class IFuzzyEvaluationRepository(ABC):
         pass
 
     @abstractmethod
+    async def count_filtered_evaluations(self, filters: Dict[str, Any]) -> int:
+        """Counts evaluations matching the same filters as `filter_evaluations`.
+
+        Args:
+            filters: Same filter dictionary accepted by `filter_evaluations`.
+
+        Returns:
+            Number of evaluations matching the criteria.
+        """
+        pass
+
+    @abstractmethod
+    async def compute_summary_stats(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        """Aggregates daily and per-system counts for the given filter.
+
+        Returns:
+            Dict with keys: `total` (int), `daily_stats` (dict[str, int]),
+            `systems_stats` (dict[str, int]).
+        """
+        pass
+
+    @abstractmethod
     async def count_by_system(self, system_id: FuzzySystemId) -> int:
         """Counts evaluations by system.
         

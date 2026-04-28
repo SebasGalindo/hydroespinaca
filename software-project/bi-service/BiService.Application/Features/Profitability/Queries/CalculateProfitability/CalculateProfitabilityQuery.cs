@@ -9,5 +9,6 @@ namespace BiService.Application.Features.Profitability.Queries.CalculateProfitab
 /// </summary>
 public record CalculateProfitabilityQuery(
     string ProductionRecordId,
-    List<ActuatorDurationInput> ActuatorDurations
+    List<ActuatorDurationInput> ActuatorDurations,
+    decimal? InitialInvestmentCost = null
 ) : IRequest<ProfitabilityResponse>;

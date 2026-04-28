@@ -13,6 +13,11 @@ public class CalculateProfitabilityQueryValidator : AbstractValidator<CalculateP
             .NotEmpty().WithMessage("El ID del registro de producción es requerido");
 
         RuleFor(x => x.ActuatorDurations)
-            .NotEmpty().WithMessage("Se requiere al menos un actuador con datos de duración");
+            .NotNull().WithMessage("La lista de duraciones de actuadores no puede ser nula");
+
+        RuleFor(x => x.InitialInvestmentCost)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.InitialInvestmentCost.HasValue)
+            .WithMessage("El costo de inversión inicial no puede ser negativo");
     }
 }

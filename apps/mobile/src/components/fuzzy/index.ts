@@ -11,3 +11,4 @@ export { VariablesTab } from './VariablesTab';
 export { RuleForm } from './RuleForm';
 export { RulesTab } from './RulesTab';
 export { SimulationTab } from './SimulationTab';
+export { EvaluationHistoryTab } from './EvaluationHistoryTab';

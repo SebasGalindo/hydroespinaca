@@ -57,6 +57,7 @@ public class LoginCommandHandlerTests
 
         var user = new User("testuser", new Email(email), new HashedPassword("$2a$11$hash"), "role123");
         user.SetId("user123");
+        user.AcceptTerms();
 
         var role = new Role("role_admin", "Admin", new List<string> { "read:all", "write:all" });
 
@@ -69,7 +70,8 @@ public class LoginCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
-            TokenType.User))
+            TokenType.User,
+            It.IsAny<bool>()))
             .ReturnsAsync(new TokenResult
             {
                 AccessToken = "access-token",
@@ -170,7 +172,8 @@ public class LoginCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string?>(),
             It.IsAny<TokenType>(),
-            It.IsAny<string[]?>()), Times.Never);
+            It.IsAny<string[]?>(),
+            It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]
@@ -182,6 +185,7 @@ public class LoginCommandHandlerTests
 
         var user = new User("testuser", new Email(email), new HashedPassword("$2a$11$hash"));
         user.SetId("user123");
+        user.AcceptTerms();
 
         _userRepositoryMock.Setup(x => x.FindByEmailAsync(email)).ReturnsAsync(user);
         _passwordHasherMock.Setup(x => x.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
@@ -191,7 +195,8 @@ public class LoginCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
-            TokenType.User))
+            TokenType.User,
+            It.IsAny<bool>()))
             .ReturnsAsync(new TokenResult
             {
                 AccessToken = "access-token",
@@ -236,7 +241,8 @@ public class LoginCommandHandlerTests
             It.IsAny<string>(),
             "user",
             It.IsAny<string?>(),
-            TokenType.User), Times.Once);
+            TokenType.User,
+            It.IsAny<bool>()), Times.Once);
     }
 
     [Fact]
@@ -248,6 +254,7 @@ public class LoginCommandHandlerTests
 
         var user = new User("testuser", new Email(email), new HashedPassword("$2a$11$hash"));
         user.SetId("user123");
+        user.AcceptTerms();
 
         var oldSession1 = new UserSession(
             "user123",
@@ -283,7 +290,8 @@ public class LoginCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
-            TokenType.User))
+            TokenType.User,
+            It.IsAny<bool>()))
             .ReturnsAsync(new TokenResult
             {
                 AccessToken = "access-token",

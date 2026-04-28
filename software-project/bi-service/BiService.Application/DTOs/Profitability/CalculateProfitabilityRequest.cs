@@ -12,4 +12,10 @@ public class CalculateProfitabilityRequest
 
     /// <summary>Lista de duraciones y potencias de los actuadores utilizados durante el ciclo.</summary>
     public List<ActuatorDurationInput> ActuatorDurations { get; set; } = new();
+
+    /// <summary>
+    /// Costo de inversión inicial en infraestructura y hardware (opcional).
+    /// Cuando se provee, se calcula el ROI real: netBenefit / (initialInvestmentCost + totalExpenses) × 100.
+    /// </summary>
+    public decimal? InitialInvestmentCost { get; set; }
 }

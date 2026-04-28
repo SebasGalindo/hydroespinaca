@@ -12,6 +12,7 @@ export { LoginForm } from './LoginForm';
 export { QuietHoursSheet } from './QuietHoursSheet';
 export { ScreenLayout } from './ScreenLayout';
 export { SkeletonLoader } from './SkeletonLoader';
+export { TermsModal } from './TermsModal';
 
 // Types
 export type { AdminGuardProps } from './AdminGuard';
@@ -25,3 +26,4 @@ export type { LoginFormProps } from './LoginForm';
 export type { QuietHoursSheetProps } from './QuietHoursSheet';
 export type { ScreenLayoutProps } from './ScreenLayout';
 export type { SkeletonLoaderProps } from './SkeletonLoader';
+export type { TermsModalProps } from './TermsModal';

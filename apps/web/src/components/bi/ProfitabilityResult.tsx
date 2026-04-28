@@ -12,6 +12,7 @@ import {
   BoltIcon,
   CalculatorIcon,
   PlantIcon,
+  DropletIcon,
 } from '@/components/ui/icons/Icons';
 
 interface ProfitabilityResultProps {
@@ -29,17 +30,22 @@ const ProfitabilityResult = React.memo(function ProfitabilityResult({ data }: Pr
         hover={false}
         className={isProfit ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}
       >
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
             <p className="text-base font-semibold text-gray-600 font-inter">Resultado Neto</p>
             <p className={`text-4xl font-bold font-inter ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
               {formatCurrency(data.netBenefit, data.currency)}
             </p>
             <p className="text-base text-gray-500 font-inter mt-1">
               Margen: {data.profitMarginPercent.toFixed(1)}%
+              {data.roiPercent !== undefined && data.roiPercent !== null && (
+                <span className="ml-3 font-semibold text-blue-600">
+                  · ROI: {data.roiPercent.toFixed(1)}%
+                </span>
+              )}
             </p>
           </div>
-          <div className={`p-3 rounded-full ${isProfit ? 'bg-green-100' : 'bg-red-100'}`}>
+          <div className={`p-3 rounded-full flex-shrink-0 ${isProfit ? 'bg-green-100' : 'bg-red-100'}`}>
             {isProfit ? (
               <TrendingUpIcon size={36} className="text-green-600" />
             ) : (
@@ -47,7 +53,91 @@ const ProfitabilityResult = React.memo(function ProfitabilityResult({ data }: Pr
             )}
           </div>
         </div>
+
+        {/* Captions explicativos */}
+        <div className="mt-3 pt-3 border-t border-current border-opacity-10 space-y-1.5">
+          <p className="text-xs text-gray-500 font-inter">
+            <span className="font-semibold text-gray-600">Resultado Neto:</span>{' '}
+            {isProfit
+              ? 'Positivo — tus ingresos superaron los gastos. El ciclo fue rentable.'
+              : 'Negativo — los gastos superaron los ingresos. Revisa costos o ajusta el precio de venta.'}
+          </p>
+          <p className="text-xs text-gray-500 font-inter">
+            <span className="font-semibold text-gray-600">Margen ({data.profitMarginPercent.toFixed(1)}%):</span>{' '}
+            De cada peso ingresado, ese porcentaje es ganancia neta.{' '}
+            {data.profitMarginPercent >= 20
+              ? 'Bueno — superior al 20%, considerado saludable en hidropónicos.'
+              : data.profitMarginPercent >= 5
+              ? 'Moderado — entre 5% y 20%. Busca reducir costos operacionales.'
+              : 'Bajo — inferior al 5%. Revisa precios, consumo y desperdicios.'}
+          </p>
+          {data.roiPercent !== undefined && data.roiPercent !== null && (
+            <p className="text-xs text-gray-500 font-inter">
+              <span className="font-semibold text-gray-600">ROI ({data.roiPercent.toFixed(1)}%):</span>{' '}
+              Retorno sobre la inversión inicial — por cada $100 invertidos recuperas ${(100 + data.roiPercent).toFixed(0)}.{' '}
+              {data.roiPercent >= 30
+                ? 'Excelente — supera el 30%, muy rentable para el período.'
+                : data.roiPercent >= 10
+                ? 'Aceptable — entre 10% y 30%. Hay margen de mejora.'
+                : data.roiPercent >= 0
+                ? 'Bajo — recuperas la inversión pero con poco margen.'
+                : 'Negativo — aún no recuperas la inversión inicial en este ciclo.'}
+            </p>
+          )}
+        </div>
       </BaseCard>
+
+      {/* Key indicators: cost/kg + water footprint */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <BaseCard padding="sm" hover={false} className="bg-blue-50 border-blue-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-blue-100 flex-shrink-0">
+              <CalculatorIcon size={20} className="text-blue-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-inter">Costo por kg producido</p>
+              <p className="text-lg font-bold text-blue-700 font-inter">
+                {formatCurrency(data.costPerKiloProduced, data.currency)}/kg
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-gray-500 font-inter border-t border-blue-100 pt-2">
+            <span className="font-semibold text-gray-600">¿Qué indica?</span>{' '}
+            Lo que te cuesta producir cada kilogramo. Debe ser{' '}
+            <span className="font-semibold">menor al precio de venta</span> para ser rentable.{' '}
+            {data.costPerKiloProduced <= data.production?.pricePerKilo * 0.8
+              ? '✅ Eficiente — costo significativamente por debajo del precio de venta.'
+              : data.costPerKiloProduced <= data.production?.pricePerKilo
+              ? '⚠️ Ajustado — costo cercano al precio de venta. Margen estrecho.'
+              : '🔴 Crítico — costo supera el precio de venta. Opera a pérdida por kg.'}
+          </p>
+        </BaseCard>
+
+        {data.waterFootprintLitersPerKg !== undefined && data.waterFootprintLitersPerKg !== null && (
+          <BaseCard padding="sm" hover={false} className="bg-cyan-50 border-cyan-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-cyan-100 flex-shrink-0">
+                <DropletIcon size={20} className="text-cyan-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 font-inter">Huella hídrica aprox.</p>
+                <p className="text-lg font-bold text-cyan-700 font-inter">
+                  {data.waterFootprintLitersPerKg.toFixed(1)} L/kg
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500 font-inter border-t border-cyan-100 pt-2">
+              <span className="font-semibold text-gray-600">¿Qué indica?</span>{' '}
+              Litros de agua usados por kg producido. Menor = más eficiente.{' '}
+              {data.waterFootprintLitersPerKg <= 4
+                ? '✅ Excelente — inferior a 4 L/kg. Hidropónico muy eficiente (vs. ~250 L/kg en tierra).'
+                : data.waterFootprintLitersPerKg <= 8
+                ? '⚠️ Aceptable — entre 4 y 8 L/kg. Revisa fugas o recirculación.'
+                : '🔴 Alto — superior a 8 L/kg. Optimiza el sistema de riego o recirculación.'}
+            </p>
+          </BaseCard>
+        )}
+      </div>
 
       {/* Production info */}
       <div>

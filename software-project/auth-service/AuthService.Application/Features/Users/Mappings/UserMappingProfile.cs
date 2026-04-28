@@ -13,6 +13,7 @@ public class UserMappingProfile : Profile
     {
         CreateMap<User, UserResponseDto>()
             .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.Username))
-            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Value));
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Value))
+            .ForMember(dest => dest.HasAcceptedTerms, opt => opt.MapFrom(src => src.HasAcceptedTerms));
     }
 }

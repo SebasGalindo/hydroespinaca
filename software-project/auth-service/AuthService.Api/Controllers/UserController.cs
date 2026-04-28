@@ -1,3 +1,4 @@
+using AuthService.Application.Features.Users.Commands.AcceptTerms;
 using AuthService.Application.Features.Users.Commands.CreateUser;
 using AuthService.Application.Features.Users.Commands.DeleteUser;
 using AuthService.Application.Features.Users.Commands.UpdateUser;
@@ -63,6 +64,14 @@ public class UserController : ControllerBase
         var command = new UpdateUserCommand(id, request.Username, request.Email, request.Password, request.RoleId);
         var result = await _mediator.Send(command);
         return Ok(result);
+    }
+
+    [HttpPost("{id}/accept-terms")]
+    [Authorize]
+    public async Task<ActionResult> AcceptTerms(string id)
+    {
+        await _mediator.Send(new AcceptTermsCommand(id));
+        return NoContent();
     }
 
     [HttpDelete("{id}")]

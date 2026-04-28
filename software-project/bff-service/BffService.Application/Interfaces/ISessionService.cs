@@ -26,4 +26,9 @@ public interface ISessionService
     /// Deletes a session from the cache
     /// </summary>
     Task DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Accepts terms and conditions for the user (calls auth-service to persist the acceptance).
+    /// </summary>
+    Task AcceptTermsAsync(string userId, string accessToken, CancellationToken cancellationToken = default);
 }

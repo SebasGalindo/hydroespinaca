@@ -31,11 +31,11 @@ public class CalculateProfitabilityQueryValidatorTests
     }
 
     [Fact]
-    public void EmptyActuatorDurations_ShouldFail()
+    public void EmptyActuatorDurations_ShouldPass()
     {
         var query = new CalculateProfitabilityQuery("record-1", new List<ActuatorDurationInput>());
         var result = _validator.TestValidate(query);
-        result.ShouldHaveValidationErrorFor(x => x.ActuatorDurations);
+        result.ShouldNotHaveValidationErrorFor(x => x.ActuatorDurations);
     }
 
     [Fact]
@@ -55,6 +55,30 @@ public class CalculateProfitabilityQueryValidatorTests
             new() { ActuatorCode = "LIGHT-1", PowerConsumptionWatts = 50m, TotalDurationSeconds = 7200 }
         };
         var query = new CalculateProfitabilityQuery("record-1", durations);
+        var result = _validator.TestValidate(query);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void ValidInitialInvestmentCost_ShouldPass()
+    {
+        var query = new CalculateProfitabilityQuery("record-1", SampleDurations(), InitialInvestmentCost: 850000m);
+        var result = _validator.TestValidate(query);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void NegativeInitialInvestmentCost_ShouldFail()
+    {
+        var query = new CalculateProfitabilityQuery("record-1", SampleDurations(), InitialInvestmentCost: -1m);
+        var result = _validator.TestValidate(query);
+        result.ShouldHaveValidationErrorFor(x => x.InitialInvestmentCost);
+    }
+
+    [Fact]
+    public void NullInitialInvestmentCost_ShouldPass()
+    {
+        var query = new CalculateProfitabilityQuery("record-1", SampleDurations(), InitialInvestmentCost: null);
         var result = _validator.TestValidate(query);
         result.ShouldNotHaveAnyValidationErrors();
     }
