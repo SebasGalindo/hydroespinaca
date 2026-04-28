@@ -22,10 +22,10 @@ export default function HomePage() {
                 Gestiona tus cultivos con nuestra plataforma de monitoreo y control para sistemas hidropónicos.
               </p>
             </div>
-            <div className="relative h-64 md:h-96 rounded-lg overflow-hidden shadow-xl">
+            <div className="relative h-64 md:h-96 rounded-lg overflow-hidden shadow-xl flex items-center justify-center bg-gray-300 p-4">
               <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: 'url(/images/hidroespinaca-bg.jpg)' }}
+                className="absolute inset-0 bg-contain bg-center bg-no-repeat w-full h-full p-4"
+                style={{ backgroundImage: 'url(/images/logo-hydroespinaca.png)' }}
               ></div>
             </div>
           </div>
@@ -82,6 +82,44 @@ export default function HomePage() {
               </p>
             </div>
 
+            {/* Feature 4 - Lógica Difusa */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Control Inteligente</h3>
+              <p className="text-gray-600">
+                Motor de inferencia basado en lógica difusa que regula automáticamente los actuadores según las condiciones del cultivo.
+              </p>
+            </div>
+
+            {/* Feature 5 - Notificaciones */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Notificaciones Push</h3>
+              <p className="text-gray-600">
+                Múltiples canales (Email, Web, Mobile, WhatsApp) para recibir alertas y resúmenes diarios del estado de tu invernadero.
+              </p>
+            </div>
+
+            {/* Feature 6 - Asistente Virtual */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Asistente IA</h3>
+              <p className="text-gray-600">
+                Chatbot especializado con arquitectura RAG para responder a cualquier pregunta o anomalía en tu cultivo.
+              </p>
+            </div>
 
           </div>
         </div>

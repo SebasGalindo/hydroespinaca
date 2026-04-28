@@ -24,6 +24,7 @@ import { InfoTab } from '../../components/fuzzy/InfoTab';
 import { VariablesTab } from '../../components/fuzzy/VariablesTab';
 import { RulesTab } from '../../components/fuzzy/RulesTab';
 import { SimulationTab } from '../../components/fuzzy/SimulationTab';
+import { EvaluationHistoryTab } from '../../components/fuzzy/EvaluationHistoryTab';
 import { getStatusLabel, getStatusColor, getStatusIcon } from '../../utils/fuzzyHelpers';
 import type { FuzzyStackParamList } from '../../navigation/types';
 import type { FuzzySystemStatus, IconName } from '@hydroespinaca/shared';
@@ -31,13 +32,14 @@ import { colors, spacing, semanticColors, typography, borderRadius, useFuzzyStor
 
 type Props = NativeStackScreenProps<FuzzyStackParamList, 'FuzzyDetail'>;
 
-type TabKey = 'info' | 'variables' | 'rules' | 'simulation';
+type TabKey = 'info' | 'variables' | 'rules' | 'simulation' | 'history';
 
 const TABS: { key: TabKey; label: string; icon: IconName }[] = [
   { key: 'info', label: 'Info', icon: 'info' },
   { key: 'variables', label: 'Variables', icon: 'layers' },
   { key: 'rules', label: 'Reglas', icon: 'list' },
   { key: 'simulation', label: 'Simular', icon: 'play' },
+  { key: 'history', label: 'Historial', icon: 'bar-chart' },
 ];
 
 export function FuzzyDetailScreen({ route, navigation }: Props): React.ReactElement {
@@ -271,6 +273,7 @@ export function FuzzyDetailScreen({ route, navigation }: Props): React.ReactElem
         {selectedDetail && activeTab === 'variables' && <VariablesTab detail={selectedDetail} />}
         {selectedDetail && activeTab === 'rules' && <RulesTab detail={selectedDetail} />}
         {selectedDetail && activeTab === 'simulation' && <SimulationTab detail={selectedDetail} />}
+        {selectedDetail && activeTab === 'history' && <EvaluationHistoryTab detail={selectedDetail} />}
       </ScrollView>
 
       {/* Forms & Sheets */}

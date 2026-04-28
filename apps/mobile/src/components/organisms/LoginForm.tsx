@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, ViewStyle } from 'react-native';
+import { View, StyleSheet, ScrollView, ViewStyle, TouchableOpacity } from 'react-native';
 import { semanticColors, spacing, borderRadius, typography, useLoginForm, colors } from '@hydroespinaca/shared';
 import { Text } from '../atoms/Text';
 import { Heading } from '../atoms/Heading';
@@ -7,6 +7,7 @@ import { Input } from '../atoms/Input';
 import { Button } from '../atoms/Button';
 import { Icon } from '../atoms/Icon';
 import { Pressable } from '../atoms/Pressable';
+import { TermsModal } from './TermsModal';
 
 export interface LoginFormProps {
   onLoginSuccess?: (email: string, password: string) => void;
@@ -19,8 +20,9 @@ export function LoginForm({
   style,
   testID,
 }: LoginFormProps): React.ReactElement {
-  const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
+  const { formState, isLoading, error, handleChange, handleSubmit, clearError, setAcceptTerms } = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleFormSubmit = useCallback(async () => {
     try {
@@ -181,6 +183,30 @@ export function LoginForm({
               />
             </View>
 
+            {/* T&C Checkbox */}
+            <View style={styles.termsRow}>
+              <TouchableOpacity
+                onPress={() => setAcceptTerms(!formState.acceptTerms)}
+                style={styles.checkbox}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: formState.acceptTerms }}
+              >
+                <View style={[styles.checkboxBox, formState.acceptTerms && styles.checkboxBoxChecked]}>
+                  {formState.acceptTerms && (
+                    <Icon name="check" size={12} color={colors.white} />
+                  )}
+                </View>
+              </TouchableOpacity>
+              <Text variant="caption" color={semanticColors.textSecondary} style={styles.termsText}>
+                Acepto los{' '}
+              </Text>
+              <TouchableOpacity onPress={() => setShowTermsModal(true)}>
+                <Text variant="caption" color={semanticColors.primary} style={styles.termsLink}>
+                  Términos y Condiciones
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Login Button */}
             <Button
               onPress={handleFormSubmit}
@@ -196,6 +222,12 @@ export function LoginForm({
             </Button>
           </View>
         </View>
+
+        <TermsModal
+          visible={showTermsModal}
+          readOnly
+          onClose={() => setShowTermsModal(false)}
+        />
     </ScrollView>
   );
 }
@@ -285,5 +317,35 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: spacing.md,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    flexWrap: 'wrap',
+  },
+  checkbox: {
+    marginRight: spacing.xs,
+  },
+  checkboxBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: semanticColors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBoxChecked: {
+    backgroundColor: semanticColors.primary,
+    borderColor: semanticColors.primary,
+  },
+  termsText: {
+    fontSize: typography.fontSize.sm,
+  },
+  termsLink: {
+    fontSize: typography.fontSize.sm,
+    textDecorationLine: 'underline',
   },
 });

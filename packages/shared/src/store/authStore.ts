@@ -25,10 +25,11 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isLoggingOut: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, acceptTerms?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   checkSession: () => Promise<void>;
+  acceptTerms: () => Promise<void>;
 }
 
 // Create API service instance
@@ -47,7 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   isLoggingOut: false,
 
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, acceptTerms?: boolean) => {
     set({ isLoading: true, error: null });
 
     if (isDevelopmentMode()) {
@@ -60,17 +61,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (platform === 'web') {
         if (isDevelopmentMode()) console.log('[authStore.login] Taking WEB branch');
         // Web: cookies are set automatically by server
-        await authService.loginWeb(credentials);
+        await authService.loginWeb(credentials, acceptTerms);
 
         // Get user session data
         const userSession = await authService.getCurrentSession('web');
 
         const session: Session = {
-          sessionId: userSession.sessionId, // Available from backend response
+          sessionId: userSession.sessionId,
           csrfToken: null, // Cookie
           username: userSession.username,
           email: userSession.email,
           role: userSession.role,
+          hasAcceptedTerms: userSession.hasAcceptedTerms,
         };
 
         const user: User = {
@@ -90,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         if (isDevelopmentMode()) console.log('[authStore.login] Taking MOBILE branch');
         // Mobile: get tokens from response and store them
-        const mobileResponse = await authService.loginMobile(credentials);
+        const mobileResponse = await authService.loginMobile(credentials, acceptTerms);
 
         // Store tokens in secure storage
         await SessionStorage.storeSession(
@@ -107,6 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           username: userSession.username,
           email: userSession.email,
           role: userSession.role,
+          hasAcceptedTerms: userSession.hasAcceptedTerms,
         };
 
         const user: User = {
@@ -234,11 +237,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         : null;
 
       const session: Session = {
-        sessionId: userSession.sessionId, // Use sessionId from backend response
+        sessionId: userSession.sessionId,
         csrfToken,
         username: userSession.username,
         email: userSession.email,
         role: userSession.role,
+        hasAcceptedTerms: userSession.hasAcceptedTerms,
       };
 
       const user: User = {
@@ -338,6 +342,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+    }
+  },
+
+  acceptTerms: async () => {
+    const { user, session } = get();
+    if (!user) return;
+
+    await authService.acceptTerms(user.id, platform === 'web' ? 'web' : 'mobile');
+
+    if (session) {
+      set({ session: { ...session, hasAcceptedTerms: true } });
     }
   },
 }));

@@ -9,6 +9,8 @@ public class WeatherAlertConfigDto
     public string FuzzySystemName { get; set; } = string.Empty;
     public List<AlertThresholdDto> Alerts { get; set; } = [];
     public bool IsActive { get; set; } = true;
+    public int MaxForecastDays { get; set; } = 8;
+    public bool AllowDuplicateAlerts { get; set; } = true;
     public string CreatedBy { get; set; } = string.Empty;
     public string UpdatedBy { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
@@ -29,6 +31,8 @@ public class UpdateAlertConfigRequestDto
     public string UserId { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public List<AlertThresholdDto> Alerts { get; set; } = [];
+    public int MaxForecastDays { get; set; } = 8;
+    public bool AllowDuplicateAlerts { get; set; } = true;
 }
 
 public class SeedAlertConfigRequestDto

@@ -11,6 +11,7 @@ import {
   VariableSection,
   RulesSection,
   SimulationPanel,
+  EvaluationHistorySection,
   SystemForm,
   VariableForm,
   TermForm,
@@ -34,7 +35,7 @@ import { showConfirm, showError, showSuccess } from '@/lib/swal';
 
 // ─── Tab definitions ─────────────────────────────────────────
 
-type DetailTab = 'info' | 'variables' | 'rules' | 'simulate';
+type DetailTab = 'info' | 'variables' | 'rules' | 'simulate' | 'history';
 
 interface TabDef {
   id: DetailTab;
@@ -47,6 +48,7 @@ const tabs: TabDef[] = [
   { id: 'variables', label: 'Variables', description: 'Entradas y salidas' },
   { id: 'rules', label: 'Reglas', description: 'Inferencia Mamdani' },
   { id: 'simulate', label: 'Simular', description: 'Evaluación en vivo' },
+  { id: 'history', label: 'Historial', description: 'Inferencias persistidas' },
 ];
 
 // ─── Props ───────────────────────────────────────────────────
@@ -541,6 +543,10 @@ const RoutineDetailPage = React.memo(function RoutineDetailPage({ systemId }: Ro
               error={simulationError}
               onClearSimulation={clearSimulation}
             />
+          )}
+
+          {activeTab === 'history' && (
+            <EvaluationHistorySection detail={selectedDetail} />
           )}
         </div>
 

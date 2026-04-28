@@ -42,6 +42,7 @@ public class AuthService : IAuthService
         string? csrfToken = null,
         string? ipAddress = null,
         string? userAgent = null,
+        bool acceptTerms = false,
         CancellationToken cancellationToken = default)
     {
         try
@@ -56,7 +57,8 @@ public class AuthService : IAuthService
                 sessionId,
                 csrfToken,
                 ipAddress,
-                userAgent
+                userAgent,
+                acceptTerms
             };
 
             var response = await _httpClient.PostAsJsonAsync(
@@ -96,13 +98,17 @@ public class AuthService : IAuthService
                 refreshTokenExpiresAt
             );
 
+            var termsAcceptedClaim = claims.FirstOrDefault(c => c.Type == "terms_accepted")?.Value;
+            var hasAcceptedTerms = termsAcceptedClaim == "true";
+
             var authResult = new AuthenticationResult(
                 tokenInfo,
                 claims.FirstOrDefault(c => c.Type == "sub")?.Value ?? string.Empty,
                 tokenResponse.Username ?? claims.FirstOrDefault(c => c.Type == "name")?.Value ?? string.Empty,
                 tokenResponse.Email ?? claims.FirstOrDefault(c => c.Type == "email")?.Value ?? email,
                 tokenResponse.Role ?? claims.FirstOrDefault(c => c.Type == "role")?.Value ?? string.Empty,
-                scopes
+                scopes,
+                hasAcceptedTerms
             );
 
             _logger.LogInformation("Authentication successful for user: {Email}", email);
@@ -112,6 +118,18 @@ public class AuthService : IAuthService
         {
             _logger.LogError(ex, "Error during authentication for user: {Email}", email);
             throw new InvalidTokenException($"Authentication failed: {ex.Message}");
+        }
+    }
+
+    public async Task AcceptTermsAsync(string userId, string accessToken, CancellationToken cancellationToken = default)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{_authServiceUrl}/api/users/{userId}/accept-terms");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"Accept terms failed: {response.StatusCode} - {error}");
         }
     }
 

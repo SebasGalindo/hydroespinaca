@@ -16,6 +16,7 @@ export { default as RuleForm } from './RuleForm';
 export { default as VariableSection } from './VariableSection';
 export { default as RulesSection } from './RulesSection';
 export { default as SimulationPanel } from './SimulationPanel';
+export { default as EvaluationHistorySection } from './EvaluationHistorySection';
 
 // Page organisms
 export { default as RoutineListPage } from './RoutineListPage';

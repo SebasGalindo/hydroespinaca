@@ -13,6 +13,7 @@ import type {
   LoginRequest,
   MobileLoginResponse,
   UserSession,
+  TermsContent,
 } from '../types/auth';
 
 export interface ApiResponse<T = unknown> {
@@ -101,23 +102,23 @@ export class AuthApiService {
   /**
    * Web login - uses HttpOnly cookies set by the server
    */
-  async loginWeb(credentials: LoginRequest): Promise<void> {
+  async loginWeb(credentials: LoginRequest, acceptTerms?: boolean): Promise<void> {
     if (isDevelopmentMode()) console.log('[AuthService] loginWeb called');
     await this.request('/auth/login/web', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({ ...credentials, AcceptTerms: acceptTerms ?? false }),
     }, 'web');
   }
 
   /**
    * Mobile login - returns tokens in response body
    */
-  async loginMobile(credentials: LoginRequest): Promise<MobileLoginResponse> {
+  async loginMobile(credentials: LoginRequest, acceptTerms?: boolean): Promise<MobileLoginResponse> {
     console.log('[AuthService] loginMobile called with URL:', `${this.baseUrl}/auth/login/mobile`);
     console.log('[AuthService] Credentials:', credentials);
     const response = await this.request<MobileLoginResponse>('/auth/login/mobile', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({ ...credentials, AcceptTerms: acceptTerms ?? false }),
     }, 'mobile');
     console.log('[AuthService] loginMobile response:', response);
 
@@ -162,6 +163,30 @@ export class AuthApiService {
     }
 
     await this.request('/auth/logout', options, platform);
+  }
+
+  /**
+   * Accept terms and conditions for a user
+   */
+  async acceptTerms(userId: string, platform: 'web' | 'mobile' = 'web'): Promise<void> {
+    await this.request('/auth/accept-terms', {
+      method: 'POST',
+    }, platform);
+  }
+
+  /**
+   * Get terms and conditions content
+   */
+  async getTerms(): Promise<TermsContent> {
+    const response = await this.request<TermsContent>('/auth/terms', {
+      method: 'GET',
+    }, 'web');
+
+    if (!response.data) {
+      throw new Error('No terms content received');
+    }
+
+    return response.data;
   }
 
   /**

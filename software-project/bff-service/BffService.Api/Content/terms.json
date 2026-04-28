@@ -1,0 +1,34 @@
+{
+  "title": "Términos y Condiciones de Uso — HydroEspinaca",
+  "lastUpdated": "2026-04-24",
+  "sections": [
+    {
+      "title": "1. Aceptación de Términos",
+      "content": "Al acceder y utilizar la plataforma HydroEspinaca, usted acepta quedar vinculado por los presentes Términos y Condiciones de Uso. Si no está de acuerdo con alguna parte de estos términos, no podrá acceder al servicio. El uso continuado de la plataforma después de la publicación de cambios constituirá su aceptación de dichos cambios."
+    },
+    {
+      "title": "2. Descripción del Servicio",
+      "content": "HydroEspinaca es una plataforma de monitoreo y gestión inteligente para sistemas de cultivo hidropónico. El servicio incluye la recolección y visualización de datos de sensores IoT (temperatura, humedad, pH, conductividad eléctrica, nivel de agua), control automatizado de actuadores (bombas, válvulas, sistemas de iluminación), análisis de rentabilidad de cultivos, alertas meteorológicas basadas en pronósticos, y un asistente virtual de consulta agronómica."
+    },
+    {
+      "title": "3. Tratamiento de Datos Personales (HABEAS DATA)",
+      "content": "De conformidad con la Ley Estatutaria 1581 de 2012 y el Decreto 1377 de 2013 de la República de Colombia, HydroEspinaca informa que recopila y trata datos personales con las siguientes finalidades: (a) Gestión de la cuenta de usuario y autenticación en la plataforma; (b) Envío de notificaciones y alertas relacionadas con el sistema; (c) Análisis de rendimiento del cultivo y generación de reportes personalizados; (d) Mejora continua del servicio. Usted tiene derecho a conocer, actualizar, rectificar y suprimir sus datos personales, así como a revocar la autorización otorgada para su tratamiento. Para ejercer estos derechos puede contactarnos a través de los canales habilitados en la plataforma."
+    },
+    {
+      "title": "4. Recolección de Datos de Sensores",
+      "content": "La plataforma recopila datos generados por dispositivos IoT instalados en su sistema hidropónico, incluyendo: lecturas periódicas de variables ambientales (temperatura, humedad relativa), variables de solución nutritiva (pH, conductividad eléctrica, temperatura del agua), registros de activación y duración de actuadores, y datos de ubicación geográfica para el servicio de alertas meteorológicas. Estos datos son almacenados de forma segura y son utilizados exclusivamente para la prestación del servicio. No serán compartidos con terceros sin su consentimiento expreso, salvo requerimiento de autoridad competente."
+    },
+    {
+      "title": "5. Uso Responsable del Sistema",
+      "content": "El usuario se compromete a: (a) Utilizar la plataforma únicamente para los fines para los que fue diseñada; (b) No intentar acceder a cuentas, sistemas o redes sin autorización; (c) No introducir código malicioso, virus o cualquier otro elemento perjudicial en la plataforma; (d) Mantener la confidencialidad de sus credenciales de acceso; (e) Notificar de inmediato cualquier uso no autorizado de su cuenta. HydroEspinaca se reserva el derecho de suspender o terminar el acceso al servicio en caso de uso indebido."
+    },
+    {
+      "title": "6. Limitación de Responsabilidad",
+      "content": "HydroEspinaca no será responsable por daños directos, indirectos, incidentales, especiales o consecuentes derivados del uso o la imposibilidad de uso del servicio, incluyendo pero no limitado a pérdidas de cosechas, daños a cultivos o equipos resultantes de decisiones tomadas con base en los datos de la plataforma. Los datos de sensores y pronósticos meteorológicos son orientativos y no sustituyen el criterio agronómico profesional. La plataforma se provee 'tal como está' y 'según disponibilidad'."
+    },
+    {
+      "title": "7. Modificaciones de los Términos",
+      "content": "HydroEspinaca se reserva el derecho de modificar estos Términos y Condiciones en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación en la plataforma. Se notificará a los usuarios registrados sobre cambios sustanciales mediante correo electrónico o notificación en la aplicación. El uso continuado del servicio tras la publicación de cambios implicará la aceptación de los nuevos términos."
+    }
+  ]
+}

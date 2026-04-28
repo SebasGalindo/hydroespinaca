@@ -78,7 +78,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, T
             user.Email.Value,
             roleCode,
             clientIdForToken,
-            tokenType);
+            tokenType,
+            user.HasAcceptedTerms);
 
         // Use the ORIGINAL refresh token expiration from the session (set during login)
         var refreshTokenExpiresAt = session.ExpiresAt;

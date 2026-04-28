@@ -197,27 +197,23 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
         )
         return [self._doc_to_entity(d) async for d in cursor]
 
-    async def filter_evaluations(self, filters: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[FuzzyEvaluation]:
+    @staticmethod
+    def _build_filter_query(filters: Dict[str, Any]) -> Dict[str, Any]:
         query: Dict[str, Any] = {}
         if not isinstance(filters, dict):
-            filters = {}
-        # System filter
+            return query
         sys_id = filters.get("system_id")
         if sys_id:
             query["system_id"] = str(sys_id)
-        # Rule filter
         rule_id = filters.get("rule_id")
         if rule_id:
             query[FIELD_ACTIVATED_RULES_RULE_ID] = str(rule_id)
-        # Sensor filter
         sensor_id = filters.get("sensor_id")
         if sensor_id:
             query["inputs.sensor_id"] = str(sensor_id)
-        # Reference code filter
         reference_code = filters.get("reference_code")
         if reference_code:
             query["activated_rules.output_values.reference_code"] = str(reference_code)
-        # Firing strength range
         min_fs = filters.get("min_firing_strength")
         max_fs = filters.get("max_firing_strength")
         fs_cond: Dict[str, Any] = {}
@@ -227,9 +223,10 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             fs_cond["$lte"] = float(max_fs)
         if fs_cond:
             query["activated_rules.firingStrength"] = fs_cond
-        # Timestamp range
-        start_ts = filters.get("min_timestamp")
-        end_ts = filters.get("max_timestamp")
+        # Timestamp range — accept the canonical names used by the rest of the
+        # codebase (`start_date`/`end_date`) plus the legacy aliases.
+        start_ts = filters.get("start_date") or filters.get("min_timestamp")
+        end_ts = filters.get("end_date") or filters.get("max_timestamp")
         ts_cond: Dict[str, Any] = {}
         if isinstance(start_ts, datetime):
             ts_cond["$gte"] = start_ts
@@ -237,7 +234,10 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             ts_cond["$lte"] = end_ts
         if ts_cond:
             query["timestamp"] = ts_cond
+        return query
 
+    async def filter_evaluations(self, filters: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[FuzzyEvaluation]:
+        query = self._build_filter_query(filters)
         cursor = (
             self._coll.find(query)
             .skip(int(skip))
@@ -245,6 +245,58 @@ class FuzzyEvaluationRepository(IFuzzyEvaluationRepository):
             .sort("timestamp", -1)
         )
         return [self._doc_to_entity(d) async for d in cursor]
+
+    async def count_filtered_evaluations(self, filters: Dict[str, Any]) -> int:
+        return await self._coll.count_documents(self._build_filter_query(filters))
+
+    async def compute_summary_stats(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        """Aggregates daily and per-system counts for the given filter.
+
+        Uses a server-side aggregation pipeline so it scales beyond the previous
+        10000-doc fetch limit.
+        """
+        match = self._build_filter_query(filters)
+        total = await self._coll.count_documents(match)
+
+        daily_stats: Dict[str, int] = {}
+        systems_stats: Dict[str, int] = {}
+        pipeline = [
+            {"$match": match},
+            {
+                "$group": {
+                    "_id": {
+                        "day": {
+                            "$dateToString": {
+                                "format": "%Y-%m-%d", 
+                                "date": {"$toDate": "$timestamp"}, 
+                                "onNull": "unknown_date" 
+                            }
+                        },
+                        "system_id": "$system_id",
+                    },
+                    "count": {"$sum": 1},
+                }
+            },
+        ]
+        try:
+            cursor = await self._coll.aggregate(pipeline)
+            async for row in cursor:
+                bucket = row.get("_id") or {}
+                day = bucket.get("day")
+                sys = bucket.get("system_id") or "unknown"
+                count = int(row.get("count", 0))
+                if day:
+                    daily_stats[day] = daily_stats.get(day, 0) + count
+                systems_stats[sys] = systems_stats.get(sys, 0) + count
+        except Exception as e:
+            _logger.exception("Error executing aggregation pipeline for compute_summary_stats")
+            raise
+
+        return {
+            "total": total,
+            "daily_stats": daily_stats,
+            "systems_stats": systems_stats,
+        }
 
     async def count_by_system(self, system_id: FuzzySystemId) -> int:
         return await self._coll.count_documents({"system_id": str(system_id)})

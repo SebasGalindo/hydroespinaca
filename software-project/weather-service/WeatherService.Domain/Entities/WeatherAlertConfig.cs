@@ -31,6 +31,16 @@ public class WeatherAlertConfig : IIdentifiableMutable
     public bool IsActive { get; set; } = true;
 
     /// <summary>
+    /// Number of forecast days to evaluate (1–8). Defaults to 8 (all available days).
+    /// </summary>
+    public int MaxForecastDays { get; set; } = 8;
+
+    /// <summary>
+    /// When false, duplicate alerts for the same type + forecast date + user are suppressed.
+    /// </summary>
+    public bool AllowDuplicateAlerts { get; set; } = true;
+
+    /// <summary>
     /// Audit fields (not automatically set, must be managed by application logic)
     /// </summary>
     public string CreatedBy { get; set; } = string.Empty;

@@ -10,5 +10,6 @@ public record LoginRequestDto(
     string? SessionId = null,
     string? IpAddress = null,
     string? UserAgent = null,
-    string? CsrfToken = null
+    string? CsrfToken = null,
+    bool AcceptTerms = false
 );

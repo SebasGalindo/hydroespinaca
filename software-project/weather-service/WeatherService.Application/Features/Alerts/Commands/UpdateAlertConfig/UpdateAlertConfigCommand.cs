@@ -10,7 +10,9 @@ public record UpdateAlertConfigCommand(
     string FuzzySystemId,
     string UserId,
     bool IsActive,
-    List<AlertThresholdDto> Alerts) : IRequest<WeatherAlertConfig>;
+    List<AlertThresholdDto> Alerts,
+    int MaxForecastDays = 8,
+    bool AllowDuplicateAlerts = true) : IRequest<WeatherAlertConfig>;
 
 public record AlertThresholdDto(
     string Type,

@@ -8,5 +8,6 @@ public record UserSessionDto(
     string SessionId,
     string Username,
     string Email,
-    string Role
+    string Role,
+    bool HasAcceptedTerms = false
 );

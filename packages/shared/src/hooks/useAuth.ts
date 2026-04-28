@@ -45,6 +45,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
           username: userSession.username,
           email: userSession.email,
           role: userSession.role,
+          hasAcceptedTerms: userSession.hasAcceptedTerms ?? false,
         };
 
         setState({ session, isLoading: false, error: null });
@@ -88,6 +89,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
           username: userSession.username,
           email: userSession.email,
           role: userSession.role,
+          hasAcceptedTerms: userSession.hasAcceptedTerms ?? false,
         };
 
         setState({ session, isLoading: false, error: null });
@@ -110,6 +112,7 @@ export function useAuth(config?: AuthConfig): UseAuthReturn {
           username: userSession.username,
           email: userSession.email,
           role: userSession.role,
+          hasAcceptedTerms: userSession.hasAcceptedTerms ?? false,
         };
 
         setState({ session, isLoading: false, error: null });

@@ -44,7 +44,8 @@ public class AuthController : ControllerBase
             dto.SessionId,
             dto.IpAddress ?? HttpContext.Connection.RemoteIpAddress?.ToString(),
             dto.UserAgent ?? HttpContext.Request.Headers.UserAgent.ToString(),
-            dto.CsrfToken);
+            dto.CsrfToken,
+            dto.AcceptTerms);
         var tokens = await _mediator.Send(command);
         return Ok(tokens);
     }

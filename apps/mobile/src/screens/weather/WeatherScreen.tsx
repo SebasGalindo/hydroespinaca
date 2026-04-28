@@ -76,12 +76,14 @@ export function WeatherScreen(): React.ReactElement {
   }, [activeFuzzyId, userId]);
 
   const handleSaveConfig = useCallback(
-    async (isActive: boolean, thresholds: AlertThreshold[]) => {
+    async (isActive: boolean, thresholds: AlertThreshold[], maxForecastDays: number, allowDuplicateAlerts: boolean) => {
       if (!activeFuzzyId) return;
       await updateAlertConfig(activeFuzzyId, {
         userId,
         isActive,
         alerts: thresholds,
+        maxForecastDays,
+        allowDuplicateAlerts,
       });
     },
     [activeFuzzyId, userId, updateAlertConfig]

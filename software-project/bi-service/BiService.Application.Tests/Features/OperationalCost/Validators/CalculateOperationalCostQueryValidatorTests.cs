@@ -63,7 +63,7 @@ public class CalculateOperationalCostQueryValidatorTests
     }
 
     [Fact]
-    public void EmptyActuatorDurations_ShouldFail()
+    public void EmptyActuatorDurations_ShouldPass()
     {
         var query = new CalculateOperationalCostQuery(
             DateTime.UtcNow.AddDays(-30),
@@ -71,7 +71,7 @@ public class CalculateOperationalCostQueryValidatorTests
             new List<ActuatorDurationInput>());
 
         var result = _validator.TestValidate(query);
-        result.ShouldHaveValidationErrorFor(x => x.ActuatorDurations);
+        result.ShouldNotHaveValidationErrorFor(x => x.ActuatorDurations);
     }
 
     [Fact]

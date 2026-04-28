@@ -57,7 +57,8 @@ public class ClientCredentialsCommandHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<TokenType>(),
-                It.IsAny<string[]>()))
+                It.IsAny<string[]>(),
+                It.IsAny<bool>()))
             .ReturnsAsync(new TokenResult
             {
                 AccessToken = "access-token",
@@ -86,7 +87,8 @@ public class ClientCredentialsCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             TokenType.MachineToMachine,
-            It.IsAny<string[]>()), Times.Once);
+            It.IsAny<string[]>(),
+            It.IsAny<bool>()), Times.Once);
     }
 
     [Fact]
@@ -138,6 +140,7 @@ public class ClientCredentialsCommandHandlerTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<TokenType>(),
-            It.IsAny<string[]>()), Times.Never);
+            It.IsAny<string[]>(),
+            It.IsAny<bool>()), Times.Never);
     }
 }

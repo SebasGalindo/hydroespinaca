@@ -13,6 +13,7 @@ public class User : IIdentifiableMutable
     public Email Email { get; private set; }
     public HashedPassword Password { get; private set; }
     public string? RoleId { get; private set; }
+    public bool HasAcceptedTerms { get; private set; }
 
     public User(string username, Email email, HashedPassword password, string? roleId = null)
     {
@@ -21,7 +22,10 @@ public class User : IIdentifiableMutable
         Email = email ?? throw new ArgumentNullException(nameof(email));
         Password = password ?? throw new ArgumentNullException(nameof(password));
         RoleId = roleId;
+        HasAcceptedTerms = false;
     }
+
+    public void AcceptTerms() => HasAcceptedTerms = true;
     public void SetId(string id)
     {
         Id = id;

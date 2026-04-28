@@ -19,6 +19,9 @@ import type {
   SimulateFuzzySystemRequest,
   SimulateFuzzySystemResponse,
   FuzzySystemExport,
+  FuzzyEvaluationsListResponse,
+  FuzzyEvaluationStats,
+  FuzzyEvaluationListParams,
 } from '../types/fuzzy';
 
 // ==================== Error Alias (backward-compatible) ====================
@@ -190,6 +193,69 @@ export class FuzzyApiService extends BaseApiService {
       body: request,
     });
   }
+
+  // ────────────────────────────────────────
+  //  Evaluation History (RF-F07)
+  // ────────────────────────────────────────
+
+  async getEvaluations(params: FuzzyEvaluationListParams = {}): Promise<FuzzyEvaluationsListResponse> {
+    const qs = buildQueryString({
+      systemId: params.systemId,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      page: params.page,
+      pageSize: params.pageSize,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
+    });
+    return this.request<FuzzyEvaluationsListResponse>(`/fuzzy/evaluations${qs}`);
+  }
+
+  /**
+   * Preferred endpoint when filtering evaluations by system + date range.
+   * Routes to fuzzy-service `/system/{id}` which applies both filters together.
+   */
+  async getEvaluationsBySystem(
+    systemId: string,
+    params: Omit<FuzzyEvaluationListParams, 'systemId' | 'sortBy'> = {},
+  ): Promise<FuzzyEvaluationsListResponse> {
+    const qs = buildQueryString({
+      startDate: params.startDate,
+      endDate: params.endDate,
+      page: params.page,
+      pageSize: params.pageSize,
+      sortOrder: params.sortOrder,
+    });
+    return this.request<FuzzyEvaluationsListResponse>(`/fuzzy/systems/${systemId}/evaluations${qs}`);
+  }
+
+  async getRecentEvaluations(
+    hours: number = 24,
+    systemId?: string,
+    page: number = 1,
+    pageSize: number = 20,
+  ): Promise<FuzzyEvaluationsListResponse> {
+    const qs = buildQueryString({ hours, systemId, page, pageSize });
+    return this.request<FuzzyEvaluationsListResponse>(`/fuzzy/evaluations/recent${qs}`);
+  }
+
+  async getEvaluationStats(
+    systemId?: string,
+    days: number = 7,
+  ): Promise<FuzzyEvaluationStats> {
+    const qs = buildQueryString({ systemId, days });
+    return this.request<FuzzyEvaluationStats>(`/fuzzy/evaluations/stats${qs}`);
+  }
+}
+
+// ==================== Helpers ====================
+
+function buildQueryString(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== null && v !== '',
+  );
+  if (entries.length === 0) return '';
+  return '?' + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
 }
 
 // ==================== Singleton Export ====================

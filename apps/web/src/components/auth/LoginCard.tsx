@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLoginForm, useAuthStore } from '@hydroespinaca/shared';
 import { EyeIcon, EyeOffIcon } from '@/components/ui/icons/Icons';
+import { TermsModal } from '@/components/auth/TermsModal';
 
 interface LoginCardProps {
   className?: string;
@@ -10,9 +11,10 @@ interface LoginCardProps {
 const LoginCard = React.memo(function LoginCard({ className }: LoginCardProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { formState, isLoading, error, handleChange, handleSubmit, clearError } = useLoginForm();
+  const { formState, isLoading, error, handleChange, handleSubmit, clearError, setAcceptTerms } = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Rastrear si hubo un submit del formulario (solo en este montaje del componente)
   const loginAttemptedRef = useRef(false);
@@ -167,6 +169,27 @@ const LoginCard = React.memo(function LoginCard({ className }: LoginCardProps) {
           </div>
         </div>
 
+        <div className="flex items-start gap-2 mb-2">
+          <input
+            id="acceptTerms"
+            type="checkbox"
+            checked={formState.acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+            className="mt-1 h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+          />
+          <label htmlFor="acceptTerms" className="text-sm text-gray-700">
+            Acepto los{' '}
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="text-green-600 hover:underline font-medium"
+            >
+              Términos y Condiciones
+            </button>
+            {' '}de uso
+          </label>
+        </div>
+
         <button
           type="submit"
           className="w-full bg-green-600 text-white py-3 rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium"
@@ -175,6 +198,10 @@ const LoginCard = React.memo(function LoginCard({ className }: LoginCardProps) {
           {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
         </button>
       </form>
+
+      {showTermsModal && (
+        <TermsModal readOnly onClose={() => setShowTermsModal(false)} />
+      )}
     </div>
   );
 });

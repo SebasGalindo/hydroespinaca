@@ -20,6 +20,8 @@ public class UserDocument : IIdentifiableMutable
     [BsonRepresentation(BsonType.ObjectId)]
     public string? RoleId { get; set; }
 
+    public bool HasAcceptedTerms { get; set; } = false;
+
     public void SetId(string id)
     {
         Id = id;

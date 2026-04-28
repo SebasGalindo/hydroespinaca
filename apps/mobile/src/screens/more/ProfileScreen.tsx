@@ -12,6 +12,7 @@ import { Icon } from '../../components/atoms/Icon';
 import { Button } from '../../components/atoms/Button';
 import { Card } from '../../components/molecules/Card';
 import { ConfirmationSheet } from '../../components/organisms/ConfirmationSheet';
+import { TermsModal } from '../../components/organisms/TermsModal';
 import { useAuth } from '../../context/AuthProvider';
 import { semanticColors, spacing, colors, borderRadius, typography, isUserAdmin } from '@hydroespinaca/shared';
 import type { IconName } from '@hydroespinaca/shared';
@@ -20,6 +21,7 @@ export function ProfileScreen(): React.ReactElement {
   const navigation = useNavigation();
   const { session, logout } = useAuth();
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
 
   const isAdmin = isUserAdmin(session);
 
@@ -113,6 +115,18 @@ export function ProfileScreen(): React.ReactElement {
           </Card>
         )}
 
+        {/* Tratamiento de datos */}
+        <Button
+          variant="ghost"
+          onPress={() => setTermsVisible(true)}
+          fullWidth
+          leftIcon={<Icon name="file-text" size={18} color={semanticColors.primary} />}
+        >
+          <Text variant="body" color={semanticColors.primary}>
+            Tratamiento de datos personales
+          </Text>
+        </Button>
+
         {/* Logout button */}
         <Button
           variant="outline"
@@ -131,6 +145,12 @@ export function ProfileScreen(): React.ReactElement {
           HydroEspinaca Mobile v{appVersion}
         </Text>
       </ScrollView>
+
+      <TermsModal
+        visible={termsVisible}
+        readOnly
+        onClose={() => setTermsVisible(false)}
+      />
 
       {/* Logout confirmation */}
       <ConfirmationSheet

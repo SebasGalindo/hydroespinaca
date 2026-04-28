@@ -93,6 +93,7 @@ public class SessionApplicationServiceTests
                 It.IsAny<string>(),
                 request.IpAddress,
                 request.UserAgent,
+                It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(authResult);
 

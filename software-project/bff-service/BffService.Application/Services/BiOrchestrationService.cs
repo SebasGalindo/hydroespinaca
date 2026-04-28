@@ -94,24 +94,35 @@ public class BiOrchestrationService : IBiOrchestrationService
                 $"Registro de producción '{request.ProductionRecordId}' no encontrado.");
         }
 
-        // Step 2: Get actuators and analytics for the production date range in parallel
-        var actuatorsTask = GetActuatorsFromActuatorServiceAsync(accessToken, cancellationToken);
-        var analyticsTask = GetActuatorAnalyticsFromActuatorServiceAsync(
-            production.StartDate, production.HarvestDate, accessToken, cancellationToken);
+        // Step 2: Get actuator durations (only if automatic energy calculation is enabled)
+        List<ActuatorDurationInput> actuatorDurations;
+        if (request.IncludeAutomaticEnergyCalculation)
+        {
+            var actuatorsTask = GetActuatorsFromActuatorServiceAsync(accessToken, cancellationToken);
+            var analyticsTask = GetActuatorAnalyticsFromActuatorServiceAsync(
+                production.StartDate, production.HarvestDate, accessToken, cancellationToken);
 
-        await Task.WhenAll(actuatorsTask, analyticsTask);
+            await Task.WhenAll(actuatorsTask, analyticsTask);
 
-        var actuators = await actuatorsTask;
-        var analytics = await analyticsTask;
+            var actuators = await actuatorsTask;
+            var analytics = await analyticsTask;
 
-        // Step 3: Combine PowerConsumptionWatts with duration data
-        var actuatorDurations = CombineActuatorData(actuators, analytics.TotalDurationByActuator);
+            actuatorDurations = CombineActuatorData(actuators, analytics.TotalDurationByActuator);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Automatic energy calculation disabled — skipping actuator-service calls for production {ProductionId}",
+                request.ProductionRecordId);
+            actuatorDurations = new List<ActuatorDurationInput>();
+        }
 
         // Step 4: Send combined data to bi-service for profitability calculation
         var serviceRequest = new CalculateProfitabilityServiceRequest
         {
             ProductionRecordId = request.ProductionRecordId,
-            ActuatorDurations = actuatorDurations
+            ActuatorDurations = actuatorDurations,
+            InitialInvestmentCost = request.InitialInvestmentCost
         };
 
         return await _biClient.CalculateProfitabilityAsync(

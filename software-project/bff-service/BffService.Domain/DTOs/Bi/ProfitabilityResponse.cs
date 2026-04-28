@@ -10,6 +10,9 @@ public class ProfitabilityResponse
     public RevenueInfo Revenue { get; set; } = new();
     public decimal NetBenefit { get; set; }
     public decimal ProfitMarginPercent { get; set; }
+    public decimal? RoiPercent { get; set; }
+    public decimal CostPerKiloProduced { get; set; }
+    public decimal? WaterFootprintLitersPerKg { get; set; }
     public string Currency { get; set; } = "COP";
 }
 

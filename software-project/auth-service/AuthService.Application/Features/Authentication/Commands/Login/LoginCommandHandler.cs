@@ -53,6 +53,20 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
             throw new InvalidCredentialsException();
         }
 
+        // Enforce terms acceptance: block login if not accepted and not accepting now
+        if (!user.HasAcceptedTerms)
+        {
+            if (request.AcceptTerms)
+            {
+                user.AcceptTerms();
+                await _userRepository.UpdateAsync(user);
+            }
+            else
+            {
+                throw new TermsNotAcceptedException();
+            }
+        }
+
         // Resolver el código del rol en lugar del RoleId
         string roleCode = "user"; // valor por defecto
         if (!string.IsNullOrEmpty(user.RoleId))
@@ -69,7 +83,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, TokenResultDto>
             user.Email.Value,
             roleCode,
             null,
-            TokenType.User);
+            TokenType.User,
+            user.HasAcceptedTerms);
 
         // Calculate refresh token expiration from now (not from access token expiry)
         var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);

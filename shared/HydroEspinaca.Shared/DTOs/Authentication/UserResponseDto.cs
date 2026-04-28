@@ -6,4 +6,5 @@ public record UserResponseDto
     public string Username { get; init; } = null!;
     public string Email { get; init; } = null!;
     public string? RoleId { get; init; }
+    public bool HasAcceptedTerms { get; init; }
 }

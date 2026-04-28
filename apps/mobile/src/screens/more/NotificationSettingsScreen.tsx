@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ScreenLayout } from '../../components/organisms/ScreenLayout';
 import { DailySummaryConfigSheet } from '../../components/organisms/DailySummaryConfigSheet';
 import { QuietHoursSheet } from '../../components/organisms/QuietHoursSheet';
+import { TermsModal } from '../../components/organisms/TermsModal';
 import { ChannelPreferences } from '../../components/notifications/ChannelPreferences';
 import { DeviceList } from '../../components/notifications/DeviceList';
 import { Button } from '../../components/atoms/Button';
@@ -43,6 +44,7 @@ export function NotificationSettingsScreen(): React.ReactElement {
 
   const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
   const [quietHoursOpen, setQuietHoursOpen] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -195,6 +197,17 @@ export function NotificationSettingsScreen(): React.ReactElement {
           error={devicesError}
           onRemove={handleRemoveDevice}
         />
+
+        {/* Tratamiento de datos */}
+        <Button
+          variant="ghost"
+          onPress={() => setTermsVisible(true)}
+          style={styles.termsButton}
+        >
+          <Text variant="caption" color={semanticColors.primary} style={styles.termsButtonText}>
+            Tratamiento de datos personales
+          </Text>
+        </Button>
       </ScreenLayout>
 
       {/* Bottom sheets */}
@@ -216,6 +229,12 @@ export function NotificationSettingsScreen(): React.ReactElement {
         onSave={handleSaveQuietHours}
         testID="quiet-hours-sheet"
       />
+
+      <TermsModal
+        visible={termsVisible}
+        readOnly
+        onClose={() => setTermsVisible(false)}
+      />
     </>
   );
 }
@@ -233,5 +252,12 @@ const styles = StyleSheet.create({
   statusRow: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
+  },
+  termsButton: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  termsButtonText: {
+    textDecorationLine: 'underline',
   },
 });

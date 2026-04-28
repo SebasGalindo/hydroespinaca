@@ -166,6 +166,10 @@ export interface OperationalCostResponse {
 
 export interface ProfitabilityRequest {
   productionRecordId: string;
+  /** Costo de inversión inicial en infraestructura y hardware (opcional). Cuando se provee, la respuesta incluye roiPercent. */
+  initialInvestmentCost?: number;
+  /** When false, BFF skips actuator-service calls. Use when electricity was already entered manually. Default: true. */
+  includeAutomaticEnergyCalculation?: boolean;
 }
 
 export interface ProductionInfo {
@@ -221,6 +225,13 @@ export interface ProfitabilityResponse {
   expenses: ExpensesInfo;
   revenue: RevenueInfo;
   netBenefit: number;
+  /** Margen de ganancia (%) = netBenefit / totalRevenue × 100 */
   profitMarginPercent: number;
+  /** ROI real (%) = netBenefit / (initialInvestmentCost + totalExpenses) × 100. Solo presente si se envió initialInvestmentCost. */
+  roiPercent?: number;
+  /** Costo de producción por kilogramo (totalExpenses / kilosProduced) */
+  costPerKiloProduced: number;
+  /** Huella hídrica aproximada (L/kg) = totalWaterLiters / kilosProduced. Solo presente si hay agua registrada. */
+  waterFootprintLitersPerKg?: number;
   currency: string;
 }

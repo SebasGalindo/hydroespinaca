@@ -20,8 +20,23 @@ public class ProfitabilityResponse
     /// <summary>Beneficio neto (ingresos − gastos totales).</summary>
     public decimal NetBenefit { get; set; }
 
-    /// <summary>Margen de ganancia expresado como porcentaje.</summary>
+    /// <summary>Margen de ganancia expresado como porcentaje (netBenefit / totalRevenue × 100).</summary>
     public decimal ProfitMarginPercent { get; set; }
+
+    /// <summary>
+    /// ROI real (%) = netBenefit / (initialInvestmentCost + totalExpenses) × 100.
+    /// Solo presente cuando se proporcionó InitialInvestmentCost en la solicitud.
+    /// </summary>
+    public decimal? RoiPercent { get; set; }
+
+    /// <summary>Costo total de producción por kilogramo (totalExpenses / kilosProduced).</summary>
+    public decimal CostPerKiloProduced { get; set; }
+
+    /// <summary>
+    /// Huella hídrica aproximada en litros por kilogramo producido
+    /// (totalWaterLiters / kilosProduced). Aproximación para sistemas DFT con recirculación.
+    /// </summary>
+    public decimal? WaterFootprintLitersPerKg { get; set; }
 
     /// <summary>Código de moneda utilizada en el cálculo.</summary>
     public string Currency { get; set; } = "COP";

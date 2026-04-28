@@ -8,4 +8,5 @@ public class CalculateProfitabilityServiceRequest
 {
     public string ProductionRecordId { get; set; } = string.Empty;
     public List<ActuatorDurationInput> ActuatorDurations { get; set; } = new();
+    public decimal? InitialInvestmentCost { get; set; }
 }

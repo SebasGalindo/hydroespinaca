@@ -6,6 +6,7 @@ import {
   useAuthStore,
   useNotificationStore,
 } from '@hydroespinaca/shared';
+import { TermsModal } from '@/components/auth/TermsModal';
 import type {
   ChannelPreference,
   DailySummaryConfig,
@@ -36,6 +37,7 @@ const DEFAULT_QUIET_HOURS: QuietHoursConfig = {
 
 export default function NotificacionesPage() {
   const user = useAuthStore((s) => s.user);
+  const [showTerms, setShowTerms] = useState(false);
   const {
     preferences, preferencesLoading, preferencesError,
     fetchPreferences, updatePreferences,
@@ -167,7 +169,19 @@ export default function NotificacionesPage() {
             history={history}
             loading={historyLoading}
           />
+          <div className="pt-2">
+            <button
+              onClick={() => setShowTerms(true)}
+              className="text-sm text-green-600 hover:underline font-medium"
+            >
+              Tratamiento de datos personales
+            </button>
+          </div>
         </div>
+      )}
+
+      {showTerms && (
+        <TermsModal readOnly onClose={() => setShowTerms(false)} />
       )}
     </PageLayout>
   );

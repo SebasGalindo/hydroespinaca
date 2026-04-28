@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigationContainerRef, LinkingOptions } from '@react-navigation/native';
@@ -6,6 +6,8 @@ import { LoginScreen } from '../screens';
 import { MobileAuthInitializer } from '../components/MobileAuthInitializer';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
+import { useAuthStore } from '@hydroespinaca/shared';
+import { TermsModal } from '../components/organisms/TermsModal';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -53,6 +55,22 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
+function TermsGuard() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const session = useAuthStore((s) => s.session);
+  const acceptTerms = useAuthStore((s) => s.acceptTerms);
+
+  const needsAcceptance = isAuthenticated && session !== null && !session.hasAcceptedTerms;
+
+  return (
+    <TermsModal
+      visible={needsAcceptance}
+      readOnly={false}
+      onAccept={acceptTerms}
+    />
+  );
+}
+
 export function RootNavigator(): React.ReactElement {
   const navigationRef = React.useRef<NavigationContainerRef<RootStackParamList>>(null);
 
@@ -60,6 +78,7 @@ export function RootNavigator(): React.ReactElement {
     <NavigationContainer ref={navigationRef} linking={linking}>
       {/* Initialize auth callbacks and periodic session validation */}
       <MobileAuthInitializer navigationRef={navigationRef} />
+      <TermsGuard />
       <Stack.Navigator
         initialRouteName="Login"
         screenOptions={{

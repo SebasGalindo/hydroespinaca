@@ -48,6 +48,7 @@ public class SessionApplicationService : ISessionService
             csrfToken,
             request.IpAddress,
             request.UserAgent,
+            request.AcceptTerms,
             cancellationToken);
 
         var session = Session.Create(sessionId, csrfToken);
@@ -57,7 +58,7 @@ public class SessionApplicationService : ISessionService
             authResult.TokenInfo.ExpiresAt,
             authResult.TokenInfo.RefreshTokenExpiresAt
         );
-        session.SetUserInfo(authResult.UserId, authResult.Username, authResult.Email, authResult.UserRole, authResult.Scopes);
+        session.SetUserInfo(authResult.UserId, authResult.Username, authResult.Email, authResult.UserRole, authResult.Scopes, authResult.HasAcceptedTerms);
 
         await _sessionRepository.SaveAsync(session, cancellationToken);
 
@@ -192,6 +193,12 @@ public class SessionApplicationService : ISessionService
     {
         await _sessionRepository.DeleteAsync(sessionId, cancellationToken);
         _logger.LogInformation("Session deleted: {SessionId}", sessionId);
+    }
+
+    public async Task AcceptTermsAsync(string userId, string accessToken, CancellationToken cancellationToken = default)
+    {
+        await _authService.AcceptTermsAsync(userId, accessToken, cancellationToken);
+        _logger.LogInformation("Terms accepted for user: {UserId}", userId);
     }
 
     private static string GenerateSessionId()

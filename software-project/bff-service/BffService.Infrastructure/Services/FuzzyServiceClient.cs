@@ -567,6 +567,154 @@ public class FuzzyServiceClient : IFuzzyServiceClient
     }
 
     // ──────────────────────────────────────────────
+    //  Fuzzy Evaluations
+    // ──────────────────────────────────────────────
+
+    public async Task<FuzzyEvaluationsListResponseDto> GetEvaluationsAsync(
+        string accessToken,
+        string? systemId,
+        DateTime? startDate,
+        DateTime? endDate,
+        int page,
+        int pageSize,
+        string sortBy,
+        string sortOrder,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = BuildEvaluationsQuery(systemId, startDate, endDate, page, pageSize, sortBy, sortOrder);
+            _logger.LogInformation("Fetching fuzzy evaluations {Query}", query);
+            var request = CreateRequest(HttpMethod.Get, $"/api/fuzzy-evaluations/{query}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "getting fuzzy evaluations", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyEvaluationsListResponseDto>(content, _jsonOptions)
+                ?? new FuzzyEvaluationsListResponseDto();
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error fetching fuzzy evaluations"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException) { _logger.LogError(ex, "Unexpected error fetching fuzzy evaluations"); throw; }
+    }
+
+    public async Task<FuzzyEvaluationsListResponseDto> GetRecentEvaluationsAsync(
+        string accessToken,
+        int hours,
+        string? systemId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var parts = new List<string> { $"hours={hours}", $"page={page}", $"page_size={pageSize}" };
+            if (!string.IsNullOrWhiteSpace(systemId))
+                parts.Add($"system_id={Uri.EscapeDataString(systemId)}");
+            var query = "?" + string.Join("&", parts);
+
+            _logger.LogInformation("Fetching recent fuzzy evaluations {Query}", query);
+            var request = CreateRequest(HttpMethod.Get, $"/api/fuzzy-evaluations/recent{query}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "getting recent fuzzy evaluations", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyEvaluationsListResponseDto>(content, _jsonOptions)
+                ?? new FuzzyEvaluationsListResponseDto();
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error fetching recent fuzzy evaluations"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException) { _logger.LogError(ex, "Unexpected error fetching recent fuzzy evaluations"); throw; }
+    }
+
+    public async Task<FuzzyEvaluationStatsDto> GetEvaluationStatsAsync(
+        string accessToken,
+        string? systemId,
+        int days,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var parts = new List<string> { $"days={days}" };
+            if (!string.IsNullOrWhiteSpace(systemId))
+                parts.Add($"system_id={Uri.EscapeDataString(systemId)}");
+            var query = "?" + string.Join("&", parts);
+
+            _logger.LogInformation("Fetching fuzzy evaluation stats {Query}", query);
+            var request = CreateRequest(HttpMethod.Get, $"/api/fuzzy-evaluations/stats/summary{query}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "getting fuzzy evaluation stats", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyEvaluationStatsDto>(content, _jsonOptions)
+                ?? new FuzzyEvaluationStatsDto();
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error fetching fuzzy evaluation stats"); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException) { _logger.LogError(ex, "Unexpected error fetching fuzzy evaluation stats"); throw; }
+    }
+
+    public async Task<FuzzyEvaluationsListResponseDto> GetEvaluationsBySystemAsync(
+        string accessToken,
+        string systemId,
+        DateTime? startDate,
+        DateTime? endDate,
+        int page,
+        int pageSize,
+        string sortOrder,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var parts = new List<string>
+            {
+                $"page={page}",
+                $"page_size={pageSize}",
+                $"sort_order={Uri.EscapeDataString(sortOrder)}",
+            };
+            if (startDate.HasValue)
+                parts.Add($"start_date={Uri.EscapeDataString(startDate.Value.ToUniversalTime().ToString("o"))}");
+            if (endDate.HasValue)
+                parts.Add($"end_date={Uri.EscapeDataString(endDate.Value.ToUniversalTime().ToString("o"))}");
+            var query = "?" + string.Join("&", parts);
+
+            _logger.LogInformation("Fetching fuzzy evaluations for system {SystemId} {Query}", systemId, query);
+            var request = CreateRequest(HttpMethod.Get,
+                $"/api/fuzzy-evaluations/system/{Uri.EscapeDataString(systemId)}{query}", accessToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccessOrThrow(response, "getting fuzzy evaluations by system", cancellationToken);
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<FuzzyEvaluationsListResponseDto>(content, _jsonOptions)
+                ?? new FuzzyEvaluationsListResponseDto();
+        }
+        catch (HttpRequestException ex) { _logger.LogError(ex, "HTTP error fetching fuzzy evaluations for system {Id}", systemId); throw; }
+        catch (Exception ex) when (ex is not HttpRequestException) { _logger.LogError(ex, "Unexpected error fetching fuzzy evaluations for system {Id}", systemId); throw; }
+    }
+
+    private static string BuildEvaluationsQuery(
+        string? systemId,
+        DateTime? startDate,
+        DateTime? endDate,
+        int page,
+        int pageSize,
+        string sortBy,
+        string sortOrder)
+    {
+        var parts = new List<string>
+        {
+            $"page={page}",
+            $"page_size={pageSize}",
+            $"sort_by={Uri.EscapeDataString(sortBy)}",
+            $"sort_order={Uri.EscapeDataString(sortOrder)}",
+        };
+        if (!string.IsNullOrWhiteSpace(systemId))
+            parts.Add($"system_id={Uri.EscapeDataString(systemId)}");
+        if (startDate.HasValue)
+            parts.Add($"start_date={Uri.EscapeDataString(startDate.Value.ToUniversalTime().ToString("o"))}");
+        if (endDate.HasValue)
+            parts.Add($"end_date={Uri.EscapeDataString(endDate.Value.ToUniversalTime().ToString("o"))}");
+        return "?" + string.Join("&", parts);
+    }
+
+    // ──────────────────────────────────────────────
     //  Private Helpers
     // ──────────────────────────────────────────────
 

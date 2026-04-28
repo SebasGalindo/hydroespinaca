@@ -31,12 +31,12 @@ namespace AuthService.Infrastructure.Security
             _roleRepository = roleRepository;
         }
 
-        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User)
+        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType = TokenType.User, bool hasAcceptedTerms = false)
         {
-            return await GenerateTokensAsync(userId, email, role, clientId, tokenType, null);
+            return await GenerateTokensAsync(userId, email, role, clientId, tokenType, null, hasAcceptedTerms);
         }
-        
-        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType, string[]? explicitScopes)
+
+        public async Task<TokenResult> GenerateTokensAsync(string userId, string email, string role, string? clientId, TokenType tokenType, string[]? explicitScopes, bool hasAcceptedTerms = false)
         {
             var now = DateTime.UtcNow;
             
@@ -87,7 +87,8 @@ namespace AuthService.Infrastructure.Security
                 new Claim(JwtRegisteredNames.Sub, userId), // Use standard "sub" claim for user ID
                 new Claim(ClaimTypes.Email, email),
                 new Claim(ClaimTypes.Role, role),
-                new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("terms_accepted", hasAcceptedTerms ? "true" : "false")
             };
             
             if (!string.IsNullOrEmpty(clientId))

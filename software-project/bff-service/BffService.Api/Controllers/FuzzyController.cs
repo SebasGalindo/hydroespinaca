@@ -793,4 +793,125 @@ public class FuzzyController : BaseAuthenticatedController
                 ex, Logger, "deleting fuzzy rule", id);
         }
     }
+
+    // ──────────────────────────────────────────────
+    //  Fuzzy Evaluations (RF-F07)
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Lists persisted fuzzy evaluations with optional filters and pagination.
+    /// </summary>
+    [HttpGet("evaluations")]
+    [ProducesResponseType(typeof(FuzzyEvaluationsListResponseDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetEvaluations(
+        [FromQuery(Name = "systemId")] string? systemId,
+        [FromQuery(Name = "startDate")] DateTime? startDate,
+        [FromQuery(Name = "endDate")] DateTime? endDate,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string sortBy = "timestamp",
+        [FromQuery] string sortOrder = "desc",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetEvaluationsAsync(
+                session.AccessToken, systemId, startDate, endDate,
+                page, pageSize, sortBy, sortOrder, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting fuzzy evaluations");
+        }
+    }
+
+    /// <summary>
+    /// Lists evaluations performed in the last N hours (default 24, max 168).
+    /// </summary>
+    [HttpGet("evaluations/recent")]
+    [ProducesResponseType(typeof(FuzzyEvaluationsListResponseDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetRecentEvaluations(
+        [FromQuery] int hours = 24,
+        [FromQuery(Name = "systemId")] string? systemId = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetRecentEvaluationsAsync(
+                session.AccessToken, hours, systemId, page, pageSize, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting recent fuzzy evaluations");
+        }
+    }
+
+    /// <summary>
+    /// Lists evaluations for a specific fuzzy system, with optional date range.
+    /// </summary>
+    [HttpGet("systems/{systemId}/evaluations")]
+    [ProducesResponseType(typeof(FuzzyEvaluationsListResponseDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetEvaluationsBySystem(
+        string systemId,
+        [FromQuery(Name = "startDate")] DateTime? startDate = null,
+        [FromQuery(Name = "endDate")] DateTime? endDate = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string sortOrder = "desc",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetEvaluationsBySystemAsync(
+                session.AccessToken, systemId, startDate, endDate,
+                page, pageSize, sortOrder, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting fuzzy evaluations by system", systemId);
+        }
+    }
+
+    /// <summary>
+    /// Returns aggregate statistics for fuzzy evaluations over the last N days.
+    /// </summary>
+    [HttpGet("evaluations/stats")]
+    [ProducesResponseType(typeof(FuzzyEvaluationStatsDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(500)]
+    public async Task<IActionResult> GetEvaluationStats(
+        [FromQuery(Name = "systemId")] string? systemId = null,
+        [FromQuery] int days = 7,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var session = await ValidateSessionAsync(cancellationToken);
+            var result = await _fuzzyServiceClient.GetEvaluationStatsAsync(
+                session.AccessToken, systemId, days, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ControllerExceptionHandler.HandleException(
+                ex, Logger, "getting fuzzy evaluation stats");
+        }
+    }
 }

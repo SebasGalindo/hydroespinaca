@@ -18,6 +18,8 @@ public class UserMapper : IEntityMapper<User, UserDocument>
             doc.RoleId
         );
         user.SetId(doc.Id);
+        if (doc.HasAcceptedTerms)
+            user.AcceptTerms();
         return user;
     }
 
@@ -25,11 +27,12 @@ public class UserMapper : IEntityMapper<User, UserDocument>
     {
         return new UserDocument
         {
-            Id = entity.Id, // MongoDB will auto-generate if null/empty
+            Id = entity.Id,
             Username = entity.Username,
             Email = entity.Email.Value,
             Password = entity.Password.Value,
-            RoleId = entity.RoleId
+            RoleId = entity.RoleId,
+            HasAcceptedTerms = entity.HasAcceptedTerms
         };
     }
 }

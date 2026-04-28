@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { StoreInitializer } from '@/components/store/StoreInitializer';
 import { Providers } from './providers';
 import { ChatProvider } from '@/components/chat';
+import { TermsGuard } from '@/components/auth/TermsGuard';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
       >
         <Providers>
           <StoreInitializer />
+          <TermsGuard />
           {children}
           {/* Chat flotante — visible en todas las páginas autenticadas */}
           <ChatProvider />

@@ -74,6 +74,26 @@ public class CalculateProfitabilityQueryHandler
             ? decimal.Round(netBenefit / totalRevenue * 100m, 2)
             : 0m;
 
+        // ROI real: netBenefit / (initialInvestmentCost + totalExpenses) × 100
+        decimal? roiPercent = null;
+        if (request.InitialInvestmentCost.HasValue && request.InitialInvestmentCost.Value >= 0)
+        {
+            var totalInvestment = request.InitialInvestmentCost.Value + totalExpenses;
+            roiPercent = totalInvestment > 0
+                ? decimal.Round(netBenefit / totalInvestment * 100m, 2)
+                : 0m;
+        }
+
+        // Costo por kilogramo producido: totalExpenses / kilosProduced
+        var costPerKiloProduced = production.KilosProduced > 0
+            ? decimal.Round(totalExpenses / production.KilosProduced, 4)
+            : 0m;
+
+        // Huella hídrica aproximada: totalWaterLiters / kilosProduced (L/kg)
+        decimal? waterFootprintLitersPerKg = null;
+        if (totalWaterLiters > 0 && production.KilosProduced > 0)
+            waterFootprintLitersPerKg = decimal.Round(totalWaterLiters / production.KilosProduced, 4);
+
         return new ProfitabilityResponse
         {
             Production = new ProductionInfo
@@ -123,6 +143,9 @@ public class CalculateProfitabilityQueryHandler
             },
             NetBenefit = decimal.Round(netBenefit, 4),
             ProfitMarginPercent = profitMarginPercent,
+            RoiPercent = roiPercent,
+            CostPerKiloProduced = costPerKiloProduced,
+            WaterFootprintLitersPerKg = waterFootprintLitersPerKg,
             Currency = production.Currency
         };
     }

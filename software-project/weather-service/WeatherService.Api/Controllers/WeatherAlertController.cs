@@ -60,7 +60,9 @@ public class WeatherAlertController : ControllerBase
             request.UserId,
             request.IsActive,
             request.Alerts.Select(a => new AlertThresholdDto(
-                a.Type, a.Enabled, a.ThresholdValue, a.Comparison, a.Recommendation)).ToList());
+                a.Type, a.Enabled, a.ThresholdValue, a.Comparison, a.Recommendation)).ToList(),
+            request.MaxForecastDays,
+            request.AllowDuplicateAlerts);
 
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
@@ -127,6 +129,8 @@ public record UpdateAlertConfigRequest
     public string UserId { get; init; } = string.Empty;
     public bool IsActive { get; init; } = true;
     public List<AlertThresholdRequest> Alerts { get; init; } = [];
+    public int MaxForecastDays { get; init; } = 8;
+    public bool AllowDuplicateAlerts { get; init; } = true;
 }
 
 public record AlertThresholdRequest

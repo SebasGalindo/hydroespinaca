@@ -33,6 +33,8 @@ public class UpdateAlertConfigHandler : IRequestHandler<UpdateAlertConfigCommand
                 $"Alert config not found for fuzzy system '{request.FuzzySystemId}'");
 
         existing.IsActive = request.IsActive;
+        existing.MaxForecastDays = request.MaxForecastDays;
+        existing.AllowDuplicateAlerts = request.AllowDuplicateAlerts;
         existing.Alerts = request.Alerts.Select(a => new AlertThreshold
         {
             Type = a.Type,

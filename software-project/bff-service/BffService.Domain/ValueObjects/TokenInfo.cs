@@ -16,7 +16,8 @@ public record AuthenticationResult(
     string Username,
     string Email,
     string UserRole,
-    List<string> Scopes
+    List<string> Scopes,
+    bool HasAcceptedTerms = false
 );
 
 public record ProxyRequest(

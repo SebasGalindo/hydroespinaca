@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from typing import Optional, List
 from datetime import datetime, timezone
+import logging
 
 from fastapi import APIRouter, HTTPException, Query, Path, Depends
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import JSONResponse
 
 from FuzzyService.Infrastructure.Authentication.jwt_auth import get_current_user, require_scopes, Scopes, UserClaims
@@ -25,6 +28,11 @@ from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.CreateFuzzyEval
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetAllFuzzyEvaluationsHandler import GetAllFuzzyEvaluationsHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetFuzzyEvaluationByIdHandler import GetFuzzyEvaluationByIdHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetFuzzyEvaluationsBySystemHandler import GetFuzzyEvaluationsBySystemHandler
+from FuzzyService.Application.Features.FuzzyEvaluations.Queries.GetFuzzyEvaluationStatsSummaryQuery import (
+    GetFuzzyEvaluationStatsSummaryQuery,
+    GetFuzzyEvaluationStatsSummaryResponse
+)
+from FuzzyService.Application.Features.FuzzyEvaluations.Handlers.GetFuzzyEvaluationStatsSummaryHandler import GetFuzzyEvaluationStatsSummaryHandler
 from FuzzyService.Application.Features.FuzzyEvaluations.DTOs.FuzzyEvaluationDto import FuzzyEvaluationDto
 from kink import di
 
@@ -240,6 +248,7 @@ async def get_evaluation_by_id(
 
 @router.get(
     "/stats/summary",
+    response_model=GetFuzzyEvaluationStatsSummaryResponse,
     summary="Estadísticas de evaluaciones",
     description="Obtiene estadísticas generales de las evaluaciones fuzzy"
 )
@@ -247,63 +256,26 @@ async def get_evaluation_stats(
     system_id: Optional[str] = Query(None, description=QueryDescriptions.FILTER_BY_SYSTEM_ID),
     days: int = Query(7, ge=1, le=365, description="Días hacia atrás para las estadísticas"),
     user: UserClaims = Depends(require_scopes(Scopes.FUZZY_EVALUATION_READ)),
-) -> JSONResponse:
-    """Obtiene estadísticas de evaluaciones fuzzy."""
+) -> GetFuzzyEvaluationStatsSummaryResponse:
+    """Obtiene estadísticas de evaluaciones fuzzy.
+
+    Usa un pipeline de agregación para evitar cargar todos los documentos en
+    memoria (antes el endpoint estaba limitado a 10000 docs y `total_evaluations`
+    quedaba siempre topado a ese número).
+    """
     try:
-        from datetime import timedelta
-        from FuzzyService.Domain.Interfaces.IFuzzyEvaluationRepository import IFuzzyEvaluationRepository
+        query = GetFuzzyEvaluationStatsSummaryQuery(
+            system_id=system_id,
+            days=days
+        )
         
-        # Calcular rango de fechas
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days)
+        handler = GetFuzzyEvaluationStatsSummaryHandler()
+        response = await handler(query)
         
-        # Obtener repositorio
-        evaluation_repo: IFuzzyEvaluationRepository = di[IFuzzyEvaluationRepository]
-        
-        # Construir filtros
-        filters = {
-            'start_date': start_date,
-            'end_date': end_date
-        }
-        if system_id:
-            filters['system_id'] = system_id
-        
-        # Obtener evaluaciones para estadísticas
-        evaluations = await evaluation_repo.filter_evaluations(filters=filters, skip=0, limit=10000)
-        
-        # Calcular estadísticas
-        total_evaluations = len(evaluations)
-        
-        # Estadísticas por sistema
-        systems_stats = {}
-        for eval in evaluations:
-            sys_id = str(eval.system_id) if eval.system_id else "unknown"
-            if sys_id not in systems_stats:
-                systems_stats[sys_id] = 0
-            systems_stats[sys_id] += 1
-        
-        # Estadísticas por día
-        daily_stats = {}
-        for eval in evaluations:
-            if eval.timestamp:
-                day_key = eval.timestamp.strftime('%Y-%m-%d')
-                if day_key not in daily_stats:
-                    daily_stats[day_key] = 0
-                daily_stats[day_key] += 1
-        
-        stats = {
-            "total_evaluations": total_evaluations,
-            "date_range": {
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-                "days": days
-            },
-            "systems_stats": systems_stats,
-            "daily_stats": daily_stats,
-            "avg_evaluations_per_day": total_evaluations / days if days > 0 else 0
-        }
-        
-        return JSONResponse(content=stats)
-        
+        return response
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
+        logger.exception("Error interno en get_evaluation_stats")
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")

@@ -48,7 +48,7 @@ const StatCard = React.memo(function StatCard({
 
   return (
     <BaseCard padding="sm" hover={false} className={`${styles.bg} ${className}`}>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-gray-500 font-inter uppercase tracking-wider truncate">
             {label}
