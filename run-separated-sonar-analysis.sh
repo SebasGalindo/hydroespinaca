@@ -184,7 +184,9 @@ analyze_dotnet_service() {
         /d:sonar.host.url="$SONAR_HOST_URL" \
         /d:sonar.token="$SONAR_TOKEN" \
         /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
-        /d:sonar.exclusions="**/obj/**,**/bin/**,**/TestResults/**,**/*.Api/**,**/*.Infrastructure/**,**/*.Tests/**,**/Tests/**,**/Migrations/**,**/Configuration/**,**/DTOs/**,**/*Dto.cs,**/*DTO.cs,**/Commands/**,**/Queries/**,**/Features/**,**/Mappers/**,**/UseCases/**,**/DependencyInjection.cs,**/Program.cs,**/Startup.cs,**/appsettings*.json,**/*.csproj,**/Controllers/**,**/Middleware/**,**/Filters/**" \
+        /d:sonar.exclusions="**/obj/**,**/bin/**,**/TestResults/**,**/*Tests*/**,**/Tests/**,**/Migrations/**,**/appsettings*.json,**/*.csproj" \
+        /d:sonar.test.exclusions="**/*Tests*/**,**/Tests/**" \
+        /d:sonar.coverage.exclusions="**/*Tests*/**,**/Tests/**,**/*.Api/**,**/*.Infrastructure/**,**/Configuration/**,**/DTOs/**,**/*Dto.cs,**/*DTO.cs,**/Commands/**,**/Queries/**,**/Features/**,**/Mappers/**,**/UseCases/**,**/DependencyInjection.cs,**/Program.cs,**/Startup.cs,**/Controllers/**,**/Middleware/**,**/Filters/**,**/*Extensions.cs" \
         || {
             echo -e "${RED}❌ Error en dotnet sonarscanner begin${NC}"
             ANALYSIS_RESULTS+=("❌ $project_name - FAILED (begin)")
@@ -300,14 +302,10 @@ analyze_python_service() {
     # Ejecutar tests - SOLO para el código crítico que SonarQube analizará
     # IMPORTANTE: Debe coincidir exactamente con lo que está en sonar.sources menos sonar.exclusions
     # Incluir: Domain (sin Utils) + Application/Helpers (sin Mappers)
-    echo -e "${YELLOW}🧪 Ejecutando tests con coverage (código crítico solamente)...${NC}"
+    echo -e "${YELLOW}🧪 Ejecutando tests con coverage (Domain + Application)...${NC}"
     python -m pytest tests/ \
-        --cov=FuzzyService/Domain/Entities \
-        --cov=FuzzyService/Domain/ValueObjects \
-        --cov=FuzzyService/Domain/Enums \
-        --cov=FuzzyService/Domain/Errors \
-        --cov=FuzzyService/Domain/Common \
-        --cov=FuzzyService/Application/Helpers \
+        --cov=FuzzyService/Domain \
+        --cov=FuzzyService/Application \
         --cov-report=xml:coverage.xml \
         --cov-report=term \
         -q 2>/dev/null || \
@@ -324,24 +322,16 @@ analyze_python_service() {
         fi
     fi
 
-    # Crear sonar-project.properties temporal - CRÍTICO: Solo analizar código con lógica de negocio
-    # ESTRATEGIA: Usar sonar.sources con directorios ESPECÍFICOS (no usar directorios raíz + exclusions)
-    # En Python, sonar.sources determina QUÉ APARECE en el dashboard de SonarQube
-    # Todo lo que NO esté listado aquí, NO aparecerá en el dashboard
+    # Crear sonar-project.properties temporal
+    # ESTRATEGIA: sonar.sources apunta al paquete completo para analizar todas las capas.
+    # sonar.coverage.exclusions restringe el coverage solo a Domain y Application.
     cat > sonar-project.properties << EOF
 sonar.projectKey=$project_key
 sonar.projectName=$project_name
 sonar.projectVersion=1.0
 
-# ⚠️ CRÍTICO: Solo listar los directorios EXACTOS que queremos analizar
-# SonarQube SOLO analizará estos directorios (todo lo demás NO aparecerá en dashboard)
-# Incluir: Domain (sin Utils) + Application/Helpers (sin Mappers, Features, Services, Configuration)
-sonar.sources=FuzzyService/Domain/Entities,\\
-              FuzzyService/Domain/ValueObjects,\\
-              FuzzyService/Domain/Enums,\\
-              FuzzyService/Domain/Errors,\\
-              FuzzyService/Domain/Common,\\
-              FuzzyService/Application/Helpers
+# Analizar todo el paquete (todas las capas aparecen en bugs/smells/vulnerabilidades)
+sonar.sources=FuzzyService
 
 # Directorio de tests
 sonar.tests=tests
@@ -349,15 +339,27 @@ sonar.tests=tests
 # Python config
 sonar.python.version=3.11
 
-# Coverage report - debe estar generado SOLO para los directorios en sonar.sources
+# Coverage report generado por pytest-cov
 sonar.python.coverage.reportPaths=coverage.xml
 
-# Exclusiones adicionales dentro de los directorios en sonar.sources
-# - __init__.py (solo imports, sin lógica)
-# - DTOs si existieran en estos directorios
-sonar.exclusions=**/__init__.py,\\
+# El coverage solo se mide en Domain y Application (no en Api ni Infrastructure ni Tests)
+sonar.coverage.exclusions=FuzzyService/Api/**,\\
+                           FuzzyService/Infrastructure/**,\\
+                           tests/**,\\
+                           **/__init__.py,\\
+                           **/*Dto.py,\\
+                           **/*DTO.py,\\
+                           FuzzyService/Domain/Interfaces/IMqttService.py,\\
+                           FuzzyService/Application/Helpers/MappingHelper.py
+
+# Excluir de análisis completo (issues) los tests y artefactos
+sonar.exclusions=tests/**,\\
+                 **/__init__.py,\\
                  **/*Dto.py,\\
                  **/*DTO.py
+
+# Identificar explícitamente los tests
+sonar.test.exclusions=tests/**
 
 # Encoding
 sonar.sourceEncoding=UTF-8
@@ -422,6 +424,24 @@ analyze_all_services() {
         "NotificationService.sln" \
         "hydroespinaca-notification-service" \
         "HydroEspinaca - NotificationService"
+
+    analyze_dotnet_service \
+        "software-project/weather-service" \
+        "WeatherService.sln" \
+        "hydroespinaca-weather-service" \
+        "HydroEspinaca - WeatherService"
+
+    analyze_dotnet_service \
+        "software-project/chatbot-service" \
+        "ChatbotService.sln" \
+        "hydroespinaca-chatbot-service" \
+        "HydroEspinaca - ChatbotService"
+
+    analyze_dotnet_service \
+        "software-project/bi-service" \
+        "BiService.sln" \
+        "hydroespinaca-bi-service" \
+        "HydroEspinaca - BiService"
 
     # Servicio Python
     analyze_python_service
@@ -500,6 +520,9 @@ main() {
     echo -e "${CYAN}   • hydroespinaca-actuator-service${NC}"
     echo -e "${CYAN}   • hydroespinaca-bff-service${NC}"
     echo -e "${CYAN}   • hydroespinaca-notification-service${NC}"
+    echo -e "${CYAN}   • hydroespinaca-weather-service${NC}"
+    echo -e "${CYAN}   • hydroespinaca-chatbot-service${NC}"
+    echo -e "${CYAN}   • hydroespinaca-bi-service${NC}"
     echo -e "${CYAN}   • hydroespinaca-fuzzy-service${NC}"
     echo ""
     echo -e "${YELLOW}Cada proyecto tendrá su propio Quality Gate y métricas.${NC}"
