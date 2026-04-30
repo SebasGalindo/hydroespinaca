@@ -10,7 +10,7 @@ COPY ./software-project/bff-service ./bff-service
 WORKDIR /app/bff-service
 
 RUN dotnet restore BffService.sln --configfile ../NuGet.config
-RUN dotnet publish BffService.Api/BffService.Api.csproj -c Release -o out --no-restore --self-contained false
+RUN dotnet publish BffService.Api/BffService.Api.csproj -c Release -o out --no-restore --self-contained false -p:PublishReadyToRun=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
