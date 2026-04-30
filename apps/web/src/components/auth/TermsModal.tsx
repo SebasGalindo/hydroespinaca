@@ -5,9 +5,9 @@ import { authService } from '@hydroespinaca/shared';
 import type { TermsContent } from '@hydroespinaca/shared';
 
 interface TermsModalProps {
-  // Allow synchronous or asynchronous accept handlers
-  onAccept?: () => void | Promise<void>;
-  onClose?: () => void;
+  // Allow synchronous or asynchronous accept handlers and explicit undefined (TS exactOptionalPropertyTypes)
+  onAccept?: (() => void | Promise<void>) | undefined;
+  onClose?: (() => void) | undefined;
   readOnly?: boolean;
 }
 
