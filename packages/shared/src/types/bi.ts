@@ -167,9 +167,9 @@ export interface OperationalCostResponse {
 export interface ProfitabilityRequest {
   productionRecordId: string;
   /** Costo de inversión inicial en infraestructura y hardware (opcional). Cuando se provee, la respuesta incluye roiPercent. */
-  initialInvestmentCost?: number;
+  initialInvestmentCost?: number | undefined;
   /** When false, BFF skips actuator-service calls. Use when electricity was already entered manually. Default: true. */
-  includeAutomaticEnergyCalculation?: boolean;
+  includeAutomaticEnergyCalculation?: boolean | undefined;
 }
 
 export interface ProductionInfo {
