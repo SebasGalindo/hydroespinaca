@@ -495,6 +495,11 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       target: ${WEB_TARGET:-production}
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+        - NEXT_PUBLIC_ACCESS_TOKEN_EXPIRY_MINUTES=${Jwt_AccessTokenExpiryMinutes}
+        - NEXT_PUBLIC_REFRESH_TOKEN_EXPIRY_DAYS=${Jwt_RefreshTokenExpiryDays}
     container_name: web-app
     depends_on:
       bff-service:
