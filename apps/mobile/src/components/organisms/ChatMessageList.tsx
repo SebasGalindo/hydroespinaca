@@ -36,6 +36,11 @@ export const ChatMessageList = React.memo(function ChatMessageList(): React.Reac
         return undefined;
     }, [messages.length, streamingText, isStreaming]);
 
+    const renderItem = useCallback(
+        ({ item }: { item: ChatMessage }) => <ChatMessageItem message={item} />,
+        []
+    );
+
     // ── Empty state (no active session) ─────────────────────────────────────
     if (!activeSessionId) {
         return (
@@ -91,11 +96,6 @@ export const ChatMessageList = React.memo(function ChatMessageList(): React.Reac
             </View>
         );
     };
-
-    const renderItem = useCallback(
-        ({ item }: { item: ChatMessage }) => <ChatMessageItem message={item} />,
-        []
-    );
 
     return (
         <FlatList<ChatMessage>
