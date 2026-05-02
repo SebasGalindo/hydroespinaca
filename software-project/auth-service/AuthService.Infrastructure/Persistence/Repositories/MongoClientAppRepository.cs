@@ -32,4 +32,9 @@ public class MongoClientAppRepository : IClientAppRepository
     {
         return _baseRepo.CreateAsync(app);
     }
+
+    public Task UpdateAsync(ClientApp app)
+    {
+        return _baseRepo.UpdateAsync(app);
+    }
 }

@@ -28,7 +28,7 @@ RUN useradd --create-home --shell /bin/bash fuzzy && \
 USER fuzzy
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Install curl for health check
 USER root
@@ -37,7 +37,7 @@ USER fuzzy
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run application
-CMD ["uvicorn", "FuzzyService.Api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "FuzzyService.Api.main:app", "--host", "0.0.0.0", "--port", "8080"]

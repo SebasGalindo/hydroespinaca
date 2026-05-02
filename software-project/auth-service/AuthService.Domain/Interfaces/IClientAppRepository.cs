@@ -8,4 +8,5 @@ public interface IClientAppRepository
 {
     Task<ClientApp?> FindByClientIdAsync(string clientId);
     Task AddAsync(ClientApp app);
+    Task UpdateAsync(ClientApp app);
 }

@@ -409,7 +409,7 @@ services:
       dockerfile: software-project/fuzzy-service/Dockerfile
     container_name: fuzzy-service
     expose:
-      - "8000"
+      - "8080"
     depends_on:
       - auth-service
       - mqtt

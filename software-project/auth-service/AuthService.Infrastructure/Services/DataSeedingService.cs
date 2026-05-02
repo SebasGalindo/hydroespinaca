@@ -452,7 +452,11 @@ public class DataSeedingService
                 Scopes = new[]
                 {
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth,
-                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.AggregateRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyEvaluationRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.WeatherRead
                 }
             },
             new {
@@ -509,37 +513,56 @@ public class DataSeedingService
         };
 
         var createdCount = 0;
+        var updatedCount = 0;
         foreach (var client in m2mClients)
         {
+            var permissions = await _permissionRepository.FindByCodesAsync(client.Scopes);
+            var permissionCodes = permissions.Select(p => p.Code).ToList();
+
+            if (permissions.Count != client.Scopes.Length)
+            {
+                var foundCodes = permissions.Select(p => p.Code).ToHashSet();
+                var missingCodes = client.Scopes.Where(code => !foundCodes.Contains(code)).ToList();
+                _logger.LogWarning("M2M Client {ClientId}: Missing permission codes: {MissingCodes}",
+                    client.ClientId, string.Join(", ", missingCodes));
+            }
+
             var existing = await _clientAppRepository.FindByClientIdAsync(client.ClientId);
             if (existing == null)
             {
-                var permissions = await _permissionRepository.FindByCodesAsync(client.Scopes);
-                var permissionCodes = permissions.Select(p => p.Code).ToList();
-                
-                if (permissions.Count != client.Scopes.Length)
-                {
-                    var foundCodes = permissions.Select(p => p.Code).ToHashSet();
-                    var missingCodes = client.Scopes.Where(code => !foundCodes.Contains(code)).ToList();
-                    _logger.LogWarning("M2M Client {ClientId}: Missing permission codes: {MissingCodes}", 
-                        client.ClientId, string.Join(", ", missingCodes));
-                }
-                
                 var hashedSecret = _passwordHasher.Hash(client.ClientSecret);
                 var clientApp = new ClientApp(
                     client.Code,
                     client.ClientId,
-                    new HashedPassword(hashedSecret), 
+                    new HashedPassword(hashedSecret),
                     permissionCodes
                 );
                 await _clientAppRepository.AddAsync(clientApp);
                 createdCount++;
             }
+            else
+            {
+                // Reconcile scopes if the seed declares more/different than what's stored
+                var currentScopes = existing.Scopes.ToHashSet();
+                var desiredScopes = permissionCodes.ToHashSet();
+                if (!currentScopes.SetEquals(desiredScopes))
+                {
+                    existing.UpdateScopes(permissionCodes);
+                    await _clientAppRepository.UpdateAsync(existing);
+                    updatedCount++;
+                    _logger.LogInformation("Updated scopes for M2M Client {ClientId}: {Scopes}",
+                        client.ClientId, string.Join(", ", permissionCodes));
+                }
+            }
         }
-        
+
         if (createdCount > 0)
         {
             _logger.LogInformation("Created {CreatedCount} M2M clients", createdCount);
+        }
+        if (updatedCount > 0)
+        {
+            _logger.LogInformation("Updated {UpdatedCount} M2M clients with new scopes", updatedCount);
         }
     }
 }

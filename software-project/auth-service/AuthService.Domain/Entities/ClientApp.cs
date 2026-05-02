@@ -34,6 +34,11 @@ public class ClientApp : IIdentifiableMutable
         return hasher.Verify(Secret.Value, plainSecret);
     }
 
+    public void UpdateScopes(IEnumerable<string> scopes)
+    {
+        Scopes = scopes ?? Enumerable.Empty<string>();
+    }
+
     public void SetId(string id)
     {
         Id = id;
