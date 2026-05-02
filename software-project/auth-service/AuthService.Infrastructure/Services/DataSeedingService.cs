@@ -233,7 +233,20 @@ public class DataSeedingService
             // System-level permissions
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemAdmin, "System Admin Permission", "System administration access"),
             new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemHealth, "System Health Permission", "Access system health information"),
-            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor, "System Monitor Permission", "Monitor system operations")
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.SystemMonitor, "System Monitor Permission", "Monitor system operations"),
+
+            // Weather permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.WeatherRead, "Weather Read Permission", "Read weather forecast and alert data"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.WeatherWrite, "Weather Write Permission", "Write weather configuration and alerts"),
+
+            // BI permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.BiRead, "BI Read Permission", "Read business-intelligence reports and analytics"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.BiWrite, "BI Write Permission", "Write business-intelligence configuration"),
+
+            // Chatbot permissions
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ChatRead, "Chat Read Permission", "Read chatbot sessions and history"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.ChatWrite, "Chat Write Permission", "Send messages to the chatbot"),
+            new Permission(HydroEspinaca.Shared.Enums.AuthorizationScopes.RagManage, "RAG Manage Permission", "Manage RAG knowledge base and ingestion")
         };
 
         var createdCount = 0;
