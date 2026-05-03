@@ -30,7 +30,7 @@ public class FuzzyServiceClient : IFuzzyServiceClient
         _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _baseUrl = configuration["Services:FuzzyService:Url"]
-            ?? "http://fuzzy-service:8000";
+            ?? "http://fuzzy-service:8080";
     }
 
     /// <inheritdoc />

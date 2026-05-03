@@ -29,7 +29,7 @@ public class FuzzyServiceClient : IFuzzyServiceClient
     {
         _httpClient = httpClient;
         _logger = logger;
-        _baseUrl = configuration["Services:FuzzyService:Url"] ?? "http://fuzzy-service:8000";
+        _baseUrl = configuration["Services:FuzzyService:Url"] ?? "http://fuzzy-service:8080";
 
         _jsonOptions = new JsonSerializerOptions
         {

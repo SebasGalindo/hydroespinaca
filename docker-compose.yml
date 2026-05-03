@@ -476,6 +476,9 @@ services:
       - M2M__AuthServiceUrl=${AUTH_SERVICE_INTERNAL_URL}
       - M2M__TokenEndpoint=${AUTH_SERVICE_TOKEN_ENDPOINT}
       - M2M__TokenCacheDurationMinutes=${Jwt_AccessTokenExpiryMinutes}
+      - Services__FuzzyService__Url=${FUZZY_SERVICE_URL}
+      - Services__SensorService__Url=${SENSOR_SERVICE_URL}
+      - Services__ActuatorService__Url=${ACTUATOR_SERVICE_URL}
     networks:
       - espinaca-net
     profiles:
