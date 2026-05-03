@@ -469,6 +469,7 @@ public class DataSeedingService
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.AggregateRead,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.CommandRead,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzyEvaluationRead,
+                    HydroEspinaca.Shared.Enums.AuthorizationScopes.FuzzySystemRead,
                     HydroEspinaca.Shared.Enums.AuthorizationScopes.WeatherRead
                 }
             },

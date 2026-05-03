@@ -88,7 +88,8 @@ public class DailySummaryContentFormatter
                     sb.AppendLine("<ul>");
                     foreach (var rule in data.FuzzyEvaluation.TopRules)
                     {
-                        sb.AppendLine($"<li>{rule.RuleId}: {rule.ActivationCount}× " +
+                        var label = !string.IsNullOrEmpty(rule.RuleName) ? rule.RuleName : rule.RuleId;
+                        sb.AppendLine($"<li>{label}: {rule.ActivationCount}× " +
                             $"(fuerza promedio: {rule.AvgFiringStrength:F2})</li>");
                     }
                     sb.AppendLine("</ul>");

@@ -194,6 +194,14 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
                     .Take(5)
                     .ToList();
 
+                // Resolve human-readable rule names so the email shows "Si Temp alta..." instead of ObjectIds
+                var ruleNames = await ResolveRuleNames(client, ct);
+                foreach (var rule in ruleActivations)
+                {
+                    if (ruleNames.TryGetValue(rule.RuleId, out var name) && !string.IsNullOrEmpty(name))
+                        rule.RuleName = name;
+                }
+
                 data.FuzzyEvaluation = new FuzzyEvaluationSummary
                 {
                     EvaluationCount = result.TotalCount,
@@ -239,6 +247,36 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
         }
 
         return systemId; // Fallback to ID if name lookup fails
+    }
+
+    /// <summary>
+    /// Builds a map of ruleId → name using the fuzzy-service summary endpoint
+    /// (one batched call instead of N individual lookups).
+    /// </summary>
+    private async Task<Dictionary<string, string>> ResolveRuleNames(HttpClient client, CancellationToken ct)
+    {
+        try
+        {
+            var response = await client.GetAsync(
+                $"{_serviceUrls.FuzzyServiceUrl}/api/fuzzy-rules/summary/name-description?limit=500", ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var rules = await response.Content.ReadFromJsonAsync<List<FuzzyRuleSummaryItem>>(_snakeCaseOptions, ct);
+                if (rules != null)
+                {
+                    return rules
+                        .Where(r => !string.IsNullOrEmpty(r.Id) && !string.IsNullOrEmpty(r.Name))
+                        .ToDictionary(r => r.Id, r => r.Name)!;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not resolve fuzzy rule names");
+        }
+
+        return [];
     }
 
     private async Task FetchWeatherData(DailySummaryData data, CancellationToken ct)
@@ -338,6 +376,12 @@ public class DailySummaryDataAggregator : IDailySummaryDataAggregator
     }
 
     private class FuzzySystemItem
+    {
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+    }
+
+    private class FuzzyRuleSummaryItem
     {
         public string? Id { get; set; }
         public string? Name { get; set; }

@@ -56,6 +56,7 @@ public class FuzzyEvaluationSummary
 public class TopRuleSummary
 {
     public string RuleId { get; set; } = string.Empty;
+    public string? RuleName { get; set; }
     public int ActivationCount { get; set; }
     public double AvgFiringStrength { get; set; }
 }
