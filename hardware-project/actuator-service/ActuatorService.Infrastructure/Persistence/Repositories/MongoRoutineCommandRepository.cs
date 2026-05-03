@@ -222,28 +222,60 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
             ? endDate
             : DateTime.SpecifyKind(endDate, DateTimeKind.Utc);
 
+        // We want the time each actuator was actually ON during [startUtc, endUtc].
+        // Sum only the portion of each command that falls inside the requested window.
+        // Overlap formula:  max(0, min(FinishedAt, endUtc) - max(CreatedAt, startUtc))
         var pipeline = new BsonDocument[]
         {
-            // Stage 1: Match documents within date range and with FINISHED status
-            // Use FinishedAt instead of CreatedAt to filter by completion date
+            // Stage 1: Any command that overlaps the window (started before end AND finished after start).
+            // Includes RUNNING commands (FinishedAt is null) by treating null as endUtc.
             new BsonDocument("$match", new BsonDocument
             {
-                { "FinishedAt", new BsonDocument
+                { "CreatedAt", new BsonDocument("$lt", endUtc) },
+                { "$or", new BsonArray
                     {
-                        { "$gte", startUtc },
-                        { "$lte", endUtc }
+                        new BsonDocument("FinishedAt", new BsonDocument("$gt", startUtc)),
+                        new BsonDocument("FinishedAt", BsonNull.Value)
                     }
-                },
-                { "StatusGeneral", "FINISHED" }
+                }
             }),
-            // Stage 2: Group by ActuatorCode
+            // Stage 2: Compute the overlap (in seconds) of each command with [startUtc, endUtc]
+            new BsonDocument("$addFields", new BsonDocument
+            {
+                { "effectiveStart", new BsonDocument("$max", new BsonArray { "$CreatedAt", startUtc }) },
+                { "effectiveEnd", new BsonDocument("$min", new BsonArray
+                    {
+                        new BsonDocument("$ifNull", new BsonArray { "$FinishedAt", endUtc }),
+                        endUtc
+                    })
+                }
+            }),
+            new BsonDocument("$addFields", new BsonDocument
+            {
+                { "overlapSeconds", new BsonDocument("$max", new BsonArray
+                    {
+                        0,
+                        new BsonDocument("$divide", new BsonArray
+                        {
+                            new BsonDocument("$subtract", new BsonArray { "$effectiveEnd", "$effectiveStart" }),
+                            1000 // ms → s
+                        })
+                    })
+                }
+            }),
+            // Stage 3: Drop commands whose overlap is zero (no real activity inside the window)
+            new BsonDocument("$match", new BsonDocument
+            {
+                { "overlapSeconds", new BsonDocument("$gt", 0) }
+            }),
+            // Stage 4: Group by ActuatorCode summing the clipped duration
             new BsonDocument("$group", new BsonDocument
             {
                 { "_id", "$ActuatorCode" },
-                { "totalDurationSeconds", new BsonDocument("$sum", "$TotalDurationSeconds") },
+                { "totalDurationSeconds", new BsonDocument("$sum", "$overlapSeconds") },
                 { "activationCount", new BsonDocument("$sum", 1) }
             }),
-            // Stage 3: Project to final structure
+            // Stage 5: Project to final structure
             new BsonDocument("$project", new BsonDocument
             {
                 { "_id", 0 },
@@ -251,7 +283,7 @@ public class MongoRoutineCommandRepository : IRoutineCommandRepository
                 { "totalDurationSeconds", 1 },
                 { "activationCount", 1 }
             }),
-            // Stage 4: Sort by totalDurationSeconds descending
+            // Stage 6: Sort by totalDurationSeconds descending
             new BsonDocument("$sort", new BsonDocument
             {
                 { "totalDurationSeconds", -1 }
