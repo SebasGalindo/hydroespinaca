@@ -1,0 +1,191 @@
+# ================================================================
+# HydroEspinaca - Environment Configuration
+# ================================================================
+# This file contains all environment-specific configurations.
+# For production, copy this file to .env.production and modify 
+# the values accordingly.
+# ================================================================
+
+# ================================================================
+# ENVIRONMENT CONTROL
+# ================================================================
+# Current environment: Development | Production
+ENVIRONMENT=Development
+COMPOSE_PROFILE=development
+WEB_TARGET=development
+NODE_ENV=development
+
+# TLS/SSL Configuration
+USE_TLS=false
+
+# Certificate Management (for SSL bootstrap process)
+# Set to true only during initial certificate generation
+CERTBOT_ONLY=false
+
+# ================================================================
+# DOMAIN & NETWORKING
+# ================================================================
+DOMAIN=hydroespinaca.online
+API_SUBDOMAIN=api
+MQTT_SUBDOMAIN=mqtt
+FRONTEND_SUBDOMAIN=www
+MQTT_DOMAIN=mqtt.hydroespinaca.online
+ADMIN_EMAIL=[CREDENTIALS]
+
+# Frontend Configuration
+VITE_ALLOWED_HOSTS=api.hydroespinaca.online,hydroespinaca.online,localhost
+
+# ================================================================
+# DATABASE SECRETS
+# ================================================================
+MONGO_CONNECTION_STRING=[CREDENTIALS]
+MONGO_DATABASE=HidroEspinacaDB
+
+# ================================================================
+# MQTT BROKER CONFIGURATION & CREDENTIALS
+# ================================================================
+MQTT_HOST=mqtt
+MQTT_PORT=1883
+
+# MQTT User Credentials
+SENSOR_MQTT_CLIENT_ID=sensor-service
+SENSOR_MQTT_USER=sensor-apiuser
+SENSOR_MQTT_PASS=[CREDENTIALS]
+
+ACTUATOR_MQTT_CLIENT_ID=actuator-service
+ACTUATOR_MQTT_USER=actuator-apiuser
+ACTUATOR_MQTT_PASS=[CREDENTIALS]
+
+ESP32_MQTT_CLIENT_ID=esp32-001
+ESP32_MQTT_USER=esp32-001
+ESP32_MQTT_PASS=[CREDENTIALS]
+
+# ================================================================
+# AUTH SERVICE DEFAULT USERS
+# ================================================================
+HYDRO_ADMIN_PASSWORD=[CREDENTIALS]
+HYDRO_TEST_USER_PASSWORD=[CREDENTIALS]
+
+
+# ================================================================
+# API KEYS & SERVICE AUTHENTICATION
+# ================================================================
+# NOTE: Individual service API keys removed as they were unused
+# Services now use M2M JWT authentication for inter-service communication
+
+# ================================================================
+# JWT AUTHENTICATION CONFIGURATION
+# ================================================================
+Jwt_PrivateKeyPath=/app/auth-service/Keys/private.pem
+Jwt_PublicKeyPath=/app/auth-service/Keys/public.pem
+Jwt_Issuer=http://auth-service:8080
+Jwt_Audience=hydroespinaca-services
+Jwt_AccessTokenExpiryMinutes=60
+Jwt_RefreshTokenExpiryDays=7
+
+# ================================================================
+# MACHINE-TO-MACHINE (M2M) CREDENTIALS
+# ================================================================
+# Auth Service Internal Configuration
+AUTH_SERVICE_INTERNAL_URL=http://auth-service:8080
+AUTH_SERVICE_TOKEN_ENDPOINT=/api/auth/token
+
+# M2M Client Credentials (each service has its own)
+BFF_SERVICE_CLIENT_ID=bff-service-m2m
+BFF_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+AUTH_SERVICE_CLIENT_ID=auth-service-m2m
+AUTH_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+SENSOR_SERVICE_CLIENT_ID=sensor-service-m2m
+SENSOR_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+ACTUATOR_SERVICE_CLIENT_ID=actuator-service-m2m
+ACTUATOR_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+NOTIFICATION_SERVICE_CLIENT_ID=notification-service-m2m
+NOTIFICATION_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+FUZZY_SERVICE_CLIENT_ID=fuzzy-service-m2m
+FUZZY_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+BI_SERVICE_CLIENT_ID=bi-service-m2m
+BI_SERVICE_CLIENT_SECRET=[CREDENTIALS]
+
+# ================================================================
+# FUZZY SERVICE CONFIGURATION
+# ================================================================
+# MQTT Configuration for fuzzy-service
+FUZZY_MQTT_CLIENT_ID=fuzzy-service
+FUZZY_MQTT_USER=fuzzy-apiuser  
+FUZZY_MQTT_PASS=[CREDENTIALS]
+
+# ================================================================
+# NOTIFICATION SERVICE CONFIGURATION
+# ================================================================
+# Email Provider Configuration
+EMAIL_FROM_EMAIL=hydroespinaca@resend.dev
+EMAIL_FROM_NAME=HydroEspinaca
+EMAIL_PROVIDER=Resend
+
+# Resend Configuration
+RESEND_API_BASE_URL=https://api.resend.com
+RESEND_API_KEY=[CREDENTIALS]
+
+# SMTP Configuration (Gmail fallback)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USE_STARTTLS=true
+SMTP_USERNAME=[CREDENTIALS]
+SMTP_PASSWORD=[CREDENTIALS]
+
+# ================================================================
+# BFF SERVICE CONFIGURATION
+# ================================================================
+# Session Management
+BFF_SESSION_ID_HEADER=X-Session-Id
+BFF_CSRF_TOKEN_HEADER=X-CSRF-Token
+
+# Cookie Configuration (Environment-specific)
+BFF_COOKIE_SECURE=false
+BFF_COOKIE_SAMESITE=Lax
+BFF_COOKIE_DOMAIN=
+
+# Internal Service URLs
+SENSOR_SERVICE_URL=http://sensor-service:8080
+ACTUATOR_SERVICE_URL=http://actuator-service:8080
+AUTH_SERVICE_URL=http://auth-service:8080
+NOTIFICATION_SERVICE_URL=http://notification-service:8080
+FUZZY_SERVICE_URL=http://fuzzy-service:8000
+BI_SERVICE_URL=http://bi-service:8080
+
+NEXT_PUBLIC_API_URL=http://localhost/api
+# In production, set to: https://api.hydroespinaca.online/api
+
+
+# ================================================================
+# EXTERNAL APIs
+# ================================================================
+# OpenWeather One Call 3.0 API (for weather data)
+# Backend service uses OPENWEATHER_API_KEY (no frontend exposure)
+OPENWEATHER_API_KEY=[CREDENTIALS]
+CLOUDFLARE_API_TOKEN=[CREDENTIALS]
+# ================================================================
+# PRODUCTION CONFIGURATION OVERRIDES
+# ================================================================
+# To deploy to production, create .env.production and set:
+# 
+# ENVIRONMENT=Production
+# COMPOSE_PROFILE=production
+# USE_TLS=true
+# CERTBOT_ONLY=false (only set to true during initial SSL setup)
+# BFF_COOKIE_SECURE=true
+# BFF_COOKIE_SAMESITE=None
+# BFF_COOKIE_DOMAIN=.hydroespinaca.online
+# 
+# Also consider:
+# - Using production MongoDB cluster
+# - Rotating all secrets and API keys
+# - Using proper SSL certificates
+# - Updating domain configurations
+# ================================================================
